@@ -1,7 +1,7 @@
 id: '1'
 title: spec-1-seed-phase-1-benchmark-
 protocol: spir
-phase: specify
+phase: plan
 plan_phases: []
 current_plan_phase: null
 gates:
@@ -16,7 +16,10 @@ gates:
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-10T19:04:21.292Z'
-updated_at: '2026-10-10T22:49:49.319Z'
+updated_at: '2026-10-10T22:49:50.661Z'
+context_refreshes:
+  - boundary: enter:plan
+    at: '2026-10-10T22:49:50.661Z'
