@@ -66,15 +66,15 @@ A `sacredtexts` pipeline with the FaithfulBench/multibench four-subsystem shape,
      document the two-tier meaning.
    - `texts/standardized/` — the standard flat-format documents produced by the
      converters from `texts/raw/` (one document per work/version/language,
-     possibly sharded per unit). **Public-domain corpora (e.g. KJV/ASV Bibles,
-     openly-licensed Quran JSON) may be committed; corpora derived from
-     copyrighted translations (NABRE) stay gitignored** pending licensing.
-     Pipeline stages (`validate`, `generate`) read from here.
-   - **At least two versions of at least one work** are present (e.g. two
-     public-domain Bible translations) so that `identify_version` is a real
-     discrimination task rather than inferable from the work alone.
+     possibly sharded per unit). **Public-domain / openly-licensed corpora may be
+     committed; corpora derived from copyrighted translations (NABRE) stay
+     gitignored** pending licensing. Pipeline stages (`validate`, `generate`)
+     read from here.
    - Adding a faith tradition's texts = adding a `texts/raw/<source-id>/`
-     directory + YAML; it never changes core pipeline code.
+     directory + YAML; it never changes core pipeline code. The two-tier `raw/`
+     layout is designed to **absorb additional working-group data as drop-in**;
+     v1 deliberately keeps a **single version per work** and does no multi-version
+     corpus work until such data actually arrives (simpler is better).
 2. **Conversion scripts** turn `texts/raw/` sources into `texts/standardized/`
    documents: the `sacredbench convert` registry (NABRE books, encyclicals,
    Quran JSON, …) driven by each source's `source.yaml`, so the standardized
@@ -97,8 +97,9 @@ A `sacredtexts` pipeline with the FaithfulBench/multibench four-subsystem shape,
    governs validity: per-task item quotas, the negative ratio for `verify_source`,
    tradition balancing across the panel, and exclusions — a wrong-work
    `verify_source` negative whose text **also occurs** in the attributed work is
-   excluded, and `identify_version` items whose wording is shared across the
-   corpus's versions are excluded (so the answer is genuinely distinctive).
+   excluded. `identify_version` is **deferred**: while every work has a single
+   version the answer is inferable from the work alone, so `generate` skips the
+   task; it switches on only once ≥2 versions of a work exist in the corpus.
    Every question carries a **stable content-derived ID and ordering**, and the
    run persists the seed, generation config, and a hash of the input corpora, so
    a corpus edit cannot silently reshuffle the set and a later stage refuses to
@@ -162,7 +163,7 @@ to evasive/multi-candidate answers (see Scoring, below).
 
 | task | template | expected-answer schema | metrics | headline `correct` |
 |---|---|---|---|---|
-| identify_version | "Which version of «work» says «text»?" | one version label from the corpus | exact, normalized (on label) | matches the *unique* correct version; items whose wording is shared across the corpus's versions are excluded at generation |
+| identify_version | "Which version of «work» says «text»?" | one version label from the corpus | exact, normalized (on label) | **DEFERRED** — every work currently has a single version, so the answer is inferable from the work; `generate` skips this task until ≥2 versions of a work exist. Template kept here pending multi-version data. |
 | retrieve_quote | "Please give me the «version» quote for «citation»" | exact unit text | exact, normalized, token-F1 | normalized exact match |
 | verify_source | "Is «text» from «work»?" (incl. wrong-work negatives) | yes / no | boolean parse | parsed boolean equals ground truth |
 | complete_unit | "Please complete this «unit_type»: «beginning»" | the remainder of the unit | exact, normalized, token-F1 | normalized exact match of the remainder |
@@ -180,13 +181,10 @@ must match it (it already gives the three similarity metrics only to
       (provenance, license status, fetch method, converter); raw payloads
       gitignored, with `.gitignore` restructured so the committed `source.yaml`
       is reachable and `texts/README.md` describing the two tiers.
-- [ ] **At least two versions of at least one work** (e.g. two public-domain
-      Bible translations) are present, so `identify_version` is a real
-      discrimination task; public-domain standardized corpora are committed,
-      NABRE-derived ones stay gitignored.
 - [ ] `texts/standardized/` holds the corresponding standard-format documents,
       rebuilt from `texts/raw/` by one conversion command, with a validator
-      that mechanically gates the format.
+      that mechanically gates the format; public-domain/openly-licensed
+      standardized corpora are committed, NABRE-derived ones stay gitignored.
 - [ ] The exporter **assembles** per-unit standardized shards into one
       interchange document per work/version with defined ordering/dedup, and the
       round-trip **standardized shards ↔ interchange document** is lossless on
@@ -196,8 +194,8 @@ must match it (it already gives the three similarity metrics only to
       persisted, and a later stage refuses to resume against changed questions.
       Every question carries exact expected answer + full source coordinates;
       `verify_source` includes negatives (excluding wrong-work negatives whose
-      text also occurs in the attributed work); `identify_version` excludes
-      shared-wording items.
+      text also occurs in the attributed work); `identify_version` is deferred
+      (skipped) while each work has a single version.
 - [ ] `collect` runs a ≥3-model panel spanning ≥2 providers (verified by committed
       run artifacts, not CI); resumable; partial failure exits non-zero with the
       failed cells listed.
@@ -228,8 +226,8 @@ must match it (it already gives the three similarity metrics only to
   translation — texts/ corpora derived from it are **not committed** to this
   public repo until licensing is confirmed; converters pull from Jonathan's repo
   (or Box) at build time instead. Committed fixtures use tiny synthetic data.
-  Public-domain translations (KJV/ASV, openly-licensed Quran) carry no such
-  restriction and may be committed. The gate also covers **derived artifacts**:
+  Public-domain / openly-licensed corpora carry no such restriction and may be
+  committed. The gate also covers **derived artifacts**:
   committed `questions`/`answers`/`scores` and any smoke evidence must not embed
   copyrighted source text — NABRE-derived items are redacted or hashed. Whether
   NABRE excerpts may be **sent to third-party model-provider APIs** during a live
@@ -310,8 +308,8 @@ meeting needs a pipeline update; Waleed already offered (Oct 8) to take a shot.
   different seed ⇒ different sample; editing a corpus changes the input hash and a
   resume against the changed set is refused.
 - Generation excludes a wrong-work `verify_source` negative whose text also occurs
-  in the attributed work, and an `identify_version` item whose wording is shared
-  across versions.
+  in the attributed work, and **skips `identify_version` entirely** while each
+  work has a single version.
 - Collection with a dead provider key fails that model's cells, exits non-zero,
   and a re-run with the key fixed fills exactly the missing cells.
 - Scoring: curated answer fixtures hit expected metric values per the per-task

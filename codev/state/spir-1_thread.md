@@ -33,4 +33,15 @@ SPIR, strict mode (porch-driven).
 - NOTE for the gate: two changes reopen shipped work — (a) requiring ≥2 corpus
   versions (new corpus work), (b) the round-trip redefinition. Surfacing both to
   the architect at spec-approval so the human decides.
-- Next: porch done → spec-approval gate (human-only). Notify architect, wait.
+- Reached spec-approval gate; flagged the two scope-bearing changes to architect.
+- Human decision (architect main, 20:59Z): (a) REJECTED the ≥2-versions /
+  KJV/ASV corpus work — instead drop that requirement+criterion and DEFER
+  identify_version (template kept, marked deferred; generate skips it while each
+  work is single-version). (b) ACCEPTED the shards↔assembled-interchange round-trip
+  redefinition. General direction: simpler is better, two-tier raw/ absorbs
+  drop-in data, don't over-engineer for corpora we don't have yet.
+- Revised accordingly: removed the ≥2-versions bullet+criterion, marked
+  identify_version DEFERRED in the table + generation policy + criteria + test,
+  generalized the public-domain example (dropped KJV/ASV naming), added the
+  drop-in-absorption note to §1. Kept all other consult fixes.
+- Re-signalling the gate; human will approve explicitly. Do NOT self-approve.
