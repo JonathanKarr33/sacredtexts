@@ -7,9 +7,18 @@ codev/.update-hashes.json
 codev/state/*.md
 !codev/state/*_thread.md
 
-# Converted corpora (licensing per source not yet confirmed — see texts/README.md)
-texts/*
-!texts/README.md
+# Raw sources held back pending licensing (public repo — see texts/README.md)
+# NABRE: copyrighted translation (Confraternity of Christian Doctrine / USCCB)
+texts/raw/Roman Catholic/nabre.json
+# TLG corpus extracts (licensed TLG corpus; Rahlfs/NA editions copyrighted)
+texts/raw/Greek Orthodox/
+
+# Standardized corpora derived from copyrighted sources are rebuilt locally
+texts/standardized/
+
+# Legacy pre-two-tier converted corpora (superseded by texts/raw + texts/standardized)
+texts/bible-nabre.json
+texts/encyclicals/
 
 # Run outputs
 runs/

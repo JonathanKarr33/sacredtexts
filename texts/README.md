@@ -1,8 +1,17 @@
-# texts/ — converted standard-format corpora
+# texts/ — corpora (two-tier: raw → standardized)
 
-Standard flat-format documents produced by `sacredbench convert` (see
-`pipelines/README.md`). **Contents are gitignored** until the group confirms
-licensing per source: NABRE is a copyrighted translation, so corpora derived
-from it must not be committed to this public repo (spec constraint). Rebuild
-locally from `Religion-at-Notre-Dame/catholic_text_json` with the convert
-commands in `pipelines/README.md`.
+- **`raw/`** — source data exactly as obtained, organised by tradition. Seeded
+  from the working group's Box folder ("Phase I / raw JSON", downloaded
+  2026-10-10). Two subsets are **held back from this public repo** pending
+  licensing and exist only locally (see `.gitignore`):
+  - `raw/Roman Catholic/nabre.json` — NABRE is a copyrighted translation
+    (Confraternity of Christian Doctrine / USCCB).
+  - `raw/Greek Orthodox/` — direct extracts of the licensed TLG corpus
+    (and the underlying Rahlfs Septuagint / Nestle-Aland editions are
+    themselves copyrighted).
+- **`standardized/`** — the working group's standard flat-format documents,
+  produced from `raw/` by `sacredbench convert` (see `pipelines/README.md`).
+  Rebuilt locally; corpora derived from copyrighted sources are not committed.
+
+Per-source provenance metadata (`source.yaml`) and the conversion registry are
+specified in `codev/specs/1-phase1-benchmark-pipeline.md`.
