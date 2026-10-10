@@ -153,10 +153,22 @@ A `sacredtexts` pipeline with the FaithfulBench/multibench four-subsystem shape,
    listed tradition** (so per-tradition `n` sums to more than the item count),
    and a separate overall row counts each observation exactly once — this is the
    rule every number in the paper is computed under. Output is the per-model ×
-   task × tradition summary (JSON + markdown). **Visualisation** (matplotlib
-   figures, the publicly useful browser SPA à la multibrowser) is explicitly a
-   **follow-on spec**, like the viewer adaptation — this spec's analysis
-   deliverable is the summary table, not figures.
+   task × tradition summary (JSON + markdown).
+7. **A closed loop, even if narrow** (amended 2026-10-10, human direction —
+   loop-closure over breadth): the headline deliverable is the **full
+   end-to-end flow working** on real data, explicitly not perfect or broad. Two
+   thin pieces complete the loop:
+   - **`TUTORIAL.md`** at the repo root — a copy-pasteable, step-by-step
+     walkthrough from a fresh checkout: convert → validate → generate (small,
+     seeded) → collect (small, budgeted panel) → score → view the results. Every
+     command is verified by running it, in order, on a fresh clone before the PR.
+   - **A minimal LOCAL results view in `apps/viewer`** — the smallest thing that
+     shows the evidence run's summary + per-question scores in a browser, served
+     by a local dev server reading the run artifacts (committed or local
+     `runs/`). **No deploy, no polish, no domain adaptation** — the full viewer
+     adaptation and any public SPA stay **follow-on (Spec 2 / issue #2)**.
+   Heavier **visualisation** (matplotlib figures, the public multibrowser-style
+   SPA) is out of scope here.
 
 ### Interchange format (group-agreed, Sep 8 draft + feedback)
 
@@ -235,11 +247,19 @@ must match it (it already gives the three similarity metrics only to
       applicable metrics per task + a headline `correct` robust to multi-candidate
       answers, plus a per-model × task × tradition summary (JSON + markdown) using
       the stated list-valued-tradition aggregation rule.
-- [ ] One end-to-end smoke run on live providers (small question count) committed
-      as evidence, with usage/cost totals computed from the data — and committed
-      smoke artifacts (`questions`/`answers`/`scores`) carry **only
-      public-domain/open or synthetic text**; any `restricted` (NABRE/TLG) text in
-      them is redacted or hashed per the copyright gate.
+- [ ] **The first real benchmark run, end to end**: convert all committed
+      sources → standardized, generate ~100 seeded `retrieve_quote` questions,
+      collect across a small budgeted panel, score, and commit the summary +
+      artifacts as evidence, with usage/cost totals computed from the data.
+      Committed artifacts (`questions`/`answers`/`scores`) carry **only
+      public-domain/open or synthetic text**; any `restricted` (NABRE/TLG) text is
+      redacted or hashed per the copyright gate.
+- [ ] **`TUTORIAL.md`** walks the whole flow (convert → validate → generate →
+      collect → score → view) from a fresh checkout with copy-pasteable commands,
+      every one verified by running it in order on a fresh clone before the PR.
+- [ ] **A minimal local results view** in `apps/viewer` shows the run's summary +
+      per-question scores in a browser via a local dev server reading the run
+      artifacts; no deploy/polish/domain-adaptation (that is Spec 2).
 - [ ] Unit tests cover converters (against the real committed raw sources, plus
       real-shape fixtures for restricted ones), generation determinism
       (IDs/ordering/hash), the per-task scoring contract (incl. a
