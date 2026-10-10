@@ -52,15 +52,27 @@ explicitly **out of scope**.
 A `sacredtexts` pipeline with the FaithfulBench/multibench four-subsystem shape,
 **multi-faith from day one** in the way multibench is multi-tradition:
 
-1. **Corpora are drop-in directories** under `texts/<corpus-id>/` — adding a faith
-   tradition's texts adds a directory, never changes core code. Each corpus holds
-   small metadata (YAML: tradition list, work, version, language, document_type,
-   source/provenance) plus the text units as **JSONL** (one entry per line:
-   `{unit_type, citation, text}`). Core discovers corpora by globbing.
-2. **Converters** turn known source shapes (NABRE books, encyclicals, Quran JSON,
-   …) into corpora, and an **exporter** emits the group's agreed interchange JSON
-   (Nancy's flat format) for Box/group sharing. Adding a source format = one
-   converter function + a registry line.
+1. **Two-tier `texts/` layout** (amended 2026-10-10, Waleed's direction):
+   - `texts/raw/<source-id>/` — the **raw source data exactly as obtained**
+     (Jonathan's repo JSON, Box files, Quran JSON, …), plus a committed
+     **`source.yaml`** per source describing it: tradition list, work, version,
+     language, document_type, where it came from (URL/repo/commit), how it was
+     fetched, fetch date, license status, and which converter consumes it.
+     Raw text payloads stay **gitignored** per the copyright gate; the YAML
+     metadata is committed.
+   - `texts/standardized/` — the standard flat-format documents produced by the
+     converters from `texts/raw/` (one document per work/version/language;
+     gitignored pending licensing). Pipeline stages (`validate`, `generate`)
+     read from here.
+   - Adding a faith tradition's texts = adding a `texts/raw/<source-id>/`
+     directory + YAML; it never changes core pipeline code.
+2. **Conversion scripts** turn `texts/raw/` sources into `texts/standardized/`
+   documents: the `sacredbench convert` registry (NABRE books, encyclicals,
+   Quran JSON, …) driven by each source's `source.yaml`, so the standardized
+   tier is mechanically rebuildable from raw with one command. An **exporter**
+   emits the group's agreed interchange JSON (Nancy's flat format) for
+   Box/group sharing. Adding a source format = one converter function + a
+   registry line.
 3. **Benchmark generation**: deterministic (seeded) sampling over corpora through
    the six agreed templates → `questions.jsonl`. Includes **false-premise
    negatives** (real text attributed to the wrong work) for the
@@ -112,9 +124,13 @@ detailed provenance/parent citations/footnotes are omitted in v1.
 
 ## Success Criteria
 
-- [ ] `texts/` holds ≥2 traditions' corpora (Catholic: NABRE + ≥1 encyclical;
-      Islam: Quran) in the drop-in format, produced by converters from the real
-      source JSON, with a validator that mechanically gates the format.
+- [ ] `texts/raw/` holds ≥2 traditions' sources (Catholic: NABRE + ≥1
+      encyclical; Islam: Quran), each with a committed `source.yaml`
+      (provenance, license status, fetch method, converter); raw payloads
+      gitignored.
+- [ ] `texts/standardized/` holds the corresponding standard-format documents,
+      rebuilt from `texts/raw/` by one conversion command, with a validator
+      that mechanically gates the format.
 - [ ] Exporter emits interchange JSON that round-trips (`corpus → interchange →
       corpus` is lossless).
 - [ ] `generate` is deterministic for a fixed seed; every question carries exact
