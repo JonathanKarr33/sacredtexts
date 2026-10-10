@@ -44,4 +44,33 @@ SPIR, strict mode (porch-driven).
   identify_version DEFERRED in the table + generation policy + criteria + test,
   generalized the public-domain example (dropped KJV/ASV naming), added the
   drop-in-absorption note to §1. Kept all other consult fixes.
-- Re-signalling the gate; human will approve explicitly. Do NOT self-approve.
+- Re-signalled the gate (round 1 of feedback).
+
+## 2026-10-10 — Specify, feedback round 2 (real data landed)
+
+- Architect (main, 21:45Z): working-group raw data landed on main (2cfda99,
+  4df2b42). Rebased builder/spir-1 onto origin/main — clean (my codev/ commits
+  don't overlap texts/raw). texts/raw now has 7 traditions committed verbatim;
+  2 restricted held back gitignored: Roman Catholic/nabre.json (NABRE) and
+  Greek Orthodox/ (TLG).
+- Inspected the REAL shapes (grounds converter planning, not fixtures):
+  Protestant KJV/ASV/WEB = flat [{book,chapter,verse,text}] (~31k each, 3 versions
+  of one work); Quran QUL = dict "surah:ayah"→{id,verse_key,surah,ayah,text};
+  hadith = {id,metadata,chapters[],hadiths[{...,arabic}]}; encyclicals =
+  index.json{items[...]}+per-item; Talmud = Sefaria per-tractate en/he
+  {language,title,...,text}; LDS = nested {book:{heading,chapter:{verse:text}}}.
+  No source.yaml files exist yet (impl creates them).
+- Spec additions (architect's 3): (1) source.yaml carries a `license` field
+  (public-domain/open/restricted); (2) restricted excluded from convert+generate
+  by default, opt-in via --include-restricted, validate works regardless,
+  no-copyrighted-text-in-artifacts stays; (3) converters planned against the real
+  committed shapes. Reconciled the spec's old blanket "raw payloads gitignored"
+  to reality (public-domain raw IS committed; only restricted gitignored).
+- identify_version: multi-version data (KJV/ASV/WEB) now EXISTS, so per architect
+  it keeps its version-gated mechanism and simply activates for the Bible once
+  converted. Reframed the wording from "deferred (all single-version)" to
+  "version-gated per work" — mechanism unchanged, now factually accurate.
+- Cleaned stale refs: Quran-SPOF risk removed (QUL committed), NABRE→restricted
+  generalized throughout, Assumptions updated (data landed), converter tests now
+  run against real committed sources + fixtures for restricted.
+- Re-signalling the gate. Human approves explicitly; do NOT self-approve.
