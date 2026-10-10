@@ -1,0 +1,24 @@
+# Example model panel for `sacredbench collect`.
+# Copy to configs/models.yaml (gitignored) and adjust. Keys come from the
+# environment — never from a file in this public repo.
+concurrency: 8
+models:
+  - id: haiku
+    provider: anthropic
+    model: claude-haiku-5-5
+    max_tokens: 1024
+  - id: gpt
+    provider: openai
+    model: gpt-5.6-terra
+    max_tokens: 1024
+  - id: gemini-flash
+    provider: gemini
+    model: gemini-3.6-flash
+    max_tokens: 1024
+  # Any OpenAI-compatible host (e.g. OpenRouter) works via base_url + api_key_env:
+  - id: gemma-4
+    provider: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    model: google/gemma-4-27b-it
+    max_tokens: 1024

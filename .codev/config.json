@@ -1,8 +1,18 @@
 {
   "shell": {
-    "architect": "claude",
-    "builder": "claude",
+    "architect": "claude --model claude-fable-5 --dangerously-skip-permissions",
+    "builder": "claude --model claude-opus-4-8 --dangerously-skip-permissions",
     "shell": "bash"
+  },
+  "porch": {
+    "//": "Ported from multibench. Implement-phase checks: build has no analog; tests run via a per-builder DISPATCHER (.codev/checks/test.sh) that tests only the app/pipeline each builder touched (registry: pipelines -> uv pytest, apps/viewer -> pnpm vitest; +1 line/app). Consultation drops Gemini for impl/review phases (its sandbox can't see the worktree -> no verdict blocks unanimity); full 3-way only where the diff is fed inline.",
+    "checks": {
+      "build": { "skip": true },
+      "tests": { "command": "bash .codev/checks/test.sh" }
+    },
+    "consultation": {
+      "models": ["codex", "claude"]
+    }
   },
   "worktree": {
     "//": "Opt-in runnable worktree config. See CLAUDE.md > Runnable Worktrees for stack-specific recipes (pnpm, npm, yarn, bun, cargo, poetry/uv, go mod). Defaults shown below are no-ops; fill in to enable.",
