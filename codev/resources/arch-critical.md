@@ -1,17 +1,14 @@
 # arch-critical.md — Always-On System-Shape Facts (HOT tier)
 
-<!-- HOT tier: capped facts + a bounded map of arch.md. Always injected into every porch
-phase prompt and into CLAUDE.md/AGENTS.md. CAP: <=10 facts, <=12 map topics, <=35 lines.
-To add a fact, DEMOTE a weaker one into arch.md (displacement). MAINTAIN polices the cap
-and keeps the map in sync with arch.md's top-level sections.
-STARTER: replace the examples below with YOUR project's facts and arch.md sections. -->
-
 ## Critical facts (consult before deciding)
-- <A system-shape fact that should change implementation choices — e.g. "all persistent state lives in X; never write it directly.">
-- <An invariant a contributor must not violate — e.g. "service A only talks to service B through the queue.">
-- <Keep to <=10, one line each; demote weaker facts into arch.md.>
+- **Phase 1 question**: can models recognize, retrieve, and generate sacred text, and reject false premises/incorrect texts? Interpretation/recommendation is Phase 2 — out of scope. Contract: Spec 1.
+- The **interchange format** is the working group's flat JSON (`{source:{tradition[],work,version,language,document_type,source_url?}, entries:[{unit_type,citation,text}]}`) — our internal representations must export to it losslessly. `tradition` is a LIST (traditions share texts).
+- **Multi-faith by construction**: corpora are drop-in data (one converter registry line + a data directory per source); adding a tradition never changes core pipeline code.
+- Pipeline shape is **four subsystems** (collection, scoring, analysis, visualisation) with **JSONL seams**: questions.jsonl → answers.jsonl → scores.jsonl. Stages are resumable; failed cells stay pending and exit non-zero.
+- **Scoring reports both tiers + similarity** (exact / normalized / token-F1) on every answer; the semantic metric is pluggable (open group question). Per-task headline `correct` rules live in `pipelines/sacredbench/score.py`.
+- **Copyright gate**: corpora derived from copyrighted translations (e.g. NABRE) are NOT committed to this public repo — `texts/*` is gitignored; converters rebuild locally from the source repos.
+- `pipelines/` is a single uv project (`sacredbench`); run via `uv --project pipelines run python -m sacredbench …` from the repo root. Providers: anthropic / any OpenAI-compatible host (base_url+api_key_env) / gemini; keys from env only.
+- `apps/viewer/` is a **seed port of multibench's multibrowser** (client-side GitHub data layer, SHA-pinned) — not yet adapted to this domain; read `apps/viewer/README.md` before touching it.
 
 ## Map of arch.md (consult when…)
-- <Top-level arch.md section> — consult when <situation>.
-- <Top-level arch.md section> — consult when <situation>.
-- <List your arch.md's top-level sections here; keep <=12, top-level only.>
+- (arch.md not yet written — seed it from Spec 1 after the first implementation round.)

@@ -1,0 +1,25 @@
+# viewer (seeded from multibench's multibrowser)
+
+**STATUS: seed, not yet adapted.** This app is a verbatim port of
+`multibench/apps/multibrowser` (commit 14f6c9d4), with only the upstream repo
+default repointed to `faithfamilytechnologynetwork/sacredtexts` and the baked
+`public/data-raw` bundle removed. It will not render meaningful pages until its
+data layer is adapted from MultiBench's domain (traditions / scenarios /
+pressures / results tiers) to the Sacred Texts domain (corpora / works /
+questions / answers / scores) — that adaptation is SPIR work, specced in
+`codev/specs/`.
+
+What carries over as-is (and why this seed is worth it):
+- the **client-side GitHub data layer** (`src/lib/github.ts`, `queries.ts`):
+  SHA-pinned tree reads, raw-content fetches off the API budget, gentle SHA
+  polling, stale-on-403 with a banner — all the unauthenticated-rate-limit
+  lessons are baked in;
+- the stack and conventions: Vite / React 19 / TS / Tailwind 4 / HeroUI v3
+  (provider-less — do NOT add a v2-era provider) / TanStack Router+Query;
+- the Railway static deploy shape (`railway.json`, `server/`, `.railwayignore`,
+  engines.node >= 20 for Tailwind 4 oxide) incl. the `--no-gitignore` baked-
+  bundle gotcha documented in the original README;
+- the test setup (vitest; the GitHub boundary is mockable by construction).
+
+The original README is preserved verbatim as `README.multibrowser.md` — read it
+before touching the data layer; its "lessons" sections are load-bearing.

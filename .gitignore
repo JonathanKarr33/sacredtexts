@@ -6,3 +6,22 @@ codev/.update-hashes.json
 .architect-role.md
 codev/state/*.md
 !codev/state/*_thread.md
+
+# Converted corpora (licensing per source not yet confirmed — see texts/README.md)
+texts/*
+!texts/README.md
+
+# Run outputs
+runs/
+
+# Live model panel (keys come from env, panel is per-user)
+configs/models.yaml
+
+# Python
+pipelines/.venv/
+__pycache__/
+*.pyc
+
+# Viewer app
+apps/viewer/node_modules/
+apps/viewer/dist/

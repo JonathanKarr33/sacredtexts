@@ -1,21 +1,42 @@
 # sacredtexts
 
-Pipelines for question-answering evaluation over sacred texts.
+**Sacred Texts Benchmark — Phase 1**: can AI models correctly recognize,
+retrieve, and generate sacred texts — with provenance — and reject false
+premises and incorrect texts?
 
-The project takes JSON files of sacred texts and runs them through a staged
-pipeline:
+JSON files of sacred texts go in; questions are generated from the working
+group's templates; several LLMs answer; answers are collected and scored.
 
-1. **Ingest** — load and normalize the sacred-text JSON files.
-2. **Generate questions** — produce questions grounded in the texts.
-3. **Query LLMs** — pose each question to several different LLMs.
-4. **Collect results** — gather and store every model's answers.
-5. **Answer / score** — evaluate the collected answers against the texts.
+```
+source JSON ─convert─▶ standard docs ─generate─▶ questions.jsonl
+questions.jsonl × model panel ─collect─▶ answers.jsonl ─score─▶ scores.jsonl + summary
+```
 
-See `pipelines/README.md` for the pipeline layout. A detailed project report
-defining scope and methodology is forthcoming; specs live in `codev/specs/`.
+## Layout
+
+- `pipelines/` — the benchmark pipeline (`sacredbench`, Python/uv/Typer):
+  converters to the group's standard flat JSON, question generation (six
+  templates, incl. false-premise negatives), multi-provider collection
+  (Anthropic / OpenAI-compatible / Gemini), scoring (strict + normalized +
+  token-F1). See `pipelines/README.md`.
+- `texts/` — converted standard-format corpora (gitignored pending licensing;
+  rebuilt locally by the converters).
+- `configs/` — model-panel configs (`models.example.yaml`; real panel gitignored).
+- `apps/viewer/` — results/corpus browser SPA, seeded from multibench's
+  multibrowser; not yet adapted (see `apps/viewer/README.md`).
+- `codev/` — specs/plans/reviews. Start at
+  `codev/specs/1-phase1-benchmark-pipeline.md`.
+
+## Quick start
+
+```bash
+uv --project pipelines run python -m sacredbench --help
+uv --project pipelines run pytest pipelines          # unit tests
+pnpm -C apps/viewer test                              # viewer tests
+```
 
 ## Development
 
-This project uses [Codev](https://github.com/cluesmith/codev) for AI-assisted
-development — see `CLAUDE.md` / `AGENTS.md` for the workflow, and
-`codev/specs|plans|reviews/` for the three documents each feature carries.
+This project uses [Codev](https://github.com/cluesmith/codev) (SPIR protocol,
+human-gated) — see `CLAUDE.md` / `AGENTS.md`. AI-written code lands only with
+human review, and benchmark outputs are validated against the sources.

@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@plugin "@tailwindcss/typography";
+
+/*
+ * Numbered-shade shim (#86).
+ *
+ * @heroui/styles v3 ships ONLY semantic color tokens (--color-default,
+ * --color-warning, --color-border, …) — it has no numbered scale. Tailwind v4
+ * generates a `text-default-500` utility only if a `--color-default-500` theme
+ * variable exists, so every numbered shade the app uses (text-default-500,
+ * border-default-200, bg-warning-50, …) previously compiled to NOTHING. Same
+ * bug class as the #55 tooltip scar, diagnosed at the root.
+ *
+ * This block maps a 50→900 ramp onto the theme-aware semantic tokens HeroUI
+ * already defines. `@theme inline` is REQUIRED: it inlines the color-mix value
+ * into each utility rather than emitting a fixed `:root` variable, so the inner
+ * var(--foreground)/var(--background)/var(--warning) resolve in the element's
+ * context and the whole ramp flips correctly between light and dark mode (the
+ * poles are HeroUI's own theme-aware tokens). Only the families actually used
+ * with numbered shades are defined: default (neutral) + the warning/danger/
+ * success status hues.
+ */
+@theme inline {
+  /* Neutral ramp: foreground↔background poles (light: dark-on-light, dark: light-on-dark). */
+  --color-default-50: color-mix(in oklab, var(--foreground) 4%, var(--background));
+  --color-default-100: color-mix(in oklab, var(--foreground) 7%, var(--background));
+  --color-default-200: color-mix(in oklab, var(--foreground) 12%, var(--background));
+  --color-default-300: color-mix(in oklab, var(--foreground) 22%, var(--background));
+  --color-default-400: color-mix(in oklab, var(--foreground) 40%, var(--background));
+  --color-default-500: color-mix(in oklab, var(--foreground) 55%, var(--background));
+  --color-default-600: color-mix(in oklab, var(--foreground) 66%, var(--background));
+  --color-default-700: color-mix(in oklab, var(--foreground) 78%, var(--background));
+  --color-default-800: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  --color-default-900: color-mix(in oklab, var(--foreground) 96%, var(--background));
+
+  /* Warning hue: light steps tint the background, dark steps tint the foreground. */
+  --color-warning-50: color-mix(in oklab, var(--warning) 12%, var(--background));
+  --color-warning-100: color-mix(in oklab, var(--warning) 20%, var(--background));
+  --color-warning-200: color-mix(in oklab, var(--warning) 32%, var(--background));
+  --color-warning-300: color-mix(in oklab, var(--warning) 48%, var(--background));
+  --color-warning-400: color-mix(in oklab, var(--warning) 70%, var(--background));
+  --color-warning-500: var(--warning);
+  --color-warning-600: color-mix(in oklab, var(--warning) 82%, var(--foreground));
+  --color-warning-700: color-mix(in oklab, var(--warning) 66%, var(--foreground));
+  --color-warning-800: color-mix(in oklab, var(--warning) 52%, var(--foreground));
+  --color-warning-900: color-mix(in oklab, var(--warning) 42%, var(--foreground));
+
+  /* Danger hue. */
+  --color-danger-50: color-mix(in oklab, var(--danger) 12%, var(--background));
+  --color-danger-100: color-mix(in oklab, var(--danger) 20%, var(--background));
+  --color-danger-200: color-mix(in oklab, var(--danger) 32%, var(--background));
+  --color-danger-300: color-mix(in oklab, var(--danger) 48%, var(--background));
+  --color-danger-400: color-mix(in oklab, var(--danger) 70%, var(--background));
+  --color-danger-500: var(--danger);
+  --color-danger-600: color-mix(in oklab, var(--danger) 82%, var(--foreground));
+  --color-danger-700: color-mix(in oklab, var(--danger) 66%, var(--foreground));
+  --color-danger-800: color-mix(in oklab, var(--danger) 52%, var(--foreground));
+  --color-danger-900: color-mix(in oklab, var(--danger) 42%, var(--foreground));
+
+  /* Success hue (status peer of warning/danger). */
+  --color-success-50: color-mix(in oklab, var(--success) 12%, var(--background));
+  --color-success-100: color-mix(in oklab, var(--success) 20%, var(--background));
+  --color-success-200: color-mix(in oklab, var(--success) 32%, var(--background));
+  --color-success-300: color-mix(in oklab, var(--success) 48%, var(--background));
+  --color-success-400: color-mix(in oklab, var(--success) 70%, var(--background));
+  --color-success-500: var(--success);
+  --color-success-600: color-mix(in oklab, var(--success) 82%, var(--foreground));
+  --color-success-700: color-mix(in oklab, var(--success) 66%, var(--foreground));
+  --color-success-800: color-mix(in oklab, var(--success) 52%, var(--foreground));
+  --color-success-900: color-mix(in oklab, var(--success) 42%, var(--foreground));
+}
