@@ -101,4 +101,21 @@ SPIR, strict mode (porch-driven).
   7 phases — catalogue+license-gating, converters for real shapes, exporter+
   round-trip, generation hardening, scoring contract+tradition analysis, minimal
   local viewer, first benchmark run + TUTORIAL. One PR, opened at/after Phase 7.
-- Signalling PLAN_DRAFTED; porch runs the 2-way consult.
+- Signalled PLAN_DRAFTED; porch ran 2-way consult (codex + claude). Both
+  REQUEST_CHANGES / HIGH, tightly converged; claude read the real data + seed.
+- Accepted essentially all of it; revised plan 7→8 phases (split the heavy
+  converter phase). Key fixes: source.yaml is a `targets` manifest (not 1/source)
+  + common converter interface; .gitignore negations so every source.yaml commits
+  (incl. Greek Orthodox) while payloads stay ignored; standardized-path convention
+  gives generate its license gate; Talmud converter strips HTML + 2a daf offset +
+  skips empties; first run is ENGLISH-ONLY retrieve_quote (bounds normalization;
+  Arabic/Hebrew deferred); LDS-KJV==Protestant-KJV collision → tradition-union
+  merge + dedup + identify_version overlap exclusion; question-set digest bound
+  through collect + test_collect.py (dead-key→nonzero→fill-missing + mismatch
+  refusal); tradition balancing + quotas + insufficient-pool fail-fast; automated
+  copyright audit.py in the test gate; exporter round-trip = semantic
+  reconstruction; panel ≥3 models/≥2 providers; token totals (no invented prices);
+  raw-count _overall.
+- Committed revised plan + consult artifacts + rebuttal.
+- Next: porch done → plan-approval gate (human-only). The spec amendment delta
+  rides along for review. Notify architect, wait. Do NOT self-approve.

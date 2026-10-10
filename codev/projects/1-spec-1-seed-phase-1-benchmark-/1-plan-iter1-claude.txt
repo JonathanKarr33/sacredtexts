@@ -1,0 +1,49 @@
+I'll start by reading the actual files on disk to verify the plan's claims about the existing seed code and real data shapes.I read the actual seed code and the real committed corpora rather than trusting the plan's descriptions. The plan is well-aligned with the spec and its claims about the seed are accurate — but verification against the real data turned up several concrete gaps.
+
+## What checks out
+
+- **Seed inventory is accurate.** `pipelines/sacredbench/` has `schema/convert/generate/collect/score/providers/config/cli` (~1370 LOC incl. tests); `convert.py:154` registry really does hold only `nabre` + `encyclicals`.
+- **Shape claims verified against the real files.** `bible_flat` (`Protestant Christian/kjv.json` → flat `{book,chapter,verse,text}`), `quran_qul` (dict keyed `"1:1"` → `{id,verse_key,surah,ayah,text}`), `hadith_sunnah` (`{id,metadata,chapters[],hadiths[{idInBook,chapterId,bookId,arabic}]}`, 7277 hadith in bukhari), `lds_nested` (`{"1 Nephi": {heading, "3": {"16": …}}}`) all match. The plan's "keep `encyclicals` — already matches the committed `en/*.json` shape" is correct (`paragraph: null` present, as the converter already handles).
+- Phase ordering (catalogue → converters → export/generate → score → view → run) respects real dependencies, and loop-closure-over-breadth is faithfully reflected in Phase 7.
+
+## Issues
+
+**1. `source.yaml` schema can't express the committed layout (blocking Phase 1↔2).** Phase 1 specifies a *single flat record* (`tradition[]`, `work`, `version`, `language`, `document_type`, `converter`, `license`) and "one `texts/raw/<source>/source.yaml` per landed source (7 traditions)". The on-disk tree is tradition-dir-per-folder holding *many* works/versions: `Protestant Christian/` = kjv+asv+web (3 versions), `Sunni Islam/` = Quran file **plus** a 9-collection hadith dir, `Judaism/Talmud Bavli/` = ~37 tractates × 2 languages ≈ 74 documents, `encyclicals/` = 211 documents, LDS = 5 works. Seven single-record YAMLs cannot describe ~300 `(work, version, language)` targets. The plan must pick: a `targets: [{glob, converter, work, version, language, document_type}]` list, or converters that derive metadata from the data (Talmud files carry `title`/`versionTitle`/`language`; encyclicals carry `title`). This also decides Phase 2's dispatch contract — needed, because today's signatures are incompatible (`convert_nabre(paths, tradition, version, work, language, source_url)` vs `convert_encyclicals(paths, tradition)`). State the common interface, e.g. `fn(paths, entry) -> list[Document]`.
+
+**2. Talmud: HTML markup + daf offset + empty sections — none of it named.** Verified on `Taanit - en …json`: `sectionNames: ['Daf','Line']`, `text` is 61 sections, **sections 0 and 1 are empty** (tractates start at 2a, so index→daf is `i//2+1` + `a/b`), and line text is `"<strong>MISHNA:</strong> <b>From when,</b> …"`. Two consequences: (a) citation derivation must handle the offset and skip empties — exactly the lessons-critical "derive from the real data" trap; (b) `entries[].text` is spec'd as EXACT TEXT, so if tags survive, `retrieve_quote`/`complete_unit` normalized-exact is **unachievable for every Talmud item** and `token_f1` is polluted (`normalize()` at `score.py:42` strips punctuation but leaves `strong`/`b`/`i` as tokens). Decide where markup is stripped — Phase 2 converter or Phase 5 normalizer. Also: the en Talmud files declare `"license": "CC-BY-NC"` internally; worth carrying into `source.yaml` deliberately.
+
+**3. Non-Latin normalization unaddressed, and Phase 7's corpus scope unstated.** Quran (Uthmani, full tashkeel) and all 9 hadith collections are Arabic-only; Talmud `he` is Aramaic. `normalize()` is Latin-centric (quote/dash folding + casefold). Phase 5 says nothing about alef/yeh folding, tatweel, tashkeel or nikud. Phase 7 says "~100 seeded `retrieve_quote` questions" without naming which corpora — if Arabic/Hebrew is in scope, Phase 5 needs a normalization rule; if the first run is English-only (defensible narrowing), say so explicitly, since it determines Phase 5's scope.
+
+**4. Duplicate `(work, version, language)` across traditions.** The LDS set includes `new-testament-reference-KJV-ben-crowder.json`; I diffed John 3:16 against `Protestant Christian/kjv.json` — byte-identical. So two documents become (The Bible, KJV, en) with different `tradition` lists. Phase 3 assembles per work/version and will merge them (tradition union is probably right per the spec's many-to-many intent — state it); Phase 4's "≥2 converted versions" gate and Phase 5's per-tradition `n` both get distorted if the same verse yields questions twice. Related and missing: the spec's overlap exclusion covers only `verify_source` negatives, but `identify_version` has the same hazard (a verse identical in KJV and ASV has two correct answers, one scored ground truth). Either exclude or explicitly accept as noise.
+
+**5. `runs/` is gitignored — Phases 6 and 7 both commit/read run artifacts.** `.gitignore` line `runs/`; Phase 7 says "Commit the evidence under `runs/<dated>/`". No phase lists a `.gitignore` change. Also `configs/models.yaml` is gitignored with `configs/models.example.yaml` committed; Phase 7 puts the run config "under `pipelines/`" — reconcile with the existing `configs/` convention.
+
+**6. Nothing covers `collect`.** No phase touches `collect.py` and there is no `test_collect.py` in the seed, yet the spec's test scenario requires "dead provider key → non-zero exit → re-run fills exactly the missing cells". Phase 7's live run exercises only the happy path. Add a resume-semantics test behind a fake provider (keeping the live smoke for the real path, per the mock-boundary lesson).
+
+**7. No price data for Phase 7's "usage/cost totals".** `collect.py:58-68` records `usage` tokens, but `ModelSpec` (`config.py:36`) has no price fields and `grep -i price|cost` finds nothing. Either add per-model pricing to the run config or scope Phase 7's deliverable to token totals.
+
+**8. How does `generate` know a standardized doc is restricted?** `Document` (`schema.py:52`) has no `license`, and the interchange format is spec'd verbatim. Path convention mirroring `raw/<source-id>` is the simplest answer — but Phase 1 should say it rather than leave `generate`'s gate undefined.
+
+## Smaller notes
+
+- **Phase 2 is the heaviest phase by far** (5 converters over wildly different shapes + per-converter real-data tests, incl. the Talmud). Consider splitting: 2a = `bible_flat` + `lds_nested` (the English corpora Phase 7's run actually needs), 2b = `quran_qul`/`hadith_sunnah`/`sefaria_talmud`. That also decouples loop closure from the hardest converter.
+- `score_file`'s `_overall` is reconstructed as `round(accuracy * n)` (`score.py:151`) — lossy. Phase 5 is already rewriting aggregation; accumulate raw counts instead.
+- Phase 6 only needs a fixture, so its stated dependency on Phase 5 is softer than listed — it could land in parallel.
+
+I did not modify anything in the worktree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Strong, spec-faithful plan whose phases are correctly ordered, but the `source.yaml` schema can't express the real multi-work-per-directory layout, and several load-bearing real-data facts (Talmud HTML/daf offset, Arabic normalization, KJV duplication, gitignored `runs/`) are unaddressed.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Phase 1's single-record `source.yaml` cannot describe the committed layout (~300 work/version/language targets across 7 tradition dirs); needs a targets/glob list or data-derived metadata, plus a stated common converter signature for Phase 2 dispatch.
+- Talmud real data has HTML markup in `text`, 2 empty leading sections, and a 1a/1b daf offset (`sectionNames: ['Daf','Line']`); unaddressed, normalized-exact scoring is unachievable for every Talmud item.
+- No normalization rule for Arabic (Quran/hadith are Arabic-only) or Hebrew/Aramaic, and Phase 7 never states which corpora the first run uses.
+- LDS KJV OT/NT duplicates Protestant KJV byte-for-byte → colliding `(work, version, language)` that distorts Phase 3 dedup, Phase 4 version-gating, and Phase 5 per-tradition `n`; `identify_version` also lacks the cross-version overlap exclusion.
+- `runs/` is gitignored while Phases 6–7 commit/read run artifacts; no `.gitignore` change is planned, and the run-config location conflicts with the existing `configs/` convention.
+- No phase covers `collect` — the spec's dead-key/resume scenario has no test, and there is no `test_collect.py` in the seed.
+- Phase 7 requires usage/cost totals but no per-model pricing exists anywhere in the config or provider layer.
+- `generate`'s restricted-source gate is undefined: standardized documents carry no `license` field and the interchange format is fixed.

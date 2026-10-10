@@ -1,0 +1,14 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The sequencing is sensible, but several specification-critical mechanics remain undefined or omitted.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The catalogue layout is not implementable as described against the actual tree. `texts/raw/` is grouped into five committed tradition directories containing multiple works, versions, and converters—for example KJV/ASV/WEB share one directory, while Sunni and LDS directories contain several distinct sources. A singular `source.yaml` schema cannot describe each top-level directory. Define the exact source-to-catalogue mapping, payload globs, output paths, and how standardized documents map back to a catalogue license during `generate`.
+- The current `.gitignore` excludes all of `texts/standardized/`, all of `runs/`, and `texts/raw/Greek Orthodox/` including any proposed `source.yaml`. Phases 1 and 7 require committing files under those paths but do not modify `.gitignore`. The plan must add precise negation rules while keeping restricted payloads and restricted-derived outputs ignored.
+- Phase 4 does not cover the specified generation policy’s tradition balancing, despite the real corpus being highly unbalanced. It should define configurable per-task quotas, negative ratio, balancing algorithm, insufficient-pool behavior, and corresponding tests.
+- The resume guard is underspecified. A regenerated sidecar manifest alone cannot prove existing `answers.jsonl` rows belong to the current question set. Define how the question-set digest is bound to collection output, checked before skipping existing cells, and validated by scoring; identify the required changes to `collect.py` and tests for stale or mixed answers.
+- Phase 7 says only “≥2 providers,” while the specification requires a committed run with at least three models spanning at least two providers. It also omits the required one-command committed-corpus demo path.
+- The mandated collection failure/resume scenario is absent from the plan’s tests: failed cells must remain pending, produce a non-zero CLI exit, and be filled exactly once after recovery. Existing tests contain no collection coverage.
+- The copyright mitigation is only a pre-commit statement. Add a concrete automated artifact audit that fails if committed standardized/run artifacts originate from restricted catalogue entries or contain restricted text.
+- Phase 3 should state the canonical ordering, deduplication key, and round-trip comparison explicitly. An assembled interchange document contains no shard-boundary metadata, so “inverse re-shard reproduces the inputs” must be defined as semantic reconstruction of source metadata plus ordered entries, not reproduction of original files.
