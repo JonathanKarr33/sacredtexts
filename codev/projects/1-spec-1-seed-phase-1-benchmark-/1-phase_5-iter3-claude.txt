@@ -1,0 +1,33 @@
+I'll start by reading the key implementation files for phase 5.Now let me run the test suite and examine a few remaining concerns.I verified this phase directly against the real corpora (writing only to `/tmp`; no files in the review tree were touched).
+
+## What I verified
+
+**All phase-5 acceptance criteria hold.**
+
+- **Determinism on real data**: converted the Protestant Bibles (93,302 entries) + LDS editions (41,995) into `/tmp`, generated all six tasks twice at the default seed — byte-identical `questions.jsonl`, digest `005cff8e…`, corpus hash `e2c6ea66…`. Input file ordering is sorted in both `catalogue.expand_json` and `schema.load_documents`, so the pre-sample content dedup's "keep first" is deterministic too.
+- **Version gate live**: `identify_version` emitted for "The Bible" (4 versions), skipped for single-version works (`test_identify_version_skipped_for_single_version_corpus`).
+- **Both overlap exclusions**: the shared-across-versions exclusion is real and biting on the live corpus (all Protestant-KJV verses are excluded because the LDS edition duplicates them); `verify_source` negatives verified absent from the attributed work, with `assert negatives` guarding against vacuity.
+- **Quota/negative ratio exact**: 20 per task; `verify_source_negatives: 10` of 20 at `negatives_share=0.5`; tradition balance 10/10 — matching `_balanced_sample`'s round-robin.
+- **Digest binding**: present in every answer row, mismatch *and* missing-digest both refused in `collect` (`CollectError`), missing/mixed refused in `score`. Dead-key resume test fills exactly the 2 missing cells, once.
+- 121 tests pass.
+
+## Findings (none blocking)
+
+**1. `identify_version` on the live corpus is dominated by near-duplicate-edition items.** The expected-version distribution of my 20-item run was `KJV (LDS 2013 edition): 10, ASV: 5, WEB: 5` — **zero** plain KJV. The exact-text exclusion removes every verse the two KJV editions share, which leaves *precisely* the orthographic variants, and those get selected preferentially. Measured with `difflib`: the four LDS items I inspected differ from Protestant KJV at the same citation by one word (`marvellously`/`marvelously`, `Ebed-melech`/`Ebedmelech`) — similarity 0.989–0.998. Under Phase 6's label exact/normalized match these are unanswerable by construction and will score 0 regardless of model skill. The implementation matches the spec's stated exclusion rule exactly, and Phase 8's run is `retrieve_quote`-only, so committed evidence isn't affected — but before any `identify_version` number is reported, consider gating the task to versions within one source, or adding a near-duplicate (similarity-threshold) exclusion.
+
+**2. The RNG is shared sequentially across tasks, so a task subset shifts the other tasks' samples.** Verified: `generate(docs, seed=11, tasks=("retrieve_quote",))` ≠ the `retrieve_quote` slice of the full run at the same seed. (Changing a *quota* is stable, since `shuffle` consumes the same entropy regardless.) Determinism per fixed config holds and `tasks_requested` is in the manifest, so this is not a contract break — but seeding per task (`Random(f"{seed}:{task}")`) would make a subset run a genuine subset, which is handy when Phase 8 regenerates at a different task mix.
+
+**3. Small ones.** `--quota task=-5` silently skips the task (`quota <= 0: continue`) rather than erroring, and a `--quota` for a task excluded by `--tasks` is ignored silently. `int(quota * negatives_share)` truncates (quota 5 at 0.5 → 2 = 40%). A foreign/torn `answers.jsonl` row raises `KeyError`/`JSONDecodeError` from `_existing` rather than `CollectError` — fail-loud, but less legible than the adjacent guards. An `identify_version` pool of 0 is skipped while a pool of 1-below-quota aborts the entire run; the asymmetry is defensible per the plan's fail-fast rule, just worth a comment in the code.
+
+I also note that iteration 1 and 2's blockers (digest content coverage, fail-open digests, negative-ratio guarantee, unreachable `quotas` CLI surface, input-order-dependent balancing, probabilistic ambiguity test, post-sample dedup under-delivery) are all genuinely fixed in code and covered by tests — I checked each rather than taking the rebuttal's word for it.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 5's generation contract, exclusions, quotas and digest-bound resume guard are all verified working on the real corpora (determinism reproduced byte-for-byte, 121 tests pass); remaining items are benchmark-validity and ergonomics notes for later phases.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Non-blocking: on the live corpus `identify_version` selects almost exclusively near-duplicate KJV-edition verses (0.989–0.998 similarity, differing by one word) that are unanswerable under label matching — address before Phase 6/8 reports that task.
+- Non-blocking: RNG shared across tasks means a `--tasks` subset yields a different sample than the same-seed full run (verified); per-task seeding would make subsets stable.
+- Minor: negative `--quota` values and quotas for non-selected tasks are silently ignored; `int()` truncation on the negative ratio; foreign/torn answer rows surface as `KeyError` instead of `CollectError`.

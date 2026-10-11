@@ -1,0 +1,59 @@
+I'll review Phase 4 (interchange exporter and round-trip guarantee). Let me start by reading the key implementation files.Now let me read the schema, CLI, and catalogue to understand the integration.Let me check the converters, catalogue helpers used by `export`, and the version labels in the source catalogue.Let me check the catalogue YAMLs for the LDS/Protestant KJV version labels, and the builder's thread for Phase 4 rationale.Let me verify whether the duplicate-citation-across-shards hazard is reachable in the real encyclicals data (same title+pope+date → same assemble key).Let me check whether `interchange_filename` slug collisions are reachable across the 211 encyclicals (each becomes its own work).Let me empirically confirm my reading that `roundtrip_equal` cannot detect entry loss. I'll do this from `/tmp` without touching the reviewed tree.## Review — Phase 4: Interchange exporter and round-trip guarantee
+
+I read `export.py`, `test_export.py`, `schema.py`, `cli.py`, `catalogue.py`, `convert.py`, the two relevant `source.yaml` files, `.gitignore`, and the builder's thread notes. I verified the behavioral claims below with out-of-tree probes from `/tmp` (no files in the worktree were modified; I also skipped `pytest` so as not to drop `.pytest_cache`/`__pycache__` into your live tree — the findings below are from reading plus read-only probes).
+
+### What's solid
+
+- `assemble` is small, readable, and implements the plan's design decisions faithfully: grouping by `(work, version, language)`, dedup on `(citation, text)`, tradition **union**, `document_type` agreement → `ExportError`, `source_url` first-non-None.
+- `test_real_lds_kjv_ot_nt_merge` is the right kind of test: real data, real multi-shard work, and `len(merged.entries) == 23145 + 7957` is a genuine losslessness assertion (not a tautology), with Genesis-first/Revelation-last ordering checked.
+- The distinct-version non-merge test correctly encodes the architect's data correction (LDS KJV is a separate edition, not byte-identical) — and the LDS `source.yaml` documents why.
+- CLI `export` reuses Phase 1's fail-closed license filter, `ExportError` is wired into the exit-2 handler, and `texts/interchange/` is gitignored with a comment. Good hygiene.
+
+### Blocking: `roundtrip_equal` is tautological, and it's the artifact the spec criterion rests on
+
+`roundtrip_equal` computes `assemble(assemble(docs)) == assemble(docs)`. This **cannot return False**. After the first pass every key is unique, so the second pass sees single-shard groups: `sorted` of a 1-list is identity, `document_types` is a 1-set, the dedup `seen` set finds nothing (the first pass already deduped on the same key), `_tradition_union` of one list is that list, and `source_url` round-trips. Field-wise equality is structural.
+
+Confirmed empirically — `True` for every input I tried, including same-citation/different-text and an empty-entries shard. And decisively:
+
+```
+with LOSSY assemble (dedup by citation only), roundtrip_equal says: True
+   | entries kept: [('1:1', 'x')]      # ('1:1','y') silently dropped
+```
+
+So the check passes even when `assemble` loses entries. Consequences:
+
+- The plan's Phase 4 file spec says *"inverse grouping for the round-trip check"*, and the acceptance criterion is *"**assemble-then-regroup** reproduces metadata + ordered entries."* Assemble-then-**assemble** was substituted; the deliverable isn't implemented.
+- `cli.py:148-154` prints `round-trip ok` unconditionally and `raise typer.Exit(1)` is dead code. Phase 8 commits this output as evidence for spec success criterion #4 — it would be misleading evidence.
+
+Fix: make the check inverse-grouping, e.g. for each input shard, locate its assembled doc by key and assert (a) `document_type`/metadata agree, (b) `set(shard.tradition) ⊆ set(assembled.tradition)`, (c) every shard entry appears in the assembled doc at a strictly increasing position (catches loss *and* reordering), and (d) assembled entry count doesn't exceed the shard total (catches invention). Then add the test that proves it isn't vacuous: monkeypatch a lossy/reordering `assemble` and assert `roundtrip_equal` returns **False**. That mutation-style test is the only thing that keeps this function honest.
+
+### Should fix: the exporter drops an invariant the converters enforce
+
+`convert.py` calls `_require_unique_citations` on every document, with the comment *"benchmark ground-truth needs this."* `assemble` abandons it across shards — confirmed:
+
+```
+conflicting-citation entries kept: [('1:1','x'), ('1:1','y')]
+```
+
+Two shards of one `(work, version, language)` whose citations agree but whose text differs produce an assembled document with a duplicate citation and two conflicting ground truths — the group-shared artifact and Phase 5's generation input. Not reachable on today's data (I verified all 211 encyclical `(title, pope, publicationDate)` triples are unique, and LDS OT/NT citations are disjoint), so this is latent, not live. But it's ~5 lines of fail-fast in the project's mandated style and it closes the gap permanently.
+
+### Comments (non-blocking)
+
+1. **Shard ordering isn't "native unit order."** `sorted(..., key=first citation)` is lexicographic; I confirmed it yields `['10:1', '1:1', '2:1']`. It works today only because `"Genesis 1:1" < "Matthew 1:1"` — the docstring's *"so the Bible's OT precedes NT"* reads as design but is coincidence. Either document the limitation or carry an explicit order index on the target.
+2. **Multi-key output order is input-order dependent.** `assemble([a,b]) != assemble([b,a])` when `a`/`b` have different keys (confirmed). `test_stable_order_regardless_of_input_order` passes only because both docs share one key, so the test's name overpromises. Sorting the returned list by `(work, version, language)` would make it true and is harmless.
+3. **`export` is undocumented.** `pipelines/README.md` has no `export` section (zero grep matches), and the Phase 8 tutorial flow is convert→validate→generate→collect→score→view, which omits it. The plan's Documentation Updates lists `export` for the README — cheap to add while the code is fresh.
+4. **`interchange_filename` collisions are unguarded** — the CLI write loop would silently overwrite. I verified no collision across the real 211 encyclicals, so latent only; a 2-line uniqueness assert makes it fail-fast.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: `assemble` is correct and well-tested on real data, but `roundtrip_equal` is provably tautological — it replaces the plan's required inverse-grouping check and reports "round-trip ok" unconditionally, so the phase's headline guarantee is unverified.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `roundtrip_equal` (export.py:106-109) cannot return False; verified empirically that it passes even with a deliberately lossy `assemble`. The plan required "inverse grouping for the round-trip check" / "assemble-then-regroup"; implement that plus a test asserting the check fails on a lossy assembler. `cli.py:153-154` is currently dead code and its "round-trip ok" output is misleading evidence for spec criterion #4.
+- `assemble` permits duplicate citations with conflicting text across shards, abandoning the `_require_unique_citations` invariant the converters enforce for ground-truth integrity. Not reachable on current data (verified), but should fail loudly.
+- Shard ordering is lexicographic on first citation, not the work's native unit order (`10:1 < 1:1 < 2:1`); correct today only by the Genesis/Matthew accident. Document or fix.
+- `assemble`'s returned list order depends on input order for multi-key inputs; `test_stable_order_regardless_of_input_order` only covers the single-key case.
+- `export` is absent from `pipelines/README.md` (plan's Documentation Updates lists it) and from the Phase 8 tutorial flow.
+- `interchange_filename` collisions are unguarded in the CLI write loop (silent overwrite); no collision in real data, so minor.

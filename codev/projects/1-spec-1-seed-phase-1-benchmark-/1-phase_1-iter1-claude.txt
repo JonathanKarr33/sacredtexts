@@ -1,0 +1,36 @@
+I'll start by reading the implementation files for phase_1.I've read the implementation and verified it against the real data. Here's my review.
+
+## What I verified (not just read)
+
+- **All 22 catalogue targets resolve against the real tree.** Ran `discover_catalogue` over `texts/raw`: 20 selected / 2 restricted excluded; every committed payload glob matches real files (Protestant 3×1, Sunni 10×1, LDS 5×1, Talmud 70 shards via the `**` glob that correctly picks up the `Talmud - English Translation (Davidson)/` subdir, encyclicals 201 — and `encyclicals/index.json` sits *outside* `en/`, so the glob cleanly excludes the non-document index). The two zero-match targets are exactly the restricted ones whose payloads are absent locally.
+- **Gitignore reachability**: `git check-ignore` confirms all 6 `source.yaml` are trackable (incl. under the now-`*`-ignored `Greek Orthodox/`) and that `nabre.json`, `Greek Orthodox/septuagint.json`, `texts/standardized/**` are ignored. `git ls-files` confirms the Greek Orthodox yaml is actually tracked.
+- **The license gate end-to-end**: built a throwaway raw-root in `/tmp` (not in your tree) with a restricted target + payload; `convert` refuses it by name and tells you about `--include-restricted`. Works.
+- **Test gate**: `.codev/checks/test.sh` → 39 passed (14 new).
+- **The LDS-KJV data correction**: I diffed the full LDS NT against Protestant KJV — 7648 identical / **309 differing** verses (`Judaea` vs `Judæa`, etc.). So the builder's deviation from the plan's "byte-for-byte identical" premise is **correct and verified against real data**, and the distinct `KJV (LDS 2013 edition)` version label is the right call. Good instinct.
+
+## Findings (none blocking)
+
+**1. The copyright gate silently disables itself (the one I'd fix now).** `_catalogue_or_empty` (cli.py:28) returns `[]` whenever discovery fails with a message containing `"not found"`/`"no source.yaml"`. I reproduced the consequence: with `--raw-root <nonexistent>`, `convert` happily proceeded to convert a **restricted** payload with no warning at all. The same happens if a user runs from a subdirectory (default `raw_root` is the relative `texts/raw`). That's a silent fallback on a High-impact risk, contrary to the repo's own fail-fast principle. Cheap fixes: (a) give the loader a distinct `CatalogueMissing(CatalogueError)` subclass instead of substring-sniffing the message, and (b) fail if `--raw-root` was passed explicitly and doesn't exist, or at minimum emit a loud stderr warning that the license gate is inactive.
+
+**2. The CLI wiring of the gate is untested.** `test_catalogue.py` covers `select_targets` / `filter_standardized_paths` at library level, but the phase's acceptance criterion is CLI-level behavior. A `CliRunner` test for `convert` refusal + `generate` filtering would lock in what I had to verify by hand. Phase 2 touches this code, so now is cheap.
+
+**3. `converter` names are unvalidated against `CONVERTERS`.** Reasonable for this phase (bodies land in 2/3), but note `Greek Orthodox` declares `converter: tlg` and no plan phase ships a `tlg` converter — so `--include-restricted` with a local TLG copy will fail late. Suggest a registry cross-check over *selected* targets in Phase 2, and an explicit decision on `tlg`.
+
+**4. Judaism target uses `language: mul`**, which breaks the module's own "each target is one `(work, version, language)` unit" invariant and puts en and he docs in the *same* `standardized_dir` slug. Both are `open`, so license recovery is unaffected — but the Phase 8 English-only run can't select by path, and Phase 3's plan text says en/he are separate versions. Either split into two targets (cheap, keeps the invariant) or document `mul` as a deliberate exception.
+
+**5. Minor**: the two LDS `The Bible` targets share a slug, so Phase 2 must write distinct filenames inside that dir. `license_for_raw_path` re-globs every target per input file (≈22 globs × N inputs) — hoisting a path→license index would help on the 201-file encyclicals run. And `texts/README.md` still says "see the restricted-sources flag in `pipelines/README.md` *once implemented*" — it's implemented now (that file isn't in this PR's scope, but it's a one-line staleness tied to this phase).
+
+The 7-vs-6 tradition-directory count the builder flagged in its thread is a plan-text artifact (NABRE is a target inside Roman Catholic, not its own dir), not a missing deliverable — I agree with the builder's reading.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase 1 deliverables are complete and verified against the real tree (22 targets resolve, gitignore negations hold, 39 tests pass); the license gate silently no-ops when the catalogue isn't discoverable and its CLI wiring is untested.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_catalogue_or_empty` (cli.py:28) silently returns `[]` on a missing/unfound raw root, disabling the restricted-source gate with no warning — reproduced: a restricted payload converted without `--include-restricted`. Use a distinct `CatalogueMissing` exception and fail/warn loudly instead of substring-matching the error message.
+- No CLI-level test for the gate (`convert` refusal, `generate` filtering) — the phase's acceptance criterion is CLI behavior; add a `CliRunner` test.
+- `converter` keys aren't cross-checked against `CONVERTERS`; `Greek Orthodox` names a `tlg` converter no plan phase ships — add a registry check over selected targets in Phase 2 and decide on `tlg`.
+- Judaism target's `language: mul` violates the stated one-`(work, version, language)`-per-target invariant and collides en/he into one standardized dir — split the target or document the exception before Phase 3.
+- Minor: duplicate LDS slug requires distinct filenames in Phase 2; `license_for_raw_path` re-globs per input file; `texts/README.md`'s "once implemented" note is now stale.

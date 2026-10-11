@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 4 is substantially improved, but deterministic assembly and the no-invention round-trip guarantee still have uncovered counterexamples.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `export.py:89` does not define a total shard order. Shards with identical citation sequences retain caller order, making tradition order and selected `source_url` input-dependent. This occurs naturally in the dedup/multi-source case: two identical shards with different traditions or URLs produce different documents when reversed. Add deterministic metadata tie-breakers or independently canonicalize merged metadata, plus a permutation test for identical shards.
+- `roundtrip_ok()`’s no-invention check at lines 141–142 only compares counts. Duplicate input entries provide slack: a mutated assembler can retain the deduplicated real entry, add an invented entry, and still have assembled count ≤ total shard count, causing the check to return `True`. Compare assembled entries directly against the expected deduplicated input entries and add an invention mutation test using duplicate shards.

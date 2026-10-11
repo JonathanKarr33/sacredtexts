@@ -1,0 +1,49 @@
+I'll start by reading the key implementation files for phase_4.Now let me check the CLI's export command and the schema module.Let me check `.gitignore` and the catalogue helpers the export CLI relies on.Good — `texts/interchange/` is gitignored. Let me verify the tests pass and check the README documentation.Let me verify the real end-to-end export on the actual corpus.I'll verify end-to-end using temp output dirs so I don't write into the builder's tree.Let me check whether the LDS KJV and Protestant KJV are actually byte-identical — the plan's Phase 4 design decision anticipated merging them.Let me check whether the version-naming decision (which avoids the plan's anticipated KJV merge) is documented.Let me check the largest assembled documents to gauge the one performance wart I noticed.Tree confirmed unmodified — I ran the verification into temp directories rather than the default `texts/standardized` / `texts/interchange` paths.
+
+## Review: Phase 4 — Interchange exporter and round-trip guarantee
+
+### Both prior blocking findings are genuinely fixed
+
+**The vacuous round-trip (iter-1, both reviewers).** `roundtrip_ok` (export.py:127–169) is now a real inverse-grouping check, and I verified non-vacuity by reading rather than mutating. The mechanism is sound: line 139 resolves `assemble` via module-global lookup, so `monkeypatch.setattr(exp, "assemble", …)` in the test genuinely replaces what `roundtrip_ok` calls, while the mutators call the test module's import-time-bound original — no recursion, and the four mutators (lossy, reordering, `unit_type`-altering, tradition-inventing) each hit a distinct `return False`. Tracing each by hand:
+- dropped entry → `position.get(...)` returns `None` → line 167 ✓
+- reversed → `p <= last` → line 167 ✓ (`last` correctly resets per-shard at line 163, so legitimate dedup across shards still passes)
+- altered `unit_type` → key miss on the 3-tuple ✓
+- invented tradition → line 155 exact-union compare ✓
+
+Dedup and whole-key omission also behave correctly: a deduped `(1:1,x)` present in two shards passes (both resolve to index 0 against separate `last` counters), and an omitted key hits `target is None` at line 151.
+
+**Input-dependent shard ordering (iter-2, codex).** Line 89's key is now the shard's full citation sequence — a total order — and `test_same_first_citation_shards_order_deterministic` exercises the exact tie codex described.
+
+### Independently verified against the real corpus
+
+I ran convert + export over the full committed tree (temp output dirs): **221 shards → 220 interchange documents, round-trip ok, no filename collisions.** The LDS KJV OT+NT merge lands at 23145 + 7957 = 31102 entries, `Genesis 1:1` first, `Revelation 22:21` last — matching the test's assertions. The copyright gate holds: `export` routes through `cat.filter_standardized_paths`, and `texts/interchange/` is gitignored (.gitignore:23).
+
+### The plan's KJV-merge premise was a wrong data fact — the implementation is right
+
+The plan's executive summary asserts "LDS KJV duplicates Protestant KJV **byte-for-byte**," and the Phase 4 design decision builds a tradition-union merge on that premise. I measured the two assembled Bibles: **2285 of 31102 verses differ** (28817 identical). So they are *not* byte-identical, the `version: KJV (LDS 2013 edition)` label chosen in Phase 2 is correct, and Phase 4 correctly does **not** merge them. Merging would in fact have tripped the new duplicate-citation `ExportError` on 2285 conflicting citations. The correction is documented (thread line 128, `source.yaml` lines 5–7, phase_2 iter-1 rebuttal), the merge capability remains implemented and tested for genuine collisions, and the deviation from the plan's literal text is an improvement, not a skip.
+
+### Non-blocking observations
+
+1. **O(n²) in the duplicate-citation error path** (export.py:106): `{c for c in citations if citations.count(c) > 1}` only runs after the O(n) `len != len(set)` trip, but on the 78406-entry Talmud that is ~6×10⁹ string comparisons — a fail-fast path that would take minutes to print its message. A `Counter` would make it O(n). Unreachable on today's data; worth fixing when convenient.
+2. **`source_url` is unverified by `roundtrip_ok`.** It is reasonably documented as best-effort for multi-shard merges, but 219 of the 220 real groups are single-shard, where line 111 preserves it exactly — so an assembler that invented a `source_url` would pass. A cheap strengthening: assert the assembled `source_url` is `None` or one of the shards' values.
+3. **`assemble` aliases input `Entry` objects** into the output documents (the test at line 118–119 acknowledges this). Mutating an assembled document's entries mutates the shard. No current caller does, but it is a latent foot-gun.
+4. **The CLI assembles twice** — `exp.assemble` at cli.py:144 and again inside `roundtrip_ok`. Completed fast enough on 350k entries in my run; noting only in case the corpus grows.
+
+### Forward-looking note for Phase 5 (not a change request)
+
+28817 of 31102 KJV verses are textually identical to the LDS KJV edition. Since both are `work: "The Bible"`, the plan's Phase 5 overlap exclusion ("an `identify_version` item whose text is shared across the work's versions") will prune ~93% of the KJV pool. Worth sizing the pool before setting quotas, so the insufficient-pool fail-fast doesn't surprise you.
+
+Tests: 96 pass. Plan deliverables for this phase — assemble per `(work, version, language)`, deterministic ordering, `(citation, text)` dedup, tradition union, non-vacuous round-trip, multi-shard real-work test, dedup test, `export` CLI command, README documentation — are all present.
+
+---
+VERDICT: APPROVE
+SUMMARY: The round-trip guarantee is now genuinely non-vacuous and verified by reading plus four passing mutation tests; export assembles the real 221-shard corpus into 220 interchange documents correctly, and the four remaining items are hardening rather than defects.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- (Minor) O(n²) `citations.count` in the duplicate-citation error path — minutes to fail on the 78k-entry Talmud; use a `Counter`.
+- (Minor) `roundtrip_ok` does not check `source_url`; an invented URL passes, though 219/220 real groups are single-shard where it is exactly preserved.
+- (Minor) `assemble` aliases input `Entry` objects into output documents — latent mutation foot-gun.
+- (Note) The plan's "LDS KJV is byte-identical to Protestant KJV" premise is wrong — I measured 2285/31102 verses differing. The implementation's distinct-version choice is correct; the plan text is stale.

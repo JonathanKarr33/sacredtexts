@@ -1,0 +1,40 @@
+# Source catalogue for the Roman Catholic corpus.
+# Two targets: the public Vatican encyclicals (committed, open) and the NABRE
+# Bible (restricted — a copyrighted translation held back; payload is git-ignored
+# and local-only). Converters: encyclicals, nabre.
+#
+# The encyclicals target's work/version here are nominal: the encyclicals
+# converter emits one document per file with the work set to the encyclical's
+# title and the version to its Vatican edition.
+provenance:
+  retrieved_from: github.com/Religion-at-Notre-Dame/catholic_text_json (encyclicals); upstream export generated 2026-09-03
+  fetch_method: working-group Box drop ("Phase I / raw JSON")
+  fetch_date: "2026-10-10"
+notes: >-
+  Encyclicals: Vatican-published English texts. NABRE: restricted, excluded by
+  default (opt in with --include-restricted, requires the local payload).
+targets:
+  - payload: encyclicals/en/*.json
+    converter: encyclicals
+    work: Papal Encyclicals
+    version: Vatican English
+    language: en
+    document_type: encyclical
+    tradition: [Roman Catholic]
+    license: open
+    license_detail: Vatican-published English texts (vatican.va)
+  - payload: nabre.json
+    converter: nabre
+    work: The Bible
+    version: NABRE
+    language: en
+    document_type: scripture
+    tradition: [Roman Catholic]
+    license: restricted
+    provenance:
+      retrieved_from: USCCB / Confraternity of Christian Doctrine (NABRE)
+      fetch_method: licensed text, held back; obtain from working-group Box ("Phase I / raw JSON")
+      fetch_date: unknown
+    license_detail: >-
+      New American Bible Revised Edition — (c) Confraternity of Christian
+      Doctrine / USCCB; payload held back from this public repo

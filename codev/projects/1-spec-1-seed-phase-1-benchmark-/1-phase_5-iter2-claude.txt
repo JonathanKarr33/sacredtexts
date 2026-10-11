@@ -1,0 +1,49 @@
+I'll start by reading the key implementation files for phase 5.I've read the Phase 5 implementation, the iteration-1 reviews, the builder's rebuttal, and run the suite read-only (`120 passed`). I also probed the dedup/quota interaction with a read-only script. The tree is untouched (`git status` shows only pre-existing untracked builder files).
+
+## Verification of iteration-1 blockers — all genuinely fixed
+
+| iter-1 item | Status |
+|---|---|
+| Digest hashes only ids (codex #2) | Fixed — `question_set_digest` hashes full canonical question JSON (`generate.py:295-306`); `corpus_hash` now covers `document_type`/`tradition`/`unit_type` (`:309-318`). Mutation test `test_digest_reflects_full_content_not_just_ids` flips `unit_type` and asserts both hashes change. |
+| Digest fails open on digest-less rows (codex #1, claude #7) | Fixed — `collect._existing` counts `missing` and `collect` refuses on `missing` (`collect.py:64-69`); `score_file` rejects `None`/`""` and mixed digests (`score.py:116-126`). Tests: `test_legacy_answers_without_digest_refused`, plus the two score-side tests. `test_score_file_and_summary` correctly updated to stamp a digest. |
+| Negative ratio not guaranteed (codex #3, claude #3) | Fixed — `generate.py:254-271` partitions eligible items and raises `GenerateError` naming the shortfall; realized count in the manifest as `verify_source_negatives`. `test_insufficient_negative_pool_fails_fast` covers both the 1-work (no-error, all positive) and mutual-containment (error) cases. |
+| `quotas` unreachable from CLI (both, blocking) | Fixed — `--tasks` + repeatable `--quota task=N` threaded into `run_generate` and `build_manifest` (`cli.py:176-198, 222-233`). CLI tests `test_cli_generate_tasks_and_quota` (asserts exactly 3) and `test_cli_generate_bad_quota_rejected` exist in `test_catalogue.py`. |
+| Probabilistic identify_version test (claude #2) | Fixed and I verified the math: the pool is exactly the 2 version-unique verses with `quota=2`, so the exact-set assertion is deterministic; removing the exclusion makes the pool 26 and the assertion fails ~99.7% of the time. `assert negatives` added to the overlap test. |
+| Empty-by-ambiguity aborted the run (claude #4) | Fixed — `continue` at `generate.py:251`. |
+| Duplicate ids (claude #5) | Guard added (`:281-288`) + test. See issue 1 below for the side effect. |
+| `tradition[0]` + input-order determinism (codex #5, claude #6) | Fixed — sub-pools content-sorted before the seeded shuffle (`:161-163`); `test_balancing_on_primary_tradition_is_deterministic` asserts order-independence with multi-element lists. |
+| Cleanups #8/#9 | Done (`except Exception`; README documents manifest/digest/resume refusal). |
+
+## Remaining observations (all non-blocking)
+
+**1. The new dedup guard silently under-delivers the quota.** Dedup runs *after* sampling (`generate.py:281-288`), so colliding shards shrink the emitted set below quota with no error. Verified read-only with two shards sharing `(work, version, language, citation, text)`, `per_task=5`:
+
+```
+seed 1 {'retrieve_quote': 5, 'cite_passage': 4, ...}
+seed 2 {'retrieve_quote': 3, 'cite_passage': 4, ...}   # 40% short, silent
+```
+
+`test_duplicate_ids_from_colliding_shards_deduped` only asserts id uniqueness, so it doesn't pin the count. This contradicts the phase's own "configurable quotas" deliverable and the project's fail-fast rule — and Phase 8 wants *exactly* ~100 `retrieve_quote`. It's latent today (LDS KJV carries a distinct version label, OT/NT merge, encyclical dups are excluded by `_is_canonical_citation`), so not blocking. The small fix is to dedup the **pool** on `(work, version, language, citation, text)` before `_balanced_sample`, so the quota is met from distinct content; failing that, raise when dedup drops anything.
+
+**2. The attributed (wrong) work of a `verify_source` negative isn't recorded.** `_build` puts `neg_work` only into the prompt string; `expected` carries `answer`/`true_work` and `source.work` is the *true* work. The artifact therefore can't be audited for which false premise was asserted without re-parsing prose — and the test has to do exactly that (`q.prompt.split(" from ", 1)[1].split("?")[0]`), which would mis-parse any work title containing " from " or "?" and could go quietly wrong. Adding `expected["attributed_work"] = neg_work` fixes both.
+
+**3. `tasks` is not in the manifest.** The rebuttal says `--tasks` was threaded "into both `generate()` and `build_manifest`", but `build_manifest`'s signature is `(docs, questions, seed, per_task, negatives_share, quotas)` — no `tasks`. In practice the run is still reproducible (`tasks_by_count` plus `quotas` recovers which tasks consumed the RNG, since both the task-filter and the `quota<=0` path `continue` before sampling), so this is cosmetic — but for an auditable benchmark manifest, recording the requested subset is one line.
+
+**4. Ambiguity-emptied `identify_version` is skipped silently.** `continue` at `:251` is the right behavior (claude #4), but it emits no warning, unlike the CLI's single-work `verify_source` warning. Also note the boundary just moved: pool `0` skips, pool `1` with `quota 10` still aborts the *whole* run via `_balanced_sample`. Defensible as fail-fast, but worth a line in the error telling the user `--quota identify_version=N` is the escape hatch.
+
+**5. `_existing` KeyErrors on a malformed row.** `d["question_id"]`/`d["model_id"]` are unguarded (`collect.py:43-44`), and `KeyError` isn't in `main()`'s exit-2 tuple, so a truncated/foreign answers file gives a raw traceback rather than the clean refusal message the rest of the path produces.
+
+Out of scope and correctly deferred: `score.py`'s lossy `round(accuracy * n)` `_overall` and the tradition dimension (Phase 6 deliverables); `score` comparing the digest against the manifest rather than just internal consistency (the plan only asked that `score` validate it).
+
+---
+VERDICT: COMMENT
+SUMMARY: Every iteration-1 blocker is genuinely fixed in code and covered by tests (120 pass); the remaining items are latent or cosmetic, chief among them that the new post-sample dedup can silently under-deliver a quota.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Dedup runs after sampling, so colliding shards silently emit fewer than quota (reproduced: 3/5 at seed 2) — contradicts the phase's "configurable quotas" deliverable and fail-fast rule; latent on today's corpora. Fix: dedup the pool before `_balanced_sample`.
+- `verify_source` negatives don't record the attributed wrong work anywhere but the prompt string, making the artifact un-auditable and forcing brittle prompt-parsing in the test.
+- `build_manifest` still omits the `tasks` subset (the rebuttal claims otherwise); reproducible in practice via `tasks_by_count`, but not explicit.
+- Ambiguity-emptied `identify_version` is skipped with no warning; pool-of-1-with-quota-10 still aborts the whole run without naming the `--quota` escape hatch.
+- `collect._existing` KeyErrors (uncaught by `main()`) on an answers row missing `question_id`/`model_id`.

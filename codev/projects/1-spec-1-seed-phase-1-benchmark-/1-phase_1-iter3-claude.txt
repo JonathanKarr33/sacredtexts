@@ -1,0 +1,49 @@
+I'll start by reading the implementation files from disk.I've read all the implementation files and verified the behavior live against the real tree. Here is my review.
+
+---
+
+## What I verified independently (not just read)
+
+| Check | Result |
+|---|---|
+| `sacredbench catalogue` on the real tree | 6 sources / 23 targets, 2 restricted excluded |
+| Every payload glob resolves | 289 files; only the 2 restricted targets resolve to 0 (payloads correctly absent) |
+| Uncatalogued raw files | exactly 1 — `encyclicals/index.json`, correctly outside the payload glob (noted as a Phase-2 item) |
+| Talmud en/he split | 35 + 35 = 70 shards, **zero overlap, zero uncovered** — the iter-1 split is exact |
+| `git ls-files` | all 6 `source.yaml` tracked; `Greek Orthodox/{*,sub/*}`, `nabre.json`, `texts/standardized/` all `check-ignore`d |
+| `.codev/checks/test.sh` | 53 passed (was 47 at iter 2) |
+| iter-1 headline fix (catalogue missing) | `generate --raw-root /nonexistent` → loud `BadParameter`, no silent no-op ✅ |
+| iter-2 fix (uncatalogued raw path) | `convert nabre /tmp/stray-kjv.json` → refused, "not in the source catalogue" ✅ |
+| Fail-closed standardized filter | `generate /tmp/rev-enc-out` → `error: … refusing (fail-closed)`, exit 2 ✅ |
+| README step 1 verbatim | `convert encyclicals "…/encyclicals/en" --out …` → wrote 201 documents, exit 0 ✅ (and the `…/encyclicals` parent form fails loudly on `index.json`, as designed) |
+
+I ran all conversions with `--out` pointed at `/tmp`, so nothing was written into the tree under review.
+
+## Assessment
+
+Both fail-open defects codex flagged in iters 1–2 are genuinely closed in code, not just in prose — I reproduced the fixed behavior from the CLI. The catalogue is now a real control point: license recovery is symmetric (raw path *and* standardized path both fail-closed on "unknown"), the depth-tie prefers `restricted`, and a same-slug license disagreement is rejected at load. Provenance is required and validated, and the `fetch_date: "2026-10-10"` / `fetch_method: working-group Box drop` values match what `texts/README.md` actually records — the two held-back sources keep an honest `unknown`. Phase-1 deliverables and acceptance criteria are all satisfied.
+
+Residual items are minor and none is load-bearing for this phase.
+
+**1. `validate`'s license-agnosticism is a listed Phase-1 acceptance item with no test.** Phase 1's criteria include "`validate` ignores license", and the spec's test scenario says "`validate` accepts it either way" — but no test in `pipelines/tests/` invokes the `validate` command at all (`grep "validate"` in tests: no matches). It is true by construction today (the `validate` signature takes no catalogue/root/flag arguments, so there is no path by which a license could gate it), so this is a coverage gap, not a defect. It becomes worth locking once Phase 2 makes `convert` catalogue-driven and starts moving these seams around: one `CliRunner` test running `validate` on a restricted target's standardized doc.
+
+**2. `convert` still doesn't constrain `--out` to `Target.standardized_dir()`** (codex iter-1 #1, deferred). I agree with the deferral: reaching the bad state needs an explicit `--include-restricted` *plus* a mis-aimed `--out` into an open target's directory, and Phase 2's `convert_target(paths, target)` removes the free-form `--out` structurally while Phase 8's `audit.py` is the committed-artifact backstop. Flagging only so it stays on the Phase-2 list rather than becoming an assumed-closed hole.
+
+**3. `fetch_date` accepts any non-empty string.** The `Provenance` docstring promises `YYYY-MM-DD, or "unknown"`, but `_parse_provenance` only checks non-empty-string, so `"2026-13-45"` or `"last Tuesday"` loads clean. The catalogue is the audit record for a paper, so either enforce the shape (a date-or-`unknown` check, three lines) or soften the docstring so it doesn't promise a guarantee the loader doesn't make.
+
+**4. Greek Orthodox payload glob is non-recursive (`*.json`) while `texts/README.md` tells users to drop in the whole Box `Greek Orthodox/` folder.** If that folder has subdirectories, a locally-supplied file won't match the glob and `convert` will report it as "not in the source catalogue" — fail-closed and loud, so safe, but confusing for the one user who legitimately holds TLG rights. `**/*.json` would be more forgiving and is still fully gitignored (I confirmed `Greek Orthodox/sub/x.json` is ignored). Nobody knows the real TLG layout, so this is a guess either way; the more permissive glob is the cheaper guess.
+
+**5. Pre-existing, Phase 5 territory:** `GenerateError` is not in `main()`'s caught-exception tuple, so a legitimate insufficient-pool failure prints a traceback instead of `error: …` + exit 2. I confirmed `generate()` raises rather than returning `[]`, which also makes the `len(questions) // len(set(...))` division in `cli.generate` unreachable — so no latent `ZeroDivisionError`. Worth folding into Phase 5 when `generate.py` is touched.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 1 is complete and the iter-1/iter-2 fail-open fixes are verified live from the CLI (23 targets resolve, Talmud 35+35 partitions exactly, gitignore holds, 53 tests green); only minor coverage/polish items remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `validate`'s license-agnosticism is a Phase-1 acceptance item with zero test coverage (true by construction today; one `CliRunner` test would lock it before Phase 2 moves these seams)
+- `convert --out` is still unconstrained, so path-based license recovery can be subverted by `--include-restricted` + a mis-aimed output dir — deferral to Phase 2's `convert_target` is legitimate; keep it on the list
+- `fetch_date` accepts any non-empty string despite the docstring promising `YYYY-MM-DD`-or-`unknown`; enforce the shape or soften the docstring
+- Greek Orthodox payload glob `*.json` is non-recursive while `texts/README.md` instructs dropping in the whole Box folder; `**/*.json` is the safer guess (still gitignored)
+- Pre-existing/Phase 5: `GenerateError` missing from `main()`'s handler tuple yields a traceback instead of `error: …` exit 2

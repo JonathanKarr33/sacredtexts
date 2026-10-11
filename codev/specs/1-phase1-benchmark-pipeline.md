@@ -29,13 +29,28 @@ explicitly **out of scope**.
 
 ## Current State
 
-- **Input data exists in heterogeneous shapes.** Jonathan's
-  `Religion-at-Notre-Dame/catholic_text_json` has (verified against the real data):
-  NABRE Bible books as `{book, chapters:[{chapter, verses:[{verse, text}]}]}`, and
-  211 papal encyclicals as `{pope, title, publicationDate, language, vaticanUrl,
-  paragraphs:[{paragraph, text}]}` where `paragraph` may be null. More raw JSON
-  lives in the group's Box folder ("Phase I / raw JSON"). JaleesBench has Quran
-  data and a working quote-check harness.
+- **The working group's real raw data has landed** (committed to `texts/raw/` on
+  2026-10-10 from the Box "Phase I / raw JSON" drop) in **7 traditions with
+  heterogeneous, source-specific shapes** — each needs its own converter:
+  - **Protestant Christian** — KJV / ASV / WEB Bibles as a flat list of
+    `{book, chapter, verse, text}` (~31k verses each). *Three versions of one
+    work* — this is the multi-version data `identify_version` needs.
+  - **Sunni Islam** — QUL Uthmani Quran as a dict keyed `"surah:ayah"` →
+    `{id, verse_key, surah, ayah, text}`; 9 sunnah.com hadith collections as
+    `{id, metadata, chapters[], hadiths[{id, idInBook, chapterId, bookId,
+    arabic}]}` (Arabic-only).
+  - **Judaism** — Sefaria William Davidson Talmud Bavli, per-tractate en/he JSON
+    `{language, title, versionSource, versionTitle, …, text}`.
+  - **Roman Catholic** — papal encyclicals (`encyclicals/index.json` listing 211
+    items `{id, slug, title, pope, publicationDate, language}` + per-item text);
+    NABRE held back (restricted).
+  - **LDS** — ben-crowder editions as nested `{book: {heading, chapter: {verse:
+    text}}}` (Book of Mormon, D&C, Pearl of Great Price, KJV OT/NT).
+  - **Greek Orthodox** — held back (restricted; TLG extracts).
+  Two **restricted** subsets (`Roman Catholic/nabre.json`, `Greek Orthodox/`) are
+  gitignored and local-only pending licensing; everything else is committed
+  verbatim. Converters are planned against these real committed shapes, not
+  fixture guesses. JaleesBench also has a working quote-check harness (prior art).
 - **The group agreed a standardised flat JSON** (Nancy, Sep 8 — see Interchange
   format below) but no converter into it exists.
 - **Question templates are drafted** (six candidates, Sep 8) but not implemented;
@@ -54,40 +69,106 @@ A `sacredtexts` pipeline with the FaithfulBench/multibench four-subsystem shape,
 
 1. **Two-tier `texts/` layout** (amended 2026-10-10, Waleed's direction):
    - `texts/raw/<source-id>/` — the **raw source data exactly as obtained**
-     (Jonathan's repo JSON, Box files, Quran JSON, …), plus a committed
-     **`source.yaml`** per source describing it: tradition list, work, version,
-     language, document_type, where it came from (URL/repo/commit), how it was
-     fetched, fetch date, license status, and which converter consumes it.
-     Raw text payloads stay **gitignored** per the copyright gate; the YAML
-     metadata is committed.
+     (the Box drop, organised by tradition), plus a committed **`source.yaml`**
+     per source describing it: tradition list, work, version, language,
+     document_type, where it came from (URL/repo/commit), how it was fetched,
+     fetch date, which converter consumes it, and a **`license` field** with a
+     controlled value — `public-domain`, `open`, or `restricted`.
+     **Public-domain / open raw payloads are committed verbatim** (they already
+     are — KJV/ASV/WEB, QUL Quran, hadith, Talmud, encyclical index, LDS
+     editions); **`restricted` raw payloads are gitignored** and local-only
+     (currently `Roman Catholic/nabre.json` and `Greek Orthodox/`), obtainable
+     per `texts/README.md`. `source.yaml` is committed for every source,
+     including restricted ones, so the catalogue is complete even when a payload
+     is absent.
    - `texts/standardized/` — the standard flat-format documents produced by the
-     converters from `texts/raw/` (one document per work/version/language;
-     gitignored pending licensing). Pipeline stages (`validate`, `generate`)
-     read from here.
-   - Adding a faith tradition's texts = adding a `texts/raw/<source-id>/`
-     directory + YAML; it never changes core pipeline code.
+     converters from `texts/raw/` (one document per work/version/language,
+     possibly sharded per unit). **Public-domain / open corpora may be committed;
+     corpora derived from `restricted` sources stay gitignored** pending
+     licensing. Pipeline stages (`validate`, `generate`) read from here.
+   - Adding a faith tradition's texts = dropping a `texts/raw/<source-id>/`
+     directory + `source.yaml` in; it never changes core pipeline code. The
+     two-tier `raw/` layout is designed to **absorb additional working-group data
+     as drop-in**, so the spec does not over-engineer for corpora not yet in hand
+     (simpler is better) — new sources are handled by adding a converter, not by
+     reshaping the pipeline.
 2. **Conversion scripts** turn `texts/raw/` sources into `texts/standardized/`
-   documents: the `sacredbench convert` registry (NABRE books, encyclicals,
-   Quran JSON, …) driven by each source's `source.yaml`, so the standardized
-   tier is mechanically rebuildable from raw with one command. An **exporter**
-   emits the group's agreed interchange JSON (Nancy's flat format) for
-   Box/group sharing. Adding a source format = one converter function + a
-   registry line.
+   documents: the `sacredbench convert` registry (one converter per real raw
+   shape — flat-verse Bibles, `surah:ayah` Quran, hadith collections, Sefaria
+   Talmud, encyclicals, nested LDS editions) driven by each source's
+   `source.yaml`, so the standardized tier is mechanically rebuildable from raw
+   with one command. Converters are written against the **real committed shapes
+   in `texts/raw/`**, not fixture-only guesses. Adding a source format = one
+   converter function + a registry line.
+   **Restricted-source policy**: `convert` and `generate` **exclude** sources
+   whose `source.yaml` `license` is `restricted` **by default**; they are
+   included only via an explicit opt-in flag (e.g. `--include-restricted`), so a
+   user who holds a local NABRE/TLG copy can run them. `validate` operates on
+   restricted sources regardless (the format gate does not depend on licensing).
+   The no-copyrighted-text-in-committed-artifacts constraint holds throughout.
+
+   **Standardized documents are stored in the interchange flat format
+   (Nancy's JSON) itself** — there is no second internal representation. The
+   standardized tier may be **sharded** (e.g. one document per Bible book, one
+   per encyclical) so stages can stream and resume per unit. The **exporter**
+   is therefore not a format translation (which would be a vacuous copy) but an
+   **assembler**: it merges the per-unit standardized shards of a work/version
+   into the single interchange document the group shares (Box), applying a
+   defined entry ordering and dedup. The round-trip that must be lossless is
+   **standardized shards ↔ assembled interchange document**, on the tuple
+   (`source` metadata + ordered `entries`); `validate` is the mechanical gate on
+   the flat format at both tiers.
 3. **Benchmark generation**: deterministic (seeded) sampling over corpora through
-   the six agreed templates → `questions.jsonl`. Includes **false-premise
-   negatives** (real text attributed to the wrong work) for the
-   reject-false-premises objective; LLM-assisted *fabricated-text* items are a
-   later stage behind the same seam.
+   the six agreed templates → `questions.jsonl`. A stated **generation policy**
+   governs validity: per-task item quotas, the negative ratio for `verify_source`,
+   tradition balancing across the panel, and exclusions — a wrong-work
+   `verify_source` negative whose text **also occurs** in the attributed work is
+   excluded. `identify_version` is **version-gated per work**: `generate` emits it
+   only for a work with ≥2 converted versions (the KJV/ASV/WEB Bibles make it live
+   for the Bible), and skips it for single-version works where the answer would be
+   inferable from the work alone.
+   Every question carries a **stable content-derived ID and ordering**, and the
+   run persists the seed, generation config, and a hash of the input corpora, so
+   a corpus edit cannot silently reshuffle the set and a later stage refuses to
+   resume against changed questions. Includes **false-premise negatives** (real
+   text attributed to the wrong work) for the reject-false-premises objective;
+   LLM-assisted *fabricated-text* items are a later stage behind the same seam.
 4. **Collection**: fan every question out to a configured multi-provider model
    panel (Anthropic, any OpenAI-compatible host incl. OpenRouter, Gemini) →
    `answers.jsonl`. Resumable; concurrency-bounded; failed cells stay pending and
    exit non-zero.
-5. **Scoring**: every answer gets **both** strictness tiers (exact; normalized)
-   **and** a graded similarity (token-F1 in v1; embedding/judge-based semantic
-   scoring is a pluggable later metric) → `scores.jsonl` + per-model×task summary.
-6. **Analysis & visualisation**: aggregate accuracy per model × task × tradition,
-   matplotlib figures suitable for the paper; the group wants publicly useful
-   visualisation (a browser SPA à la multibrowser is a follow-on spec).
+5. **Scoring**: each answer is scored under its task's contract (the task-types
+   table above) — the similarity metrics (exact; normalized; token-F1 in v1,
+   with embedding/judge-based semantic scoring as a pluggable later metric) apply
+   to the free-text tasks, while yes/no and structured tasks are parsed. The
+   headline `correct` must be **robust to evasive answers**: for `cite_passage`
+   and `identify_source` a single citation candidate is extracted and a
+   multi-candidate hedge ("could be John 3:16, Luke 2:4, or Rom 5:8") scores 0,
+   so containment alone cannot game the provenance-honesty property Phase 1
+   exists to measure. Output → `scores.jsonl` + per-model × task × tradition
+   summary.
+6. **Analysis**: aggregate accuracy per model × task × tradition. Because
+   `tradition` is list-valued (a work can be Catholic *and* Protestant *and* …),
+   the aggregation rule is stated and fixed: **an observation counts once per
+   listed tradition** (so per-tradition `n` sums to more than the item count),
+   and a separate overall row counts each observation exactly once — this is the
+   rule every number in the paper is computed under. Output is the per-model ×
+   task × tradition summary (JSON + markdown).
+7. **A closed loop, even if narrow** (amended 2026-10-10, human direction —
+   loop-closure over breadth): the headline deliverable is the **full
+   end-to-end flow working** on real data, explicitly not perfect or broad. Two
+   thin pieces complete the loop:
+   - **`TUTORIAL.md`** at the repo root — a copy-pasteable, step-by-step
+     walkthrough from a fresh checkout: convert → validate → generate (small,
+     seeded) → collect (small, budgeted panel) → score → view the results. Every
+     command is verified by running it, in order, on a fresh clone before the PR.
+   - **A minimal LOCAL results view in `apps/viewer`** — the smallest thing that
+     shows the evidence run's summary + per-question scores in a browser, served
+     by a local dev server reading the run artifacts (committed or local
+     `runs/`). **No deploy, no polish, no domain adaptation** — the full viewer
+     adaptation and any public SPA stay **follow-on (Spec 2 / issue #2)**.
+   Heavier **visualisation** (matplotlib figures, the public multibrowser-style
+   SPA) is out of scope here.
 
 ### Interchange format (group-agreed, Sep 8 draft + feedback)
 
@@ -113,81 +194,144 @@ detailed provenance/parent citations/footnotes are omitted in v1.
 
 ### The six question templates → task types
 
-| task | template | correct answer |
-|---|---|---|
-| identify_version | "Which version of «work» says «text»?" | the version |
-| retrieve_quote | "Please give me the «version» quote for «citation»" | exact text |
-| verify_source | "Is «text» from «work»?" (incl. wrong-work negatives) | yes/no |
-| complete_unit | "Please complete this «unit_type»: «beginning»" | the remainder |
-| cite_passage | "What is the source citation for this passage from «work»?" | the citation |
-| identify_source | "Where is this quote from? «text»" | work + citation |
+Each task has an **expected-answer schema** and a defined set of **applicable
+metrics** — a single exact/normalized/token-F1 triple is not meaningful for
+yes/no or structured answers, so the scoring contract is per-task, not uniform.
+The `correct` column is the headline number the paper reports and must be robust
+to evasive/multi-candidate answers (see Scoring, below).
+
+| task | template | expected-answer schema | metrics | headline `correct` |
+|---|---|---|---|---|
+| identify_version | "Which version of «work» says «text»?" | one version label from the corpus | exact, normalized (on label) | **Version-gated per work** — `generate` emits it only for works with ≥2 converted versions (KJV/ASV/WEB make it live for the Bible), and skips it for single-version works where the answer is inferable from the work alone. |
+| retrieve_quote | "Please give me the «version» quote for «citation»" | exact unit text | exact, normalized, token-F1 | normalized exact match |
+| verify_source | "Is «text» from «work»?" (incl. wrong-work negatives) | yes / no | boolean parse | parsed boolean equals ground truth |
+| complete_unit | "Please complete this «unit_type»: «beginning»" | the remainder of the unit | exact, normalized, token-F1 | normalized exact match of the remainder |
+| cite_passage | "What is the source citation for this passage from «work»?" | one citation | citation parse/normalize | the *single* extracted citation equals ground truth; multi-candidate answers score 0 |
+| identify_source | "Where is this quote from? «text»" | work + one citation | per-field parse | both fields correct against a single extracted candidate; multi-candidate answers score 0 |
+
+This table is the authoritative scoring contract; `pipelines/sacredbench/score.py`
+must match it (it already gives the three similarity metrics only to
+`retrieve_quote` / `complete_unit`).
 
 ## Success Criteria
 
-- [ ] `texts/raw/` holds ≥2 traditions' sources (Catholic: NABRE + ≥1
-      encyclical; Islam: Quran), each with a committed `source.yaml`
-      (provenance, license status, fetch method, converter); raw payloads
-      gitignored.
+- [ ] Every source under `texts/raw/` (the 7 landed traditions) has a committed
+      `source.yaml` carrying provenance, fetch method, converter, and a `license`
+      field valued `public-domain` / `open` / `restricted`. Public-domain/open
+      raw payloads are committed; `restricted` payloads (NABRE, TLG) are
+      gitignored and local-only, with `texts/README.md` documenting how to obtain
+      them.
+- [ ] `convert` and `generate` **exclude `restricted` sources by default** and
+      include them only under an explicit `--include-restricted` opt-in;
+      `validate` works on them regardless.
 - [ ] `texts/standardized/` holds the corresponding standard-format documents,
       rebuilt from `texts/raw/` by one conversion command, with a validator
-      that mechanically gates the format.
-- [ ] Exporter emits interchange JSON that round-trips (`corpus → interchange →
-      corpus` is lossless).
-- [ ] `generate` is deterministic for a fixed seed; every question carries exact
-      expected answer + full source coordinates; verify_source includes negatives.
-- [ ] `collect` runs a ≥3-model panel spanning ≥2 providers; resumable; partial
-      failure exits non-zero with the failed cells listed.
-- [ ] `score` emits per-answer exact/normalized/token-F1 (+ per-task headline
-      `correct`), and a per-model × task × tradition summary (JSON + markdown).
-- [ ] One end-to-end smoke run on live providers (small question count) committed
-      as evidence, with usage/cost totals computed from the data.
-- [ ] Unit tests cover converters (against real-shape fixtures), generation
-      determinism, scoring metrics; all pass via the repo's test gate.
-- [ ] Demo-able for the Mon Oct 12 meeting: a one-command run on a small slice
-      producing the summary table.
+      that mechanically gates the format; public-domain/open standardized corpora
+      are committed, `restricted`-derived ones stay gitignored.
+- [ ] The exporter **assembles** per-unit standardized shards into one
+      interchange document per work/version with defined ordering/dedup, and the
+      round-trip **standardized shards ↔ interchange document** is lossless on
+      (`source` metadata + ordered `entries`).
+- [ ] `generate` is deterministic for a fixed seed: stable content-derived
+      question IDs and ordering, seed + generation config + input-corpus hash
+      persisted, and a later stage refuses to resume against changed questions.
+      Every question carries exact expected answer + full source coordinates;
+      `verify_source` includes negatives (excluding wrong-work negatives whose
+      text also occurs in the attributed work); `identify_version` is version-gated
+      — emitted only for works with ≥2 versions (the Bible via KJV/ASV/WEB),
+      skipped for single-version works.
+- [ ] `collect` runs a ≥3-model panel spanning ≥2 providers (verified by committed
+      run artifacts, not CI); resumable; partial failure exits non-zero with the
+      failed cells listed.
+- [ ] `score` implements the per-task scoring contract (task-types table):
+      applicable metrics per task + a headline `correct` robust to multi-candidate
+      answers, plus a per-model × task × tradition summary (JSON + markdown) using
+      the stated list-valued-tradition aggregation rule.
+- [ ] **The first real benchmark run, end to end**: convert all committed
+      sources → standardized, generate ~100 seeded `retrieve_quote` questions,
+      collect across a small budgeted panel, score, and commit the summary +
+      artifacts as evidence, with usage/cost totals computed from the data.
+      Committed artifacts (`questions`/`answers`/`scores`) carry **only
+      public-domain/open or synthetic text**; any `restricted` (NABRE/TLG) text is
+      redacted or hashed per the copyright gate.
+- [ ] **`TUTORIAL.md`** walks the whole flow (convert → validate → generate →
+      collect → score → view) from a fresh checkout with copy-pasteable commands,
+      every one verified by running it in order on a fresh clone before the PR.
+- [ ] **A minimal local results view** in `apps/viewer` shows the run's summary +
+      per-question scores in a browser via a local dev server reading the run
+      artifacts; no deploy/polish/domain-adaptation (that is Spec 2).
+- [ ] Unit tests cover converters (against the real committed raw sources, plus
+      real-shape fixtures for restricted ones), generation determinism
+      (IDs/ordering/hash), the per-task scoring contract (incl. a
+      multi-candidate-answer-scores-0 case), the restricted-source
+      exclude/`--include-restricted` behavior, and an end-to-end analysis
+      aggregation over a slice with a missing/failed cell; all pass via the
+      repo's test gate.
+- [ ] Demo-able for the Mon Oct 12 meeting from a fresh checkout: a one-command
+      run on a small slice of **committed** public-domain/open corpora producing
+      the summary table (no gitignored `restricted` data required to demo).
 
 ## Constraints
 
 - **Human oversight**: AI-generated code is acceptable to the group only with
   human review and output validated against the sources (Nancy's condition on
   Codev). SPIR's human gates are the mechanism.
-- **Copyright**: encyclicals/CST are cleared per Jonathan. NABRE is a copyrighted
-  translation — texts/ corpora derived from it are **not committed** to this
-  public repo until licensing is confirmed; converters pull from Jonathan's repo
-  (or Box) at build time instead. Committed fixtures use tiny synthetic data.
+- **Copyright**: each source's `license` field (`public-domain` / `open` /
+  `restricted`) is the single control point. `restricted` sources — currently the
+  copyrighted **NABRE** translation and the licensed **TLG** (Greek Orthodox)
+  extracts — have their raw payloads gitignored/local-only and are excluded from
+  `convert`/`generate` unless `--include-restricted` is passed (for users holding
+  a local licensed copy); their standardized/derived corpora are never committed.
+  Public-domain / open corpora carry no such restriction and are committed. The
+  gate also covers **derived artifacts**: committed `questions`/`answers`/`scores`
+  and any smoke evidence must not embed `restricted` source text — such items are
+  redacted or hashed. Whether `restricted` excerpts may be **sent to third-party
+  model-provider APIs** during a live run is an open group question (below); until
+  answered, committed live evidence uses only public-domain/open/synthetic corpora.
 - **Public repo**: no API keys, no personal-key leakage (live-run key discipline
   as in multibench); results committed must be scores+metadata, not bulk text.
 - **Stack**: Python uv project(s), Typer CLIs, fail-fast (no silent fallbacks),
   JSONL seams between stages — matching multibench conventions so the team can
   move between the repos.
-- **Interop**: the group's interchange format is Nancy's JSON, verbatim — our
-  internal corpus layout must export to it losslessly.
+- **Interop**: the group's interchange format is Nancy's JSON, verbatim — it is
+  the format the standardized tier is stored in, and the exporter assembles the
+  sharded standardized documents into it losslessly.
 
 ## Assumptions
 
-- Jonathan's repos may still appear; this pipeline must be able to consume his
-  dataset repo as a source (it already does) and to export interchange JSON his
-  tooling can consume. If his code repo lands, we reconcile rather than compete.
-- Quran JSON is obtainable from JaleesBench quranquote data (same org access).
+- The working group's raw corpora have **already landed** in `texts/raw/` (7
+  traditions, committed 2026-10-10); converters are built against those real
+  committed shapes. Jonathan's code repo may still appear; if it does we
+  reconcile rather than compete, and the exporter emits interchange JSON his
+  tooling can consume.
+- The QUL Uthmani Quran is committed (`open`); if a licensing question arises an
+  openly-licensed public source (Tanzil / quran.com JSON) is the drop-in fallback.
 - Model panel for the first real run is decided at run time by config, not code;
   Nancy's Gemini Nano request is handled as a panel-config question (open below).
 
 ## Solution Approaches
 
-### Approach 1 (recommended): multibench-style file-based corpora + staged JSONL pipeline
+### Approach 1 (recommended): two-tier `texts/` (raw + standardized) + staged JSONL pipeline
 
-Drop-in `texts/<corpus-id>/` (YAML metadata + entries.jsonl) mirroring the
-tradition-module pattern; one `pipelines/` uv project with subsystems as modules
-(convert/generate/collect/score) and JSONL seams. Pros: proven in multibench;
-multi-faith by construction; resumable; group interchange via exporter. Cons: two
-representations (internal corpus + interchange) need a round-trip guarantee.
+Drop-in `texts/raw/<source-id>/` (raw payload + committed `source.yaml`) converted
+to `texts/standardized/` documents **stored in the interchange flat format
+itself** (possibly sharded per unit), with one `pipelines/` uv project whose
+subsystems are modules (convert/generate/collect/score) over JSONL seams. There is
+**one** text representation (the interchange format); the "exporter" assembles
+sharded standardized documents into the single group-shareable interchange file,
+so the round-trip is a real ordering/dedup guarantee, not a copy. Pros: proven in
+multibench; multi-faith by construction; resumable; committed provenance via
+`source.yaml`; group interchange is the native format. Cons: standardized corpora
+are large, so licensing/sharding discipline matters (handled by the copyright gate
+and per-unit shards).
 
-### Approach 2: interchange JSON as the only representation
+### Approach 2: single monolithic interchange document per work, no sharding/raw tier
 
-Pipeline reads Nancy's JSON documents directly, no internal corpus tier. Pros: one
-format. Cons: large single-array JSON files (31k Bible verses) are unwieldy for
-streaming/resume; no per-corpus metadata home (provenance, converter identity);
-diverges from the proven multibench layout; harder to gate with a validator.
+Pipeline reads one large Nancy-format JSON array per work directly, no raw tier and
+no per-unit shards. Pros: nothing to assemble. Cons: large single-array JSON files
+(31k Bible verses) are unwieldy for streaming/resume; no committed provenance home
+(`source.yaml`); no separation of the gitignored raw payload from committed
+metadata; harder to gate incrementally with a validator.
 
 ### Approach 3: wait for Jonathan's repos
 
@@ -201,31 +345,51 @@ meeting needs a pipeline update; Waleed already offered (Oct 8) to take a shot.
   judge?) — group question, Nancy leans "test both"; design keeps the metric
   pluggable. · Gemini Nano in the panel (Nancy's unanswered request): on-device
   model, not reachable via the Gemini API — needs a stance (e.g. AI Studio /
-  Chrome built-in harness, or report as out-of-scope for the API panel).
+  Chrome built-in harness, or report as out-of-scope for the API panel). ·
+  **May `restricted` (NABRE / TLG) excerpts be sent to third-party
+  model-provider APIs** during a live run? Until the group answers, committed
+  live-run evidence uses only public-domain/open/synthetic corpora.
 - **Nice-to-know**: translation-agnostic queries (multi-translation + BLEU-style
   metrics) — explicitly deferred by the group; fabricated-text (not just
   wrong-attribution) negatives via LLM generation with human review.
 
 ## Test Scenarios
 
-- Converter fed real-shape NABRE/encyclical fixtures produces valid corpora;
-  malformed shapes fail loudly naming the file.
-- `corpus → interchange → corpus` round-trip is byte-stable on entries.
-- Same seed ⇒ identical questions.jsonl; different seed ⇒ different sample.
+- Each converter run against its **real committed raw source** produces corpora
+  that pass `validate`; malformed shapes fail loudly naming the file. Restricted
+  shapes (NABRE) are covered by tiny real-shape fixtures since the payload is not
+  committed.
+- A `restricted` source is excluded from `convert`/`generate` by default and
+  included under `--include-restricted`; `validate` accepts it either way.
+- **Sharded standardized documents → assembled interchange → shards** round-trips
+  losslessly on (`source` metadata + ordered `entries`), including the merge of
+  multiple book-shards of one work (not a trivial file-copy identity).
+- Same seed ⇒ identical `questions.jsonl` with identical question IDs and order;
+  different seed ⇒ different sample; editing a corpus changes the input hash and a
+  resume against the changed set is refused.
+- Generation excludes a wrong-work `verify_source` negative whose text also occurs
+  in the attributed work, and emits `identify_version` **only for a work with ≥2
+  versions** (the Bible via KJV/ASV/WEB), skipping it for single-version works.
 - Collection with a dead provider key fails that model's cells, exits non-zero,
   and a re-run with the key fixed fills exactly the missing cells.
-- Scoring: curated answer fixtures hit expected exact/normalized/token-F1 values
-  (incl. unicode-quote and punctuation-only divergences); verify_source parses
-  "Yes."/"no," variants; wrong-citation answers score 0.
+- Scoring: curated answer fixtures hit expected metric values per the per-task
+  contract (incl. unicode-quote and punctuation-only divergences); `verify_source`
+  parses "Yes."/"no," variants; a **multi-candidate hedge** ("could be John 3:16,
+  Luke 2:4, or Rom 5:8") scores `correct`=0 for `cite_passage`/`identify_source`.
+- Analysis aggregation over a small slice with a missing/failed cell produces the
+  per-model × task × tradition summary with the list-valued-tradition rule applied
+  (per-tradition `n` exceeds the overall count where traditions overlap).
 - Live smoke (budgeted, small) against ≥2 providers verifies the real path
-  (mock-boundary lesson from multibench).
+  (mock-boundary lesson from multibench), on public-domain/synthetic corpora only.
 
 ## Risks and Mitigation
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | Duplicate effort vs Jonathan's unshared repos | Medium | Medium | Converter consumes his dataset repo; exporter emits group format; share early at Monday's meeting |
-| Copyright on translations (NABRE) in a public repo | Medium | High | Don't commit derived corpora until cleared; synthetic fixtures; build-time conversion |
+| `restricted` translations (NABRE, TLG) in a public repo | Medium | High | `license: restricted` → raw gitignored/local-only, excluded from convert/generate unless `--include-restricted`, derived corpora never committed |
+| `restricted` text leaking into committed derived artifacts (questions/answers/scores/smoke) | Medium | High | Gate covers derived artifacts; redact/hash restricted text; committed live evidence uses public-domain/open/synthetic corpora |
+| A new Box source arrives in an unanticipated shape | Medium | Low | Two-tier `raw/` absorbs it as drop-in; one new converter + registry line, no pipeline reshape; `validate` gates the result |
 | Strict-match scores unfairly punish verbose models | High | Medium | Both tiers + token-F1 reported; answer-format instruction in prompts; semantic metric pluggable |
 | Benchmark saturation on primary sources (Waleed, Aug 5) | Medium | Medium | Phase 1 measures provenance/rejection too (verify_source negatives); secondary sources are Phase 2 fodder |
 | Live-run cost overrun | Low | Medium | Budgeted smoke; usage computed from data before any larger run |

@@ -1,0 +1,38 @@
+I'll review phase_7 (minimal local results view) by reading the actual implementation files.I reviewed the phase_7 files from disk, ran the full viewer suite (**28 files, 411 passed / 9 skipped**), `tsc --noEmit` (clean), smoke-tested the dev server, and cross-checked the TS shapes against the real `score.py` / `collect.py` / `generate.py` output.
+
+## Verification of the iter-1 fixes
+
+All four items from my previous review landed, and they land correctly — not just plausibly:
+
+- **Real artifact loading exists** (`localResults.ts:107` `loadRun`): fetches `<base>/{summary.json,scores.jsonl,answers.jsonl}`, returns `null` if any is not `ok`, and the page falls back to the committed sample with an explicit `source:` line. `?run=` → loading / ready / error states all handled.
+- **The dev-served path works.** `serveRuns()` in `vite.config.ts` mounts repo-root `runs/` at `/runs`. I started the dev server: `/local-results` → 200, `/runs/nope.json` → 404, and the containment guard holds against both `--path-as-is` `..` (`/runs/../apps/viewer/package.json` → 404) and percent-encoded `%2e%2e%2f` traversal → 404. `path.join` + the `startsWith(runsDir + path.sep)` check is sufficient here, and it's dev-only by construction (`configureServer`).
+- **The loader is tested**, not just the in-memory constants: a fake fetcher covers the full-run parse/join (4 rows) and the 404 → `null` fallback trigger.
+- `parseJsonl` now reports `file:line`; `expectedText` renders `work — citation` for `identify_source`; `by_tradition` is rendered in a second table mirroring `score.py:summary_markdown`.
+
+## Shape fidelity (re-verified against the pipeline)
+
+`Summary` matches `score.py:247-300` (`models` → task|`_overall`, `expected_n`/`missing`, `by_tradition` → model → tradition → task); `ScoreRow` matches the row at `score.py:218-230`; `AnswerRow` matches `collect.py:81-91` with `question: asdict(Question)` (`generate.py:66-72`), including `source.tradition` as a list. `formatCell` reproduces `_cell_str` semantics (`—` / `miss 3` / `50% (n=2) −1`) and `rankedModels` reproduces its null-last ordering. `expectedText`'s key order covers every task's `expected` dict shape in `generate.py:102-140`.
+
+Scope discipline is good: no GitHub data-layer import, no HeroUI v2-era provider, seed suites untouched and still skipped, no domain adaptation.
+
+## Notes (non-blocking; two matter for Phase 8)
+
+1. **The documented URL doesn't match the CLI's default output layout.** `README.md:14` and `LocalResultsPage.tsx:9` say `?run=/runs/<id>`, but `cli.py:252,273,274` default to flat `runs/answers.jsonl` / `runs/scores.jsonl` / `runs/summary.json` — so the working base today is `?run=/runs`, and `/runs/<id>` 404s into the sample (silently, by design). TUTORIAL's final step must use whichever is real; either write the Phase 8 run into `runs/<id>/` via `--out` flags or fix the docs to `?run=/runs`.
+2. **Evidence-path coordination.** Only repo-root `runs/` is dev-served. Phase 8 plans to commit evidence "under a non-ignored evidence path" with a `.gitignore` negation — if that path isn't under `runs/`, the viewer has no mount for it. Keeping the evidence at `runs/<id>/` (negated in `.gitignore`) is the cheap way to make Phase 8's "the minimal viewer renders this committed run" true without touching viewer code again.
+3. `base` comes from `window.location.search` rather than the route's search record (the app's other routes use `validateSearch`). Harmless — `parseSearch` preserves unknown keys and the component re-reads on render — but it's a small idiom deviation, and a search-only navigation from a run back to no-run leaves stale data (the effect early-returns).
+4. `LocalResultsPage` itself (the loading/error/fallback state machine) has no test; only the lib and the pure component do. Acceptable for "minimal", and the error branch is simple enough to read.
+5. The per-question list is unbounded — ~300 rows for Phase 8's 100 questions × 3 models. Fine in a browser, no filtering needed at this scope.
+6. Previously noted and accepted: `src/local/sample.ts` lives under `src`, so the sample and `/local-results` ship in any production build (synthetic text, no deploy — only relevant if Spec 2 deploys from this tree).
+
+Phase 7's deliverables and acceptance criteria are met: a local dev-server page rendering summary + per-question scores from local artifacts, no deploy/adaptation, a vitest test, and a green gate.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 7's local results view now reads real run artifacts via a guarded dev-only mount with a sample fallback; shapes match the pipeline exactly, tests and typecheck pass, and only doc/path-coordination nits remain for Phase 8.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Non-blocking: README/code comment documents `?run=/runs/<id>` while the CLI defaults write flat `runs/summary.json` — the working base is `?run=/runs`; reconcile before TUTORIAL verification in Phase 8.
+- Non-blocking: only repo-root `runs/` is dev-served, so Phase 8's committed evidence path must live under `runs/` (with a `.gitignore` negation) or the viewer can't render it.
+- Minor: `?run` read from `window.location.search` rather than route search state; `LocalResultsPage`'s loading/error/fallback states untested; per-question list unbounded (~300 rows in Phase 8).

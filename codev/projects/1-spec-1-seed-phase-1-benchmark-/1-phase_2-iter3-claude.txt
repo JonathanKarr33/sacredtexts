@@ -1,0 +1,56 @@
+I'll start by reading the previous iteration context, then the implementation files.Now let me read the actual implementation.Let me verify the encyclicals footnote heuristic against the real data (read-only).This looks like a serious regression. Let me quantify it.Let me verify a candidate rule so my recommendation is concrete and data-checked.I've verified the implementation against the real committed corpora. Here is my review.
+
+## What's solid
+
+**`bible_flat`** — verified independently against the raw files: `kjv.json`/`asv.json` have exactly 31102 records, `web.json` 31098, and **zero** blank-text records, so the asserted counts are a faithful 1:1 conversion rather than an artifact of the silent `if not text.strip(): continue` skip. First/last citations (`Genesis 1:1` → `Revelation 22:21`) and the exact KJV Gen 1:1 text are right.
+
+**`lds_nested`** — 6604 for the Book of Mormon is the canonical count; the chapter-level `heading` exclusion, the self-identifying 2-level D&C citation, the metadata-key skip, and the fail-fast on mixed shapes / unexpected scalar books all check out. The `KJV (LDS 2013 edition)` version label is correctly held against the plan's false byte-identical premise.
+
+**Structure** — the `convert_target(paths, target)` dispatch contract, the `CONVERTERS` registry, the unregistered-converter and empty-payload errors, and the catalogue-driven CLI with restricted default-exclude all match the plan. `_require_unique_citations` is a good post-condition. 70 tests pass (`uv --project pipelines run python -m pytest`, no-cacheprovider).
+
+## Blocking: `convert_encyclicals` silently truncates 4 encyclicals mid-body
+
+The iter-2 footnote-restart rule (`if num <= running_max: in_footnotes = True`, latched for the rest of the file) fires on the **first** non-monotonic number and then discards everything to EOF. In 4 documents that first anomaly is *inside the body*, so real prose is dropped with no error and no warning:
+
+| document | code cuts at | true footnote start | body paragraphs lost |
+|---|---|---|---|
+| `mediator-dei` | idx 105 | idx 210 | **105** (of 210 — over half the encyclical) |
+| `redemptoris-mater` | idx 71 | idx 164 | **93** |
+| `ecclesiam-suam` | idx 99 | *none — no footnote block* | **85** |
+| `dominum-et-vivificantem` | idx 131 | *none* | **64** |
+
+≈347 body paragraphs. Two distinct anomaly classes are being conflated with a footnote block:
+
+- **Typo'd paragraph numbers in body prose.** `mediator-dei` idx 105 declares `100` (sequence is …104, 105, **100**, 107, 108…) on the prose "These methods of participation in the Mass are to be approved and recommended…". `ecclesiam-suam` idx 99 declares `3` (should be 63) on "The fact that we are distinct from the world…", then continues 64…119 to the last paragraph of the document.
+- **Section headings carrying a section number.** `redemptoris-mater` idx 71 = `{paragraph: 1, text: "The Church, the People of God present in all the nations of the earth"}`; `dominum-et-vivificantem` idx 131 = `{paragraph: 1, text: "Reason for the Jubilee of the Year 2000…"}`, idx 150 = `{paragraph: 3, …}`.
+
+I checked the inverse direction too and it is nearly clean: only `ecclesia-de-eucharistia` keeps its footnote block (its footnotes carry `paragraph: null`, so ~100 land as `unnumbered para. N` prose entries; 42 match a strict `^\d+ (Cf.|Ibid|Code of Canon|…)` pattern). The other 55 restart-docs I spot-read (`arcanum-divinae`, `aeterni-patris`, `mens-nostra`, `providentissimus-deus`, `sacra-virginitas`, `ad-caeli-reginam`, `mystici-corporis-christi`, `spiritus-paraclitus`, `in-plurimis`, `mortalium-animos`, `diuturnum`, `octobri-mense`, `pacem-dei`, `principi-apostolorum`) cut correctly.
+
+Three things make this worth blocking rather than noting:
+
+1. **It is silent.** The converter discards half a document when its structural assumption is violated. Every other failure in this module raises `ConvertError` naming the file; this one returns a plausible-looking document. Whatever the cut rule becomes, it needs a guard that *fails* when the discarded tail doesn't look like bibliographic apparatus (e.g. contains long prose, or the numbering resumes above the pre-cut max) rather than trusting the heuristic.
+2. **The test locks the wrong number in.** `test_convert_encyclicals_real` asserts `10263`, and `test_convert_encyclicals_citations_bind_to_declared_numbers` happens to probe `Ad Petri Cathedram` and `Aeterni Patris` — both correct cases. Per-document citation uniqueness is again satisfied *by* the truncation, which is the same verification-by-aggregate-property trap as iter-1's "unique by construction" positional fix. A test naming these 4 documents (e.g. `Mediator Dei, para. 210` exists; `Ecclesiam Suam, para. 119` exists) would have caught it.
+3. **Downstream validity, not just coverage.** Phase 5's overlap exclusion ("a wrong-work `verify_source` negative whose text also occurs in the attributed work") is evaluated against the standardized corpus. Text missing from the corpus makes that exclusion silently fail, producing negatives whose declared ground truth is wrong — in a benchmark whose headline number is hallucination/provenance fidelity.
+
+One consequence to plan for: once the body is retained, **genuine duplicate declared numbers appear** and `_require_unique_citations` will (correctly) reject — `mediator-dei` para 100 twice (idx 99, 105), `ecclesiam-suam` para 3 twice (idx 2, 99), `redemptoris-mater` paras 1 and 2 twice, `dominum-et-vivificantem` paras 1 and 3 twice. So the fix needs a citation rule for a typo'd/section-heading duplicate (the existing non-canonical `unnumbered para.` marker seems like the natural home). For calibration, I tried the obvious tightening — "cut at the earliest index whose declared numbers strictly ascend to EOF *and* restart below the preceding max" — and it recovers `mediator-dei`, `redemptoris-mater`, `dominum-et-vivificantem` and keeps `arcanum-divinae` correct, but still truncates `ecclesiam-suam` (its typo'd `3` is followed by an ascending run to EOF). So a purely numeric single-signal rule looks unlikely to close this; text length/shape of the discarded block is probably the discriminating signal. I'd validate any candidate rule per-document across all 201 files, not by a corpus total.
+
+## Minor
+
+- `num <= running_max` assumes `num` is an int. In the committed data it always is (7902 int / 3023 null, verified), but a stray string would raise `TypeError` instead of a file-naming `ConvertError` — inconsistent with the careful `isinstance` guards elsewhere in the module.
+- The `ecclesia-de-eucharistia` null-numbered footnote block is defensible to defer *if* Phase 5 excludes `unnumbered para.` entries from every task (not just citation-keyed ones), but it's worth an explicit note since those entries aren't encyclical prose at all.
+- The deferred `cli.convert` `len(docs) == len(paths)` stem heuristic is fine for now; I confirmed the encyclicals glob (`encyclicals/en/*.json`) never includes `index.json`, so the in-converter name filter is latent-only, as stated.
+
+No files were modified and no state-changing commands were run during this review; all verification was read-only JSON inspection plus the test suite with `-p no:cacheprovider`.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: `bible_flat` and `lds_nested` are correct and well-tested, but the iter-2 encyclicals footnote heuristic silently truncates 4 documents mid-body (~347 body paragraphs, over half of Mediator Dei and Ecclesiam Suam), and the real-data test locks the wrong total in.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- BLOCKING: `convert_encyclicals` latched footnote detection fires on in-body numbering anomalies (typo'd paragraph numbers in `mediator-dei` idx 105 / `ecclesiam-suam` idx 99; numbered section headings in `redemptoris-mater` idx 71 / `dominum-et-vivificantem` idx 131) and discards everything to EOF — 105/85/93/64 genuine body paragraphs lost, silently, with no error.
+- BLOCKING: the loss is unguarded and untested — `test_convert_encyclicals_real` asserts the truncated total `10263`, and per-document citation uniqueness is satisfied *by* the truncation; the declared-number test only probes two correct documents.
+- Fixing the truncation surfaces genuine duplicate declared numbers (`mediator-dei` 100×2, `ecclesiam-suam` 3×2, `redemptoris-mater` 1&2×2, `dominum-et-vivificantem` 1&3×2) that need a citation rule; a purely numeric cut rule appears insufficient (my tightened variant still truncates `ecclesiam-suam`).
+- Downstream: missing corpus text makes Phase 5's "negative text also occurs in the attributed work" exclusion silently fail, yielding negatives with wrong ground truth.
+- Minor: `ecclesia-de-eucharistia`'s null-numbered footnote block (~100 entries) is emitted as `unnumbered para.` prose; `num <= running_max` lacks an int guard (TypeError instead of file-naming ConvertError).

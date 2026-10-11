@@ -1,0 +1,39 @@
+# Source catalogue for the Protestant Christian corpus.
+# Three public-domain English Bible translations, flat-list shape
+# ({book, chapter, verse, text}) — see README.md. Converter: bible_flat (Phase 2).
+source_url: https://github.com/bibleapi/bibleapi-bibles-json
+provenance:
+  retrieved_from: github.com/bibleapi/bibleapi-bibles-json (KJV, ASV); github.com/TehShrike/world-english-bible (WEB); upstream dumps built 2026-08-20
+  fetch_method: working-group Box drop ("Phase I / raw JSON")
+  fetch_date: "2026-10-10"
+notes: >-
+  KJV and ASV from bibleapi-bibles-json; WEB from TehShrike/world-english-bible.
+  All three are public domain (see README.md).
+targets:
+  - payload: kjv.json
+    converter: bible_flat
+    work: The Bible
+    version: KJV
+    language: en
+    document_type: scripture
+    tradition: [Protestant Christian]
+    license: public-domain
+    license_detail: King James Version — public domain
+  - payload: asv.json
+    converter: bible_flat
+    work: The Bible
+    version: ASV (1901)
+    language: en
+    document_type: scripture
+    tradition: [Protestant Christian]
+    license: public-domain
+    license_detail: American Standard Version (1901) — public domain
+  - payload: web.json
+    converter: bible_flat
+    work: The Bible
+    version: WEB
+    language: en
+    document_type: scripture
+    tradition: [Protestant Christian]
+    license: public-domain
+    license_detail: World English Bible — public domain

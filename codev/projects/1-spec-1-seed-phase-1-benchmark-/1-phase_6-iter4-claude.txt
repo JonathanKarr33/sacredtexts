@@ -1,0 +1,63 @@
+I'll review phase 6 — the per-task scoring contract and tradition-aware analysis. Let me start by reading the key implementation files.Now let me read the CLI wiring, the question structure from generate.py, and the prior phase_6 consult iterations.Let me read the prior iteration reviews and check generate.py's question structure.Let me run the test suite read-only and probe the actual scoring behavior from `/tmp` (no writes to the tree).132 tests pass. Now let me probe the actual scoring behavior to verify the iter-3 fixes landed and hunt for residual holes.Found a residual hole in the para-shape extractor. Let me investigate its mechanism and materiality.Let me establish materiality — the real encyclical citation format — and check whether these were previously dispositioned.The encyclical citation format is confirmed as `{title}, para. {n}` — a real in-scope English corpus. Let me verify a concrete fix for the para hole without touching the tree.The fix is clean (7/7, and no existing para tests to regress). Let me verify the remaining phase-6 deliverables — rendering of missing cells and the README documentation.Rendering is correct — `n/a` for no-data, `miss N`, and per-tradition `n` (1+1+2=4) exceeding overall (2). Let me check the README documentation.I verified everything by reading the files and probing from `/tmp` (bytecode writes disabled, `-p no:cacheprovider`). **Nothing in the worktree was modified** — the untracked files above are builder session artifacts and a parallel reviewer's output, not mine.
+
+## Review — Phase 6: Per-task scoring contract and tradition-aware analysis
+
+### What's genuinely done (verified against the real code, not just claimed)
+
+- **Per-task metric contract matches the spec table.** `_SUBMETRICS` (score.py:42-46) gives the three-metric triple only to `retrieve_quote`/`complete_unit`, `exact`/`normalized` to `identify_version`, and the parse-based tasks return their own shapes. This is the spec's table, faithfully.
+- **Raw-count `_overall`** in both the model table (score.py:249-258) and the per-tradition table (275-285) — no `round(accuracy*n)` reconstruction. `test_overall_is_raw_count` asserts it.
+- **List-valued tradition rule implemented exactly as specified** (226-229, 263-285). I rendered a live summary: per-tradition `n` = 1+1+2 = **4** against an overall of **2**. `test_tradition_counts_once_per_listed_tradition` asserts the inequality rather than restating the code.
+- **Both iter-3 blockers are genuinely fixed.** Shape-selected extractor + case-insensitive prefix: `Jude 1:3 (ASV 1901)` → 1, `… Chapter 1` → 1, `it could be john 1:1 or genesis 1:1` → 0, `perhaps sahih al-bukhari 1, or sahih muslim 2` → 0. All verified.
+- **Missing cells at both granularities.** The iter-3 tradition-aware roster landed; a fully-failed `model × tradition × task` renders `miss 2` instead of vanishing, and `n == 0` now yields `accuracy: null` / `n/a` rather than a misleading `0%` — the right call for paper-facing evidence.
+- **Digest guard** rejects a missing digest and mixed digests. 132 tests pass.
+
+### Issue 1 (blocking) — the para-shape citation hedge scores `correct=1`
+
+Two iterations hardened the colon and number shapes; the **`para` shape was never probed**, and it has the same class of hole. `_PARA_CITE` (score.py:88) is:
+
+```
+(?:[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+
+```
+
+The prefix excludes only whitespace and commas — **not `para`** — so the greedy prefix happily consumes an *earlier* `para. N` as prefix words, collapsing a multi-candidate hedge into one span. Verified against the real code:
+
+| answer | expected | `n_candidates` | `correct` |
+|---|---|---|---|
+| `maybe Rerum Novarum, para. 5 or Rerum Novarum, para. 6` | `Rerum Novarum, para. 5` | 1 | **1** ❌ |
+| `Either Rerum Novarum para. 5 or Quadragesimo Anno para. 5` | `Rerum Novarum, para. 5` | 1 | **1** ❌ |
+
+The single match is literally `'maybe rerum novarum para 5 or rerum novarum para 6'` — one candidate. The colon extractor is immune only *by accident of* `[^\s,:]*` excluding `:`; the para prefix has no such barrier.
+
+**This is material, not hypothetical.** `convert.py:218` cites every encyclical paragraph as `f"{title}, para. {num}"` — 201 documents / ~10.9k entries of committed, English, in-scope corpus, exactly the `cite_passage`/`identify_source` pool. It violates this phase's own acceptance criterion ("`could be A, B, or C` scores `correct=0` for citation tasks") for one of the three shapes, on the honesty property the spec says Phase 1 exists to measure.
+
+**Verified one-token fix** — add a negative lookahead so a prefix token cannot be `para`:
+
+```python
+_PARA_CITE = re.compile(r"(?:(?![Pp]ara)[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
+```
+
+I simulated this in `/tmp` across 7 cases — **7/7**: both hedges above → 0 (n=2), `Rerum Novarum, para. 5` and `The passage is from Rerum Novarum, para. 5.` → 1, the three-way `para. 5, para. 6, or para. 7` → 0 (n=3), and the `para. 50` / `para. 6` near-misses stay 0.
+
+### Issue 2 (blocking, and the root cause of Issue 1) — zero para-shape tests
+
+`test_score.py` contains **no** para citation test (the single `para` hit is `parametrize`). One of three extractor branches, covering a 201-document English corpus, is entirely uncovered — which is precisely why two rounds of hedge-hunting missed it. Reading the tests that reach `_shape_rx`: deleting the `_PARA_CITE` branch outright would not fail a single test. Please add the hedge + correct-single cases above as regression tests in both directions, as was done for colon and num.
+
+### Comments (non-blocking)
+
+- **`identify_source` work-field hedges pass.** `work_found` uses plain containment (score.py:145), so `"It is from The Bible or the Quran, John 1:1."` → `work_found=1, correct=1` (verified). Iter 2 raised the *opposite* direction (under-reporting on `"The Bible"`) and it was dispositioned; this over-reporting direction is new. The spec's "both fields correct against a single extracted candidate" arguably wants it caught. Low priority — the citation usually carries the book name, and `work_found` is reported separately so it stays auditable.
+- **README silent on this phase's surface.** `pipelines/README.md:84-85` still describes `score` as "strict + normalized + token-F1" with no mention of the per-task contract, the tradition breakdown, or the new `--summary-md` / `--questions`+`--config` roster flags. Not listed as a phase-6 plan deliverable, so genuinely optional — but Phase 7/8 consume exactly these.
+- **Iter-3 dispositions I reviewed and agree with**, not re-raising: the `tradition` `.get(...) or []` soft-degrade (scoring fields stay fail-fast via `score_answer`, so a legacy row loses only its breakdown), and the `identify_version` short-vs-full-label gap (contract implemented faithfully; prompt/catalogue-side, and the first run doesn't report it). Both are recorded as deliberate — good.
+
+The tradition aggregation, raw-count overall, roster, and no-data rendering are all solid and well tested. The gap is narrow and localized: one extractor branch and its missing tests.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Tradition aggregation, raw-count overall, label metrics and the missing-cell roster are correct and well tested, and both iter-3 blockers are fixed — but the para-shape citation extractor collapses hedges into one candidate, so an encyclical hedge scores correct=1, and that branch has no test coverage at all.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_PARA_CITE` (score.py:88) lets its greedy prefix swallow an earlier `para. N` as prefix words, so `"maybe Rerum Novarum, para. 5 or Rerum Novarum, para. 6"` and `"Either Rerum Novarum para. 5 or Quadragesimo Anno para. 5"` yield `n_candidates=1` and score `correct=1` (verified). Material: `convert.py:218` cites all 201 encyclicals / ~10.9k entries as `{title}, para. {n}`. Violates this phase's "hedge scores 0" acceptance criterion. Verified fix: `(?:(?![Pp]ara)[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+` — 7/7 cases, no existing para test to regress.
+- No para-shape citation tests exist in `test_score.py` — one of three extractor branches is wholly uncovered (deleting the branch breaks no test), which is why two prior hedge-hunting iterations missed the hole. Add both-direction regression tests.
+- Non-blocking: `identify_source` `work_found` uses plain containment, so a work hedge (`"The Bible or the Quran, John 1:1"`) scores `correct=1` (verified) — new direction, inverse of the dispositioned iter-2 item.
+- Non-blocking: `pipelines/README.md` doesn't document the per-task contract, tradition breakdown, or the new `--summary-md` / `--questions`+`--config` flags that Phases 7-8 consume.

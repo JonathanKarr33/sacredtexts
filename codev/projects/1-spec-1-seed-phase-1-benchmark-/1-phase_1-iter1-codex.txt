@@ -1,0 +1,10 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 1’s catalogue structure is sound, but licensing fails open and required provenance metadata is absent.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- **Restricted generation can bypass the default gate.** `filter_standardized_paths()` keeps files whose license cannot be mapped, while `convert` permits arbitrary output paths rather than enforcing `Target.standardized_dir()`. Thus a restricted conversion written outside the convention—such as the README’s legacy output path—will be included by a later default `generate`. Unknown standardized paths should fail closed or carry explicit catalogue identity.
+- **A missing or mistyped catalogue silently disables licensing.** `_catalogue_or_empty()` returns an empty catalogue when `raw_root` is absent or contains no manifests. Both `convert` and `generate` then proceed without a license gate, contrary to the fail-fast constraint and the requirement that restricted sources be excluded by default.
+- **The manifests do not satisfy the required provenance catalogue.** The specification requires source location/repository/commit, fetch method, and fetch date. The schema only models optional `source_url` and `notes`; four of six manifests have no `source_url`, and none records structured fetch method/date or commit. These fields should be represented, validated, and populated.
+- **Tests cover helper functions but not actual CLI enforcement.** Add CLI-level cases proving default `convert`/`generate` reject restricted and unmapped inputs, opt-in succeeds, and a missing catalogue cannot silently disable the gate. Also validate non-empty tradition values and malformed YAML with file/target context.

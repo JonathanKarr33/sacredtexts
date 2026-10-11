@@ -1,0 +1,50 @@
+I'll start by reading the key implementation files for phase_3.I read the Phase 3 implementation and independently verified it against the real committed data (writing all conversion output to a temp dir outside the worktree — I made no changes to the tree).
+
+## What I verified
+
+**`sefaria_talmud` — daf offset is correct against external ground truth, not just internally consistent:**
+- Hillel's golden rule ("what is hateful to you…") lands at `Shabbat 31a:6` ✓
+- *lo bashamayim hi* ("It is not in heaven") at `Bava Metzia 59b:5` ✓
+- "saved an entire world" at `Sanhedrin 37a:13` ✓
+- Last dapim: Berakhot `64a`, Makkot `24b`, Arakhin `34a`, Shevuot `49b`, Taanit `31a`, Zevachim `120b` — all canonical ✓
+
+**Markup strip is safe on the real data**: tag census over all tractates is only `b/i/strong/br/span`; **zero** `<br>` word-join risks (every `<br>` is a standalone chapter-closer line, so stripping cannot concatenate words); no footnote markup to inline; the real-data test's `"<" not in e.text` assertion over all 78k entries holds.
+
+**Line numbering does not drift**: `enumerate(section, start=1)` over the *raw* section means the 207 markup-only lines are skipped without renumbering later lines — verified `Arakhin 7b` emits `…13, 15, 16…`. This matches Sefaria's positional ref semantics (an empty segment still occupies an index), so it's correct, not merely harmless.
+
+**Duplicate handling matches the data**: `Shevuot - en` in the Davidson subdir is byte-identical (md5 confirmed) → deduped; `Berakhot - en` exists *only* in the subdir, so the recursive glob is load-bearing (34 tractates, not 33); the `he` "Vocalized Aramaic" Shevuot is a genuinely different edition, correctly excluded by the tightened glob rather than silently picked.
+
+**`quran_qul`**: 6236 ayat, `1:1`→`114:6`, dict key == `verse_key` in all 6236 records, canonically ordered, `surah`/`ayah` fields consistent.
+
+**`hadith_sunnah`**: `idInBook` is dense `1..n` and unique in all 9 collections; the 125 skipped Muwatta Malik entries are genuinely `"arabic": ""` upstream.
+
+Full catalogue convert: **221 docs / 349,799 entries / 21 targets, all `validate`-passing**; 80 tests pass; restricted targets (NABRE, TLG) correctly excluded by default so the unregistered `tlg` converter never fires.
+
+## Findings (none blocking)
+
+1. **The one test I'd add before moving on.** Nothing pins "skipping an empty line must not renumber later lines," yet that property is load-bearing at **207 real places**. A one-token regression (incrementing `line_no` only on kept lines) would silently shift hundreds of Talmud citations — precisely the silent-citation-drift class that cost Phase 2 three iterations, and the aggregate assertions (first citation + entry count) would all still pass. `_talmud("T", [[], [], ["<b></b>", "real"]])` → expect `T 2a:2` locks it in 4 lines.
+
+2. **No language/version cross-check.** `convert_sefaria_talmud` ignores each file's own `language` and `versionTitle`. The `he` target is safe only by glob convention; if that glob ever widens, English tractates get silently labelled `he`. A `data["language"] != target.language → ConvertError` guard is two lines and fits the fail-fast principle.
+
+3. **Weaker guard in `hadith_sunnah`**: `if number is None` (no `isinstance`), so a non-int `idInBook` would stringify into a citation — inconsistent with the `isinstance` rigor elsewhere in the file.
+
+4. **Misleading diagnostic**: `_require_unique_citations(entries, str(paths[0]))` in the merged Talmud/NABRE path always names the *first* file, even if tractate #30 caused the duplicate.
+
+5. **Silent drops aren't reported**: 125 empty Malik hadiths and 207 markup-only Talmud lines vanish with no count. Behaviorally right (empty units can't be items), but a "skipped N empty units" echo per target would make conversion auditable for the Phase 8 evidence story.
+
+6. **Plan text now stale** (deviation is defensible and recorded in the thread): plan says Quran citation `surah:ayah` and hadith "collection + number"; the implementation prefixes the work (`The Qur'an 1:1`), consistent with the Phase-2 self-identifying-citation decision.
+
+7. **Scale heads-up for Phase 5, not Phase 3**: Talmud en is a single **47 MB / 78,117-entry** document; the full standardized tree is 151 MB and `schema.load_documents` is fully in-memory. The spec permits sharding ("one document per Bible book"); worth deciding before `generate` runs corpus-wide. Note the CLI's `len(docs)==len(paths)` stem heuristic would also need care if Talmud were sharded, since dedup breaks that equality.
+
+---
+VERDICT: APPROVE
+SUMMARY: All three Phase 3 converters are correct and verified against real data — Talmud daf mapping independently confirmed against external ground truth; one high-value regression test is missing.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Missing regression test for the "skipped empty line must not renumber later lines" property, which is load-bearing at 207 real Talmud locations and invisible to the existing aggregate assertions (code is correct; the guard is absent)
+- `convert_sefaria_talmud` does not cross-check each file's own `language`/`versionTitle` against the target, so a widened glob would silently mislabel English tractates as `he`
+- `convert_hadith_sunnah` guards `idInBook` with `is None` rather than `isinstance(int)`, inconsistent with the other converters
+- `_require_unique_citations` names `paths[0]` in merged-document converters, misattributing a duplicate across a 34-file merge
+- Skipped empty units (125 Malik hadiths, 207 Talmud lines) are dropped without any reported count

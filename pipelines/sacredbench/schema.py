@@ -87,11 +87,19 @@ def parse_document(data: dict, where: str = "<memory>") -> Document:
     for key in _SOURCE_REQUIRED:
         if key not in source:
             raise SchemaError(f"{where}: source missing required field '{key}'")
+    # scalar source fields must be non-empty strings — not null, [], or blank
+    # (mechanical validation must reject malformed metadata, not str()-coerce it)
+    for key in ("work", "version", "language", "document_type"):
+        if not isinstance(source[key], str) or not source[key].strip():
+            raise SchemaError(f"{where}: source.{key} must be a non-empty string")
     tradition = source["tradition"]
     if isinstance(tradition, str):
         tradition = [tradition]
-    if not (isinstance(tradition, list) and tradition and all(isinstance(t, str) for t in tradition)):
-        raise SchemaError(f"{where}: source.tradition must be a non-empty string or list of strings")
+    if not (isinstance(tradition, list) and tradition
+            and all(isinstance(t, str) and t.strip() for t in tradition)):
+        raise SchemaError(
+            f"{where}: source.tradition must be a non-empty string or list of non-empty strings"
+        )
     entries_raw = data.get("entries")
     if not isinstance(entries_raw, list) or not entries_raw:
         raise SchemaError(f"{where}: 'entries' must be a non-empty list")

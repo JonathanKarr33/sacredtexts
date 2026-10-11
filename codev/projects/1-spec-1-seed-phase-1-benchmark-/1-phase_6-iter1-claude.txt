@@ -1,0 +1,55 @@
+I'll start by locating the worktree and reading the Phase 6 implementation files.Phase 6 is commit `28bc3da`. Let me read the core files.Let me verify my hedge-hole hypothesis using a standalone snippet (no imports from the tree, so nothing is written there).I've reviewed the Phase 6 implementation. Let me confirm one last detail about how the summary represents a model with no successful cells.## Review — Phase 6: Per-task scoring contract and tradition-aware analysis
+
+**Verification performed:** read `score.py`, `test_score.py`, `collect.py`, `generate.py`, and the `score` command in `cli.py`; read the phase-6 commit diff (`28bc3da`); ran the suite read-only with the existing venv (`PYTHONDONTWRITEBYTECODE=1`, `-p no:cacheprovider`, `--basetemp=/tmp`) — **125 passed**; probed the citation regex in a standalone snippet and the summary renderer via a scratch script in `/tmp`. Nothing in the worktree was modified.
+
+### What's right
+
+- **Raw-count `_overall`** replaces the lossy `round(accuracy*n)` reconstruction — correct, and `test_overall_is_raw_count` pins it.
+- **The list-valued-tradition rule is implemented exactly as the spec states** (score.py:174-178, 196-207): once per *listed* tradition, overall once. `test_tradition_counts_once_per_listed_tradition` asserts the per-tradition `n` sums *above* the overall count — the right assertion, not a tautology.
+- Per-tradition `_overall` also uses raw counts (score.py:204), not re-rounded cells. Good catch by the builder.
+- Partial missing `model×task` cells do render as `—` (I verified this by running the renderer), and the digest guard from Phase 5 is validated here.
+
+### Issue 1 — the anti-hedge is numeric-only; cross-book hedges still score 1 (score.py:74-86)
+
+`_citation_candidates` strips the work/book name and keys on the numeric token, and `correct` is still decided by **raw containment**, with the candidate count only used as a veto. So a hedge whose candidates share verse numbers passes. Verified:
+
+| answer | expected | `correct` |
+|---|---|---|
+| `It could be Jude 1:3, Jude 1:4, or Jude 1:5.` | `Jude 1:3` | 0 ✅ (spec's literal example) |
+| `It could be John 1:1, Genesis 1:1, or Micah 1:1.` | `John 1:1` | **1** ❌ |
+| `Either Jude 1:3 or John 1:3.` | `Jude 1:3` | **1** ❌ |
+
+The spec's requirement is that "a single citation candidate is extracted … so **containment alone cannot game** the provenance-honesty property Phase 1 exists to measure." Here containment is still the decider. `John 1:1 / Genesis 1:1 / Micah 1:1` is a realistic hedge shape, not a contrived one.
+
+Fix: extract candidate **spans including the leading work/book tokens** (an optional capitalized-word prefix before the numeric token — citations are `<Book> c:v`, `Berakhot 2a:1`, so this is tractable), then set `correct = (len(candidates) == 1) and normalize(candidate) == normalize(expected)`. That makes "single extracted candidate equals ground truth" literal rather than approximated, and kills the hole. The existing hedge tests (test_score.py:110-124) only use numerically-distinct hedges, so they give false confidence — add the cross-book case.
+
+### Issue 2 — `identify_version` doesn't match the contract and is gameable (score.py:101-102)
+
+Spec table: `identify_version` metrics are **exact, normalized (on label)**. The implementation emits only `correct`, computed by containment. Consequences:
+
+- `"That is not the KJV; it is the ASV."` scores **correct=1** against expected `KJV` — a flatly wrong answer.
+- `"KJV, ASV, or WEB"` scores 1 for *every* version-gated item.
+
+This is reachable: Phase 5 deliberately made `identify_version` live for the Bible via KJV/ASV/WEB. Since Phase 6's design decision is "each task's applicable metrics match the spec table," this task needs label `exact`/`normalized` and a correctness rule based on label equality (or single-candidate extraction over the corpus's known version labels), not substring presence.
+
+### Issue 3 — the phase's own missing/failed-cell test is absent
+
+Phase 6's Test Plan lists "a slice with a missing/failed cell" (also a spec unit-test criterion). Partial coverage does work, but nothing pins it. Separately: `collect` never writes failed cells, and `score_file` has no panel roster — so a model whose **every** cell failed vanishes from `summary["models"]` entirely, with no `—` row. The plan says missing/failed cells should be "represented, not dropped." Either thread the roster through (`score` could read the run config) or add the test plus an explicit note that fully-failed models are visible only via `collect`'s non-zero exit.
+
+### Comments (non-blocking)
+
+- **Encyclical citations are English and in-scope now**: `"Paragraph 5 of Rerum Novarum"` yields zero candidates *and* fails containment (`para 5` ⊄ `paragraph 5`), so a correct answer scores 0. Number-only citations (hadith) get no extraction at all. The Arabic deferral is stated, but the `Paragraph`/`para.` variance affects an English corpus the first run can draw from.
+- Consider emitting `extracted_citation` / `n_candidates` into the per-answer metrics — makes the anti-hedge auditable, helps Phase 7's viewer and the paper.
+- `cli score` writes `summary.json` but only **echoes** markdown. The spec says "JSON + markdown"; Phase 8 commits this as evidence, so a `--summary-md` output path would avoid a copy-paste step.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Tradition aggregation and raw-count overall are correct and well tested, but the anti-hedge veto is numeric-only (cross-book hedges still score 1) and `identify_version` still grades by containment instead of the table's label metrics, so the per-task contract this phase exists to implement isn't fully met.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_single_citation_correct` keys candidates on numbers only and still decides via containment — `"could be John 1:1, Genesis 1:1, or Micah 1:1"` scores correct=1 against `John 1:1` (verified); extract full citation spans and compare the single candidate to ground truth.
+- `identify_version` emits only `correct` by containment, missing the spec table's `exact`/`normalized` label metrics; `"not the KJV; it is the ASV"` and `"KJV, ASV, or WEB"` both score 1 on a task Phase 5 made live for the Bible.
+- No test for the phase's "slice with a missing/failed cell" case; a model whose every cell failed is omitted from the summary rather than represented.
+- Minor: `"Paragraph 5"` scores 0 for a correct encyclical answer (English corpus, in scope); markdown summary is echoed but never written to a file that Phase 8 can commit.

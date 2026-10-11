@@ -1,0 +1,65 @@
+I'll start by locating the worktree and reading the Phase 2 implementation files.I read the Phase 2 implementation and verified it against the real committed raw data (not just the tests). The test suite is green (60 passed), the catalogue-driven `convert` refactor is clean, and `bible_flat` is correct against all three real Bibles. Two data-correctness defects in the converter output, however, are baked into the committed tests.
+
+## What I verified independently
+
+**`bible_flat`** — correct. All three real files are uniformly `[{book:str, chapter:int, verse:int, text:str}]`; KJV/ASV = 31102 rows, WEB = 31098; no empty texts. `Genesis 1:1` → `Revelation 22:21` matches the test.
+
+**The LDS-KJV version-label decision is right, and the plan's premise was wrong.** The plan (from the earlier consult) asserted "LDS KJV duplicates Protestant KJV byte-for-byte." It does not: of 30985 shared citation keys there are **2168 text differences** (`shewed`/`showed`, `LORD`/`Lord`, `Hazar-enan`/`Hazarenan`) plus **117 citation keys on each side with no counterpart**. So `version: KJV (LDS 2013 edition)` in `source.yaml` is factually correct and the inline comment justifying it is accurate. Good call — don't let a later phase "fix" this back into a merge.
+
+**`encyclicals` against the real payload** — 201 files, 10925 entries, zero shape failures, no duplicate titles, `pope`/`publicationDate` present everywhere. The converter does run on the real data. But see issue 2.
+
+## Issue 1 — `lds_nested` emits 15 editorial chapter headings as scripture verses (must fix)
+
+`convert.py:109` strips `heading` at the **book** level, but the 3-level branch at `convert.py:118-128` iterates `verses.items()` unfiltered, and the Book of Mormon has chapter-level `heading` keys too (first key in each affected chapter dict):
+
+```
+Mosiah 9:heading, Mosiah 23:heading, Alma 5:heading, Alma 7:heading, Alma 9:heading, … (15 total)
+text: "The Record of Zeniff—An account of his people, from the time they left
+       the land of Zarahemla until the time that they were delivered …"
+```
+
+That is a 2013-edition editorial chapter summary, emitted with `unit_type="verse"` and citation `Mosiah 9:heading`. The canonical Book of Mormon verse count is **6604**; the test at `test_schema_convert.py:136` asserts **6619** = 6604 + 15, so the test locks the defect in. The commit message claims headings are skipped — only the book-level ones are.
+
+Why it matters beyond tidiness: `generate.py:88` builds `retrieve_quote` as "give me the … quote for `Mosiah 9:heading`", and `generate.py:106-109` makes that string the `cite_passage` ground truth. For a benchmark whose whole point is provenance fidelity on exact sacred text, shipping non-scripture editorial prose as a cited verse is a validity defect, not cosmetics. Filter non-numeric unit keys (or `heading` explicitly) in the 3-level branch and correct the expected count to 6604.
+
+## Issue 2 — `encyclicals` produces duplicate, ambiguous citations in 135 of 201 real files (must fix)
+
+`convert.py:172-174`:
+
+```python
+num = para.get("paragraph")
+label = str(num) if num is not None else str(i)
+```
+
+3023 real paragraphs have `paragraph: null`, and **187 of 201 files mix numbered and null paragraphs**. The positional fallback `str(i)` collides with explicit numbers: `acerbo-nimis.json` yields two distinct entries both cited `Acerbo Nimis, para. 16`. **135 of 201 documents contain at least one duplicated citation.**
+
+Consequence: `retrieve_quote` on such an item has two different "correct" texts and the model cannot win; Phase 4's `(citation, text)` dedup key won't collapse them either, so the ambiguity propagates into committed artifacts.
+
+The `ENCYCLICAL_SHAPE` fixture (`conftest.py:66-71`) *looks* like it covers the null case — `[{null, …}, {2, …}, {null, "  "}]` — but by accident produces labels `1, 2` with no collision, which is exactly why the real-data defect survived. Pick a rule that can't collide (positional labelling for the whole document, or deterministic disambiguation of nulls), and **add the real-data encyclicals test the plan asked for**: Phase 2's deliverable is "per-converter tests against the real committed source (fixture for restricted NABRE shape)," and `encyclicals` — whose payload *is* committed — is currently fixture-only. That confirmation step is the one listed Phase 2 objective not actually performed.
+
+A shared post-condition asserting citation uniqueness within a document would have caught this and would guard Phase 3 (Talmud daf offsets are a similar hazard).
+
+## Issue 3 — D&C citations omit the work ("1:1")
+
+`convert.py:117` emits `f"{book_name}:{verse}"` for the 2-level shape, so Doctrine and Covenants entries are cited `1:1`, `1:2`, … while Book of Mormon gets the traditional `1 Nephi 1:1`. The interchange contract specifies `citation: "<traditional citation>"`; `1:1` is not one. Since `generate.py:109/112` uses `entry.citation` verbatim as `cite_passage`/`identify_source` ground truth, every D&C item of those tasks is unwinnable — a model answering `D&C 1:1` scores 0 against expected `1:1`. Cheap fix now (prefix the work's standard abbreviation for the 2-level shape); expensive to discover in Phase 8.
+
+## Minor (non-blocking)
+
+- `convert_encyclicals:161` and `convert_nabre:199` call `data.get(...)` with no `isinstance(data, dict)` guard, and `para.get("text")` with no guard on `para`. A JSON file containing a list raises a bare `AttributeError` instead of a `ConvertError` naming the file — inconsistent with the fail-fast-naming-the-file contract `bible_flat`/`lds_nested` honor.
+- `write_document` (`schema.py:137-141`) does not re-validate, and no test runs real-data conversion through `parse_document`/`validate`. Phase 2's acceptance criterion is "converts to `validate`-passing documents"; one assertion per converter would close it cheaply.
+- `cli.py:101-107` infers output filenames from `len(docs) == len(paths)`. Correct for all four current converters, but a future converter that merges pairs would silently mislabel files. Having converters return `(stem, doc)` would remove the heuristic. Not urgent.
+
+I did not modify anything in the worktree; all verification was done with read-only scripts run from `/tmp` (`PYTHONDONTWRITEBYTECODE=1`, `pytest -p no:cacheprovider`).
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Clean catalogue-driven refactor and a correct `bible_flat`, but `lds_nested` emits 15 editorial chapter headings as verses (test locks in the wrong count) and `encyclicals` yields duplicate citations in 135/201 real files — the plan's "confirm encyclicals against the committed shape" step was not done.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `lds_nested` 3-level branch (`convert.py:118-128`) does not filter chapter-level `heading` keys: 15 Book of Mormon editorial summaries become `unit_type="verse"` entries cited `Mosiah 9:heading` etc. `test_schema_convert.py:136` asserts 6619 (= canonical 6604 + 15), baking the defect into the suite.
+- `encyclicals` positional fallback for `paragraph: null` (`convert.py:172-174`) collides with explicit paragraph numbers: 135 of 201 real documents contain duplicate citations (e.g. two distinct `Acerbo Nimis, para. 16`), making `retrieve_quote` ground truth ambiguous. The fixture-only test cannot catch it; Phase 2 requires a real-data encyclicals test.
+- D&C citations (`convert.py:117`) omit the work — `1:1` instead of `D&C 1:1` — so every D&C `cite_passage`/`identify_source` item is unwinnable against `generate.py`'s verbatim-citation ground truth.
+- Minor: `convert_encyclicals`/`convert_nabre` lack `isinstance(data, dict)` guards, raising `AttributeError` instead of a file-naming `ConvertError`; no test asserts real converter output passes `validate`.
+- Not an issue — verified and worth preserving: the plan's "LDS KJV is byte-identical to Protestant KJV" premise is false (2168 text differences, 117 citation keys unique per side), so the distinct `KJV (LDS 2013 edition)` version label is correct.

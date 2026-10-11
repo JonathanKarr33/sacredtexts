@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core scoring and raw-count aggregation work, but failed cells disappear from the tradition breakdown and lowercase citation hedges bypass the anti-hedge rule.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The expected roster is keyed only by `(model_id, task)`. `by_tradition` is built exclusively from successful answer rows, so if a tradition’s cell fails entirely, that model × task × tradition cell is dropped rather than represented. Pass tradition-aware expected counts derived from the questions and test a failed tradition cell.
+- Citation extraction is case-sensitive. For expected `John 1:1`, `"it could be john 1:1 or genesis 1:1"` returns `correct=1`; lowercase hadith hedges can likewise pass with zero candidates. This violates the required multi-candidate-hedge rejection. Make extraction case-insensitive and add lowercase hedge tests.

@@ -1,0 +1,7 @@
+---
+VERDICT: COMMENT
+SUMMARY: Phase 8 is complete and reproducible; only mixed-price cost presentation has a minor misleading edge case.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- When only some models provide prices, `summary_markdown()` renders unpriced models as `$0.0000` and labels the priced-model subtotal as the total. Render unpriced costs as unavailable and clarify the subtotal, or emit total cost only when every model is priced. The committed evidence is unaffected because it reports token usage only.

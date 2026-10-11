@@ -1,0 +1,74 @@
+I'll verify the spec against the actual repo state before reviewing.I've verified the spec against the repo (seed code in `pipelines/sacredbench/`, `.gitignore`, `texts/README.md`, the delivered `spir/templates/spec.md`, and the real converter/scorer behavior). Review below.
+
+## What's solid
+
+- **Structure conforms to the delivered template exactly** — all 13 headings present, in order, none renamed. No pattern-matching drift.
+- **Problem statement is well-evidenced and falsifiable**: the Gemma-4/quranquote ~30% fabrication finding, the two blog studies, the gap claim (no multi-tradition provenance-aware benchmark). Deadlines are real and internally consistent — I checked, Oct 12 2026 *is* a Monday and Oct 27 a Tuesday.
+- **Current State is verified against real data, not docs** — `convert.py` confirms the `paragraph: null` detail and the two distinct input shapes. That's the lesson from `lessons-critical.md` actually applied.
+- Scope cut (Phase 2 = interpretation, out) is crisp. Copyright gate, fail-fast, JSONL seams all match project conventions.
+
+## Issues
+
+**1. The representation contract contradicts itself (blocking).** Desired State §1 mandates a two-tier `texts/raw/` + `texts/standardized/` layout holding standard flat-format JSON documents. Approach 1 — the *recommended* approach a builder plans from — says "Drop-in `texts/<corpus-id>/` (YAML metadata + entries.jsonl)" and lists as a con "two representations (internal corpus + interchange) need a round-trip guarantee." These are different layouts and different file formats. The seed code (`schema.py`, `convert.py`, `cli.py`) implements neither `entries.jsonl` nor a separate internal corpus: it writes interchange-format JSON documents directly. Pick one and make Approach 1 describe the amended layout.
+
+**2. The round-trip success criterion is vacuous as written.** "Exporter emits interchange JSON that round-trips (`corpus → interchange → corpus` is lossless)." Per `schema.py`, a standardized document *is* interchange JSON verbatim — so the exporter is a file copy and the test is an identity assertion that can never fail. Either state what `texts/standardized/` carries *beyond* interchange (extra provenance? per-book sharding that the exporter merges?), making the round-trip meaningful, or drop the exporter and say "standardized tier is the interchange format; `validate` is the gate."
+
+**3. `identify_version` is degenerate against the corpus the spec mandates (blocking).** Success criterion 1 requires NABRE + encyclicals + Quran — exactly one version per work. So "Which version of The Bible says «text»?" has one admissible answer in the corpus for every item, and `score.py` grades it by substring containment of `"NABRE"`. A model that replies "NABRE" to every Bible item scores 100% while demonstrating nothing. Worse, the ground truth is often genuinely wrong: a verse whose wording is shared across translations has no unique correct version. Fix by requiring ≥2 versions of at least one work in `texts/raw/` (two public-domain Bibles — KJV/ASV — are free of the NABRE licensing problem), scoring only items whose wording is distinctive, or deferring the task.
+
+**4. The per-task scoring contract is undefined and contradicted by the seed.** The criterion says `score` emits "per-answer exact/normalized/token-F1 (+ per-task headline `correct`)". But `verify_source` answers are yes/no (token-F1 on "yes" is noise) and `identify_source` expects *two* fields (work + citation) — one metric triple doesn't apply. `score.py` already diverges: only `retrieve_quote` and `complete_unit` get the three metrics; the other four return `correct` alone. The spec needs a small table: per task, the expected-answer schema and which metrics are defined. As written the criterion isn't testable.
+
+**5. Containment-based grading is gameable, and `correct` is the paper's headline number.** `cite_passage` and `identify_source` mark an answer correct if the expected citation appears anywhere in it, so "this could be John 3:16, Luke 2:4, or Rom 5:8" scores 1.0 — the opposite of the provenance-honesty property Phase 1 exists to measure. Add a requirement that correctness rules be robust to multi-candidate answers (extract a single citation; non-unique answers score 0), plus a test scenario for it.
+
+**6. Tradition aggregation is undefined for list-valued `tradition`.** The summary is per-model × task × **tradition**, but `tradition` is a list by design (the Bible is Catholic *and* Protestant *and* …). Does an observation count once per listed tradition (inflating n), once under a joint key, or fractionally? This changes every number in the paper. State the rule.
+
+**7. Committed artifacts can carry the copyrighted text the gate exists to keep out.** Constraints say "results committed must be scores+metadata, not bulk text," but two criteria require committing a live smoke run as evidence — and `questions.jsonl`/`answers.jsonl`/`scores.jsonl` embed exact NABRE verses (prompts quote full text; `expected` holds it; `complete_unit` stores `full_text`). Specify exactly what smoke evidence is committed and what is redacted/hashed. Related, lower priority: the spec is silent on whether sending NABRE excerpts to third-party provider APIs is acceptable to the group — at minimum an Open Question.
+
+**8. `.gitignore` as it stands cannot satisfy criterion 1.** The file has `texts/*` with `!texts/README.md`. Git can't re-include a path under an excluded directory, so `texts/raw/<id>/source.yaml` is unreachable without restructuring to `texts/**` plus explicit `!texts/raw/`, `!texts/raw/*/`, `!texts/raw/*/source.yaml`. Also `texts/README.md` still documents the pre-amendment single-tier meaning of `texts/`. Both are small, but the spec asserts a committed-YAML outcome that today's repo state blocks, so name it as a requirement rather than leaving the builder to discover it.
+
+**9. Analysis & visualisation is in Desired State with no criterion and no test.** §6 asks for "matplotlib figures suitable for the paper," but no success criterion or test scenario mentions a figure. Either add a concrete deliverable (named figures + an aggregation test covering missing/failed cells) or move visualisation out of this spec's scope, as the SPA already is.
+
+**10. Quran acquisition is an unmitigated single point of failure.** Criterion 1's "≥2 traditions" depends on the Assumption that JaleesBench quranquote data is obtainable; there's no risk-table row and no fallback. A public openly-licensed source (Tanzil/quran.com JSON) as the stated fallback would de-risk both availability and licensing.
+
+**11. Minor:** "`collect` runs a ≥3-model panel spanning ≥2 providers" is evidence, not a test — say it's satisfied by committed run artifacts, since no CI can assert it. And `generate`'s determinism criterion should explicitly cover stable question **IDs and ordering** plus a persisted seed/config/input-hash record, otherwise "deterministic for a fixed seed" passes while a corpus edit silently reshuffles the set.
+
+Nothing here challenges a stated constraint (stack, interchange format, copyright gate) — all of it is internal consistency, testability, and benchmark validity. Items 1, 3, 4, and 7 are the ones I'd want fixed before a builder plans from this; the rest are tightening.
+
+I made no changes to the worktree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Well-evidenced, template-conformant spec with a self-contradicting storage contract, a degenerate task, an undefined per-task scoring contract, and a copyright hole in committed artifacts.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Desired State's `texts/raw` + `texts/standardized` layout contradicts Approach 1's `texts/<corpus-id>/` + `entries.jsonl`; seed code implements neither. Pick one.
+- `corpus → interchange → corpus` losslessness is vacuous — standardized documents already *are* interchange JSON, so the exporter is a copy and the test cannot fail.
+- `identify_version` is degenerate: the mandated corpus has one version per work, so the answer is inferable from the work and graded by substring containment. Require ≥2 versions (public-domain Bibles avoid the NABRE issue) or defer the task.
+- "every answer gets exact/normalized/token-F1" is ill-defined for yes/no and two-field answers, and `score.py` already diverges. Add a per-task expected-answer schema + applicable-metrics table.
+- Containment grading lets multi-candidate answers ("John 3:16, Luke 2:4, or Rom 5:8") score correct, inverting the provenance-honesty property being measured.
+- Per-tradition aggregation is undefined for list-valued `tradition` — once per tradition, joint key, or fractional? Changes every reported number.
+- Committed smoke-run evidence (questions/answers/scores) embeds exact NABRE text, contradicting the copyright gate; specify what is committed vs redacted, and take a stance on sending excerpts to third-party providers.
+- `.gitignore`'s `texts/*` makes the required committed `source.yaml` unreachable; the ignore restructure and the stale `texts/README.md` need to be stated requirements.
+- Analysis/visualisation is required in Desired State but has no success criterion or test — scope is unbounded.
+- Quran availability rests on an unmitigated assumption (JaleesBench access) with no risk row or public-source fallback.The background search finished — it only confirms what I already used: there is **no project-local `codev/protocols/spir/templates/spec.md` in this repo**, so the template resolves from the installed package skeleton at `/opt/homebrew/lib/node_modules/@cluesmith/codev/skeleton/protocols/spir/templates/spec.md` (the 20 hits are other projects: modtrail, life, shannes, iaser.ai). That's the file I compared the spec's headings against, so my structure assessment stands unchanged — the spec conforms to the delivered template exactly.
+
+No change to my review. Restating the verdict for the parser:
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Well-evidenced, template-conformant spec with a self-contradicting storage contract, a degenerate task, an undefined per-task scoring contract, and a copyright hole in committed artifacts.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Desired State's `texts/raw` + `texts/standardized` layout contradicts Approach 1's `texts/<corpus-id>/` + `entries.jsonl`; seed code implements neither. Pick one.
+- `corpus → interchange → corpus` losslessness is vacuous — standardized documents already *are* interchange JSON, so the exporter is a copy and the test cannot fail.
+- `identify_version` is degenerate: the mandated corpus has one version per work, so the answer is inferable from the work and graded by substring containment. Require ≥2 versions (public-domain Bibles avoid the NABRE issue) or defer the task.
+- "every answer gets exact/normalized/token-F1" is ill-defined for yes/no and two-field answers, and `score.py` already diverges. Add a per-task expected-answer schema + applicable-metrics table.
+- Containment grading lets multi-candidate answers ("John 3:16, Luke 2:4, or Rom 5:8") score correct, inverting the provenance-honesty property being measured.
+- Per-tradition aggregation is undefined for list-valued `tradition` — once per tradition, joint key, or fractional? Changes every reported number.
+- Committed smoke-run evidence (questions/answers/scores) embeds exact NABRE text, contradicting the copyright gate; specify what is committed vs redacted, and take a stance on sending excerpts to third-party providers.
+- `.gitignore`'s `texts/*` makes the required committed `source.yaml` unreachable; the ignore restructure and the stale `texts/README.md` need to be stated requirements.
+- Analysis/visualisation is required in Desired State but has no success criterion or test — scope is unbounded.
+- Quran availability rests on an unmitigated assumption (JaleesBench access) with no risk row or public-source fallback.

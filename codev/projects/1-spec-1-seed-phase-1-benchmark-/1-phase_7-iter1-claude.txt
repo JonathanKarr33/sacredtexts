@@ -1,0 +1,39 @@
+I'll review phase_7 (minimal local results view) by reading the actual files.I read the phase_7 files from disk, ran the viewer suite (`28 files, 409 passed / 9 skipped`) and `tsc --noEmit` (clean), and cross-checked the TS shapes against the real `score.py` / `collect.py` output.
+
+## What's good
+
+- **Shapes are derived from the real pipeline output, not guessed.** `Summary` (`models` → task|`_overall` → `{n, accuracy, exact, normalized, token_f1, expected_n, missing}`, plus `by_tradition`) matches `score.py:247-300` exactly; `ScoreRow` matches the row written at `score.py:218-230`; `AnswerRow` (`question_id`, `model_id`, `task`, `answer`, `question: asdict(Question)` with `prompt`/`expected`/`source.tradition`) matches `collect.py:81-91` and `generate.py:67-72`. `formatCell` reproduces `score.py:_fmt` semantics (`—` / `miss N` / `50% (n=2) −1`) and `rankedModels` reproduces its null-last ordering.
+- **Correctly independent of the GitHub data layer** — no `github.ts`/`queries.ts` import, no HeroUI v2-era provider added, seed suites untouched and still skipped. Scope discipline is good: no domain adaptation crept in (that's Spec 2).
+- **Pure component + separate parsing lib** is a sensible split; the test covers join-on-`(question_id, model_id)`, `formatCell` edge cases, and a render asserting 1 correct / 3 incorrect marks via `aria-label`. The sample text is synthetic ("Orchards 1:1"), so the copyright gate is respected.
+- Route registered at `/local-results`, README updated without disturbing the "seed, not yet adapted" status.
+
+## The one real gap: nothing reads run artifacts
+
+`LocalResultsPage.tsx` imports `sampleSummary` / `sampleScoresJsonl` / `sampleAnswersJsonl` as compiled-in TS constants. There is no `fetch`, no file input, no dev-served path — the page can only ever render the baked fixture.
+
+That misses the spec's wording for this deliverable: *"served by a local dev server **reading the run artifacts** (committed or local `runs/`)"*, and the plan's Phase 7 deliverable *"showing run summary + per-question scores **from local artifacts**"*. It also makes two existing claims non-actionable:
+
+- `apps/viewer/README.md:12` — "Pointing it at a real run under `runs/` is the TUTORIAL's final step." There is no mechanism to point it anywhere.
+- Plan Phase 8 deliverable — "The minimal viewer renders this committed run." Phase 8 touches no viewer files, so the loader has to land here or the loop closes on a synthetic fixture. Note `runs/` is gitignored (`.gitignore:33`), so the loader and the evidence path need to agree.
+
+Minimal remedy (keep it small — this is loop-closure, not polish): have the page `fetch` three artifact URLs from a configurable base (e.g. `?run=/runs/<id>` with a dev-only vite middleware or `publicDir`/symlink exposing the repo's `runs/`), and fall back to the committed sample when the fetch 404s. A file-picker (`<input type="file" multiple>`) is an even cheaper variant that needs zero server config and works in `preview` too. Then test *that* loader against fixture JSON/JSONL files, not just the in-memory constants.
+
+## Smaller notes (not blocking)
+
+1. `parseJsonl` (`localResults.ts:56`) throws a bare `SyntaxError` with no file/line context. Real `answers.jsonl` from an interrupted `collect` can have a truncated final line — worth naming the line number once you're reading real files.
+2. `parseSummary` throws on a missing `models` key and the page has no boundary. Harmless with a static import; add an error state when the loader lands (`ErrorBoundary.tsx` already exists in the app).
+3. `expectedText` (`:64`) returns the first matching key in order `text, citation, version, answer, work` — so for `identify_source` (expected `{work, citation}`) it shows only the citation and silently drops `work`. Fine for Phase 8's `retrieve_quote`-only run; will under-report once the other tasks are generated.
+4. `by_tradition` is parsed into `Summary` but never rendered. Not required by this phase (spec asks for summary + per-question scores), just dead weight for now — or a cheap win, since `score.py` already renders that breakdown in markdown.
+5. `src/local/sample.ts` lives under `src`, so the fixture and `/local-results` ship in any production build. Not a violation of "no deploy," but worth knowing if the Spec 2 SPA ever deploys from this tree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Clean, well-tested, correctly-shaped local results view, but it renders only a compiled-in fixture — no mechanism reads real run artifacts, which the spec requires here and Phase 8 depends on.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `LocalResultsPage.tsx` statically imports `src/local/sample.ts`; there is no runtime loading of `summary.json` / `scores.jsonl` / `answers.jsonl` from a committed or dev-served `runs/` path, so the spec's "local dev server reading the run artifacts" and the plan's "from local artifacts" are unmet, and Phase 8's "the minimal viewer renders this committed run" has no mechanism to use (Phase 8 modifies no viewer files; `runs/` is gitignored, so loader and evidence path must agree).
+- `apps/viewer/README.md:12` claims the view can be pointed at a real run under `runs/`; nothing in the code supports that today.
+- Tests exercise the in-memory constants only, not the loading path the route actually uses — add fixture JSON/JSONL files and test the same loader.
+- Minor: `parseJsonl` gives no line context on malformed JSONL; no error state if parsing fails; `expectedText` drops `work` for `identify_source`; parsed `by_tradition` is unused.

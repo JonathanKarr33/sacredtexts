@@ -1,0 +1,8 @@
+---
+VERDICT: COMMENT
+SUMMARY: Phase 6 satisfies the scoring contract, anti-hedge behavior, raw-count aggregation, tradition breakdown, and missing-cell requirements with strong regression coverage.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Non-blocking: `score.py`’s module docstring still describes obsolete containment-based behavior and implies uniform metrics; update it to reflect the implemented per-task contract.
+- Non-blocking: `ScoreError` is absent from `cli.main()`’s handled exceptions, so malformed scoring input produces a traceback rather than the CLI’s normal concise error message.

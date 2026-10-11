@@ -1,0 +1,38 @@
+# Source catalogue for the Judaism corpus.
+# The Babylonian Talmud (Sefaria William Davidson Edition), dozens of tractate
+# shards in English (en) and Aramaic (he) under "Talmud Bavli/" (some English
+# tractates live in the "Talmud - English Translation (Davidson)/" subdirectory,
+# hence the recursive glob). Converter: sefaria_talmud (Phase 3) — it strips HTML
+# markup, applies the 2a daf offset, and skips the empty leading sections.
+#
+# Split into two language targets so each stays one (work, version, language)
+# unit and the English-only first run can select by path.
+source_url: https://www.sefaria.org/
+provenance:
+  retrieved_from: https://www.sefaria.org/ (William Davidson Edition text export, JSON per tractate/language)
+  fetch_method: working-group Box drop ("Phase I / raw JSON")
+  fetch_date: "2026-10-10"
+notes: >-
+  William Davidson Edition (Koren Noe / Steinsaltz). Internal license CC-BY-NC,
+  recorded in license_detail and mapped to the "open" enum.
+targets:
+  - payload: Talmud Bavli/**/*- en -*.json
+    converter: sefaria_talmud
+    work: Talmud Bavli
+    version: William Davidson Edition - English
+    language: en
+    document_type: talmud
+    tradition: [Judaism]
+    license: open
+    license_detail: CC-BY-NC — Sefaria, William Davidson Edition (Koren Noe / Steinsaltz)
+  # Canonical Aramaic only — exclude the one "Vocalized Aramaic" Shevuot variant,
+  # which is a different edition (would collide with the standard Shevuot).
+  - payload: Talmud Bavli/**/*- he - William Davidson Edition - Aramaic.json
+    converter: sefaria_talmud
+    work: Talmud Bavli
+    version: William Davidson Edition - Aramaic
+    language: he
+    document_type: talmud
+    tradition: [Judaism]
+    license: open
+    license_detail: CC-BY-NC — Sefaria, William Davidson Edition (Koren Noe / Steinsaltz)

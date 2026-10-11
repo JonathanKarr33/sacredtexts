@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Digest handling is fixed, but generation still violates the configured negative-ratio and exact-quota contracts.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `generate.py:254-274` bypasses negative-ratio enforcement when the corpus has fewer than two works. With the default `negatives_share=0.5`, a single-work run silently emits all positives rather than failing for zero eligible negatives. `test_generate.py:220-226` explicitly codifies this loophole, contradicting the phase’s insufficient-pool fail-fast requirement and the rebuttal’s claimed guarantee.
+- Deduplication occurs only after quota-sized sampling (`generate.py:252,278-289`), so colliding shards can reduce the realized task count below its quota. In a read-only reproduction with two identical shards and quota 10, output varied from 7–10 questions across seeds. The collision test checks uniqueness but not that the requested quota remains satisfied. Deduplicate/merge the candidate pool before sampling, or refill/fail after dedup.
+- The persisted generation configuration remains incomplete: `--tasks` is not recorded by `build_manifest`, while unknown `--quota` task names are silently stored but ignored. Validate quota keys and persist the requested task subset so the manifest fully records the generation policy.

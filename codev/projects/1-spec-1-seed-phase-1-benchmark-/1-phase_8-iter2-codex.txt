@@ -1,0 +1,27 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Evidence is consistent, but the tutorial is not a genuine fresh-clone collection flow and configured pricing cannot reach cost calculation.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `TUTORIAL.md` collects into the already-complete committed `answers.jsonl`; resumability therefore skips all 400 cells and makes zero provider calls. The claimed keyed “8/8” verification cannot result from the documented command verbatim. Use a separate tutorial run/output path.
+- The keyless scoring command overwrites the committed summary without a config, replacing its provider/endpoint proof with null values. Write keyless reproduction outputs elsewhere or preserve the committed panel snapshot.
+- Optional configured cost calculation is unreachable: `ModelSpec`/`load_config()` discard `price_in` and `price_out`, and the CLI panel passed to `score_file()` omits them. Add validated pricing fields, pass them through, and test the cost path—or remove the unsupported claim.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the codex review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/projects/1-spec-1-seed-phase-1-benchmark-/1-phase_8-iter2-context.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.
+
+
+---
+
+## ⚠️ REPOSITORY MOVED during the codex review (#1649).
+A consultant reviews the commit in front of it; it must never commit, or switch refs.
+  - HEAD: fd99d0c466e1b8dbdc2cebf7e211b7093ce62f61 -> d348938476d912acafe82f42547b3571ba4272af
+The files on disk may look untouched and still not be the ones this review describes.
+Check `git reflog` and `git status` before trusting this review or shipping the branch.

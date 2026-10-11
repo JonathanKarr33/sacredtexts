@@ -1,0 +1,15 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The architecture is feasible and well structured, but benchmark validity, representation contracts, and publication/licensing behavior need clarification before planning.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `identify_version` is not meaningful with the required corpus: only one version per work is required, making the answer inferable from the work alone. Require multiple versions of at least one work, or defer/redesign this task.
+- Generation policy is underspecified: define task quotas, negative ratio, tradition balancing, completion-prefix selection, ambiguity handling, and exclusion of wrong-work “negatives” whose text also occurs in the attributed work.
+- The representation contract conflicts internally. Desired State specifies `texts/raw/` and `texts/standardized/`, while Approach 1 specifies `texts/<corpus-id>/` with YAML plus `entries.jsonl`. Also, full corpus round-trip losslessness conflicts with interchange intentionally omitting detailed provenance. Choose one internal layout and define precisely what must round-trip.
+- Scoring says every answer receives exact, normalized, and token-F1 metrics, but the task table includes structured and Boolean answers, and headline correctness rules are not specified. Define canonical expected-answer schemas and correctness rules for all six tasks.
+- Multi-tradition aggregation is ambiguous for sources whose `tradition` is a list. Specify whether an observation contributes to every listed tradition, a shared category, or fractional/grouped statistics.
+- Reproducibility needs stronger acceptance rules: deterministic ordering and IDs, persisted seed/config/input hashes, model/provider version metadata, and refusal to resume against changed questions or model configuration.
+- A fresh checkout cannot perform the promised one-command demo because raw payloads and standardized corpora are gitignored. Clarify whether the command fetches pinned sources, requires a documented bootstrap step, or runs solely on committed synthetic fixtures.
+- Copyright controls do not address sending source excerpts to third-party model providers or accidental leakage through committed questions, answers, logs, and smoke artifacts. Define license-status gating, permitted provider submission, redaction/artifact policy, and exactly what live-run evidence may be committed.
+- Analysis and visualization are required in Desired State but lack measurable success criteria and tests. Specify required figure/table outputs and add an end-to-end aggregation test, including missing/failed cells.

@@ -1,0 +1,52 @@
+I'll review Phase 8 by reading the actual implementation files from disk.## Review — Phase 8 (first benchmark run + TUTORIAL), iter-3
+
+I read the Phase-8 files from disk and verified the load-bearing claims by running the tutorial's own commands (writing only to `/tmp`). I made no edits to the tree.
+
+### What I verified by execution
+
+| Claim | Result |
+|---|---|
+| **Track A doesn't clobber committed evidence** | Ran the Track A `score` verbatim → `/tmp`; `diff <(sort /tmp/scores.jsonl) <(sort runs/.../scores.jsonl)` → identical; `git status runs/` stayed clean. iter-2 finding #1 genuinely fixed. |
+| **Keyless `score` emits no panel "proof"** | Real output shows models → by-tradition → **Token usage**, no `### Panel` section; `usage` still present. Fixed. |
+| **Track B `generate` is verbatim-correct and deterministic** | Ran the 4-path command with `--seed 20261011` → `/tmp/revrun/questions.jsonl` **byte-identical** to the committed `questions.jsonl`; digest `ef837474ed7b22ec` and corpus hash `73f9888738e2d02f` match the manifest. |
+| Step 1's "221 documents" | `find texts/standardized -name '*.json' | wc -l` → 221. |
+| Copyright audit on the evidence | `audit runs/first-run-2026-10-11` → OK, exit 0; `test_committed_run_evidence_is_clean` globs `git ls-files runs/`, so the gate covers future runs too. |
+| `.codev/checks/test.sh` usable from a fresh clone | Tracked in git (not ignored) — the tutorial's last section works. |
+| Viewer step (Track C) | Started `vite --port 5199`: `/runs/first-run-2026-10-11/{summary,scores,answers}` → 200, `/local-results?run=...` → 200. Server stopped afterwards. |
+| Gates | `pipelines` **141 passed**; `apps/viewer` **412 passed / 9 skipped**. |
+
+Phase-8 deliverables are all present and real: `configs/models.example.yaml` matching the actual panel, `audit.py` + 6 tests (incl. the injected-restricted-text case), `.gitignore` evidence negation (`runs/*` + `!runs/first-run-2026-10-11/`), committed artifacts with panel proof (anthropic/`api.anthropic.com` + three via `openrouter.ai`) and token totals, and `realRun.test.ts` pinning the committed run to the viewer's schema.
+
+### Comments (none blocking)
+
+1. **Partial-pricing cost total** (the one real defect I found in `5f2717e`): `score.py` sets `any_cost` from *any* priced model, so a panel where only some models carry prices emits `usage.total.cost_usd` as a **subtotal presented as the run total**, and the markdown renders `$0.0000` for unpriced models. `test_usage_totals_and_optional_cost` currently asserts that subtotal behavior. **I observed uncommitted work in the tree that fixes exactly this** (all-priced gate for the total, `n/a` / `n/a (partial pricing)` rendering) — those edits are the builder's, not mine; just make sure they land with the test updated.
+
+2. **Tutorial Track B audits only the questions.** `audit "$RUN"` sits at step 4, before `collect`/`score`. The artifacts you'd actually commit (`answers.jsonl`, `scores.jsonl`) are never audited in the documented flow. One more `audit "$RUN"` line after step 6 closes that.
+
+3. **The audit's content layer has never run against the real evidence.** `restricted_text_fingerprints` returns empty when the held-back payloads are absent — and `texts/raw/Roman Catholic/` here contains only `encyclicals/` + `source.yaml`, so the committed run was origin-audited only (correctly: no restricted source is in its corpus). This is documented behavior, but worth a line in `codev/reviews/1-*.md`.
+
+4. **The 0% rows are refusals, not knowledge failures.** Every one of gpt-oss-20b's 100 answers is `"I'm sorry, but I can't provide that."` (avg answer length 80 chars vs ~260 for the others); haiku and llama also carry many refusal/hedge texts. The abstention-vs-hallucination split is already deferred by agreement — but `summary.md` as committed carries no caveat, so a reader of the artifact alone will misread `0%` as inability. A one-line note in `summary.md` (or a run README) is cheap and makes the evidence self-describing before Monday's meeting.
+
+5. Trivial: `cp configs/models.example.yaml configs/models.yaml` silently clobbers an existing per-user panel — `cp -n` or a word of warning.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 8 closes the loop — I reproduced Track A scoring and Track B generation byte-for-byte, confirmed the committed evidence stays clean, the audit passes, the dev server serves the run, and both gates are green; only minor comments remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Partial-pricing `usage.total.cost_usd` reports a subtotal as the run total (and `$0.0000` for unpriced models) in the reviewed commit — uncommitted builder work in the tree already fixes this; land it with an updated test.
+- TUTORIAL Track B runs `audit` only on the questions, not on the `answers`/`scores` a user would commit — add a post-`score` audit line.
+- Committed `summary.md` carries no caveat that gpt-oss-20b's 0% is blanket refusal (100/100 "I can't provide that"), so the artifact can be misread standalone; note it in the review doc or the summary.
+- Audit's content layer is inert without local restricted payloads, so the committed evidence was origin-audited only — documented and harmless here, worth recording.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 2 paths changed while this lane was running:
+  - pipelines/sacredbench/score.py
+  - pipelines/tests/test_score.py
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

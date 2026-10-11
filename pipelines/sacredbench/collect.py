@@ -21,20 +21,44 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sacredbench.config import RunConfig
-from sacredbench.generate import Question
-from sacredbench.providers import ProviderError, complete
+from sacredbench.generate import Question, question_set_digest
+from sacredbench.providers import complete
 
 
-def existing_keys(answers_path: Path) -> set[tuple[str, str]]:
+class CollectError(Exception):
+    """Collection cannot proceed (e.g. resuming against a different question set)."""
+
+
+def _panel_fingerprint(m) -> str:
+    """A model cell's panel identity — so a model id can't be silently re-pointed at a
+    different provider/model/host between resumes."""
+    return f"{m.provider}|{m.model}|{m.base_url or ''}"
+
+
+def _existing(
+    answers_path: Path,
+) -> tuple[set[tuple[str, str]], set[str], int, dict[str, set[str]]]:
+    """Return ((question_id, model_id) keys, digests present, rows missing a digest,
+    {model_id: panel fingerprints seen})."""
     keys: set[tuple[str, str]] = set()
+    digests: set[str] = set()
+    missing = 0
+    fps: dict[str, set[str]] = {}
     if not answers_path.exists():
-        return keys
+        return keys, digests, missing, fps
     with open(answers_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 d = json.loads(line)
                 keys.add((d["question_id"], d["model_id"]))
-    return keys
+                if d.get("question_set_digest"):
+                    digests.add(d["question_set_digest"])
+                else:
+                    missing += 1
+                fp = d.get("panel_fingerprint")
+                if fp:
+                    fps.setdefault(d["model_id"], set()).add(fp)
+    return keys, digests, missing, fps
 
 
 def collect(
@@ -43,8 +67,30 @@ def collect(
     answers_path: Path,
     on_result=None,
 ) -> tuple[int, int, list[str]]:
-    """Run all pending (question, model) cells. Returns (done, failed, failure_messages)."""
-    done_keys = existing_keys(answers_path)
+    """Run all pending (question, model) cells. Returns (done, failed, failure_messages).
+
+    The question-set digest is stamped into every answer row; resuming against an
+    ``answers.jsonl`` built for a different question set is refused (``CollectError``)
+    so a stale or mixed run can never be silently appended to or scored."""
+    digest = question_set_digest(questions)
+    done_keys, existing_digests, missing, existing_fps = _existing(answers_path)
+    if (existing_digests - {digest}) or missing:
+        raise CollectError(
+            f"{answers_path} was not built for this question set (current digest {digest}; "
+            f"found digest(s) {sorted(existing_digests) or 'none'}, {missing} row(s) with no "
+            "digest); refusing to resume — regenerate or point --out at a fresh file"
+        )
+    # panel-identity binding: a model id already answered under one provider/model must
+    # not be resumed under a different one (its old answers would hide under new metadata)
+    for m in config.models:
+        current = _panel_fingerprint(m)
+        mismatched = existing_fps.get(m.id, set()) - {current}
+        if mismatched:
+            raise CollectError(
+                f"{answers_path}: model id {m.id!r} has answers from a different panel identity "
+                f"{sorted(mismatched)}, but the config now maps it to {current!r}; refusing to "
+                "resume under a changed identity — use a fresh --out or a distinct model id"
+            )
     cells = [
         (q, m) for q in questions for m in config.models if (q.id, m.id) not in done_keys
     ]
@@ -60,10 +106,13 @@ def collect(
             "question_id": q.id,
             "model_id": m.id,
             "model": m.model,
+            "provider": m.provider,
+            "panel_fingerprint": _panel_fingerprint(m),
             "task": q.task,
             "answer": text,
             "usage": usage,
             "attempts": attempts,
+            "question_set_digest": digest,
             "collected_at": datetime.now(timezone.utc).isoformat(),
             "question": asdict(q),
         }
@@ -80,7 +129,7 @@ def collect(
             q, m = futures[fut]
             try:
                 fut.result()
-            except (ProviderError, Exception) as e:  # noqa: BLE001 — record, keep cell pending
+            except Exception as e:  # noqa: BLE001 — record any failure, keep the cell pending
                 failures.append(f"{q.id} x {m.id}: {e}")
 
     return done, len(failures), failures

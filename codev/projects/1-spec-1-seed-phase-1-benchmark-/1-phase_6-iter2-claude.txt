@@ -1,0 +1,65 @@
+I'll start by reading the Phase 6 implementation files and the prior iteration context.Now let me read the tests, prior reviews, and the CLI integration.Let me verify the regex behavior and check CLI/generate integration.Let me verify the `identify_version` label-strictness concern against the real version strings.I reviewed the Phase 6 implementation by reading the files from disk, probing the citation-matching logic in standalone snippets under `/tmp`, and running the suite read-only (`PYTHONDONTWRITEBYTECODE=1`, `-p no:cacheprovider`, `--basetemp=/tmp/...`). **127 passed.** I did not modify anything in the worktree.
+
+## Review — Phase 6: Per-task scoring contract and tradition-aware analysis
+
+### Iteration-1 blockers: genuinely fixed (verified, not just claimed)
+
+**1. Anti-hedge is now span-based and equality-based.** `_citation_candidates` (score.py:83-92) extracts full spans including leading work/book tokens, and `_bounded_equal` (score.py:95-99) replaces containment. I re-ran the exact cases that failed in iter 1:
+
+| answer | expected | `correct` |
+|---|---|---|
+| `It could be John 1:1, Genesis 1:1, or Micah 1:1.` | `John 1:1` | **0** ✅ (was 1) |
+| `Either Jude 1:3 or John 1:3.` | `Jude 1:3` | **0** ✅ (was 1) |
+| `Jude 1:30` | `Jude 1:3` | **0** ✅ (was 1) |
+| `That is Jude 1:3.` | `Jude 1:3` | 1 ✅ |
+| `The passage is from Rerum Novarum, para. 5.` | `Rerum Novarum, para. 5` | 1 ✅ |
+
+The non-overlapping `finditer` semantics mean two numeric tokens can never merge into one span, so the veto is structurally sound for `<Book> c:v` forms. Tests at test_score.py:110-121 now include the cross-book hedge and the near-miss — the false-confidence gap is closed.
+
+**2. `identify_version` grades the label per the spec table.** `exact`/`normalized` emitted (score.py:123-129), declared in `_SUBMETRICS`, `correct = normalized`. `"KJV, ASV, or WEB"` and `"Not the KJV; it is the ASV."` both score 0 (verified). Matches the prompt, which already says "Answer with only the requested answer and no commentary" (generate.py:99).
+
+**3. Missing cells.** `test_missing_cell_rendered_as_dash` pins the `—` rendering, and the `score_file` docstring (score.py:148-153) states the boundary honestly: a fully-failed model is surfaced by `collect`'s non-zero exit, not silently reported complete. Given `score` reads only `answers.jsonl` and has no panel roster, that's the right resolution rather than inventing one.
+
+**4. Aggregation.** Raw-count `_overall` for both the model table and the per-tradition table (score.py:224-241) — no `round(accuracy*n)` reconstruction. The list-valued rule is implemented end-to-end: `generate._source_dict` puts `doc.tradition` (a list) in `source`, `collect` writes `asdict(q)`, `score_file` counts once per listed tradition. `test_tradition_counts_once_per_listed_tradition` asserts the per-tradition `n` sums **above** the overall count — a real assertion, not a tautology. Mutation during iteration (score.py:236-241) is safe: only the inner `tasks` dict is mutated, and the comprehension completes first.
+
+`--summary-md` (cli.py:275, 284-287) lands the markdown as a file for Phase 8 to commit. Good.
+
+### Comments (non-blocking, none in this phase's acceptance criteria)
+
+**A. `identify_version` strict label equality collides with the real label strings.** The catalogue has `version: ASV (1901)` (`texts/raw/Protestant Christian/source.yaml:25`). Verified against the real code:
+
+```
+'ASV'                       -> {'exact': 0, 'normalized': 0, 'correct': 0}
+'ASV (1901)'                -> {'exact': 1, 'normalized': 1, 'correct': 1}
+'American Standard Version' -> {'exact': 0, 'normalized': 0, 'correct': 0}
+```
+
+`identify_version` is live for the Bible (Phase 5's version gate), so every ASV item is close to unscoreable-correct by construction — no model volunteers `ASV (1901)` verbatim. Iter 1 had false positives; this has false negatives. Cheapest honest fix: enumerate the work's candidate labels in the prompt (generate.py:106-109 — "Answer with exactly one of: KJV, ASV (1901), WEB"), which makes strict equality fair; alternatively canonicalize the parenthetical qualifier and accept either form. Worth settling before any `identify_version` number goes in the paper. Not blocking: Phase 8's run is `retrieve_quote`-only.
+
+**B. `identify_source` work containment under-reports for `work: "The Bible"`.** Verified:
+
+```
+'The Bible, John 3:16'       -> correct 1
+'John 3:16'                  -> work_found 0, citation_found 1, correct 0
+'the Gospel of John 3:16'    -> work_found 0, citation_found 1, correct 0
+```
+
+A model that names the book but not the umbrella work scores 0. Pre-existing (containment on the work field wasn't part of this phase's fix), and `work_found` is reported separately so it's auditable — but same caveat as (A) before reporting the number.
+
+**C. Two residual anti-hedge gaps, both on the `n_candidates == 0` / lowercase paths:**
+- All-lowercase hedge: `"it could be john 1:1 or genesis 1:1"` → `correct=1`, because the span prefix requires `[A-Z0-9]` so both candidates collapse to `1 1`. Making the prefix case-insensitive fixes it at no cost to correctness (equality is computed by `_bounded_equal` over the whole answer, not the span).
+- Number-only citations: `"Perhaps Sahih al-Bukhari 1, or Sahih Muslim 2"` → `correct=1` (zero candidates extracted, so containment decides unvetoed). The rebuttal names this as the Arabic follow-on scope, and `n_candidates: 0` makes it inspectable — fine as a stated limitation, but it's a hedge scoring 1, so it should not be left implicit if hadith `cite_passage` items are ever generated.
+
+**D. Minor, fail-fast:** `score_file` reads tradition via `.get("question", {}).get("source", {}).get("tradition", []) or []`. A row whose `tradition` is a string would be iterated per-character; a row missing `source` silently drops out of `by_tradition`. Generate/collect always supply a list, so this is defensive only — but the project's fail-fast rule would favour raising rather than degrading quietly.
+
+---
+VERDICT: COMMENT
+SUMMARY: All three iteration-1 blockers are genuinely fixed (verified by probing the real code), the per-task contract and list-valued tradition aggregation are correct and well tested, 127 tests pass; remaining notes are measurement-validity follow-ups on tasks outside Phase 8's run.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `identify_version` now requires exact/normalized equality with the catalogue label, but the real label is `ASV (1901)` — a model answering "ASV" scores 0, making ASV items near-unscoreable on a task Phase 5 made live. Fix by enumerating candidate labels in the prompt or canonicalizing the parenthetical qualifier before any identify_version number is reported.
+- `identify_source` work matching is containment against `work: "The Bible"`, so "John 3:16" or "the Gospel of John 3:16" score correct=0 (verified). Pre-existing, auditable via `work_found`, but same caveat before reporting.
+- Residual anti-hedge gaps on the zero-candidate path: an all-lowercase cross-book hedge ("it could be john 1:1 or genesis 1:1") and number-only hadith citations ("Perhaps Sahih al-Bukhari 1, or Sahih Muslim 2") both score 1. A case-insensitive span prefix fixes the former cheaply; the latter is a stated Arabic follow-on.
+- Minor: tradition extraction in `score_file` degrades silently on a malformed/absent `source.tradition` instead of failing fast.

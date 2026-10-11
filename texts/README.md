@@ -31,9 +31,12 @@ layout matches the committed tree:
 
 Both paths are gitignored, so a local copy never ends up in a commit. The
 pipeline treats them as **restricted** sources: they are excluded from
-conversion and benchmark generation unless explicitly enabled (see the
-restricted-sources flag in `pipelines/README.md` once implemented), and
-committed benchmark artifacts must never embed their text.
+conversion and benchmark generation unless explicitly enabled with
+`--include-restricted` (see the catalogue section in `pipelines/README.md`), and
+committed benchmark artifacts must never embed their text. Each restricted
+source still carries a committed `source.yaml` (with its payload held back) so
+the catalogue stays complete and auditable.
 
-Per-source provenance metadata (`source.yaml`) and the conversion registry are
-specified in `codev/specs/1-phase1-benchmark-pipeline.md`.
+Per-source provenance metadata lives in each `texts/raw/<tradition>/source.yaml`
+(a targets manifest — provenance, converter, and a `license` field per target;
+see `pipelines/sacredbench/catalogue.py`).

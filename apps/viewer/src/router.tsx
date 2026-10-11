@@ -9,6 +9,7 @@ import { IndexPage } from "./routes/IndexPage";
 import { TraditionPage } from "./routes/TraditionPage";
 import { ScenarioPage } from "./routes/ScenarioPage";
 import { ResultsPage } from "./routes/ResultsPage";
+import { LocalResultsPage } from "./routes/LocalResultsPage";
 import { RawResultsPage } from "./routes/RawResultsPage";
 import { RawRunPage } from "./routes/RawRunPage";
 import { ReviewIndexPage } from "./routes/ReviewIndexPage";
@@ -94,9 +95,17 @@ export const reviewScenarioRoute = createRoute({
   component: ReviewScenarioPage,
 });
 
+// Local-only benchmark results view (Spec 1, Phase 7): reads committed/local run
+// artifacts, independent of the GitHub data layer. No search state of its own.
+export const localResultsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/local-results",
+  component: LocalResultsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute, traditionRoute, scenarioRoute, resultsRoute, rawResultsRoute, rawRunRoute,
-  reviewIndexRoute, reviewTraditionRoute, reviewScenarioRoute,
+  reviewIndexRoute, reviewTraditionRoute, reviewScenarioRoute, localResultsRoute,
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

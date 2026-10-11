@@ -1,0 +1,70 @@
+I'll start by reading the key files for phase_6 — the scoring module, its tests, and the previous iteration context.Now let me read the previous iteration feedback and rebuttals for phase_6, plus the CLI integration.Let me verify the residual hedge concerns empirically, without touching the tree (probing from `/tmp` with bytecode writes disabled).Confirmed the probe results. Now let me run the test suite read-only and check the documented scope in the README.Let me check one risk the probes haven't covered: whether `_NUM_CITE` creates spurious candidates that turn *correct* single-citation answers into false hedges.One more probe to validate the fix I'm going to recommend (simulated entirely in `/tmp`, nothing in the tree touched):I've verified the implementation by reading the files, running the suite read-only (**129 passed**), and probing the real scoring code plus a simulated fix — all from `/tmp`, with bytecode writes disabled. **Nothing in the worktree was modified.**
+
+## Review — Phase 6: Per-task scoring contract and tradition-aware analysis
+
+### What's genuinely done (verified, not just claimed)
+
+- **Span-based, equality-based anti-hedge.** The iter-1 holes are closed: `John 1:1, Genesis 1:1, or Micah 1:1` → 0, `Either Jude 1:3 or John 1:3` → 0, `Jude 1:30` ≠ `Jude 1:3` → 0, `That is Jude 1:3.` → 1. Confirmed against the real code.
+- **`identify_version` grades the label** per the spec table (`exact`/`normalized`, `correct = normalized`); `"KJV, ASV, or WEB"` and `"Not the KJV; it is the ASV"` both score 0.
+- **Raw-count `_overall`** for both the model table and the per-tradition table — no `round(accuracy*n)` reconstruction (score.py:240-262).
+- **List-valued tradition rule implemented exactly as specified** (score.py:217-221, 251-262), and `test_tradition_counts_once_per_listed_tradition` asserts per-tradition `n` sums *above* the overall count — a real assertion, not a tautology.
+- **Missing-cell roster** landed from iter 2: `expected_n`/`missing` per cell, fully-failed models still appear, `miss N` renders; wired through `cli score --questions/--config` with a both-or-neither guard. `--summary-md` gives Phase 8 a committable file.
+
+### Issue 1 (blocking) — the iter-2 `_NUM_CITE` fix regressed correct single-citation answers
+
+`_NUM_CITE` (score.py:88) was added in iter 2 to catch hadith hedges, but it is applied to *every* task regardless of the expected citation's shape, so it fires on ordinary prose containing "Capitalized word + number". Verified against the real code:
+
+| answer | expected | `n_candidates` | `correct` |
+|---|---|---|---|
+| `The citation is Jude 1:3 (ASV 1901).` | `Jude 1:3` | 2 (`asv 1901`, `jude 1 3`) | **0** ❌ |
+| `The quote is from Jude 1:3. It appears in Chapter 1.` | `Jude 1:3` | 2 (`chapter 1`, `jude 1 3`) | **0** ❌ |
+
+A single, *correct*, unhedged citation scores 0 because an incidental version year or "Chapter 1" is counted as a second candidate. This violates this phase's own acceptance criterion — "a single correct citation scores 1" — and it is the mirror image of the error iter 2 was fixing: the veto now over-triggers. `(ASV 1901)` is a realistic shape precisely because the corpus labels versions that way.
+
+### Issue 2 (blocking, same fix) — the all-lowercase hedge still scores 1
+
+Raised by claude in iter 2 (comment C) and **neither fixed nor disputed** — the iter-2 rebuttal summarized the remaining claude notes as only word-order and Arabic normalization, so this one was dropped silently. Verified it is still live:
+
+- `"it could be john 1:1 or genesis 1:1"` vs `John 1:1` → candidates `{'1 1'}` (prefix requires `[A-Z0-9]`, so both collapse) → **`correct=1`** ❌
+- `"Perhaps sahih al-bukhari 1, or sahih muslim 2"` vs `Sahih al-Bukhari 1` → 0 candidates → **`correct=1`** ❌
+
+### Suggested fix (two lines, verified)
+
+Make the prefix character class case-insensitive **and** choose the extractor by the *expected* citation's shape rather than unioning all three. I simulated exactly this in `/tmp` against all 12 cases — every existing test expectation plus all three holes:
+
+```python
+COLON = re.compile(r"(?:[A-Za-z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
+PARA  = re.compile(r"(?:[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
+NUM   = re.compile(r"(?:[A-Za-z][^\s,:]*\s+){1,8}\d+(?![\d:ab])")
+
+def _shape_rx(expected):          # shape of GROUND TRUTH decides the candidate class
+    if re.search(r"\d\s*:\s*\d", expected): return COLON
+    if re.search(r"[Pp]ara", expected):     return PARA
+    return NUM
+```
+
+Result: `ALL PASS` — the three hedges above now score 0, `Jude 1:3 (ASV 1901)` and `Chapter 1` score 1, and every currently-passing case (cross-book hedge, disjunction, `Jude 1:30` near-miss, `Rerum Novarum, para. 5`, single hadith, hadith hedge) is unchanged. Please add the three cases above as tests so neither direction regresses again.
+
+### Comments (non-blocking)
+
+- **A fully-missing model renders as `**0%**` overall** (score.py:289), which reads as "scored 0%" rather than "no data"; the JSON likewise carries `accuracy: 0.0` with `n: 0`. Since Phase 8 commits this as paper evidence and Phase 7 renders it, consider `n/a`/`miss N` when `n == 0`.
+- **`identify_version` label strictness vs the real label** (claude iter-2 comment A) is still unaddressed and also wasn't dispositioned: the catalogue says `ASV (1901)`, so `"ASV"` scores 0. The contract implementation is faithful; the problem is prompt-side. Fine to leave, but settle it before any `identify_version` number is reported.
+- **Fail-fast nit**: `.get("question", {}).get("source", {}).get("tradition", []) or []` (score.py:218) degrades silently on a malformed/absent `tradition`; the project's fail-fast rule would favour raising.
+
+### Process note
+
+Two of the three items I flag were raised in iter 2 and dropped without a recorded disposition. Items that are deliberately deferred should say so in the rebuttal — otherwise the next iteration can't tell "accepted-as-limitation" from "overlooked".
+
+I was not asked to edit anything here, and did not; the fix above is a recommendation for the builder to apply and test in their own tree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Tradition aggregation, raw-count overall, label metrics and the missing-cell roster are correct and well tested, but the iter-2 `_NUM_CITE` addition now scores correct single citations as hedges, and the lowercase hedge hole raised in iter 2 is still live — both fixed by one verified two-line change.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_NUM_CITE` is applied regardless of the expected citation's shape, so `"The citation is Jude 1:3 (ASV 1901)."` and `"... Jude 1:3. It appears in Chapter 1."` yield 2 candidates and score `correct=0` (verified) — violating this phase's "a single correct citation scores 1" criterion; a regression introduced by the iter-2 fix.
+- All-lowercase hedges still score 1: `"it could be john 1:1 or genesis 1:1"` → `correct=1` and `"Perhaps sahih al-bukhari 1, or sahih muslim 2"` → `correct=1` (verified). Raised by claude in iter 2, neither fixed nor disputed.
+- Fix for both, simulated and passing all 12 cases: case-insensitive span prefix (`[A-Za-z0-9]`) plus selecting the extractor from the ground-truth citation's shape instead of unioning all three; add the three cases as regression tests.
+- Non-blocking: a fully-missing model renders `**0%**`/`accuracy: 0.0` rather than "no data" (paper- and viewer-facing); `identify_version` expects the literal `ASV (1901)` label so `"ASV"` scores 0; tradition extraction degrades silently instead of failing fast.
