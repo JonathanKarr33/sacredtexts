@@ -140,7 +140,28 @@ committed, refresh is advisory + non-blocking — clearing would waste rich cons
 - ⚠️ generated_at makes score_file non-deterministic (timestamp) — fine, no test compares full
   summaries; re-score regression compares scores.jsonl only.
 
+### Phase 2 review: iter1 REQUEST_CHANGES (stop_reason guarded only max_tokens, missed pause_turn)
+### → fixed (allowlist {end_turn,stop_sequence}, fail loud else) → iter2 BOTH APPROVE/HIGH.
+Claude verified vs installed SDK StopReason enum, viewer parseSummary (permissive to api_model/
+generated_at), aggregate.ts standings key, 190 tests.
+
+## Phase 3 CARRY-FORWARD GATES (from phase_2 iter2 non-blocking notes):
+1. ⛔ **pause_turn is a HARD SMOKE GATE**: fail-loud is correct for evidence integrity BUT collect
+   is NON-CONVERGENT if pause_turn occurs (every re-run re-bills, cell never completes). In the
+   Phase-3 smoke: if pause_turn appears EVEN ONCE → implement the continuation protocol BEFORE the
+   full paid collect, do NOT retry into it.
+2. 📝 Review-doc note: `_openai`/`_gemini` lack the truncation/stop_reason guard now enforced for
+   anthropic (out of scope — tutorial panel is all-anthropic; latent trap for a future mixed panel).
+3. 📝 Narrow re-bill path: end_turn with only tool blocks + no text → generic empty-response retry
+   (very unlikely). Cosmetic: cli.py uses '+' join, collect.py uses ',' join (both tools-general,
+   harmless, different purposes).
+(Did NOT re-touch approved phase 2 for these — they're non-blocking / operational, per the Phase-1
+lesson about not eagerly re-opening approved phases.)
+
 ### Next
-porch done 8 (PHASE_COMPLETE) → per-phase consult → Phase 3 (LIVE/PAID run).
-⚠️ Phase 3 = the paid Anthropic web-search run. Smoke-first; if no ANTHROPIC_API_KEY/budget → escalate.
-Phase-3 watch item: strip web bidi/joiner/BOM chars from search-on answers during clearance (see above).
+porch next 8 → advance to Phase 3 (LIVE/PAID run).
+⚠️ Phase 3 = paid Anthropic web-search run. Order: convert → generate (seed 20261011, per-task 30,
+3 corpora) → audit → SMOKE (few cells, check pause_turn gate #1) → full collect → score (unpriced)
+→ copyright-clearance (review ALL search-on answers; strip web bidi/joiner/BOM chars if present) →
+audit → commit run + README (CC-BY-NC attribution, web_search_20250305 + max_uses 5). If no
+ANTHROPIC_API_KEY/budget → escalate to architect, do NOT fabricate.
