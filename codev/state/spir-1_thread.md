@@ -667,3 +667,12 @@ SPIR, strict mode (porch-driven).
 - Verified non-collect TUTORIAL commands on the tree (convert/validate/generate/
   audit/viewer-sample). pipelines 139 tests, viewer 411/9-skipped.
 - NEXT: flag the live-collect keys blocker to the architect with options; WAIT.
+- Architect: option (c) DRAFT. Opened DRAFT PR #3 (base main) with infra + the
+  seeded question set; body states live-run evidence (>=3 models/>=2 providers)
+  lands before leaving draft. Pushed builder/spir-1 (ahead 2). porch recorded PR #3.
+- WAITING on the human for API keys. When they arrive the architect relays the path
+  of an out-of-repo env file to `set -a; source <file>; set +a` before collect
+  (keys never echoed/committed/in-worktree). Remaining before un-draft: collect ->
+  score -> commit answers/scores/summary/summary.md under runs/first-run-2026-10-11/
+  -> audit the full evidence -> point viewer at ?run=/runs/first-run-2026-10-11 and
+  verify -> run the phase_8 2-way consult on the COMPLETE phase -> mark PR ready.
