@@ -17,7 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // Surface to the console for debugging; the UI shows the notice below.
-    console.error("multibrowser render error:", error, info.componentStack);
+    console.error("viewer render error:", error, info.componentStack);
   }
 
   render(): ReactNode {

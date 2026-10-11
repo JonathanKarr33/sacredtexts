@@ -153,6 +153,15 @@ describe("build / deploy invariants", () => {
       expect(deep.status).toBe(200);
       expect(await deep.text()).toContain('id="root"');
 
+      // Non-vacuous static check: the hashed JS bundle must be served as a real file (not the
+      // index.html fallback) with a JS content-type — otherwise a serveStatic regression would
+      // ship silently while every "contains id=root" assertion still passed.
+      const jsMatch = readFileSync("dist/index.html", "utf8").match(/src="(\/assets\/[^"]+\.js)"/);
+      expect(jsMatch, "no hashed JS asset referenced in dist/index.html").not.toBeNull();
+      const asset = await fetch(`http://localhost:${port}${jsMatch![1]}`);
+      expect(asset.status).toBe(200);
+      expect(asset.headers.get("content-type") ?? "").toMatch(/javascript/);
+
       // Prod-host robustness: there is NO /runs endpoint in production (dev-only middleware), so
       // /runs/_index also falls through to index.html/200 — proving the home page's run-index
       // fetch gets HTML (which InterimHome shape-sniffs into the empty state), never a hard 404

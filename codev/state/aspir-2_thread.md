@@ -277,3 +277,30 @@ gate realRun.test.ts ran. Manual: `pnpm dev` → GET /runs/_index returns
 seam works end-to-end.
 
 Next: run .codev/checks/test.sh, then `porch done 2` for the 3-way impl consult.
+
+## 2026-10-11 — IMPLEMENT phase_2 consult (codex APPROVE / claude APPROVE, both HIGH)
+
+Both APPROVE HIGH. codex: no issues. claude: verified the risky claims against the real
+built CSS/JS (the #86 safelist ramp all maps to color-mix and wins the cascade; bundle
+purity holds; tailwind-merge removal safe — it still resolves as a HeroUI peer at 3.4.0;
+both deviations sound). 5 non-blocking findings.
+
+Folded in now (cheap + in phase_2 scope):
+- deploy smoke was vacuous (both HTTP assertions satisfied by the index.html fallback) →
+  added an assertion that the hashed dist/assets/*.js is served as a real file with a JS
+  content-type, so a serveStatic regression can't ship silently.
+- stale multibrowser strings in kept code: vite.config.ts deep-link comment → generic
+  route; ErrorBoundary console.error label "multibrowser" → "viewer" (that literal shipped
+  in the bundle).
+
+Carry-forwards (NOT phase_2):
+- phase_3: InterimHome.fetchRunIndex collapses every index failure (500/malformed/network)
+  into "No runs yet" — the spec's selector needs "empty" vs "index fetch failed"
+  distinguished (localized error, selector still usable).
+- phase_3: loadRun(`/runs/${id}`) doesn't encodeURIComponent the id — phase 3's ?run=
+  contract adds it.
+- phase_5 doc/dep sweep: confirm @testing-library/user-event is used by then (kept now for
+  the explorer/selector phases) or prune it.
+
+Re-verified after the folded nits: check-types clean; full suite 44 passed / 0 skipped.
+Both consult outputs committed under codev/projects/2-spec-2-replace-multibrowser-le/.
