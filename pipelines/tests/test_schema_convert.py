@@ -135,7 +135,7 @@ def test_convert_encyclicals_real():
     t = _real_target("Roman Catholic", converter="encyclicals")
     docs = convert_target(t.payload_paths(RAW), t)
     assert len(docs) == 201
-    assert sum(len(d.entries) for d in docs) == 10263  # body prose; footnote block excluded
+    assert sum(len(d.entries) for d in docs) == 10925  # lossless: every non-empty paragraph kept
     for d in docs:
         assert all(e.unit_type == "paragraph" for e in d.entries)
         cites = [e.citation for e in d.entries]
@@ -144,8 +144,9 @@ def test_convert_encyclicals_real():
 
 
 def test_convert_encyclicals_citations_bind_to_declared_numbers():
-    """Body paragraphs are cited by their DECLARED paragraph number (not position),
-    front matter is marked non-canonical, and the footnote block is excluded."""
+    """Body paragraphs are cited by their DECLARED number (not position); front
+    matter is marked non-canonical; conversion is lossless (no silent truncation);
+    genuine duplicate declared numbers are disambiguated, not dropped."""
     t = _real_target("Roman Catholic", converter="encyclicals")
     docs = convert_target(t.payload_paths(RAW), t)
     by_work = {d.work: {e.citation: e.text for e in d.entries} for d in docs}
@@ -156,9 +157,12 @@ def test_convert_encyclicals_citations_bind_to_declared_numbers():
     assert apc["Ad Petri Cathedram, para. 2"].startswith("For these reflections of Ours")
     assert apc["Ad Petri Cathedram, unnumbered para. 1"].startswith("To the Venerable Brethren")
 
-    # Aeterni Patris: the footnote block (numbering restart) is not emitted as prose.
-    ap = [d for d in docs if d.work == "Aeterni Patris"][0]
-    assert not any("De Trinitate" in e.text and "PL 42" in e.text for e in ap.entries)
+    # No mid-body truncation: these tails were dropped by the earlier latched
+    # footnote heuristic (in-body numbering anomalies) and must be retained.
+    assert "Mediator Dei, para. 210" in by_work["Mediator Dei"]
+    assert "Ecclesiam Suam, para. 119" in by_work["Ecclesiam Suam"]
+    # Genuine in-body duplicate declared number is kept (disambiguated), not dropped.
+    assert "Mediator Dei, para. 100 (dup 2)" in by_work["Mediator Dei"]
 
 
 # --- lds_nested (real committed data: 3-level, 2-level, metadata skip) --------

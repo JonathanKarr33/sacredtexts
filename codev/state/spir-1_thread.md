@@ -319,3 +319,24 @@ SPIR, strict mode (porch-driven).
 - Phase 5 NOTE: generate must treat "unnumbered para." citations as non-canonical
   (exclude from cite_passage / citation-keyed retrieve_quote).
 - Wrote 1-phase_2-iter2-rebuttals.md. Committing + re-consulting (iter 3).
+
+### Phase 2 — iter 3 impl consult (codex APPROVE, claude REQUEST_CHANGES / HIGH)
+
+- claude: my iter-2 footnote-restart heuristic SILENTLY TRUNCATED 4 encyclicals
+  mid-body (~347 paras lost; >half of Mediator Dei & Ecclesiam Suam) — the latched
+  `num<=running_max` rule fired on IN-BODY anomalies (typo'd numbers, numbered
+  section headings). claude proved no numeric rule separates footnotes from body.
+  Accepted.
+- Fix = LOSSLESS conversion: keep EVERY non-empty paragraph; cite by declared
+  number; null→"unnumbered para. {k}"; repeated declared number (footnote restart /
+  typo / heading) → "(dup N)" suffix, not dropped. Unique by construction.
+  Rationale: fixes claude's 3 blockers (no silent loss, tested, complete corpus for
+  Phase 5 overlap-exclusion — claude's own point #3); robust footnote CLASSIFICATION
+  is a Phase 5 generation concern, not conversion. Added int-guard on num.
+- Verified: 201 docs / 10925 entries (no truncation); Ad Petri para.2=declared-#2;
+  Mediator Dei para.210 + Ecclesiam Suam para.119 retained; Mediator Dei dup
+  para.100 → "(dup 2)". All validate, unique. Test now asserts no-truncation +
+  (dup N) (closes the aggregate-property trap). 70 pass.
+- Phase 5 NOTE (expanded): generate must exclude footnotes + "unnumbered para." +
+  "(dup N)" non-canonical units from citation tasks.
+- Wrote 1-phase_2-iter3-rebuttals.md. Committing + re-consulting (iter 4).

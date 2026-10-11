@@ -189,40 +189,41 @@ def convert_encyclicals(paths: list[Path], target: "Target") -> list[Document]:
             raise ConvertError(f"{path}: expected {{title, paragraphs}} (encyclicals format)")
         pope, date = data.get("pope", ""), data.get("publicationDate", "")
         entries: list[Entry] = []
-        # Each file is body prose followed by a footnote block whose numbering
-        # RESTARTS (a declared number <= the running body max). Body paragraphs are
-        # cited by their DECLARED number (unique across the body); the footnote
-        # block is bibliographic apparatus, not encyclical prose, so it is skipped.
-        # Body paragraphs with no declared number (front matter) get an explicitly
-        # non-canonical "unnumbered para." citation so later stages can exclude them
-        # from citation-dependent tasks.
-        running_max = 0
+        # Conversion is LOSSLESS: every non-empty paragraph is kept. A paragraph is
+        # cited by its DECLARED number (`para. {n}`); unnumbered paragraphs (front
+        # matter) get a non-canonical `unnumbered para. {k}`. The real data has
+        # genuine duplicate declared numbers — a trailing bibliographic footnote
+        # block whose numbering restarts, plus in-body typos and numbered section
+        # headings — so a repeated number is disambiguated with a `(dup N)` suffix
+        # rather than being dropped (classifying footnotes is Phase 5's generation
+        # concern; truncating here silently loses body prose). Citations stay unique.
+        used: set[str] = set()
         unnumbered = 0
-        in_footnotes = False
         for i, para in enumerate(paragraphs, start=1):
             if not isinstance(para, dict):
                 raise ConvertError(f"{path}: paragraphs[{i - 1}] is not an object")
             text = para.get("text")
             if not isinstance(text, str):
                 raise ConvertError(f"{path}: paragraphs[{i - 1}] has no text")
-            num = para.get("paragraph")
-            if num is not None:
-                if num <= running_max:
-                    in_footnotes = True  # numbering restarted -> footnote block
-                else:
-                    running_max = num
-            if in_footnotes:
-                continue
             if not text.strip():
                 continue
-            if num is not None:
-                citation = f"{title}, para. {num}"
-            else:
+            num = para.get("paragraph")
+            if num is None:
                 unnumbered += 1
                 citation = f"{title}, unnumbered para. {unnumbered}"
+            else:
+                if not isinstance(num, int):
+                    raise ConvertError(f"{path}: paragraphs[{i - 1}].paragraph is not an integer")
+                citation = f"{title}, para. {num}"
+                if citation in used:
+                    dup = 2
+                    while f"{citation} (dup {dup})" in used:
+                        dup += 1
+                    citation = f"{citation} (dup {dup})"
+            used.add(citation)
             entries.append(Entry(unit_type="paragraph", citation=citation, text=text.strip()))
         if not entries:
-            raise ConvertError(f"{path}: encyclical has no non-empty body paragraphs")
+            raise ConvertError(f"{path}: encyclical has no non-empty paragraphs")
         _require_unique_citations(entries, str(path))
         docs.append(
             Document(
