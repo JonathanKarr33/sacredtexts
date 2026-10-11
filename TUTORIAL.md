@@ -90,7 +90,8 @@ uv --project pipelines run python -m sacredbench audit "$RUN"
 # 5. collect from the panel (resumable; a failed cell stays pending and the run exits
 #    non-zero — re-run to fill exactly the missing cells; the question-set digest is
 #    stamped on every row so you can't resume against a different question set)
-cp configs/models.example.yaml configs/models.yaml   # edit the panel; keys via env
+cp -n configs/models.example.yaml configs/models.yaml   # edit the panel; keys via env
+                                                         # (-n: don't clobber an existing one)
 uv --project pipelines run python -m sacredbench collect \
   "$RUN/questions.jsonl" configs/models.yaml --out "$RUN/answers.jsonl"
 
@@ -99,6 +100,10 @@ uv --project pipelines run python -m sacredbench collect \
 uv --project pipelines run python -m sacredbench score "$RUN/answers.jsonl" \
   --scores-out "$RUN/scores.jsonl" --summary-out "$RUN/summary.json" \
   --summary-md "$RUN/summary.md" --questions "$RUN/questions.jsonl" --config configs/models.yaml
+
+# 7. audit the WHOLE run again — now the answers/scores you'd commit, not just the
+#    questions — before committing any evidence
+uv --project pipelines run python -m sacredbench audit "$RUN"
 ```
 
 (The committed `runs/first-run-2026-10-11/` was produced by exactly these commands

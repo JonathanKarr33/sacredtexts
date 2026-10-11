@@ -318,19 +318,22 @@ def score_file(
     per_model_usage: dict[str, dict] = {}
     total = {"calls": 0, "in": 0, "out": 0}
     cost_total = 0.0
-    any_cost = False
-    for model_id in sorted(set(usage) | set(panel)):
+    n_priced = 0
+    model_ids = sorted(set(usage) | set(panel))
+    for model_id in model_ids:
         um = usage.get(model_id, {"calls": 0, "in": 0, "out": 0})
         row = {"calls": um["calls"], "in": um["in"], "out": um["out"]}
         p = panel.get(model_id, {})
         if p.get("price_in") is not None and p.get("price_out") is not None:
             row["cost_usd"] = round(um["in"] / 1e6 * p["price_in"] + um["out"] / 1e6 * p["price_out"], 6)
             cost_total += row["cost_usd"]
-            any_cost = True
+            n_priced += 1
         per_model_usage[model_id] = row
         for k in total:
             total[k] += um.get(k, 0)
-    if any_cost:
+    # a TOTAL cost is reported only when EVERY model is priced — a subtotal over a
+    # subset of the panel would misrepresent itself as the run's cost
+    if model_ids and n_priced == len(model_ids):
         total["cost_usd"] = round(cost_total, 6)
     summary["usage"] = {"per_model": per_model_usage, "total": total}
 
@@ -411,17 +414,21 @@ def summary_markdown(summary: dict) -> str:
 
     usage = summary.get("usage") or {}
     if usage.get("per_model"):
-        lines += ["", "### Token usage", "| model_id | calls | in | out |" + (" cost (USD) |" if "cost_usd" in usage["total"] else "")]
-        lines += ["|" + "---|" * (5 if "cost_usd" in usage["total"] else 4)]
-        for mid in sorted(usage["per_model"]):
-            u = usage["per_model"][mid]
-            row = f"| {mid} | {u['calls']} | {u['in']:,} | {u['out']:,} |"
-            if "cost_usd" in usage["total"]:
-                row += f" ${u.get('cost_usd', 0):.4f} |"
-            lines.append(row)
+        per = usage["per_model"]
         t = usage["total"]
+        # show the cost column whenever ANY model is priced; unpriced models and (under
+        # partial pricing) the total render "n/a" rather than a misleading $0.0000
+        has_cost = any("cost_usd" in u for u in per.values())
+        lines += ["", "### Token usage", "| model_id | calls | in | out |" + (" cost (USD) |" if has_cost else "")]
+        lines += ["|" + "---|" * (5 if has_cost else 4)]
+        for mid in sorted(per):
+            u = per[mid]
+            row = f"| {mid} | {u['calls']} | {u['in']:,} | {u['out']:,} |"
+            if has_cost:
+                row += f" ${u['cost_usd']:.4f} |" if "cost_usd" in u else " n/a |"
+            lines.append(row)
         trow = f"| **total** | {t['calls']} | {t['in']:,} | {t['out']:,} |"
-        if "cost_usd" in t:
-            trow += f" ${t['cost_usd']:.4f} |"
+        if has_cost:
+            trow += f" ${t['cost_usd']:.4f} |" if "cost_usd" in t else " n/a (partial pricing) |"
         lines.append(trow)
     return "\n".join(lines) + "\n"

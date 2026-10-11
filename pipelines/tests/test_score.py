@@ -88,7 +88,7 @@ def test_score_file_and_summary(tmp_path):
     assert "Panel" not in md
 
 
-def test_usage_totals_and_optional_cost(tmp_path):
+def test_usage_totals_and_partial_pricing(tmp_path):
     answers = tmp_path / "answers.jsonl"
     rows = [
         _row("retrieve_quote-0", "deadbeef", model_id="a", model="m-a",
@@ -97,18 +97,35 @@ def test_usage_totals_and_optional_cost(tmp_path):
              usage={"in": 500, "out": 500}),  # no serving-host field
     ]
     answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    # prices only for model 'a' → only 'a' gets a cost; totals still sum tokens
+    # prices only for model 'a' → 'a' gets a cost, 'b' does not, and NO total cost is
+    # emitted (a subtotal over part of the panel must not masquerade as the total)
     panel = {"a": {"provider": "openai", "model": "m-a", "endpoint": "h", "price_in": 1.0, "price_out": 2.0}}
     summary = score_file(answers, tmp_path / "scores.jsonl", panel=panel)
     u = summary["usage"]
-    assert u["per_model"]["a"] == {"calls": 1, "in": 1000, "out": 2000, "cost_usd": 1000/1e6*1.0 + 2000/1e6*2.0}
-    assert u["per_model"]["b"] == {"calls": 1, "in": 500, "out": 500}  # no cost without prices
+    assert u["per_model"]["a"]["cost_usd"] == 1000/1e6*1.0 + 2000/1e6*2.0
+    assert "cost_usd" not in u["per_model"]["b"]
     assert u["total"]["in"] == 1500 and u["total"]["out"] == 2500 and u["total"]["calls"] == 2
-    assert u["total"]["cost_usd"] == summary["usage"]["per_model"]["a"]["cost_usd"]
+    assert "cost_usd" not in u["total"]  # partial pricing → no total cost
+    md = summary_markdown(summary)
+    assert "n/a (partial pricing)" in md  # unpriced total rendered honestly
     # panel: provider proof from config, serving host from the answers' usage
     assert summary["panel"]["a"]["provider"] == "openai"
     assert summary["panel"]["a"]["served_by"] == ["HostX"]
-    assert "cost" in summary_markdown(summary).lower()
+
+
+def test_total_cost_when_every_model_priced(tmp_path):
+    answers = tmp_path / "answers.jsonl"
+    rows = [
+        _row("retrieve_quote-0", "deadbeef", model_id="a", model="m-a", usage={"in": 1000, "out": 2000}),
+        _row("retrieve_quote-1", "deadbeef", model_id="b", model="m-b", usage={"in": 500, "out": 500}),
+    ]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    panel = {
+        "a": {"provider": "openai", "model": "m-a", "endpoint": "h", "price_in": 1.0, "price_out": 2.0},
+        "b": {"provider": "openai", "model": "m-b", "endpoint": "h", "price_in": 1.0, "price_out": 2.0},
+    }
+    u = score_file(answers, tmp_path / "scores.jsonl", panel=panel)["usage"]
+    assert u["total"]["cost_usd"] == round(1500/1e6*1.0 + 2500/1e6*2.0, 6)  # all priced → total present
 
 
 def test_score_rejects_missing_digest(tmp_path):

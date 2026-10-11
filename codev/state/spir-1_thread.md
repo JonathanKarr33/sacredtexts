@@ -731,3 +731,15 @@ SPIR, strict mode (porch-driven).
       both-or-neither, >=0) -> load_config -> CLI panel -> score cost_usd; test added.
   Added usage/panel/cost tests (claude #2). Abstention-vs-hallucination still deferred
   to review doc. Gate: pipelines 141, viewer 412/9. NEXT: porch done -> iter-3 consult.
+- Phase_8 iter-3 consult: claude APPROVE, codex COMMENT — CONVERGED (both
+  non-blocking). claude re-verified by execution (Track A reproduced byte-identical,
+  committed evidence clean; Track B generation byte-identical; dev server serves;
+  gates green). Landed the cheap comments:
+  (1) partial-pricing: total cost only when ALL models priced; n/a render for
+      unpriced + partial total (tests updated: partial + all-priced cases);
+  (2) TUTORIAL Track B: post-score audit "$RUN" (answers/scores, not just questions);
+  (3) cp -n so a user's models.yaml isn't clobbered;
+  (4) runs/first-run-2026-10-11/README.md — self-describing: strict contract, the
+      abstention(gpt-oss ~58/100 refusals)-vs-fabrication(gemma/llama) caveat, haiku
+      near-misses, origin-only audit scope.
+  Gate: pipelines 142, viewer 412/9. NEXT: porch done -> should advance phase_8.
