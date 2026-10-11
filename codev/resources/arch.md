@@ -71,17 +71,22 @@ round-trip that proves no invention/reordering.
 
 `apps/viewer/src/lib/localResults.ts` (`loadRun` fetches `summary.json` + `scores.jsonl`
 + `answers.jsonl` + `questions.jsonl` and joins panel × roster on `(question_id,
-model_id)`, surfacing un-answered roster questions as missing cells), rendered through
-`components/LocalResults.tsx`. As of the Spec 2 purge the viewer is **local-only**: the
-multibrowser surface (`/t/...` traditions, the GitHub-data-layer `/results`/`/raw`
-explorers, the `/review*` flows, and their data layer/components) is gone. The route tree
-is just `/` (the interim home, which loads the most-recent run from the `/runs/_index`
-index) plus a 404; the dedicated leaderboard + run selector and the error explorer land in
-the Spec 2 feature phases. `vite.config.ts` `serveRuns()` (logic in
-`vite/runsEndpoint.ts`) is a dev-only plugin serving the repo's gitignored `runs/` at
-`/runs/` with a `/runs/_index` run index (confined to the runs dir; symlink traversal
-rejected, so symlinked run dirs are omitted). `realRun.test.ts` pins the committed run
-through `loadRun` in the gate. Production is a static SPA host (`server/index.mjs`, hono +
+model_id)`, surfacing un-answered roster questions as missing cells). As of the Spec 2
+purge the viewer is **local-only**: the multibrowser surface (`/t/...` traditions, the
+GitHub-data-layer `/results`/`/raw` explorers, the `/review*` flows, and their data
+layer/components) is gone. The route tree is `/` (the **leaderboard home** —
+`routes/LeaderboardPage.tsx` + `components/LeaderboardTable.tsx`, ranking derived by
+`lib/leaderboard.ts`) plus a 404; the error explorer and cross-run standings land in the
+remaining Spec 2 feature phases. The selected run lives in the URL as a **bare run id**,
+`/?run=<id>` (validated by a plain `validateSearch` fn — zod is pruned — and resolved to
+the fetch base `/runs/${encodeURIComponent(id)}`); the default is the most-recent run from
+the `/runs/_index` index, and a `?run=` that is not a known id (e.g. the old Spec-1
+`?run=/runs/<id>` base-path form) falls back to that default. `vite.config.ts`
+`serveRuns()` (logic in `vite/runsEndpoint.ts`) is a dev-only plugin serving the repo's
+gitignored `runs/` at `/runs/` with a `/runs/_index` run index (confined to the runs dir;
+symlink traversal rejected, so symlinked run dirs are omitted). The gate renders the
+committed run through `loadRun` (`realRun.test.ts`) and through the leaderboard
+(`LeaderboardPage.test.tsx`). Production is a static SPA host (`server/index.mjs`, hono +
 history fallback; no `/api` proxy).
 
 ## Run evidence layout

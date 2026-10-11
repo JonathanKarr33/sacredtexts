@@ -304,3 +304,69 @@ Carry-forwards (NOT phase_2):
 
 Re-verified after the folded nits: check-types clean; full suite 44 passed / 0 skipped.
 Both consult outputs committed under codev/projects/2-spec-2-replace-multibrowser-le/.
+
+## 2026-10-11 — IMPLEMENT phase_3 start (leaderboard home + run selector)
+
+Re-entered after a context refresh at plan-phase:phase_3. Confirmed data model against
+runs/first-run-2026-10-11/summary.json: 4 models (claude-haiku 0.24, llama-3.1-8b 0.01,
+gemma-3-4b 0.0, gpt-oss-20b 0.0 — id tiebreak gemma<gpt), by_tradition = model→trad→task→Cell
+(4 traditions incl. "The Church of Jesus Christ of Latter-Day Saints" = LDS; claude-haiku/LDS
+= 0.72), usage.per_model{calls,in,out}, panel{provider,model,endpoint,served_by}.
+
+Design decisions for phase_3:
+- `?run=<id>` via a PLAIN validateSearch fn on the index route (zod is pruned); page resolves
+  id→loadRun(`/runs/${encodeURIComponent(id)}`) (closes the phase_2 carry-forward re: encodeURIComponent).
+  Old-style `?run=/runs/<id>` won't match a known id → falls back to default (most-recent).
+- fetchRunIndex now DISTINGUISHES empty (ok,[]) vs index-fetch-failed (error) — the phase_2
+  carry-forward. HTML-200 (prod static host, no /runs endpoint) → treated as empty, not crash.
+- by-tradition section omitted on EMPTINESS (parseSummary normalizes absent→{}) — phase_1 carry-forward.
+- LeaderboardPage (container, router hooks: useSearch/useNavigate from="/") owns index-fetch +
+  per-run loadRun with a `live` stale guard keyed on selectedId; RunSelector + LeaderboardTable
+  are presentational (directly unit-testable). leaderboard.ts = pure ranking/column/token derivation
+  (reuses rankedModels/summaryTasks/formatCell).
+- Deletions: InterimHome.tsx, components/LocalResults.tsx + its test. RELOCATING the surviving
+  `localResults lib` describe block (loadRun/join/failure-types/missing — NOT component tests) to
+  src/lib/localResults.test.ts so that coverage survives. Keeping realRun.test.ts (loader gate).
+
+## 2026-10-11 — IMPLEMENT phase_3 done (leaderboard home + run selector)
+
+Replaced the interim home with the benchmark leaderboard. What landed:
+- lib/leaderboard.ts: pure leaderboardRows (ranked via rankedModels: overall desc, id
+  tiebreak, null-overall last) + per-model token totals from usage.per_model; traditionRows
+  + hasTraditionData (omit the by-tradition section on EMPTINESS — phase_1 carry-forward);
+  formatTokens. + leaderboard.test.ts.
+- components/LeaderboardTable.tsx: presentational — ranked model×task+overall+tokens table
+  and the by-tradition breakdown. + LeaderboardTable.test.tsx.
+- components/RunSelector.tsx: native <select> (provider-less), onSelect; a load error shows
+  but the selector stays enabled + lists every run. + RunSelector.test.tsx.
+- routes/LeaderboardPage.tsx: container (useSearch/useNavigate from="/"). (1) run index fetch
+  once, DISTINGUISHING empty vs index-fetch-failed vs HTML-200 (prod static host → empty)
+  — closes the phase_2 carry-forward. (2) per-run loadRun(`/runs/${encodeURIComponent(id)}`)
+  with a `live` stale guard keyed on selectedId — closes the encodeURIComponent carry-forward.
+  `?run=` = bare id; unknown/old base-path value falls back to most-recent default.
+- router.tsx: `/` → LeaderboardPage with a PLAIN validateSearch fn ({run?:string}); zod stays pruned.
+- Deleted InterimHome.tsx, components/LocalResults.tsx + LocalResults.test.tsx. RELOCATED the
+  surviving `localResults lib` describe block (loadRun/join/failure-types/missing — NOT the
+  component render test) to src/lib/localResults.test.ts so that coverage survives. Kept
+  realRun.test.ts (loader gate). Reworked app.test.tsx (dropped InterimHome block; kept 404 /
+  shell / ErrorBoundary). deploy.test.ts comment InterimHome→leaderboard.
+- Docs: README.md, TUTORIAL.md, arch.md "Viewer local results" → leaderboard + `/?run=<id>` contract.
+
+Gate reworked onto the leaderboard (LeaderboardPage.test.tsx, skipIf-guarded): the committed
+runs/first-run-2026-10-11 renders with claude-haiku first, llama-3.1-8b 2nd, gemma/gpt last
+(0.0, id tiebreak), retrieve_quote + overall columns, 4 traditions (LDS cell 72%), token
+totals (5,810 in / 41,140 out / 100 calls). Plus: default=most-recent, ?run= honoured,
+old-base-path fallback, empty/index-failed/bad-run states, selector switch, rapid-switch
+stale guard.
+
+VERIFIED: check-types clean; `pnpm build` green (CSS 419KB safelist, expected); full suite
+61 passed / 0 skipped (was 44 — +17 for the new leaderboard/selector/relocated-lib coverage);
+realRun gate + LeaderboardPage gate both ran. Manual: `pnpm dev` → /runs/_index returns the
+committed run, summary.json served, / serves the SPA shell — the client data path is intact.
+
+Carry-forwards into phase_4/5 (unchanged): phase_4 makes LeaderboardTable rows link into the
+explorer; phase_5 doc/dep sweep (confirm/prune @testing-library/user-event — now USED by
+RunSelector.test + LeaderboardPage.test, so it's load-bearing, keep it) + correct
+arch-critical.md's stale "multibrowser seed" bullet.
+
+Next: run .codev/checks/test.sh, then `porch done 2` for the 3-way impl consult.

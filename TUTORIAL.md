@@ -66,7 +66,7 @@ uv --project pipelines run python -m sacredbench score \
 diff <(sort /tmp/scores.jsonl) <(sort runs/first-run-2026-10-11/scores.jsonl) && echo "reproduced"
 ```
 
-Then view it (Track C below): open `/` — the viewer loads the most-recent run under `runs/`.
+Then view it (Track C below): open `/` — the viewer shows the leaderboard for the most-recent run under `runs/`.
 
 ## Track B — do your own run (needs API keys — the only paid part)
 
@@ -116,12 +116,15 @@ pnpm -C apps/viewer install
 pnpm -C apps/viewer dev          # then open the printed URL
 ```
 
-- `/` loads the **most-recent** run under `runs/` automatically (the committed
-  `runs/first-run-2026-10-11/` when it's the only one; your Track B `runs/<id>` once you
-  add it). The dev server serves the repo's `runs/` at `/runs/`.
+- `/` shows the **leaderboard** for the most-recent run under `runs/` automatically (the
+  committed `runs/first-run-2026-10-11/` when it's the only one; your Track B `runs/<id>`
+  once you add it): models ranked by overall accuracy, per-task and per-tradition columns,
+  and per-model token totals. The dev server serves the repo's `runs/` at `/runs/`.
+- A **run selector** lists every run under `runs/`; switching writes the selection to the
+  URL as a bare run id (`/?run=<id>`), so a view is shareable and survives refresh.
 - An empty `runs/` shows an informative empty state.
 - The multibrowser surface (`/t/...`, `/results`, `/raw`, `/review*`) has been removed;
-  the dedicated leaderboard + error explorer land in the Spec 2 feature phases.
+  the error explorer and cross-run standings land in the remaining Spec 2 feature phases.
 
 ## Re-running the whole thing / tests
 

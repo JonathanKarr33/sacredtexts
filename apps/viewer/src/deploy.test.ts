@@ -164,8 +164,8 @@ describe("build / deploy invariants", () => {
 
       // Prod-host robustness: there is NO /runs endpoint in production (dev-only middleware), so
       // /runs/_index also falls through to index.html/200 — proving the home page's run-index
-      // fetch gets HTML (which InterimHome shape-sniffs into the empty state), never a hard 404
-      // crash loop.
+      // fetch gets HTML (which the leaderboard shape-sniffs into the empty state), never a hard
+      // 404 crash loop.
       const index = await fetch(`http://localhost:${port}/runs/_index`);
       expect(index.status).toBe(200);
       expect(await index.text()).toContain('id="root"');

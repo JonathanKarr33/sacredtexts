@@ -1,16 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { LocalResults } from "./LocalResults";
 import {
   joinResults,
   loadRun,
   parseJsonl,
-  parseSummary,
   formatCell,
   type AnswerRow,
   type QuestionRow,
   type ScoreRow,
-} from "../lib/localResults";
+} from "./localResults";
 import {
   sampleAnswersJsonl,
   sampleScoresJsonl,
@@ -18,6 +15,11 @@ import {
   sampleQuestionsJsonl,
   sampleQuestionsWithMissingJsonl,
 } from "../local/sample";
+
+// Loader/join unit tests for the localResults seam (relocated here from the deleted
+// components/LocalResults.test.tsx when the flat LocalResults view was retired in favour of
+// the leaderboard). These exercise lib/localResults.ts directly — the foundation the
+// leaderboard, run selector, and error explorer all build on.
 
 function fakeFetcher(files: Record<string, string>): typeof fetch {
   return (async (url: string) => {
@@ -160,24 +162,5 @@ describe("localResults lib", () => {
     expect(rows[0]?.exact).toBeNull();
     expect(rows[0]?.normalized).toBeNull();
     expect(rows[0]?.token_f1).toBeNull();
-  });
-});
-
-describe("LocalResults", () => {
-  it("renders the summary table and per-question scores from a fixture run", () => {
-    const summary = parseSummary(sampleSummary);
-    const scores = parseJsonl<ScoreRow>(sampleScoresJsonl);
-    const answers = parseJsonl<AnswerRow>(sampleAnswersJsonl);
-    render(<LocalResults summary={summary} results={joinResults(scores, answers)} />);
-
-    // both models and the task appear (in the table and/or the per-question rows)
-    expect(screen.getAllByText("haiku").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("gemma-4").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("retrieve_quote").length).toBeGreaterThan(0);
-
-    // per-question list shows all four cells and the correct/incorrect marks
-    expect(screen.getByText(/Per-question scores \(4\)/)).toBeInTheDocument();
-    expect(screen.getAllByLabelText("correct")).toHaveLength(1); // only haiku/aaa is correct
-    expect(screen.getAllByLabelText("incorrect")).toHaveLength(3);
   });
 });
