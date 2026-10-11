@@ -336,16 +336,19 @@ def score_file(
 
     # Panel composition, so the ≥3-model / ≥2-provider bar is checkable from the
     # committed artifact itself (no secrets — provider, model and endpoint host only).
-    summary["panel"] = {}
-    for model_id in sorted(set(usage) | set(panel)):
-        um = usage.get(model_id, {})
-        p = panel.get(model_id, {})
-        summary["panel"][model_id] = {
-            "provider": p.get("provider"),
-            "model": p.get("model") or um.get("model"),
-            "endpoint": p.get("endpoint"),
-            "served_by": sorted(um.get("served_by", {})) or None,
-        }
+    # Only emitted when a run config was supplied: without it there is no provider/
+    # endpoint to prove, and a table of blanks under a "proof" heading would mislead.
+    if panel:
+        summary["panel"] = {}
+        for model_id in sorted(set(usage) | set(panel)):
+            um = usage.get(model_id, {})
+            p = panel.get(model_id, {})
+            summary["panel"][model_id] = {
+                "provider": p.get("provider"),
+                "model": p.get("model") or um.get("model"),
+                "endpoint": p.get("endpoint"),
+                "served_by": sorted(um.get("served_by", {})) or None,
+            }
     return summary
 
 

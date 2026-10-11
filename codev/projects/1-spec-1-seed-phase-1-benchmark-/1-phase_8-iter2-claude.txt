@@ -1,0 +1,71 @@
+I'll review the Phase 8 implementation. Let me start by reading the key files.I read the Phase 8 deliverables from disk and verified the evidence myself. Everything I ran wrote only to `/tmp` (plus a cache-disabled pytest); the worktree is untouched.
+
+## Independently verified ✅
+
+| Claim | Check | Result |
+|---|---|---|
+| Committed `scores.jsonl` came from the committed `answers.jsonl` | re-ran `score` → `/tmp` | **byte-identical** (sorted diff empty) |
+| Usage totals (iter-2 fix #1) | recomputed from `answers.jsonl` via the keyless path | 25,220 in / 134,131 out over 400 cells — matches `summary.json`/`summary.md` exactly |
+| Panel proof (iter-2 fix #3) | read committed `summary.json` | `claude-haiku → anthropic / api.anthropic.com`, three others `openai / openrouter.ai`; **no secrets** (no keys, no `api_key_env`) — the ≥3-model / ≥2-provider bar is checkable from the artifact |
+| Keyless `score` (iter-2 fix #2) | ran it without `--questions/--config` | works; `load_config` now fails with a clean `ConfigError` |
+| Audit content layer (iter-2 fix #4) | read `audit.py` + `test_audit.py` | the mislabel test is genuine: public origin + restricted *text* → clean without fingerprints, flagged with them. Deleting the content loop (audit.py:120-126) breaks `test_content_layer_catches_restricted_text_under_a_public_label` — not vacuous |
+| Evidence-glob test | read `test_audit.py:33-44` | globs `git ls-files runs/` — a second committed run is covered |
+| `.gitignore` reachability | read rules | `runs/*` + `!runs/first-run-2026-10-11/`, `configs/models.yaml` ignored, restricted payloads ignored with `source.yaml` negated |
+| `models.example.yaml` | compared to the panel in `summary.json` | now the exact shape that produced the run |
+| Gate | `pytest -p no:cacheprovider` | **140 passed** |
+
+`realRun.test.ts` pinning the committed run through the viewer's own `loadRun()` remains the strongest part of this phase.
+
+## Findings (new, not raised in iter-1)
+
+**1. TUTORIAL step 6's keyless command overwrites the committed evidence with a *weaker* summary.** The keyless variant (TUTORIAL.md:93-99) writes to `runs/first-run-2026-10-11/summary.json` and `summary.md` — the committed artifacts. I ran it to `/tmp` and compared: `scores.jsonl` is identical, but the summary is not. In the keyless path `panel = {}` (cli.py:324), so `score.py:339-348` emits `provider: null`, `endpoint: null`, and `models` loses `expected_n`/`missing`. Rendered:
+
+```
+| claude-haiku | — | claude-haiku-5-5 | — | — |
+```
+
+under the heading *"Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)"*. So a fresh-clone reader following the tutorial verbatim (a) dirties their tree against the committed evidence, and (b) silently destroys the exact proof iter-2 added — while the table still claims to be that proof. The builder's own iter-2 fresh-clone run must have done this and not noticed the diff.
+
+Cheap fixes, either or both: point the keyless step at a scratch path (`--summary-out /tmp/summary.json …`) so the committed artifact is read, not rewritten; and in `score.py` omit the `panel` block entirely when no provider/endpoint info is available, rather than printing a provenance table full of `—` under a "proof" heading. (A more durable fix for future runs: have `collect` record `provider`/`endpoint` per answer row so the keyless score can reconstruct the panel — but that can't retrofit the already-committed `answers.jsonl`.)
+
+**2. The iter-2 additions have no test coverage.** `grep` for `usage|panel|price` in `pipelines/tests/test_score.py` returns nothing. The `usage` aggregation (score.py:242-252, 315-335) and the `panel` block (339-348) — both added specifically to satisfy a plan deliverable ("token (and optional cost) totals computed") and a spec criterion — are verified only by eyeballing the committed summary. A ~15-line test over two synthetic answer rows (per-model and total in/out, a row with no `usage` key contributing 0, panel passthrough) would make the deliverable a gate rather than an artifact.
+
+**3. The cost branch is unreachable, and the docs say otherwise.** `score.py:326` reads `price_in`/`price_out` from the panel dict, but `cli.py:318-321` only ever sets `provider`/`model`/`endpoint`, and `ModelSpec` (config.py:34-41) has no price fields — so `load_config` silently drops any prices a user puts in `models.yaml`. There is currently **no way** to supply prices, yet `pipelines/README.md:97` and score.py:315-316 tell the reader cost appears "if the run config supplies" them. Either wire prices through (`ModelSpec` → cli panel) or drop the branch and the claim. Low impact (the plan only requires token totals), but it's dead code plus an inaccurate promise.
+
+## Not blocking / for the review doc
+
+- Agreed with the iter-1 deferral of the abstention-vs-hallucination split and the 17 haiku near-misses to `codev/reviews/1-*.md` / Spec 2 — the Phase-6 contract is gated and this is the most interesting finding in the run, so it belongs in the write-up.
+- `serveRuns()` in `vite.config.ts` is dev-only and its `startsWith(runsDir + sep)` check does defeat `../` traversal after `path.join` normalization — fine.
+
+Phase 8's deliverables are met and the evidence is reproducible; item 1 is a two-line fix but worth making before the PR leaves draft, since TUTORIAL.md *is* this phase's acceptance gate.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase 8 evidence is real, reproducible (scores byte-identical on re-score) and copyright-audited; the keyless TUTORIAL step overwrites the committed summary with a degraded panel table, and the new usage/panel code is untested.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- TUTORIAL.md:93-99 (keyless `score`) writes to the committed `summary.json`/`summary.md`; without `--config` the panel block loses `provider`/`endpoint` (verified by running it) — a fresh-clone reader clobbers the ≥2-provider proof while the table still carries the "proof of the ≥3-model / ≥2-provider bar" heading. Use a scratch output path and/or omit the panel block when provider info is absent.
+- No tests cover the iter-2 `usage` aggregation (score.py:242-252, 315-335) or the `panel` block (339-348), though both exist to satisfy a plan deliverable; `test_score.py` has no `usage`/`panel` assertions.
+- The cost path is unreachable: `price_in`/`price_out` are read from the panel dict (score.py:326) but never produced by `cli.py` and absent from `ModelSpec`, so `pipelines/README.md:97`'s "cost only if the config supplies prices" describes a capability that cannot be exercised — wire it or drop it.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 3 paths changed while this lane was running:
+  - codev/projects/1-spec-1-seed-phase-1-benchmark-/1-phase_8-iter2-context.md
+  - pipelines/sacredbench/cli.py
+  - pipelines/sacredbench/config.py
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.
+
+
+---
+
+## ⚠️ REPOSITORY MOVED during the claude review (#1649).
+A consultant reviews the commit in front of it; it must never commit, or switch refs.
+  - HEAD: fd99d0c466e1b8dbdc2cebf7e211b7093ce62f61 -> d348938476d912acafe82f42547b3571ba4272af
+The files on disk may look untouched and still not be the ones this review describes.
+Check `git reflog` and `git status` before trusting this review or shipping the branch.

@@ -39,6 +39,9 @@ class ModelSpec:
     max_tokens: int = 1024
     base_url: str | None = None
     api_key_env: str | None = None
+    # optional USD price per 1M tokens; both must be given to compute a cost
+    price_in: float | None = None
+    price_out: float | None = None
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,14 @@ def load_config(path: Path) -> RunConfig:
             raise ConfigError(
                 f"{path}: models[{i}] unknown provider {m['provider']!r} (supported: {PROVIDERS})"
             )
+        price_in, price_out = m.get("price_in"), m.get("price_out")
+        if (price_in is None) != (price_out is None):
+            raise ConfigError(
+                f"{path}: models[{i}] must set both price_in and price_out (USD per 1M tokens) or neither"
+            )
+        for pk, pv in (("price_in", price_in), ("price_out", price_out)):
+            if pv is not None and (not isinstance(pv, (int, float)) or pv < 0):
+                raise ConfigError(f"{path}: models[{i}] {pk} must be a non-negative number")
         specs.append(
             ModelSpec(
                 id=str(m["id"]),
@@ -76,6 +87,8 @@ def load_config(path: Path) -> RunConfig:
                 max_tokens=int(m.get("max_tokens", 1024)),
                 base_url=m.get("base_url"),
                 api_key_env=m.get("api_key_env"),
+                price_in=float(price_in) if price_in is not None else None,
+                price_out=float(price_out) if price_out is not None else None,
             )
         )
     ids = [s.id for s in specs]

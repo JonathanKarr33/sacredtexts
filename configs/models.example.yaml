@@ -9,6 +9,11 @@ models:
     provider: anthropic            # direct Anthropic API (ANTHROPIC_API_KEY)
     model: claude-haiku-5-5
     max_tokens: 1024
+    # Optional: set BOTH price_in and price_out (USD per 1M tokens) to have `score`
+    # report a per-model and total cost. Omit them (as the run did) for token-only
+    # totals — prices are never invented.
+    # price_in: 1.0
+    # price_out: 5.0
   # Any OpenAI-chat-compatible host (OpenRouter here) via base_url + api_key_env:
   - id: gpt-oss-20b
     provider: openai

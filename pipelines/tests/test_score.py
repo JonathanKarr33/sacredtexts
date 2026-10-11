@@ -83,6 +83,32 @@ def test_score_file_and_summary(tmp_path):
     assert m1["_overall"]["n"] == 2 and m1["_overall"]["accuracy"] == 0.5
     md = summary_markdown(summary)
     assert "m1" in md and "retrieve_quote" in md
+    # no run config → usage is still emitted (evidence-derived) but no panel "proof"
+    assert "usage" in summary and "panel" not in summary
+    assert "Panel" not in md
+
+
+def test_usage_totals_and_optional_cost(tmp_path):
+    answers = tmp_path / "answers.jsonl"
+    rows = [
+        _row("retrieve_quote-0", "deadbeef", model_id="a", model="m-a",
+             usage={"in": 1000, "out": 2000, "provider": "HostX"}),
+        _row("retrieve_quote-1", "deadbeef", model_id="b", model="m-b",
+             usage={"in": 500, "out": 500}),  # no serving-host field
+    ]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    # prices only for model 'a' → only 'a' gets a cost; totals still sum tokens
+    panel = {"a": {"provider": "openai", "model": "m-a", "endpoint": "h", "price_in": 1.0, "price_out": 2.0}}
+    summary = score_file(answers, tmp_path / "scores.jsonl", panel=panel)
+    u = summary["usage"]
+    assert u["per_model"]["a"] == {"calls": 1, "in": 1000, "out": 2000, "cost_usd": 1000/1e6*1.0 + 2000/1e6*2.0}
+    assert u["per_model"]["b"] == {"calls": 1, "in": 500, "out": 500}  # no cost without prices
+    assert u["total"]["in"] == 1500 and u["total"]["out"] == 2500 and u["total"]["calls"] == 2
+    assert u["total"]["cost_usd"] == summary["usage"]["per_model"]["a"]["cost_usd"]
+    # panel: provider proof from config, serving host from the answers' usage
+    assert summary["panel"]["a"]["provider"] == "openai"
+    assert summary["panel"]["a"]["served_by"] == ["HostX"]
+    assert "cost" in summary_markdown(summary).lower()
 
 
 def test_score_rejects_missing_digest(tmp_path):

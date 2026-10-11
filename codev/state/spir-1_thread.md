@@ -719,3 +719,15 @@ SPIR, strict mode (porch-driven).
   (24/1/0/0), viewer realRun test renders the committed run. All pass. Scratch clone
   removed.
 - Gate green: pipelines 140, viewer 412/9-skipped. NEXT: porch done -> iter-2 consult.
+- Phase_8 iter-2 consult: codex REQUEST_CHANGES, claude COMMENT (both re-derived the
+  evidence byte-identically). 3 overlapping findings, all fixed:
+  (1) TUTORIAL collect targeted the committed answers.jsonl -> verbatim run skips all
+      400 cells. Restructured into Track A (explore committed, keyless -> /tmp),
+      Track B (own run under fresh runs/<id>/), Track C (view).
+  (2) keyless score overwrote committed summary with null-panel proof. Fix: keyless
+      writes to /tmp; score.py omits the panel block entirely when no --config (usage
+      still emitted). Verified git status runs/ stays clean.
+  (3) cost path unreachable. Wired: ModelSpec price_in/price_out (validated
+      both-or-neither, >=0) -> load_config -> CLI panel -> score cost_usd; test added.
+  Added usage/panel/cost tests (claude #2). Abstention-vs-hallucination still deferred
+  to review doc. Gate: pipelines 141, viewer 412/9. NEXT: porch done -> iter-3 consult.

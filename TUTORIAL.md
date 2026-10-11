@@ -39,82 +39,72 @@ uv --project pipelines run python -m sacredbench convert
 uv --project pipelines run python -m sacredbench validate texts/standardized
 ```
 
-## 3. Generate the benchmark questions (deterministic, seeded)
+Steps 1–2 above are shared. From here there are two tracks: **A** explores the
+committed run with no keys and writes no files into the committed evidence;
+**B** does your own fresh run (needs keys) under a new `runs/<id>/` directory.
+Never `collect`/`score`/`generate` on top of `runs/first-run-2026-10-11/` — it is
+the committed reference evidence, already complete, so a `collect` there would just
+resume-skip all cells and a keyless `score` would overwrite its panel proof.
 
-The first run is **~100 English `retrieve_quote` questions**, balanced across the
-English corpora (Protestant Bibles, LDS editions, papal encyclicals, the Talmud's
-English). Same seed ⇒ identical questions (content-derived ids + a question-set
-digest, written to a `.manifest.json` sidecar).
+## Track A — explore the committed run (no keys, no new files)
+
+The committed run already ships `questions.jsonl`, `answers.jsonl`, `scores.jsonl`,
+`summary.json` and `summary.md`. Read the table, the panel proof and the token
+totals directly:
 
 ```bash
+cat runs/first-run-2026-10-11/summary.md
+```
+
+Re-derive the scores from the committed answers to a **scratch** path and confirm
+they reproduce (reads the committed evidence, writes only to `/tmp`):
+
+```bash
+uv --project pipelines run python -m sacredbench score \
+  runs/first-run-2026-10-11/answers.jsonl \
+  --scores-out /tmp/scores.jsonl --summary-out /tmp/summary.json
+diff <(sort /tmp/scores.jsonl) <(sort runs/first-run-2026-10-11/scores.jsonl) && echo "reproduced"
+```
+
+Then view it (Track C below): `/local-results?run=/runs/first-run-2026-10-11`.
+
+## Track B — do your own run (needs API keys — the only paid part)
+
+Pick a fresh run directory and keep every artifact under it:
+
+```bash
+RUN=runs/my-run
+
+# 3. generate (deterministic; same seed ⇒ identical questions, with a .manifest.json)
 uv --project pipelines run python -m sacredbench generate \
   "texts/standardized/Protestant Christian" \
   "texts/standardized/The Church of Jesus Christ of Latter-Day Saints" \
   "texts/standardized/Roman Catholic/papal-encyclicals-vatican-english-en" \
   "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-english-en" \
-  --tasks retrieve_quote --per-task 100 --seed 20261011 \
-  --out runs/first-run-2026-10-11/questions.jsonl
-```
+  --tasks retrieve_quote --per-task 100 --seed 20261011 --out "$RUN/questions.jsonl"
 
-(The committed `runs/first-run-2026-10-11/questions.jsonl` was produced by exactly
-this command.)
+# 4. copyright audit (also runs in the test gate): fail if any artifact derives from
+#    a restricted source
+uv --project pipelines run python -m sacredbench audit "$RUN"
 
-## 4. Copyright audit (also runs in the test gate)
-
-Fails if any committed artifact derives from a restricted source:
-
-```bash
-uv --project pipelines run python -m sacredbench audit runs/first-run-2026-10-11
-```
-
-## 5. Collect answers from the model panel  *(needs API keys — the only paid step)*
-
-> **No keys? Skip this step.** The committed run already ships
-> `runs/first-run-2026-10-11/answers.jsonl`, so you can go straight to step 6's
-> keyless variant and still get the summary table and the viewable page.
-
-```bash
+# 5. collect from the panel (resumable; a failed cell stays pending and the run exits
+#    non-zero — re-run to fill exactly the missing cells; the question-set digest is
+#    stamped on every row so you can't resume against a different question set)
 cp configs/models.example.yaml configs/models.yaml   # edit the panel; keys via env
 uv --project pipelines run python -m sacredbench collect \
-  runs/first-run-2026-10-11/questions.jsonl configs/models.yaml \
-  --out runs/first-run-2026-10-11/answers.jsonl
+  "$RUN/questions.jsonl" configs/models.yaml --out "$RUN/answers.jsonl"
+
+# 6. score (strict + normalized + token-F1; per-task contract; tradition breakdown;
+#    --questions/--config add the missing-cell roster + the panel snapshot + usage)
+uv --project pipelines run python -m sacredbench score "$RUN/answers.jsonl" \
+  --scores-out "$RUN/scores.jsonl" --summary-out "$RUN/summary.json" \
+  --summary-md "$RUN/summary.md" --questions "$RUN/questions.jsonl" --config configs/models.yaml
 ```
 
-Resumable and fail-safe: a failed cell stays pending and the run exits non-zero;
-re-run to fill exactly the missing cells. The question-set digest is stamped into
-every answer row, so you can't resume against a different question set.
+(The committed `runs/first-run-2026-10-11/` was produced by exactly these commands
+with that seed.)
 
-## 6. Score (strict + normalized + token-F1; per-task contract; tradition breakdown)
-
-**Keyless** — score the committed answers (no panel config needed; produces the
-summary table and token-usage totals; the panel-composition proof is already in the
-committed `summary.json`/`summary.md`):
-
-```bash
-uv --project pipelines run python -m sacredbench score \
-  runs/first-run-2026-10-11/answers.jsonl \
-  --scores-out runs/first-run-2026-10-11/scores.jsonl \
-  --summary-out runs/first-run-2026-10-11/summary.json \
-  --summary-md  runs/first-run-2026-10-11/summary.md
-```
-
-**With your own run** — add `--questions`/`--config` (requires `configs/models.yaml`
-from step 5) for the missing/failed-cell roster and the panel snapshot:
-
-```bash
-uv --project pipelines run python -m sacredbench score \
-  runs/first-run-2026-10-11/answers.jsonl \
-  --scores-out runs/first-run-2026-10-11/scores.jsonl \
-  --summary-out runs/first-run-2026-10-11/summary.json \
-  --summary-md  runs/first-run-2026-10-11/summary.md \
-  --questions   runs/first-run-2026-10-11/questions.jsonl \
-  --config      configs/models.yaml
-```
-
-Both print (and write) the per-model × task accuracy table, the per-tradition
-breakdown, the panel composition, and token-usage totals.
-
-## 7. View the results locally
+## Track C — view the results locally
 
 ```bash
 pnpm -C apps/viewer install
@@ -122,8 +112,9 @@ pnpm -C apps/viewer dev          # then open the printed URL
 ```
 
 - `/local-results` renders a built-in sample run out of the box.
-- `/local-results?run=/runs/first-run-2026-10-11` renders **this** run (the dev
-  server serves the repo's `runs/` at `/runs/`).
+- `/local-results?run=/runs/first-run-2026-10-11` renders the committed run; point
+  `?run=` at your own `runs/<id>` to view Track B's output (the dev server serves the
+  repo's `runs/` at `/runs/`).
 
 ## Re-running the whole thing / tests
 
