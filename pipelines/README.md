@@ -55,6 +55,12 @@ uv --project pipelines run python -m sacredbench convert --converter bible_flat 
 uv --project pipelines run python -m sacredbench convert --source "Protestant Christian"
 # Restricted targets (require the local held-back payloads, e.g. NABRE):
 uv --project pipelines run python -m sacredbench convert --include-restricted
+# NOTE: with the Greek Orthodox TLG payloads present locally, a whole-corpus
+#   `convert --include-restricted` fail-fasts on the still-unregistered `tlg`
+#   converter. Until that converter lands, convert NABRE on its own:
+uv --project pipelines run python -m sacredbench convert --include-restricted --source "Roman Catholic"
+#   (verified 2026-10-11: NABRE converts 35,091 verses; the committed run's audit
+#    content layer ran clean against the real NABRE payload — 32,070 fingerprints.)
 
 # 2. Mechanically validate any standard-format documents (license-agnostic)
 uv --project pipelines run python -m sacredbench validate texts/standardized

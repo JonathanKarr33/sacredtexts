@@ -144,7 +144,9 @@ Dispositioned:
 8. **Vatican encyclicals are `license: open` with 211 texts committed, but vatican.va
    texts carry © Libreria Editrice Vaticana** → **escalated to the humans / working
    group** (see Follow-up): a licensing call, not a code change; must be signed off
-   before any public preprint.
+   before any public preprint. **Human decision (2026-10-11, at the PR gate): KEEP
+   committed as `license: open` for now; working-group sign-off will be sought before
+   the preprint.**
 Minor notes (prose-hedge anti-gaming limit, `AuditError` currently unused, audit
 content-layer O(fingerprints×blob), `convert` not pruning stale standardized outputs,
 `decodeURIComponent` throw in dev-only `serveRuns`) → recorded as Follow-up / Spec 2.
@@ -215,7 +217,9 @@ No flaky tests encountered.
   © Libreria Editrice Vaticana. Transparently declared and one line to flip to
   `restricted`, but it is the highest-consequence licensing call in the PR and needs
   explicit group sign-off before any FAccT/arXiv preprint. Escalated to the human
-  alongside the merge decision.
+  alongside the merge decision. **Resolved at the PR gate (2026-10-11): the human
+  directed KEEP as `license: open` for now; working-group sign-off to be sought before
+  the preprint.** This follow-up stays open until that group sign-off is on record.
 - **Scoring hardening before reporting verify_source / identify_source (Spec 2):**
   `parse_yes_no` should require a leading verdict / handle negation; `identify_source`
   needs a work check independent of the citation; the citation anti-hedge should catch
