@@ -456,3 +456,7 @@ SPIR, strict mode (porch-driven).
   no invention) + key-set equality. Mutation test: invention within count budget
   via duplicate shards → False. 98 tests pass.
 - Committing + re-consulting (iter 4).
+
+### Phase 4 — iter 3: BOTH effectively cleared (claude APPROVE; codex edge-cases addressed). porch advanced phase_4 → phase_5.
+
+## 2026-10-11 — Implement Phase 5 (generation hardening + resume-guarded collection)
