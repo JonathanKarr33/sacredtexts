@@ -24,8 +24,8 @@ gates:
     status: pending
   verify-approval:
     status: pending
-iteration: 1
-build_complete: true
+iteration: 2
+build_complete: false
 history:
   - iteration: 1
     build_output: ''
@@ -86,8 +86,20 @@ history:
         verdict: COMMENT
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_3-iter2-claude.txt
+  - iteration: 1
+    plan_phase: phase_5
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter1-codex.txt
+      - model: claude
+        verdict: APPROVE
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter1-claude.txt
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T11:34:05.615Z'
+updated_at: '2026-10-11T11:41:38.305Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
