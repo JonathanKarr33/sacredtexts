@@ -77,3 +77,34 @@ atomic reviewable commit; feature phases then build additively on a clean green 
 Interim Phase-2 home reuses the existing local-results view so `/` is never broken.
 
 Committing initial plan draft, then signal PLAN_DRAFTED for the 2-way consult.
+
+## 2026-10-11 — PLAN iter1 consult + revision
+
+2-way plan consult (codex + claude): BOTH REQUEST_CHANGES HIGH, no design disagreement —
+approach/ordering/spec-coverage confirmed sound. Claude verified against the tree and
+caught real build-breakers. Folded all into one revision:
+- Phase 2 MUST edit src/main.tsx (rewrite, drops PersistQueryClient/queryClient/
+  RAW_PERSIST_EXCLUDED) + src/test/renderApp.tsx (strip QueryClientProvider) — build
+  breaks otherwise; blocks react-query prune. (claude)
+- Phase 1: extracted run endpoint to src/lib/runsEndpoint.ts (factory + listRuns) so
+  confinement is testable; Connect strips /runs prefix (collection at / or /_index);
+  nonexistent runs/ → [] (guard realpathSync). (both)
+- Phase 1: production loadRun REQUIRES all four artifacts; typed failure result
+  (missing/HTTP/malformed-line); optional roster only in low-level join for the sample.
+  (codex)
+- Phase 1/2: prod static host returns 200 HTML for /runs/* (serveRuns dev-only) → added
+  content-type/JSON-shape guard so loadRun treats non-JSON 200 as absent → empty state,
+  not crash; prod smoke asserts it. (claude)
+- Phase 2: #86 probe would go RED after purge (probed shades only in deleted files under
+  @theme inline) → add @source inline(...) safelist in styles.css + pin probe to
+  safelisted shades. (claude)
+- Phase 2: static-host decided concretely — keep hono, rewrite server/index.mjs (drop
+  /api proxy), delete bake-and-deploy.sh; cleanup adds @types/js-yaml + pnpm-lock. (codex)
+- Phase 3: run-selection URL contract /?run=<encoded-id> (plain validator, not zod);
+  selector syncs; explorer back-link + standings links use it; stale-request guard +
+  rapid-switch test. (codex)
+- Minors: served_by string[]|null; InterimHome default-loads most-recent (not sample);
+  zod stays pruned (explorer uses plain validator); name LocalResults.test.tsx in P3
+  deletions; noted P2 may split into 2a/2b internal commits.
+
+Phases JSON unchanged (5). Committing revised plan + rebuttal, then signal for re-check.

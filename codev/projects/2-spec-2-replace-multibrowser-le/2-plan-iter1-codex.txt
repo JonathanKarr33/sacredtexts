@@ -1,0 +1,12 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Strong overall decomposition, but several contract and implementation gaps must be resolved before execution.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Phase 1 contradicts the approved spec by treating a missing `questions.jsonl` as optional. Production `loadRun` must require all four artifacts and surface a run-specific error; only the lower-level join/sample compatibility path may reasonably permit an absent roster.
+- Phase 2’s acceptance criterion is not achievable as written. The existing `LocalResultsPage` defaults to the synthetic sample unless given `?run=...`, so merely routing `/` to it will not render the committed run. Specify the required page/default-loading change or revise the criterion.
+- The static-host implementation is still undecided (“possibly” remove Hono). The plan phase should choose a concrete host strategy, state whether `server/index.mjs` and `scripts/bake-and-deploy.sh` are rewritten or deleted, and include `pnpm-lock.yaml` plus `@types/js-yaml` in dependency cleanup.
+- The run-index endpoint needs an explicit testable seam, such as an exported middleware/factory accepting `runsDir`; otherwise the promised temporary-directory confinement tests cannot exercise the actual implementation cleanly. It must also handle a nonexistent `runs/` root without `realpathSync` crashing, returning the specified empty-run behavior.
+- Run selection lacks a defined addressable URL contract. Specify a validated query parameter or route such as `/?run=<encoded-id>`, synchronize selector state with it, and use it for standings links. Otherwise “link into that run’s leaderboard/detail,” refresh behavior, and shareable navigation remain underspecified.
+- Define `loadRun` failure semantics rather than retaining the current nullable “any non-OK means sample fallback” behavior. The UI needs to distinguish missing artifacts, HTTP failures, and malformed JSON/JSONL while keeping the selector usable; tests should also cover rapid run switching so a stale request cannot replace the newly selected run.

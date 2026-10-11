@@ -58,58 +58,84 @@ foundation the three views build on.
 
 #### Files to Create / Modify
 
-- `apps/viewer/src/lib/localResults.ts` — widen the parsed model:
+- `apps/viewer/src/lib/localResults.ts` — widen the parsed model and define failure
+  semantics:
   - carry per-metric scores (`exact`/`normalized`/`token_f1`) on `QuestionResult`,
     keeping the values the task emits and representing absent ones as `null` (not `0`);
   - parse `summary.json`'s `usage` (`per_model{calls,in,out}`, `total`) and `panel`
-    (`provider`, `model`, `endpoint`, `served_by`) into the `Summary` type;
-  - add an **optional** roster input (`questions.jsonl`) to the join: when present,
-    `joinResults` iterates the panel × roster and marks a `(model, question)` with no
-    answer row as a **missing** result (new `missing: boolean` / absent answer+metrics);
-    when absent, it falls back to iterating the scores rows (back-compat for the
-    in-memory sample).
-  - `loadRun` fetches `questions.jsonl` alongside the existing three (treat a 404 as "no
-    roster" → fallback join; a present-but-malformed roster is a hard error).
-- `apps/viewer/vite.config.ts` — extend `serveRuns`:
-  - a request for the `/runs/` **collection** (e.g. `/runs/` or `/runs/_index`) returns
-    JSON `[{id, mtimeMs}]` for each immediate subdirectory containing a readable
-    `summary.json`;
+    (`provider`, `model`, `endpoint`, `served_by: string[] | null`) into the `Summary`
+    type — `served_by` is nullable in the real data (`claude-haiku` → `null`);
+  - the **low-level `joinResults`** takes an **optional** roster: when a roster is
+    present it iterates the panel × roster and marks a `(model, question)` with no answer
+    row as a **missing** result (new `missing: boolean`, absent answer+metrics); when
+    absent it iterates the scores rows (back-compat for the in-memory sample only);
+  - **production `loadRun` requires all four artifacts** (`summary.json`, `scores.jsonl`,
+    `answers.jsonl`, `questions.jsonl`). Replace the current nullable "any non-OK ⇒ sample
+    fallback" behavior with a typed result distinguishing **missing artifact** (a 404, or
+    a non-JSON/HTML 200 — see the prod-host guard in Phase 2), **HTTP failure**, and
+    **malformed JSON/JSONL** (which run, which line). A missing roster is a run-specific
+    error here, **not** a silent fallback; the sample fallback is a page concern, not a
+    loader concern.
+  - add a **content-type / JSON-shape guard**: a 200 response whose body is not the
+    expected JSON (e.g. the SPA `index.html` a static host returns for an unknown path)
+    is treated as "artifact absent", not parsed as data (prevents the Phase-2 prod-host
+    crash — see finding below).
+- `apps/viewer/src/lib/runsEndpoint.ts` (**new, extracted**) — the run-serving logic as
+  an importable factory `createRunsHandler(runsDir)` plus a pure `listRuns(runsDir)`, so
+  it is unit-testable against a temp dir (the current `serveRuns` is a non-exported
+  closure with a hardcoded root and cannot be tested):
+  - `listRuns` returns `[{id, mtimeMs}]` for each immediate subdir containing a readable
+    `summary.json`; a **nonexistent `runs/` root returns `[]`** (guard `realpathSync` so
+    it does not throw) — this is the "empty state" source;
   - **harden confinement**: resolve the canonical path (`fs.realpathSync`), reject
     anything resolving outside the canonical `runs/` root or traversing a symlink, and
-    wrap `decodeURIComponent` in try/catch (malformed encoding → 400, not a throw). Apply
-    the same hardening to the existing single-file branch.
+    wrap `decodeURIComponent` in try/catch (malformed encoding → 400, not a throw);
+  - note Connect's mount semantics: `server.middlewares.use("/runs", …)` **strips** the
+    `/runs` prefix, so the collection request arrives as `req.url === "/"` or
+    `"/_index"` — match on that, not `"/runs/"`.
+- `apps/viewer/vite.config.ts` — import and mount `createRunsHandler` from
+  `runsEndpoint.ts` (replacing the inline `serveRuns` closure); dev-only behavior
+  unchanged otherwise.
 - `apps/viewer/src/local/sample.ts` — add a small sample roster (so the sample still
-  joins) and a **`missing > 0` fixture** (a roster question with no answer row) for the
-  explorer's missing-cell path.
+  joins via the scores-only fallback) and a **`missing > 0` fixture** (a roster question
+  with no answer row) for the explorer's missing-cell path.
 - `apps/viewer/src/lib/localResults.test.ts` (new or fold into existing
-  `components/LocalResults.test.tsx`) — unit tests for the widened parse/join and the
-  missing fixture.
+  `components/LocalResults.test.tsx`) — unit tests for the widened parse/join, the
+  failure-type discrimination, and the missing fixture.
+- `apps/viewer/src/lib/runsEndpoint.test.ts` (new) — confinement tests against a temp
+  dir: lists only subdirs with `summary.json`; rejects traversal (`../`), symlink escape,
+  and malformed-percent-encoding; a nonexistent root returns `[]`.
 - `apps/viewer/src/local/realRun.test.ts` — extend: assert the committed run still joins
   to 400 results (its roster == answered, `missing: 0`), and that per-metric values and
   `usage`/`panel` now parse.
-- A unit test for the run-index endpoint's confinement (traversal `../`, symlink escape,
-  malformed encoding) — against a temp dir.
 
 #### Deliverables
 
-- [ ] `loadRun`/`parseSummary`/`joinResults` carry metrics, usage, panel, and a roster;
-      missing questions are representable.
-- [ ] `serveRuns` lists runs and is hardened (realpath + symlink reject + safe decode).
+- [ ] `loadRun` requires all four artifacts and returns a typed result distinguishing
+      missing-artifact / HTTP-failure / malformed-JSON; a non-JSON 200 is treated as
+      absent, not parsed.
+- [ ] `parseSummary`/`joinResults` carry metrics, usage, panel (`served_by` nullable),
+      and a roster; missing questions are representable.
+- [ ] `runsEndpoint.ts` is an importable factory + `listRuns(runsDir)`, hardened
+      (realpath + symlink reject + safe decode), empty on a nonexistent root.
 - [ ] A `missing > 0` fixture exists and is exercised.
-- [ ] Tests for this phase (parse/join/missing/endpoint-confinement).
+- [ ] Tests for this phase (parse/join/failure-types/missing/endpoint-confinement).
 
 #### Acceptance Criteria
 
 - [ ] The committed-run gate (`realRun.test.ts`) still passes with the widened model.
 - [ ] `pnpm -C apps/viewer test` and `check-types` pass; `/local-results` still renders.
-- [ ] No page/route/nav changes in this phase (diff is lib + middleware + tests + sample).
+- [ ] No page/route/nav changes in this phase (diff is lib + endpoint extraction +
+      vite.config import + tests + sample).
 
 #### Test Plan
 
-- Unit: metrics preserved/`null` per task; `usage`/`panel` parsed; roster join surfaces a
-  missing question; scores-only fallback still works for the sample.
-- Unit: endpoint lists only subdirs with `summary.json`; rejects traversal, symlink
-  escape, and malformed-percent-encoding (temp-dir fixtures).
+- Unit: metrics preserved/`null` per task; `usage`/`panel` parsed (`served_by` nullable);
+  roster join surfaces a missing question; scores-only fallback still works for the
+  sample; `loadRun` returns the right failure type for a 404, a non-JSON 200, and a
+  malformed JSONL line.
+- Unit: `listRuns`/handler lists only subdirs with `summary.json`; rejects traversal,
+  symlink escape, malformed encoding; nonexistent root → `[]` (temp-dir fixtures).
 - Regression: `realRun.test.ts` (400 cells, discriminating, now with metrics).
 
 ### Phase 2: Purge multibrowser surface to a clean shell
@@ -139,47 +165,92 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
   `RawPresets.tsx`, `CorpusContext.tsx`, `TaxonomyAxes.tsx`, `FilterBar.tsx`,
   `Collapsible.tsx`, `Notice.tsx`, and test scaffolding `test/fakeRepo.ts`,
   `test/rawFixture.ts`. **Keep** `ErrorBoundary`, `Loading`, `Markdown` (and their
-  tests), `test/setup.ts`, `test/renderApp.tsx`, `test/noInvisibleText.test.ts`.
+  tests), `test/setup.ts`, `test/noInvisibleText.test.ts`.
+- `src/main.tsx` — **rewrite** (it currently imports `PersistQueryClientProvider`,
+  `createSyncStoragePersister`, `defaultShouldDehydrateQuery`, `./lib/queryClient`, and
+  `RAW_PERSIST_EXCLUDED` from `./lib/constants` — all deleted/pruned here). Reduce to
+  `StrictMode > ErrorBoundary > RouterProvider`. **This is a build-breaker if omitted and
+  blocks the `@tanstack/react-query` prune.**
+- `src/test/renderApp.tsx` — **edit**: strip the `QueryClientProvider` /
+  `@tanstack/react-query` wrapper (lines ~2, 11–18); keep the memory-history router
+  render. Also blocks the query-dep prune if omitted.
 - `src/router.tsx` — reduce the route tree to `/` + a catch-all 404; `/` renders the
-  existing `LocalResultsPage` as the interim real home (kept until Phase 3); drop
-  `parseSearch`/`stringifySearch`/`validateSearch` wiring that referenced deleted
-  schemas.
+  interim home (below); drop `parseSearch`/`stringifySearch`/`validateSearch` wiring that
+  referenced deleted zod schemas.
+- `src/routes/InterimHome.tsx` (**new, small**) — the interim `/` page: fetch the Phase-1
+  run index, default to the most-recent run (mtime, id tiebreak), and render it via the
+  retained `LocalResults` component (or an informative empty state when no run is
+  present). Do **not** route `/` straight at the existing `LocalResultsPage` — that
+  defaults to the synthetic sample unless `?run=` is set, so it would never show the
+  committed run. (Superseded by the leaderboard in Phase 3.)
 - `src/routes/RootLayout.tsx` — strip the "MultiBrowser" brand, the Results/Review nav
   links, and the "traditions on GitHub" link (which used the GitHub SHA query); keep the
   app-shell scroll behavior. Rename brand to this app.
-- `src/routes/IndexPage.tsx` — delete (its traditions-grid role is gone; `/` now routes
-  to the interim local-results home).
+- `src/routes/IndexPage.tsx` — delete (traditions grid gone; `/` now routes to
+  `InterimHome`).
+- `src/styles.css` — make the `#86` numbered-shade shim's survival **deliberate**, not
+  dependent on which utilities happen to remain: add a Tailwind v4 `@source inline(...)`
+  safelist covering the semantic ramp the shim guarantees (the exact numbered shades the
+  deploy-test probe asserts). Under `@theme inline` a numbered utility is emitted only if
+  the class appears in scanned content, and today every probed shade lives only in files
+  deleted in Phase 2/3 — without the safelist the probe would go **red** (or pass only by
+  accidentally self-seeding from its own string literals in `deploy.test.ts`).
 - `src/deploy.test.ts` — rework: **drop** the tradition-baking, `public/data-raw`
   raw-tier, and `/api/*` review-proxy assertions and the `/t/...` deep-link smoke;
-  **keep and relocate** the `#86` numbered-shade built-CSS probe; keep a generic
-  **SPA-fallback** smoke (an unknown deep route serves `index.html`); keep `base: '/'`.
+  **keep and relocate** the `#86` numbered-shade built-CSS probe (now backed by the
+  `@source inline` safelist, with the probe list pinned to the safelisted shades); keep a
+  generic **SPA-fallback** smoke (an unknown deep route serves `index.html`); keep
+  `base: '/'`; **add** a guard that the built+served app (which has no dev run endpoint —
+  `/runs/_index` returns the SPA `index.html` with HTTP 200) shows the **empty state, not
+  a crash** (this exercises the Phase-1 content-type/JSON-shape guard in `loadRun`).
 - `src/routes/app.test.tsx` — rework: **drop** the GitHub-index / tradition-grid /
   rate-limit / deep-link-to-tradition tests; **keep** the in-SPA 404 test, the
   ErrorBoundary test, and an app-shell test updated to the new header.
-- `server/index.mjs` + `scripts/bake-and-deploy.sh` + `.railwayignore`/`railway.json` —
-  reduce to a plain static SPA host (SPA fallback only; remove the `/api/*` reverse proxy
-  and the raw-bake). If the static host no longer needs `hono`, remove it; otherwise keep
-  a minimal hono static+fallback server. Update `deploy.test.ts`'s `start`-command
-  assertion to match whatever remains.
+- `server/index.mjs` — **rewrite** to a minimal **hono** static-file host with SPA
+  fallback (serve `dist/`, fall back to `index.html` for unknown routes); remove the
+  `/api/*` reverse proxy. **Decision: keep `hono`/`@hono/node-server`** for this minimal
+  host (no new dep, and `start` stays `node server/index.mjs`). Update `deploy.test.ts`'s
+  `start`-command assertion accordingly.
+- **Delete** `scripts/bake-and-deploy.sh` (the raw-tier bake is gone); update
+  `railway.json` / `.railwayignore` to drop the bake step and the `public/data-raw`
+  reference.
 - `apps/viewer/package.json` — prune dependencies used **only** by the removed surface:
-  `js-yaml`, `zod`, `@tanstack/react-query`, the two query persisters, and (per the
-  static-host decision) possibly `hono`/`@hono/node-server`. Keep `@tanstack/react-router`
-  and the HeroUI/Tailwind/react stack. Verify nothing kept imports a removed dep.
-- `.gitignore` (viewer) — drop the `public/data-raw/` entry if the bake is gone.
+  `js-yaml`, `@types/js-yaml`, `zod`, `@tanstack/react-query`,
+  `@tanstack/react-query-persist-client`, `@tanstack/query-sync-storage-persister`. **Keep**
+  `@tanstack/react-router`, `hono`, `@hono/node-server`, and the HeroUI/Tailwind/react
+  stack. Regenerate `pnpm-lock.yaml`. Verify nothing kept imports a removed dep
+  (`check-types` + build).
+- `.gitignore` (viewer) — drop the `public/data-raw/` entry (bake gone).
 - Docs: `apps/viewer/README.md` (describe the interim state / remove the "seed" framing
   for removed surfaces); note in `TUTORIAL.md`/`codev/resources/arch.md` that the
   `/t`·`/results`·`/review` surface is gone (the `/local-results`→leaderboard wording
   lands in Phase 3). Move/trim `README.multibrowser.md` as provenance or delete.
 
+> **Note on URL search-param validation:** `zod` is pruned here, but Phase 4's explorer
+> needs `?task=&tradition=&correct=&mode=` search state. The explorer uses a **plain
+> validator function** (TanStack Router's `validateSearch` accepts one) — do **not**
+> re-add `zod`.
+
+> **Atomicity note:** this phase is large (~70 deletions + two test-suite rewrites +
+> server reduction + dep prune + docs). It remains one plan phase / one logical change,
+> but the builder may land it as two internal commits — (2a) source deletions +
+> `router`/`RootLayout`/`main`/`renderApp`/`InterimHome`/`styles.css`; (2b)
+> server/deploy-test/package.json/docs — each independently green, if that makes the diff
+> more reviewable.
+
 #### Deliverables
 
 - [ ] No purged route/module/component remains under `apps/viewer/src`; no
-      `from '…/traditions/'` import in source.
-- [ ] `router.tsx` serves only `/` (interim local-results home) + 404; `RootLayout`
-      nav has no multibrowser links.
-- [ ] `deploy.test.ts`/`app.test.tsx` reworked; the `#86` CSS probe and an SPA-fallback
-      smoke survive.
-- [ ] Dead dependencies pruned from `package.json`; build + `check-types` pass.
+      `from '…/traditions/'` import in source; `main.tsx` and `test/renderApp.tsx` no
+      longer import any removed module.
+- [ ] `router.tsx` serves only `/` (`InterimHome`) + 404; `RootLayout` nav has no
+      multibrowser links.
+- [ ] `deploy.test.ts`/`app.test.tsx` reworked; the `#86` CSS probe (safelist-backed) and
+      an SPA-fallback smoke survive; the built-app empty-state-not-crash guard is added.
+- [ ] `server/index.mjs` is a minimal hono static+fallback host (no `/api` proxy);
+      `scripts/bake-and-deploy.sh` deleted.
+- [ ] Dead dependencies pruned from `package.json`; `pnpm-lock.yaml` regenerated;
+      build + `check-types` pass.
 - [ ] Tests for this phase (the reworked deploy/app/shell tests).
 
 #### Acceptance Criteria
@@ -187,15 +258,22 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
 - [ ] `pnpm -C apps/viewer test` green; `pnpm -C apps/viewer build` green; `check-types`
       passes.
 - [ ] Built bundle contains no `JLS-\d{3}`, `BZ-\d{3}`, or `al-jalīs`.
-- [ ] `/` renders real content (the committed run via the interim view); 404 works.
-- [ ] HeroUI stays provider-less; the `styles.css` shade shim is intact (probe passes).
+- [ ] `/` renders the most-recent run via `InterimHome` (the committed run when it is the
+      only one), **not** the synthetic sample; an empty `runs/` shows the empty state;
+      404 works.
+- [ ] The built+served static app (no dev run endpoint) shows the empty state rather than
+      crashing on the HTML-200 `/runs/_index` response.
+- [ ] HeroUI stays provider-less; the `styles.css` shade shim is intact and the `#86`
+      probe passes against the real built CSS.
 
 #### Test Plan
 
 - The reworked `deploy.test.ts`: real build has no `data-raw`, bundle has no corpus ids,
-  `#86` probe passes against real CSS, SPA fallback serves `index.html` for a deep route.
+  `#86` probe passes against real CSS (safelist-backed), SPA fallback serves `index.html`
+  for a deep route, and the served app shows the empty state (no crash) for `/runs/_index`
+  returning HTML 200.
 - The reworked `app.test.tsx`: 404 renders, ErrorBoundary catches, shell header renders.
-- Manual: `pnpm dev` → `/` shows the committed run; deleted routes 404.
+- Manual: `pnpm dev` → `/` shows the committed run (most-recent); deleted routes 404.
 - A source grep (in a test or the deploy test) asserts no `/traditions/` imports remain.
 
 ### Phase 3: Leaderboard home + run selector
@@ -211,33 +289,45 @@ recent). Delivers requirement 2 — the primary home experience.
 #### Files to Create / Modify
 
 - `src/routes/LeaderboardPage.tsx` (new) — the `/` page: loads the run index (Phase-1
-  endpoint), selects the default (most recent by mtime, id tiebreak), loads the selected
-  run via `loadRun`, renders the leaderboard; empty/error states per the spec.
+  endpoint), reads the selected run from the **validated `?run=<encoded-id>` search
+  param** (default = most recent by mtime, id tiebreak, when absent), loads the selected
+  run via `loadRun`, renders the leaderboard; empty/error states per the spec. A
+  **stale-request guard** (the existing `live` flag pattern in `LocalResultsPage`)
+  ensures rapid run switching cannot let an earlier load overwrite the current selection.
+- **Run-selection URL contract:** the selected run lives in the URL as
+  `/?run=<encodeURIComponent(id)>` (validated via a plain validator, not `zod`), so it is
+  shareable and survives refresh; the selector reads and writes it; Phase 4/5 links target
+  this same contract.
 - `src/components/LeaderboardTable.tsx` (new) — one row per model ranked by `_overall`
   accuracy (desc; `model_id` tiebreak; null-overall last); a column per task; overall
   column; per-tradition breakdown; per-model token totals from `usage`.
-- `src/components/RunSelector.tsx` (new) — lists the enumerated runs; switching re-loads;
-  a malformed/absent run surfaces a localized error without disabling the selector.
+- `src/components/RunSelector.tsx` (new) — lists the enumerated runs; switching updates
+  `?run=`; a malformed/absent selected run surfaces a localized error without disabling
+  the selector or dropping the other runs.
 - `src/lib/leaderboard.ts` (new, replacing the deleted multibrowser one) — pure ranking /
   column-derivation / formatting helpers (reuse `rankedModels`/`summaryTasks`/`formatCell`
   from `localResults.ts`, extended for token totals and ties).
-- `src/router.tsx` — point `/` at `LeaderboardPage`; retire the interim `LocalResultsPage`
-  home (delete `LocalResultsPage.tsx` and the flat `LocalResults.tsx` view, folding its
-  gate coverage into the leaderboard).
+- `src/router.tsx` — point `/` at `LeaderboardPage` with the `?run=` `validateSearch`;
+  retire the interim home (**delete** `InterimHome.tsx`, `routes/LocalResultsPage.tsx`,
+  `components/LocalResults.tsx`, and `components/LocalResults.test.tsx`, folding the gate
+  coverage into the leaderboard test).
 - `src/local/realRun.test.ts` / a new `LeaderboardPage.test.tsx` — **the committed-run
   gate, reworked onto the leaderboard**: rendering `runs/first-run-2026-10-11` shows the
   4 models ranked with claude-haiku first, the `retrieve_quote` + overall columns, the
   four traditions, and token totals.
 - Docs: `apps/viewer/README.md`, `TUTORIAL.md` (≈69,119–120), `codev/resources/arch.md`
   "Viewer local results" — update the `/local-results?run=…` instructions to the new
-  leaderboard (or leave `/local-results` as a redirect to `/`).
+  leaderboard `/?run=…` contract (or leave `/local-results` as a redirect to `/`).
 
 #### Deliverables
 
-- [ ] `/` renders the leaderboard for the default (most-recent) run.
-- [ ] Run selector lists all enumerated runs and switches the view.
+- [ ] `/` renders the leaderboard for the selected run (`?run=`), defaulting to the
+      most-recent when absent.
+- [ ] Run selector lists all enumerated runs, switches the view via `?run=`, and the
+      selection is shareable / refresh-safe; a stale load cannot overwrite the current one.
 - [ ] Per-tradition breakdown and per-model token totals render from the run.
-- [ ] Tests for this phase, including the reworked committed-run gate.
+- [ ] Tests for this phase, including the reworked committed-run gate and a rapid-switch
+      (stale-request) test.
 
 #### Acceptance Criteria
 
@@ -269,11 +359,14 @@ failures. Delivers requirement 3.
 
 #### Files to Create / Modify
 
-- `src/routes/ExplorerPage.tsx` (new) — route e.g. `/run/$runId/model/$modelId`
-  (optionally `?task=&tradition=&correct=&mode=`): loads the run via `loadRun` (with
-  roster), lists every roster question for the model with pass/fail, missing ones marked;
-  failures show prompt, expected text, actual answer, and per-metric scores
-  (exact/normalized/token-F1, "n/a" where the task emits none).
+- `src/routes/ExplorerPage.tsx` (new) — route e.g. `/run/$runId/model/$modelId` with
+  `?task=&tradition=&correct=&mode=` search state validated by a **plain validator
+  function** (TanStack Router's `validateSearch` accepts one — do **not** re-add `zod`,
+  pruned in Phase 2): loads the run via `loadRun` (with roster), lists every roster
+  question for the model with pass/fail, missing ones marked; failures show prompt,
+  expected text, actual answer, and per-metric scores (exact/normalized/token-F1, "n/a"
+  where the task emits none). A "back to leaderboard" link targets `/?run=<runId>` (the
+  Phase-3 contract).
 - `src/components/QuestionList.tsx` + `src/components/ExplorerFilters.tsx` (new) — the
   per-question list and the composing filters (task, tradition, correct/incorrect,
   failure-mode missing-cell vs wrong-answer).
@@ -324,8 +417,9 @@ detail. Delivers requirement 6. Final doc + dep-prune verification sweep.
 - `src/routes/StandingsPage.tsx` (new) — route e.g. `/standings`: loads **every**
   enumerated run's `summary.json` (+ `panel`), builds a `(provider,model)` → latest-run
   index (latest by mtime; `model_id` display label), renders one row per model with its
-  per-task scores, source run id/date, and a link into that run's leaderboard. A run
-  missing `panel` falls back to `model_id` keying rather than crashing.
+  per-task scores, source run id/date, and a link into that run's leaderboard via the
+  `/?run=<id>` contract. A run missing `panel` falls back to `model_id` keying rather
+  than crashing.
 - `src/lib/aggregate.ts` (new) — pure rollup: dedupe/select most-recent per
   `(provider,model)` key across runs.
 - `src/routes/RootLayout.tsx` + `src/router.tsx` — add a "Standings" nav link + route.
@@ -364,8 +458,9 @@ detail. Delivers requirement 6. Final doc + dep-prune verification sweep.
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Mass deletion in Phase 2 breaks a kept primitive (a `Markdown`/`ErrorBoundary` util was shared) | Medium | Medium | Delete in dependency order; `check-types` + vitest after the phase; keep only primitives with no multibrowser imports; a source-grep test for `/traditions/` imports. |
-| The `#86` CSS probe is lost when reworking `deploy.test.ts` | Medium | High | Relocating/keeping it is an explicit Phase-2 deliverable and acceptance item; `noInvisibleText.test.ts` (glob-based) is a second guard. |
+| Mass deletion in Phase 2 breaks the build via a file that imports a deleted module (`main.tsx`, `test/renderApp.tsx`) | High | High | Both are named explicit Phase-2 edits (rewrite `main.tsx`; strip the query wrapper from `renderApp.tsx`); `check-types` + build after the phase catch any stray import; delete in dependency order. |
+| The `#86` CSS probe goes **red** after the purge (the probed numbered shades live only in deleted files, so under `@theme inline` the utilities stop being emitted) — not merely "dropped" | High | High | Phase 2 adds an `@source inline(...)` safelist in `styles.css` for the shim's ramp and pins the probe list to the safelisted shades, so the probe tests the shim deterministically regardless of app usage; `noInvisibleText.test.ts` (glob-based) is a second guard. |
+| Deployed static host returns HTTP 200 HTML for `/runs/_index` (dev-only endpoint absent in prod), so `loadRun` parses HTML and crashes instead of showing the empty state | Medium | High | Phase-1 content-type/JSON-shape guard treats a non-JSON 200 as "artifact absent"; Phase-2 prod-smoke asserts the served app shows the empty state, not a crash. |
 | Widening `joinResults` to iterate the roster changes the committed-run result count | Low | High | Committed run is `missing: 0` (roster == answered → still 400); the gate asserts it; scores-only fallback preserves the sample. |
 | Run-index endpoint leaks outside `runs/` (symlink/traversal/bad encoding) | Low | High | Realpath confinement + symlink reject + try/caught decode; dedicated Phase-1 confinement tests. |
 | Pruning a dependency still used by a kept module | Low | Medium | Prune only after the deletions; `check-types`/build catch a stray import; prune conservatively (keep `@tanstack/react-router`). |

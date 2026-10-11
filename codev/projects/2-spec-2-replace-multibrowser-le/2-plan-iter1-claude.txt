@@ -1,0 +1,39 @@
+I'll review this plan against the actual codebase. Let me start by locating the files it references.I read the plan, the spec, and the actual viewer tree. Verification notes first, then findings.
+
+**Verified accurate in the plan:** the purge target list matches the real tree (every file named exists; the `results*`/`raw*`/`review*` globs correctly sweep the orphan tests like `reviewStore.test.ts` and `rawData.test.ts`). The run data model is right — I confirmed against `runs/first-run-2026-10-11/summary.json`: top keys `models`/`by_tradition`/`usage`/`panel`, `usage.per_model{calls,in,out}` + `total`, per-task cells carry `exact`/`normalized`/`token_f1` and `_overall` does not. The acceptance numbers are real: claude-haiku 0.24 first, llama-3.1-8b 0.01, then gemma-3-4b/gpt-oss-20b both 0.0 (so "two 0.0 models last, id tiebreak" is correct), LDS/claude-haiku = 0.72, and 0.24 × n=100 = 24 correct. `questions.jsonl` is present in the committed run. Spec coverage is complete — I walked each success criterion to a phase and found no orphans and no scope creep.
+
+**Findings:**
+
+**1. Phase 2 omits two files that import deleted modules — the build breaks.** Both are listed as "keep" primitives, which reads as "no change needed":
+- `src/main.tsx` imports `PersistQueryClientProvider`, `createSyncStoragePersister`, `defaultShouldDehydrateQuery`, `./lib/queryClient`, and `RAW_PERSIST_EXCLUDED` from `./lib/constants` — all deleted/pruned in Phase 2. It must be rewritten to `StrictMode > ErrorBoundary > RouterProvider`.
+- `src/test/renderApp.tsx` (lines 2, 11–18) wraps in `QueryClientProvider` from `@tanstack/react-query`. It must be stripped before the query deps can be pruned.
+
+The dep prune is blocked on both; add them to the Phase-2 file list explicitly.
+
+**2. The Phase-1 endpoint confinement test isn't reachable as planned.** `serveRuns` is a non-exported closure inside `vite.config.ts` with `runsDir` hardcoded relative to the config file. "A unit test … against a temp dir" requires extracting the handler into an importable module with an injectable root (e.g. `src/lib/runsEndpoint.ts`, imported by `vite.config.ts`); that step isn't in the file list. Also note Connect's mount semantics: `server.middlewares.use("/runs", …)` strips the prefix, so the collection request arrives as `req.url === "/"` or `"/_index"` — worth stating so the builder doesn't match on `/runs/`.
+
+**3. The deployed static build will crash the leaderboard instead of showing the empty state.** `server/index.mjs:57` is `app.notFound((c) => c.html(indexHtml))`, and `serveRuns` is `configureServer`-only. So in production `/runs/_index` and `/runs/<id>/summary.json` return **HTTP 200 with HTML**. `loadRun`'s only guard is `!s.ok` (localResults.ts:115), which won't trip — `parseSummary` then throws on HTML. The spec requires "no `runs/` → informative empty state", and Phase 2 keeps a real prod-server smoke. Add a content-type/JSON-shape guard and an assertion that the built+served app shows the empty state.
+
+**4. The `#86` probe risk is mis-framed, and it's the project's named scar.** The plan's mitigation covers "the probe gets dropped in the rework." The likelier failure is that it goes red: `@theme inline` means Tailwind only emits a numbered utility if the class appears in scanned content, and I grepped every probed class — `bg-default-50`, `text-default-900`, `bg-danger-50`, `text-danger-700`, `border-warning-200`, `text-warning-800`, `bg-warning-50` appear **only** in files Phase 2 deletes (`Notice.tsx`, `RateLimitBanner.tsx`, `FilterBar.tsx`, `Raw*`/`Review*`/`Scenario*`/`Results*`), plus `text-default-400`'s survivors `LocalResults.tsx`/`LocalResultsPage.tsx`, which Phase 3 then deletes too. Tailwind v4 auto-detection probably also scans `deploy.test.ts` and self-seeds the candidates from its own `probes` array string literals — which would keep it green by accident, not by design. I did not run `pnpm build` to settle this (read-only review of a live tree). Phase 2 should state the mechanism deliberately: either an `@source inline(…)` safelist in `styles.css` covering the shim's ramp, or pin the probe list to shades the new leaderboard/explorer actually use.
+
+**5. Smaller items:**
+- Phase 2 acceptance says "`/` renders real content (the committed run via the interim view)". It won't — `LocalResultsPage.tsx:30` renders the *committed sample* unless `?run=` is set. Reword, or default the interim home to the newest run from the Phase-1 index.
+- `zod` is pruned in Phase 2, but Phase 4 adds `?task=&tradition=&correct=&mode=` search state, and the existing pattern (`router.tsx:41,50,57`) is zod `validateSearch`. Say explicitly that the explorer uses a plain validator function, or the builder re-adds a dep the spec told it to drop.
+- `panel[model].served_by` is `string[] | null` in the real data (`claude-haiku` → `null`). Type it that way in Phase 1.
+- Phase 3 deletes `LocalResults.tsx`/`LocalResultsPage.tsx` but doesn't name `components/LocalResults.test.tsx`, which will then fail to compile.
+- Optional: Phase 2 is ~70 deletions + two test-suite rewrites + server reduction + dep prune + docs. The atomicity argument is sound, but it could split into 2a (source deletions + `router`/`RootLayout`/`main`/`renderApp` rework) and 2b (server/deploy-test/deps/docs) with both independently green, if the builder prefers a reviewable diff.
+
+The approach, phase ordering, and risk analysis are genuinely good — seam-first/purge-second/views-third is the right call, and the "interim home so `/` is never broken" detail shows care. These are plan-text gaps, not design errors.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Sound approach and complete spec coverage, but Phase 2 omits two must-edit files that break the build, Phase 1's endpoint test needs an extraction step, and the #86-probe and static-deploy gaps are unaddressed.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Phase 2 file list omits `src/main.tsx` (imports `PersistQueryClientProvider`/`queryClient`/`RAW_PERSIST_EXCLUDED`) and `src/test/renderApp.tsx` (wraps `QueryClientProvider`); both import deleted modules and block the `@tanstack/react-query` prune.
+- Phase 1's run-index confinement test is unreachable: `serveRuns` is a non-exported closure in `vite.config.ts` with a hardcoded `runsDir`; plan needs an extract-to-importable-module step with an injectable root. Also note Connect strips the `/runs` mount prefix.
+- Deployed static host (`app.notFound(c => c.html(indexHtml))`) returns 200 HTML for `/runs/_index`, so `loadRun`'s `!s.ok` guard misses and `parseSummary` throws — the spec's "informative empty state" becomes a crash. Needs a content-type/shape guard plus a built-app assertion.
+- The `#86` built-CSS probe risk is mis-framed: every probed numbered shade lives only in files Phase 2/3 delete, so under `@theme inline` the probe may go red (or stay green only by accidentally self-seeding from its own string literals in `deploy.test.ts`). Phase 2 must state the mechanism — `@source inline(...)` safelist or probes pinned to shades the new UI uses. Unverified by me; I did not run the build in the builder's tree.
+- Minor: Phase 2 acceptance "`/` renders the committed run" is wrong (`LocalResultsPage` renders the sample without `?run=`); `zod` pruned in P2 vs. explorer search-param validation in P4; `served_by` is `string[] | null`; `components/LocalResults.test.tsx` unnamed in the Phase 3 deletions.
