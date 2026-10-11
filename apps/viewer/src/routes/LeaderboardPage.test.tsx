@@ -113,6 +113,10 @@ describe("LeaderboardPage — states & run selection", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/Could not load run broken/i);
     // the selector is still present and lists the good run, which can still be chosen
     expect(screen.getByRole("option", { name: "good" })).toBeInTheDocument();
+    // and selecting it recovers the view — the bad run did not take the page down
+    await userEvent.selectOptions(screen.getByLabelText("Run"), "good");
+    expect(await screen.findByText("Leaderboard")).toBeInTheDocument();
+    expect(screen.getAllByText("haiku").length).toBeGreaterThan(0);
   });
 });
 

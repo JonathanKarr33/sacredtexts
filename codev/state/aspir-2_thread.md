@@ -391,3 +391,31 @@ Deferred (claude non-blocking, explicitly phase_5): widen RunRef with mtimeMs + 
 
 Verified: check-types clean; full suite 61 passed / 0 skipped. Committing fixes + both consult
 outputs, re-signalling for the re-check.
+
+## 2026-10-11 — IMPLEMENT phase_3 consult iter2 (codex RC / claude COMMENT) + fixes
+
+2-way re-consult. Both converged on the SAME residual (codex RC HIGH blocking, claude COMMENT
+HIGH non-blocking): the iter1 "n/a" fix only covered {n:0, accuracy:null} with NO missing
+count, but score.py emits a fully-missing model's cells (incl. _overall) as
+{n:0, accuracy:null, expected_n, missing:N} — which hit the `miss N` branch, so the overall
+showed "miss N", not the spec-required "n/a". codex: overall-specific formatter → "n/a";
+claude: a combined "n/a (miss N)" satisfies both spec + the informative count.
+
+Resolution (the superset both accept): unified formatCell so a NULL-ACCURACY cell everywhere
+reads "n/a", annotated with the missing count when present → "n/a (miss N)". Switched the guard
+from `n===0` to `accuracy===null` (equivalent, but directly expresses the spec intent). This
+applies to BOTH the overall and task/tradition columns (LeaderboardTable uses formatCell for
+all), so no separate formatter was needed. Dropped the bare "miss N" display (strictly less
+informative than "n/a (miss N)").
+
+Tests: localResults.test.ts formatCell now asserts the real _overall shape
+{n:0,accuracy:null,expected_n:100,missing:100} → "n/a (miss 100)" and {..missing:3} → "n/a (miss 3)";
+added a LeaderboardTable test rendering a fully-missing model (real shape on task + _overall) →
+both cells "n/a (miss 10)", ranked last, no bare "miss 10". Also folded claude's minor test-gap:
+the bad-default-run test now selects the good run and asserts the leaderboard recovers.
+
+Still deferred (both reviewers agree, phase_5): RunRef mtimeMs widening + defensive client sort.
+
+Verified: check-types clean; `pnpm build` green; full suite 62 passed / 0 skipped (+1 for the
+fully-missing-model test). Committing fixes + both iter2 consult outputs, writing the iter2
+rebuttal, re-signalling.

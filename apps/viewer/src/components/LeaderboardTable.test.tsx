@@ -62,4 +62,31 @@ describe("LeaderboardTable", () => {
     expect(screen.getByText("x")).toBeInTheDocument();
     expect(screen.getAllByText("n/a").length).toBeGreaterThan(0);
   });
+
+  it("renders a fully-missing model (real _overall shape: n=0, accuracy=null, missing=N) as 'n/a'", () => {
+    // score.py emits a model that answered nothing as {n:0, accuracy:null, expected_n, missing}
+    // on BOTH the task cell and _overall. The overall must read "n/a" (annotated), never a
+    // bare "miss N" that hides the spec-required null-overall display.
+    render(
+      <LeaderboardTable
+        summary={{
+          models: {
+            top: { retrieve_quote: { n: 10, accuracy: 0.5 }, _overall: { n: 10, accuracy: 0.5 } },
+            gone: {
+              retrieve_quote: { n: 0, accuracy: null, expected_n: 10, missing: 10 },
+              _overall: { n: 0, accuracy: null, expected_n: 10, missing: 10 },
+            },
+          },
+          by_tradition: {},
+        }}
+      />,
+    );
+    // the fully-missing model ranks last and both its task + overall cells read "n/a (miss 10)"
+    const rows = screen.getAllByRole("row");
+    const firstCells = rows.map((r) => within(r).queryAllByRole("cell")[0]?.textContent).filter(Boolean);
+    expect(firstCells).toEqual(["top", "gone"]);
+    expect(screen.getAllByText("n/a (miss 10)").length).toBe(2); // task column + overall column
+    // and nothing renders the bare "miss 10" that would hide the n/a display
+    expect(screen.queryByText("miss 10")).toBeNull();
+  });
 });
