@@ -700,3 +700,28 @@ root-README texts/ gitignore contradiction flagged to the architect).
 
 Next: open the SINGLE PR (base main, Closes #2), `porch done 2 --pr <N> --branch builder/aspir-2`,
 `afx send architect "PR #N ready for review"`. The `pr` gate is HUMAN-approved — never auto-approve.
+
+## 2026-10-11 — REVIEW iter1 (PR consult + architect integration review) + fixes
+
+PR #6 opened. 2-way PR consult: codex REQUEST_CHANGES HIGH, claude APPROVE HIGH. In parallel the
+architect posted a hands-on integration review (their pass green) with a curated pre-merge fix
+list. Folded everything:
+- codex C1 (runsEndpoint realpath-on-target) → REBUTTED: per-component lstat rejects ALL symlinks
+  (strictly stronger than realpath-on-target), `..` + lexical containment backstop; dev-only
+  endpoint (no prod bundle); claude HIGH verified the guard non-vacuous; architect pass verified
+  run discovery. Residual TOCTOU is theoretical + shared by realpath-then-open. No change.
+- codex C2 / architect (5) (QuestionList missing-cell metric grid) → ADDRESSED: metric grid now
+  renders on EVERY failing row; missing cells show 3× "n/a" (spec AC6), badge+marker keep nature
+  clear. Decision recorded in rebuttal + review doc.
+- architect (1) .env.example deleted (multibrowser-only config); README.multibrowser de-ref'd.
+- architect (2) vite-env.d.ts VITE_MULTIBENCH_* ImportMetaEnv decls deleted (no import.meta.env use).
+- architect (3) leaderboard.ts usage?.per_model?.[modelId] guard (render-path throw → typed result).
+- architect (4) parseSummary nested-shape validation ({"models":{"m":null}} etc → typed malformed)
+  + tests (loadSummary typed result, direct parseSummary throws, leaderboardRows-no-throw sparse usage).
+- claude minors: committed the untracked codex consult artifact; symlink-test no-op → MAINTAIN class.
+- recency-from-mtime → architect filed issue #7, follow-up (NOT this PR).
+
+VERIFIED: check-types clean; build green (CSS 421KB, JS 344KB); suite 121 passed / 0 skipped (was
+115, +6). Committed fixes (incl. both consult outputs) + rebuttal + review-doc update. Signalling
+`porch done 2` for re-verification. The pr gate is HUMAN-approved — architect said human merge
+decision after. NEVER auto-approve.

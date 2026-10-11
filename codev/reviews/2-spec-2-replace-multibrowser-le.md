@@ -6,8 +6,9 @@ Replaced the multibench "multibrowser" viewer (scenario browser + GitHub-data-la
 results + review flows) with a viewer **specific to this benchmark**: a leaderboard home,
 an error explorer, and a cross-run current-standings view, all served from local `runs/`.
 Delivered across **5 implement phases** (seam → purge → three views) as git commits on one
-branch; final suite **115 passed / 0 skipped** (16 files), `check-types` clean, `pnpm build`
-green, all four committed-run gates running (not skipped).
+branch, plus a review-phase round folding the PR consult + architect integration review; final
+suite **121 passed / 0 skipped** (16 files), `check-types` clean, `pnpm build` green, all four
+committed-run gates running (not skipped).
 
 ## Spec Compliance
 
@@ -173,6 +174,40 @@ no concern was rebutted away without a fix except the explicitly out-of-scope it
   asks only per-task + source run + link; per-row "from run" gives the reader context. Both
   APPROVE on iter3.
 
+### Review (PR) Phase (Round 1)
+
+PR #6 drew a 2-way consult (codex REQUEST_CHANGES HIGH, claude APPROVE HIGH) plus a hands-on
+architect integration review (green pass; a curated pre-merge fix list).
+
+#### Codex (REQUEST_CHANGES, HIGH)
+- **Concern**: `runsEndpoint.ts` should `realpath` the resolved target, not only the root (a
+  TOCTOU symlink swap could escape) → **Rebutted**: per-component `lstat` rejects *every*
+  symlink (strictly stronger than realpath-on-target for confinement), `..` is rejected, a
+  lexical containment backstop catches escapes; it is a **dev-only** endpoint (Vite dev server,
+  local `runs/`, in no prod bundle); claude (HIGH) independently verified each guard non-vacuous
+  and the architect's hands-on pass verified run discovery. The residual TOCTOU is theoretical,
+  dev-only, and shared by realpath-then-open.
+- **Concern**: every failing question must display its per-metric scores; missing cells omitted
+  the grid → **Addressed**: `QuestionList` now renders the metric grid on every failing row;
+  a missing cell shows all three as "n/a" while keeping the "missing" badge + "no answer
+  produced" marker (spec AC6). This was the architect's item (5), left to my disposition.
+
+#### Claude (APPROVE, HIGH)
+- **Concern (minor)**: untracked `2-review-iter1-codex.txt` → **Addressed**: committed with the
+  gate alongside the claude output.
+- **Concern (minor)**: symlink tests no-op on platforms lacking symlink support → **N/A**: they
+  run on the macOS/Linux targets; same class as the deferred `describe.skipIf` follow-up.
+
+#### Architect integration review (hands-on, green) — four pre-merge fixes, all Addressed
+- `.env.example` multibrowser purge residue → **Addressed** (deleted; README de-referenced).
+- `vite-env.d.ts` multibrowser `ImportMetaEnv` declarations → **Addressed** (deleted; no source
+  reads `import.meta.env`).
+- `leaderboard.ts` `usage?.per_model[modelId]` render-path throw → **Addressed**
+  (`per_model?.[modelId] ?? null`).
+- `parseSummary` must reject malformed nested shapes (`{"models":{"m":null}}`) with the typed
+  `malformed` result → **Addressed** (nested-shape validation + tests). Recency-from-mtime filed
+  by the architect as follow-up **issue #7** (out of this PR).
+
 ## Lessons Learned
 
 ### What Went Well
@@ -238,7 +273,7 @@ no concern was rebutted away without a fix except the explicitly out-of-scope it
 
 ## Flaky Tests
 
-No flaky tests encountered. The full suite ran 115 passed / 0 skipped deterministically across
+No flaky tests encountered. The full suite ran 121 passed / 0 skipped deterministically across
 every phase; the committed-run gates are `describe.skipIf(!present)`-guarded (present → run)
 and all four ran.
 
@@ -258,7 +293,9 @@ Out of Spec 2 scope; captured for a future MAINTAIN pass (all raised and agreed 
 4. **Standings model-name link could point at the explorer** (`/run/$runId/model/$modelId`)
    for one-click drill-in; req 6 only asks for a link to the run, so current behavior is as
    specified.
-5. **Repo-root `README.md:22`** calls `texts/` wholly "gitignored pending licensing", which
+5. **Recency-from-mtime** — the "most recent run" ordering keys on directory mtime; the architect
+   filed this as **issue #7** for a more robust run-date source. Out of this PR.
+6. **Repo-root `README.md:22`** calls `texts/` wholly "gitignored pending licensing", which
    contradicts `arch-critical.md`'s two-tier rule (public-domain raw IS committed; only
    `restricted` + `texts/standardized/` are ignored). **Flagged to the architect** (out of
    this viewer spec's scope).
