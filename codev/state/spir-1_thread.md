@@ -525,3 +525,7 @@ SPIR, strict mode (porch-driven).
   independent; corpus_hash sorts by the same total key. Reversed-colliding-shards
   test (codex #2).
 - Committing + re-consulting (iter 4).
+
+### Phase 5 — iter 3: claude APPROVE; codex determinism items fixed. porch advanced phase_5 → phase_6.
+
+## 2026-10-11 — Implement Phase 6 (scoring contract + tradition-aware analysis)
