@@ -650,3 +650,20 @@ SPIR, strict mode (porch-driven).
   -> fold into Phase 8.
 
 ## 2026-10-11 — Implement Phase 8 (first benchmark run + TUTORIAL)
+- BLOCKER: live `collect` needs model API keys — NONE in env (checked
+  ANTHROPIC/OPENAI/OPENROUTER/GEMINI/... all unset). Can't run the paid external
+  ≥3-model run or produce answers/scores/summary evidence without keys. Will NOT
+  fabricate answers.
+- Built everything else: audit.py (restricted-origin copyright audit) + 5 tests
+  (clean pass, restricted-origin fail, answer-row + standardized-doc detection,
+  real committed-evidence clean); CLI `audit` command; .gitignore negation for the
+  committed evidence (runs/* + !runs/first-run-2026-10-11/); TUTORIAL.md (full
+  flow). configs/models.example.yaml already had 4 models/3 providers (meets bar).
+- Ran convert (all, 221 docs) -> generate ~100 English retrieve_quote, seed
+  20261011, balanced 25/tradition x 4 (Protestant, LDS, Roman Catholic, Judaism),
+  digest ef837474. Committed the real questions.jsonl + manifest as evidence
+  (copyright-audited clean; public-domain/open only). answers/scores/summary await
+  the keyed collect.
+- Verified non-collect TUTORIAL commands on the tree (convert/validate/generate/
+  audit/viewer-sample). pipelines 139 tests, viewer 411/9-skipped.
+- NEXT: flag the live-collect keys blocker to the architect with options; WAIT.

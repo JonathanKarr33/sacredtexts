@@ -1,0 +1,17 @@
+{
+ "seed": 20261011,
+ "per_task": 100,
+ "negatives_share": 0.5,
+ "quotas": {},
+ "tasks_requested": [
+  "retrieve_quote"
+ ],
+ "tasks_by_count": {
+  "retrieve_quote": 100
+ },
+ "verify_source_negatives": 0,
+ "corpus_hash": "73f9888738e2d02f",
+ "question_set_digest": "ef837474ed7b22ec",
+ "n_questions": 100,
+ "generated_at": "2026-10-11T04:30:39.932715+00:00"
+}

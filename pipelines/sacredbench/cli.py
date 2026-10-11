@@ -13,6 +13,7 @@ from pathlib import Path
 
 import typer
 
+from sacredbench import audit as aud
 from sacredbench import catalogue as cat
 from sacredbench import convert as conv
 from sacredbench import export as exp
@@ -156,6 +157,22 @@ def export(
         f"assembled {len(assembled)} interchange document(s) from {len(docs)} shard(s) "
         f"-> {out}/ (round-trip ok)"
     )
+
+
+@app.command()
+def audit(
+    inputs: list[Path] = typer.Argument(help="committed artifact(s)/dir(s) to audit"),
+    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (catalogue)"),
+) -> None:
+    """Copyright audit: fail if any committed artifact is derived from a restricted source."""
+    sources = cat.discover_catalogue(raw_root)
+    violations = aud.audit_paths(list(inputs), sources)
+    if violations:
+        typer.secho(f"COPYRIGHT AUDIT FAILED — {len(violations)} violation(s):", fg="red", err=True)
+        for v in violations:
+            typer.secho(f"  {v}", fg="red", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"copyright audit OK — no committed artifact derives from a restricted source ({len(list(inputs))} path(s))")
 
 
 @app.command()
@@ -310,7 +327,7 @@ def main() -> None:
         app()
     except (
         schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError, CollectError,
-        gen.GenerateError, ScoreError,
+        gen.GenerateError, ScoreError, aud.AuditError,
     ) as e:
         typer.secho(f"error: {e}", fg="red", err=True)
         sys.exit(2)
