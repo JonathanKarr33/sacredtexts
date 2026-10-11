@@ -1,16 +1,28 @@
 id: '8'
 title: spec-3-tutorial-centered-on-kj
 protocol: aspir
-phase: plan
-plan_phases: []
-current_plan_phase: null
+phase: implement
+plan_phases:
+  - id: phase_1
+    title: Fair Arabic/Hebrew scoring normalisation
+    status: in_progress
+  - id: phase_2
+    title: Web-search tool config, collection, and tools-aware identity
+    status: pending
+  - id: phase_3
+    title: Committed KJV/Qur'an/Talmud tutorial run
+    status: pending
+  - id: phase_4
+    title: Tutorial rework and viewer verification
+    status: pending
+current_plan_phase: phase_1
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-11T21:00:43.465Z'
-updated_at: '2026-10-11T21:31:24.601Z'
+updated_at: '2026-10-11T21:40:57.701Z'
