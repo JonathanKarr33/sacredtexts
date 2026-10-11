@@ -41,7 +41,7 @@ def test_deterministic_same_seed():
 
 def test_ids_are_content_derived_and_stable():
     docs = [make_doc("Book of Orchards")]
-    qs = generate(docs, per_task=5, seed=1)
+    qs = generate(docs, per_task=5, seed=1, negatives_share=0)
     for q in qs:
         assert q.id.startswith(q.task + "-")
     # order is deterministic (sorted by task, then content-derived id)
@@ -69,7 +69,7 @@ def test_identify_version_skipped_for_single_version_corpus():
 def test_identify_version_present_for_multi_version_work():
     kjv = _doc("The Bible", "KJV", [f"{WORDS} kjv {i}" for i in range(20)])
     asv = _doc("The Bible", "ASV", [f"{WORDS} asv {i}" for i in range(20)])
-    qs = generate([kjv, asv], per_task=4)
+    qs = generate([kjv, asv], per_task=4, negatives_share=0)
     iv = [q for q in qs if q.task == "identify_version"]
     assert iv  # version-gate active
     assert {q.task for q in qs} == set(TASKS)
@@ -84,7 +84,7 @@ def test_identify_version_excludes_text_shared_across_versions():
     uniq_a, uniq_b = f"{WORDS} only in kjv", f"{WORDS} only in asv"
     kjv = _doc("The Bible", "KJV", shared + [uniq_a])
     asv = _doc("The Bible", "ASV", shared + [uniq_b])
-    qs = generate([kjv, asv], per_task=2, seed=3)
+    qs = generate([kjv, asv], per_task=2, seed=3, negatives_share=0)
     iv_texts = {q.prompt.split('"')[1] for q in qs if q.task == "identify_version"}
     assert iv_texts == {uniq_a, uniq_b}  # exactly the version-unique verses, no shared
 
@@ -93,7 +93,7 @@ def test_identify_version_excludes_text_shared_across_versions():
 
 
 def test_single_work_has_no_negatives():
-    qs = [q for q in generate([make_doc()], per_task=6) if q.task == "verify_source"]
+    qs = [q for q in generate([make_doc()], per_task=6, negatives_share=0) if q.task == "verify_source"]
     assert all(q.expected["answer"] == "yes" for q in qs)
 
 
@@ -149,7 +149,7 @@ def test_noncanonical_citations_excluded():
     ]
     doc = Document(tradition=["T"], work="Enc", version="V", language="en",
                    document_type="encyclical", entries=good + bad)
-    qs = generate([doc], per_task=5, seed=1)
+    qs = generate([doc], per_task=5, seed=1, negatives_share=0)
     cited = {q.source["citation"] for q in qs}
     assert not any("unnumbered" in c or "(dup" in c for c in cited)
 
@@ -184,8 +184,8 @@ def test_digest_reflects_full_content_not_just_ids():
     changed = [Entry("line", f"W 1:{i}", f"{WORDS} t{i}") for i in range(10)]  # unit_type differs
     d1 = Document(tradition=["T"], work="W", version="V", language="en", document_type="scripture", entries=base)
     d2 = Document(tradition=["T"], work="W", version="V", language="en", document_type="scripture", entries=changed)
-    q1 = generate([d1], per_task=5, seed=1)
-    q2 = generate([d2], per_task=5, seed=1)
+    q1 = generate([d1], per_task=5, seed=1, negatives_share=0)
+    q2 = generate([d2], per_task=5, seed=1, negatives_share=0)
     assert question_set_digest(q1) != question_set_digest(q2)  # prompt unit_type differs
     assert corpus_hash([d1]) != corpus_hash([d2])  # unit_type is in the corpus hash
 
@@ -217,15 +217,20 @@ def test_unknown_task_fails():
 # --- negative-ratio fail-fast ------------------------------------------------
 
 
-def test_insufficient_negative_pool_fails_fast():
-    # a single work -> no wrong work exists, so a requested negative share can't be met
+def test_single_work_negative_request_fails_fast():
+    # one work (two versions) + a requested negative share -> no wrong work exists
     a = _doc("Solo", "V", [f"{WORDS} a{i}" for i in range(30)])
     b = _doc("Solo", "V2", [f"{WORDS} a{i}" for i in range(30)])  # same work, different version
-    # len(works)==1 so negatives are off entirely -> no failure, all positive
-    qs = [q for q in generate([a, b], per_task=6, tasks=("verify_source",)) if q.task == "verify_source"]
+    with pytest.raises(GenerateError) as e:
+        generate([a, b], per_task=6, negatives_share=0.5, tasks=("verify_source",))
+    assert "negative" in str(e.value)
+    # with negatives_share=0 it is fine: all positives
+    qs = generate([a, b], per_task=6, negatives_share=0, tasks=("verify_source",))
     assert all(q.expected["answer"] == "yes" for q in qs)
 
-    # two works but B contains ALL of A and vice-versa -> no eligible negatives
+
+def test_insufficient_negative_pool_fails_fast():
+    # two works but each contains ALL of the other's text -> no eligible negatives
     x = _doc("X", "V", [f"{WORDS} same {i}" for i in range(30)], tradition=("TX",))
     y = _doc("Y", "V", [f"{WORDS} same {i}" for i in range(30)], tradition=("TY",))
     with pytest.raises(GenerateError) as e:
@@ -263,6 +268,6 @@ def test_duplicate_ids_from_colliding_shards_deduped():
     shard2 = Document(tradition=["T2"], work="W", version="V", language="en",
                       document_type="scripture",
                       entries=[Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(15)])
-    qs = generate([shard1, shard2], per_task=5, seed=1)
+    qs = generate([shard1, shard2], per_task=5, seed=1, negatives_share=0)
     ids = [q.id for q in qs]
     assert len(ids) == len(set(ids))  # no duplicate ids

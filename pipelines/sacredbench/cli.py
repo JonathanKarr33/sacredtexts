@@ -219,18 +219,20 @@ def generate(
             "(pass --include-restricted to include them)"
         )
     docs = schema.load_documents(kept)
+    works = {d.work for d in docs}
+    if len(works) < 2 and negatives_share > 0:
+        typer.secho(
+            "WARNING: single-work corpus — false-premise negatives need >=2 works; "
+            "forcing negatives_share=0 (all verify_source questions are positives).",
+            fg="yellow", err=True,
+        )
+        negatives_share = 0.0
     questions = run_generate(
         docs, per_task=per_task, seed=seed, negatives_share=negatives_share,
         quotas=quotas or None, tasks=task_subset,
     )
-    works = {d.work for d in docs}
-    if len(works) < 2:
-        typer.secho(
-            "WARNING: single-work corpus — every verify_source question is a positive "
-            "(false-premise negatives need >=2 works).", fg="yellow", err=True,
-        )
     write_questions(questions, out)
-    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, quotas or None)
+    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, quotas or None, task_subset)
     mpath = gen.manifest_path(out)
     with open(mpath, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

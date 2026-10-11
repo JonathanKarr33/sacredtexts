@@ -195,17 +195,27 @@ def generate(
     unknown = set(active) - set(TASKS)
     if unknown:
         raise GenerateError(f"unknown task(s) {sorted(unknown)} (known: {list(TASKS)})")
+    bad_quota = set(quotas or {}) - set(TASKS)
+    if bad_quota:
+        raise GenerateError(f"unknown quota task(s) {sorted(bad_quota)} (known: {list(TASKS)})")
     if not docs:
         raise GenerateError("no documents to generate from")
     rng = random.Random(seed)
 
-    # identifiable, canonically-cited entries, in deterministic order
-    pool: list[tuple[Document, Entry]] = [
-        (d, e)
-        for d in docs
-        for e in d.entries
-        if _is_canonical_citation(e.citation) and len(e.text.split()) >= MIN_WORDS_IDENTIFIABLE
-    ]
+    # identifiable, canonically-cited entries, deduplicated by content BEFORE
+    # sampling (colliding shards sharing (work, version, language, citation, text)
+    # collapse to one candidate) so quotas are met exactly and ids stay unique.
+    pool: list[tuple[Document, Entry]] = []
+    seen_content: set[tuple[str, str, str, str, str]] = set()
+    for d in docs:
+        for e in d.entries:
+            if not _is_canonical_citation(e.citation) or len(e.text.split()) < MIN_WORDS_IDENTIFIABLE:
+                continue
+            key = (d.work, d.version, d.language, e.citation, e.text)
+            if key in seen_content:
+                continue
+            seen_content.add(key)
+            pool.append((d, e))
     if not pool:
         raise GenerateError(f"no entries with >= {MIN_WORDS_IDENTIFIABLE} words and a canonical citation")
 
@@ -251,9 +261,10 @@ def generate(
                 continue  # every multi-version passage is ambiguous -> task not applicable
         sample = _balanced_sample(task_pool, quota, rng, task)
 
-        if task == "verify_source" and len(works) >= 2:
-            n_negatives = int(quota * negatives_share)
-            # a negative needs a wrong work that does NOT also contain the passage
+        n_negatives = int(quota * negatives_share) if task == "verify_source" else 0
+        if n_negatives > 0:
+            # a false-premise negative needs a wrong work that does NOT also contain
+            # the passage; fail fast if the requested ratio can't be met
             annotated = [
                 (doc, entry, sorted(w for w in works if w != doc.work and normalize(entry.text) not in work_texts[w]))
                 for doc, entry in sample
@@ -261,9 +272,10 @@ def generate(
             eligible = [i for i, (_, _, cands) in enumerate(annotated) if cands]
             if len(eligible) < n_negatives:
                 raise GenerateError(
-                    f"verify_source: only {len(eligible)} of {quota} sampled items can be "
-                    f"false-premise negatives (a wrong work not containing the text), but "
-                    f"negatives_share={negatives_share} needs {n_negatives}"
+                    f"verify_source: need {n_negatives} false-premise negatives "
+                    f"(negatives_share={negatives_share} of {quota}) but only {len(eligible)} of "
+                    f"the sampled items have an eligible wrong work (corpus has {len(works)} work(s)); "
+                    "lower --negatives-share or add works"
                 )
             neg_idx = set(eligible[:n_negatives])
             for i, (doc, entry, cands) in enumerate(annotated):
@@ -275,18 +287,13 @@ def generate(
 
     if not questions:
         raise GenerateError("generation produced no questions")
-    # stable, deterministic order; drop any duplicate ids from colliding shards
-    # (same work/version/language/citation/text under different traditions) so a
-    # cell is never double-collected or double-scored.
+    # stable, deterministic order; ids are unique by construction (pool is
+    # content-deduplicated), verified here as a fail-fast invariant.
     questions.sort(key=lambda q: (q.task, q.id))
-    deduped: list[Question] = []
-    seen_ids: set[str] = set()
-    for q in questions:
-        if q.id in seen_ids:
-            continue
-        seen_ids.add(q.id)
-        deduped.append(q)
-    return deduped
+    ids = [q.id for q in questions]
+    if len(ids) != len(set(ids)):
+        raise GenerateError("internal: duplicate question ids after content-dedup")
+    return questions
 
 
 # --- manifest + question-set digest ------------------------------------------
@@ -320,7 +327,7 @@ def corpus_hash(docs: list[Document]) -> str:
 
 def build_manifest(
     docs: list[Document], questions: list[Question], seed: int, per_task: int,
-    negatives_share: float, quotas: dict[str, int] | None,
+    negatives_share: float, quotas: dict[str, int] | None, tasks: tuple[str, ...] | None = None,
 ) -> dict:
     by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
     realized_negatives = sum(
@@ -331,6 +338,7 @@ def build_manifest(
         "per_task": per_task,
         "negatives_share": negatives_share,
         "quotas": quotas or {},
+        "tasks_requested": list(tasks) if tasks else list(TASKS),
         "tasks_by_count": by_task,
         "verify_source_negatives": realized_negatives,
         "corpus_hash": corpus_hash(docs),

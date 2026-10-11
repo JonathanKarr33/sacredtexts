@@ -501,3 +501,15 @@ SPIR, strict mode (porch-driven).
   duplicate-id dedup guard in generate (claude #5); except cleanup + README manifest/
   resume note (claude #8,#9).
 - Verified: --tasks retrieve_quote --per-task 100 → 100 Qs. Committing + re-consulting.
+
+### Phase 5 — iter 2 impl consult (codex REQUEST_CHANGES, claude COMMENT / HIGH)
+
+- codex 3 items, claude COMMENT. Accepted all. 121 tests pass.
+- Negative-ratio: generate() now fails fast for single-work + negatives_share>0
+  (no silent all-positives loophole); CLI auto-zeroes negatives_share for a
+  single-work corpus with a warning (codex #1).
+- Pool content-deduplicated BEFORE sampling so quotas are met exactly + ids unique;
+  post-sample dedup -> fail-fast assertion (codex #2, claude chief item).
+- generate rejects unknown --quota keys; manifest records tasks_requested (codex #3).
+- Verified: Bible+LDS -> 5 negatives/all tasks; single-work Bible -> auto-zero.
+- Committing + re-consulting (iter 3).
