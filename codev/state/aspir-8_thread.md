@@ -122,6 +122,25 @@ answer is visible in the explorer.
 Also noted (out of scope, Phase 3 orthographic variance): explicit-alef الرحمان vs dagger-alef,
 alef-maksura/ya, ta-marbuta/ha — read as variance, not a normalise bug.
 
+(Deferred the porch context-refresh at the P1→P2 boundary: context budget ~97%, all state
+committed, refresh is advisory + non-blocking — clearing would waste rich consult-informed context.)
+
+## Phase 2 DONE — web-search tool config/collect/tools-aware identity (committed, 186 pass)
+- config.py: `ModelSpec.tools` + `_parse_tools` (fail-fast: non-list / unknown / web_search on
+  non-anthropic → ConfigError). TOOLS=("web_search",).
+- providers.py: `WEB_SEARCH_TOOL={"type":"web_search_20250305","name":"web_search","max_uses":5}`;
+  `_anthropic` passes it iff enabled, raises ProviderError on stop_reason==max_tokens (no retry
+  re-bill), records web_search_requests. complete() re-raises ProviderError (no retry) — good.
+- collect.py: `_panel_fingerprint` = provider|model|base_url|tools (updated test_collect assert to
+  "anthropic|m-m||").
+- cli.py: panel.model = "<model> [web_search]"/"[no-tools]" (BOTH marked → no first-run collision),
+  + api_model raw. score.py: panel passes api_model through; adds summary["generated_at"] (ISO, #7).
+- configs/models.example.yaml: 4 entries opus-search/opus/haiku-search/haiku, unpriced.
+- tests test_phase2_tools.py: faked SDK via monkeypatch.setitem(sys.modules,"anthropic",...).
+- ⚠️ generated_at makes score_file non-deterministic (timestamp) — fine, no test compares full
+  summaries; re-score regression compares scores.jsonl only.
+
 ### Next
-porch next 8 (both approved) → advance. Then Phase 2 (web-search config/collect/identity).
-⚠️ Phase 3 is LIVE/PAID (Anthropic web search). Will smoke-first; if no key/budget, escalate to architect.
+porch done 8 (PHASE_COMPLETE) → per-phase consult → Phase 3 (LIVE/PAID run).
+⚠️ Phase 3 = the paid Anthropic web-search run. Smoke-first; if no ANTHROPIC_API_KEY/budget → escalate.
+Phase-3 watch item: strip web bidi/joiner/BOM chars from search-on answers during clearance (see above).
