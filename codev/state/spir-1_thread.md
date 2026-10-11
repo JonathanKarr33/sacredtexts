@@ -638,3 +638,15 @@ SPIR, strict mode (porch-driven).
 - Minors: parseJsonl line context; error state; expectedText work for identify_source;
   render by_tradition table. 411 viewer tests pass, tsc clean, pipelines 134.
 - Committing + re-consulting (iter 2).
+
+### Phase 7 — iter 2: BOTH APPROVE / HIGH
+
+- codex + claude APPROVE. Viewer reads real run artifacts via the guarded dev-only
+  /runs/ mount with sample fallback; shapes match the pipeline; tests + tsc pass.
+- Phase 8 coordination notes (claude): (1) commit the run under runs/<id>/ (subdir)
+  so ?run=/runs/<id> works, with a .gitignore NEGATION (runs/ is ignored); (2) only
+  repo-root runs/ is dev-served; (3) minor: cap/virtualize the per-question list
+  (~300 rows at Phase 8 scale); ?run via window.location (route has no search schema).
+  -> fold into Phase 8.
+
+## 2026-10-11 — Implement Phase 8 (first benchmark run + TUTORIAL)
