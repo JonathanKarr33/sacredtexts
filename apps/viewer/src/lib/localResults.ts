@@ -255,7 +255,14 @@ async function fetchArtifact(
   if (!res.ok) {
     return { ok: false, kind: res.status === 404 ? "missing" : "http", message: `${url}: HTTP ${res.status}` };
   }
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (e) {
+    // A body-read rejection must stay inside the LoadResult contract, not escape as a
+    // thrown promise (so every caller gets a typed failure without its own try/catch).
+    return { ok: false, kind: "http", message: `${url}: ${(e as Error).message}` };
+  }
   if (text.trimStart().startsWith("<")) {
     return { ok: false, kind: "missing", message: `${url}: not JSON (looks like HTML) — treating as absent` };
   }

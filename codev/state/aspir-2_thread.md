@@ -181,3 +181,16 @@ Applied all legitimate fixes (no disputes):
   must omit the by-tradition section on EMPTINESS, not truthiness. (claude 5)
 
 Verified: check-types clean; full suite 427 passed / 9 skipped. Committing fixes, re-signal.
+
+## 2026-10-11 — IMPLEMENT phase_1 iter2 consult (codex RC / claude APPROVE) + fixes
+
+- codex RC: listRuns followed a symlinked summary.json (statSync/accessSync follow
+  links). Fixed: lstat summary.json first, skip if symlink/non-file. Added symsummary
+  fixture + listing assertion.
+- claude APPROVE + 2 non-blocking folded in: (1) fetchArtifact await res.text() moved
+  inside try/catch → body-read rejection returns kind:"http" (total LoadResult);
+  (2) added grep guard test "no src/ imports runsEndpoint" (client/node boundary).
+- Carry-forwards (not phase_1): document in-root-symlink-run omission in P2/3 README;
+  resolveRunFile containment is intentional unreachable backstop; parseSummary
+  by_tradition→{} → P3 omit on emptiness.
+Verified: check-types clean; endpoint suite 10 tests; LocalResults 11; gate 1 — green.

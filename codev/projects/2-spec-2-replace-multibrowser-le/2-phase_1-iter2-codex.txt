@@ -1,0 +1,7 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 1 is otherwise complete, but run discovery still follows symlinked summary files despite the binding no-symlink-traversal requirement.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `apps/viewer/vite/runsEndpoint.ts:46-50` uses `statSync` and `accessSync` on `summary.json`, both of which follow symlinks. Thus a normal run directory containing an in-root or escaping `summary.json` symlink is indexed, although later file loading rejects it. Check `lstatSync(summary).isSymbolicLink()` before readability checks and add coverage for symlinked summary files. The prior fix only rejects symlinked run-directory entries and symlinks passed through `resolveRunFile`; it does not close this `listRuns` path.

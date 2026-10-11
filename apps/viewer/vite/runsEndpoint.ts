@@ -45,7 +45,10 @@ export function listRuns(runsDir: string): RunIndexEntry[] {
     const dir = path.join(root, e.name);
     const summary = path.join(dir, "summary.json");
     try {
-      if (!fs.statSync(summary).isFile()) continue;
+      // lstat first so a SYMLINKED summary.json is never indexed (statSync/accessSync
+      // would follow it) — consistent with the no-symlink-traversal rule.
+      const ls = fs.lstatSync(summary);
+      if (ls.isSymbolicLink() || !ls.isFile()) continue;
       fs.accessSync(summary, fs.constants.R_OK); // require it to be readable, not just present
       out.push({ id: e.name, mtimeMs: fs.statSync(dir).mtimeMs });
     } catch {

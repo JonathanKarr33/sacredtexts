@@ -1,0 +1,50 @@
+I'll read the changed implementation files from disk and verify them against the Phase 1 plan.I read every changed implementation file from disk, cross-checked the committed run artifacts, and ran the type check and the test suite (excluding only the unchanged `deploy.test.ts`, which builds `dist/` — I did not want to mutate the builder's tree).
+
+## Verification performed
+
+- `pnpm check-types` → clean.
+- `pnpm vitest run --exclude src/deploy.test.ts` → **29 files, 420 passed / 9 skipped** (the 9 skips are pre-existing).
+- Phase-1 suites specifically: `vite/runsEndpoint.test.ts` (9), `LocalResults.test.tsx` (11), `realRun.test.ts` (1) — all green.
+- Confirmed the `realRun.test.ts` assertions against the real `runs/first-run-2026-10-11/summary.json`: `usage.total.calls === 400`, `panel["claude-haiku"].provider === "anthropic"` with `served_by: null`, `panel["gpt-oss-20b"].served_by` a 9-element array. The gate asserts facts that are actually in the data, not tautologies.
+- `vite.config.ts` importing `./vite/runsEndpoint` resolves — vitest loads that config, so the 29 passing files are themselves proof the node-only module is loadable from the config (and `tsconfig.json`'s `include` now covers `vite/`, so it is type-checked).
+
+## Iteration-1 findings: verified as actually fixed in code
+
+- **Symlink policy** — `resolveRunFile` now walks components, `lstat`s each, and returns `null` on any symlink component or `..` (lines 63–88). The in-root symlink test (`inlink` → `run-a`) genuinely exercises it: with the component check removed, the `realpath` backstop would accept `inlink/summary.json` and that test would fail. Not vacuous. `listRuns` skips `isSymbolicLink()` entries consistently, so index and file-serve agree.
+- **Readability vs existence** — `fs.accessSync(summary, R_OK)` added; `readFileSync` in the handler is wrapped → 500 instead of an unhandled throw through middleware.
+- **Failure-contract coverage** — `http` (500 on summary), `malformed` with `scores.jsonl:2` line context, `missing` on 404, `missing` on a 200 HTML body (the Phase-2 prod-host guard), and `verify_source` → all three sub-metrics `null`. The summary parse error is now localized with `${base}/summary.json:`.
+
+## Phase-1 deliverables
+
+All six are met, and the acceptance constraint "no new routes/nav" holds — the only page touched is `LocalResultsPage.tsx`, as a minimal typed-loader adapter. The roster path (`models × roster`) with `missing: true` is correct and the asymmetry between `listRuns` (lists on `summary.json` alone) and `loadRun` (requires all four) is deliberately what the spec asks for: the run appears in the selector, then fails with a localized "can't load this run".
+
+One plan deviation I checked and consider an improvement: the plan's guard wording lumps "JSON/JSONL parse failure" into *artifact absent*, but the implementation routes genuinely malformed JSON to `kind: "malformed"` and reserves `missing` for the HTML/404 shapes. That matches the plan's own deliverable bullet and the spec's "clear, localized error (which run, which line)". Correct call.
+
+## Minor, non-blocking
+
+1. `fetchArtifact` has `await res.text()` outside the try/catch (localResults.ts:258). A body-read rejection escapes the `LoadResult` contract as a thrown promise. `LocalResultsPage` has a `.catch`, so nothing crashes today, but the Phase-3/4/5 pages will each need their own `.catch` unless this is folded in. Cheap to make total.
+2. In-root symlinked run directories are now invisible in the index. That's the right security posture, but symlinking a bulky run into `runs/` is a plausible local workflow, and it fails silently. Worth one line in the viewer README when Phase 2/3 rewrites it.
+3. `resolveRunFile`'s containment check (line 81) is unreachable given the component filtering above it. The `// containment backstop` comment makes the intent clear, so keep it — just don't count it as covered.
+4. `parseSummary` still normalizes absent `by_tradition` to `{}` (line 103). Fine here; as the builder already noted, Phase 3 must omit the by-tradition section on **emptiness**, not truthiness.
+5. The plan's optional "assert no `src/` module imports the node-only endpoint" test wasn't added. It was a "may", and the directory placement plus `fs` imports make an accidental client import fail loudly — but a 3-line grep test would pin the invariant for free during the Phase-2 purge.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 1's widened run-data seam and hardened run-index endpoint are complete, type-clean, genuinely tested (21 phase tests, 420 suite-wide), and the iteration-1 findings are verifiably fixed in code rather than merely claimed.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking. `await res.text()` sits outside `fetchArtifact`'s try/catch, so a body-read rejection bypasses the typed `LoadResult` (currently absorbed by the page's `.catch`; worth making total before Phase 3 adds more callers).
+- In-root symlinked run dirs are silently omitted from the index — correct policy, undocumented consequence; note it in the Phase-2/3 README rewrite.
+- Carry-forward for Phase 3 (not a Phase-1 defect): `parseSummary` turns an absent `by_tradition` into `{}`, so the leaderboard must test emptiness, not truthiness.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 2 paths changed while this lane was running:
+  - apps/viewer/vite/runsEndpoint.test.ts
+  - apps/viewer/vite/runsEndpoint.ts
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.
