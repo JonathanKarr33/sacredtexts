@@ -25,7 +25,9 @@ targets:
     tradition: [Judaism]
     license: open
     license_detail: CC-BY-NC — Sefaria, William Davidson Edition (Koren Noe / Steinsaltz)
-  - payload: Talmud Bavli/**/*- he -*.json
+  # Canonical Aramaic only — exclude the one "Vocalized Aramaic" Shevuot variant,
+  # which is a different edition (would collide with the standard Shevuot).
+  - payload: Talmud Bavli/**/*- he - William Davidson Edition - Aramaic.json
     converter: sefaria_talmud
     work: Talmud Bavli
     version: William Davidson Edition

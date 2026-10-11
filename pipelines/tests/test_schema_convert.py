@@ -8,8 +8,11 @@ from sacredbench.convert import (
     ConvertError,
     convert_bible_flat,
     convert_encyclicals,
+    convert_hadith_sunnah,
     convert_lds_nested,
     convert_nabre,
+    convert_quran_qul,
+    convert_sefaria_talmud,
     convert_target,
 )
 from sacredbench.schema import SchemaError, load_document, parse_document, write_document
@@ -209,8 +212,9 @@ def test_convert_lds_nested_rejects_mixed_shape(tmp_path):
 def test_convert_target_unregistered_converter_fails(tmp_path):
     p = tmp_path / "x.json"
     p.write_text("{}")
+    # 'tlg' is named by the Greek Orthodox catalogue entry but ships no converter
     with pytest.raises(ConvertError) as e:
-        convert_target([p], _target(converter="quran_qul"))
+        convert_target([p], _target(converter="tlg"))
     assert "not registered" in str(e.value)
 
 
@@ -259,3 +263,101 @@ def test_lds_nested_rejects_unexpected_scalar_book(tmp_path):
     with pytest.raises(ConvertError) as e:
         convert_lds_nested([p], _target(converter="lds_nested"))
     assert "non-object top-level key" in str(e.value)
+
+
+# --- Phase 3: Quran / hadith / Talmud (real committed data) ------------------
+
+
+def test_convert_quran_qul_real():
+    t = _real_target("Sunni Islam", converter="quran_qul")
+    [doc] = convert_target(t.payload_paths(RAW), t)
+    assert len(doc.entries) == 6236
+    assert doc.entries[0].citation == "The Qur'an 1:1" and doc.entries[0].unit_type == "ayah"
+    parse_document(doc.to_json_dict())
+
+
+def test_convert_hadith_sunnah_real_bukhari():
+    t = _real_target("Sunni Islam", work="Sahih al-Bukhari")
+    [doc] = convert_target(t.payload_paths(RAW), t)
+    assert len(doc.entries) == 7277
+    assert doc.entries[0].citation == "Sahih al-Bukhari 1" and doc.entries[0].unit_type == "hadith"
+    parse_document(doc.to_json_dict())
+
+
+def test_convert_sefaria_talmud_real_en():
+    t = _real_target("Judaism", language="en")
+    [doc] = convert_target(t.payload_paths(RAW), t)
+    assert doc.document_type == "talmud"
+    assert doc.entries[0].unit_type == "line"
+    assert doc.entries[0].citation == "Arakhin 2a:1"  # tractates start at daf 2a
+    assert all("<" not in e.text and ">" not in e.text for e in doc.entries)  # HTML stripped
+    parse_document(doc.to_json_dict())
+
+
+def test_convert_sefaria_talmud_real_he_excludes_vocalized():
+    """The he target's tightened glob excludes the Vocalized Aramaic Shevuot variant,
+    so conversion succeeds (no conflicting-duplicate error) and markup is stripped."""
+    t = _real_target("Judaism", language="he")
+    [doc] = convert_target(t.payload_paths(RAW), t)
+    assert doc.entries[0].citation == "Arakhin 2a:1"
+    assert all("<" not in e.text and ">" not in e.text for e in doc.entries)
+
+
+# --- Phase 3: Talmud daf offset / markup / duplicate handling (synthetic) -----
+
+
+def _talmud(title: str, sections: list) -> dict:
+    return {"title": title, "text": sections, "sectionNames": ["Daf", "Line"]}
+
+
+def test_talmud_daf_offset_and_markup_strip(tmp_path):
+    # sections 0,1 empty (start at 2a); section 2 -> 2a, section 3 -> 2b, section 4 -> 3a
+    p = tmp_path / "t.json"
+    p.write_text(json.dumps(_talmud("TestMasechet", [
+        [], [],
+        ["<strong>MISHNA:</strong> <b>first</b> line", "second line"],
+        ["third &amp; line"],
+        ["fourth line"],
+    ])))
+    [doc] = convert_sefaria_talmud([p], _target(converter="sefaria_talmud", work="Talmud Bavli",
+                                                document_type="talmud", language="en"))
+    cites = [e.citation for e in doc.entries]
+    assert cites == ["TestMasechet 2a:1", "TestMasechet 2a:2", "TestMasechet 2b:1", "TestMasechet 3a:1"]
+    assert doc.entries[0].text == "MISHNA: first line"  # tags stripped, whitespace collapsed
+    assert doc.entries[2].text == "third & line"  # entity unescaped
+
+
+def test_talmud_identical_duplicate_tractate_deduped(tmp_path):
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    payload = _talmud("Dup", [[], [], ["only line"]])
+    a.write_text(json.dumps(payload))
+    b.write_text(json.dumps(payload))
+    [doc] = convert_sefaria_talmud([a, b], _target(converter="sefaria_talmud", document_type="talmud"))
+    assert [e.citation for e in doc.entries] == ["Dup 2a:1"]  # redundant copy skipped
+
+
+def test_talmud_conflicting_duplicate_tractate_fails(tmp_path):
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    a.write_text(json.dumps(_talmud("Dup", [[], [], ["line A"]])))
+    b.write_text(json.dumps(_talmud("Dup", [[], [], ["line B DIFFERENT"]])))
+    with pytest.raises(ConvertError) as e:
+        convert_sefaria_talmud([a, b], _target(converter="sefaria_talmud", document_type="talmud"))
+    assert "conflicting duplicate tractate" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "fn, payload, converter",
+    [
+        (convert_quran_qul, ["not a dict"], "quran_qul"),
+        (convert_hadith_sunnah, {"no": "hadiths list"}, "hadith_sunnah"),
+        (convert_sefaria_talmud, {"title": "X", "text": "not a list"}, "sefaria_talmud"),
+    ],
+)
+def test_phase3_converters_fail_fast(tmp_path, fn, payload, converter):
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps(payload))
+    with pytest.raises(ConvertError) as e:
+        fn([p], _target(converter=converter))
+    assert "bad.json" in str(e.value)

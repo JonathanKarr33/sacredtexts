@@ -30,6 +30,7 @@ file. Adding a source format = one function + one ``CONVERTERS`` registry line.
 
 from __future__ import annotations
 
+import html as _html
 import json
 import re
 from pathlib import Path
@@ -274,11 +275,129 @@ def convert_nabre(paths: list[Path], target: "Target") -> list[Document]:
     return [_doc(target, entries)]
 
 
+# --- Qur'an (quran_qul) ------------------------------------------------------
+
+
+def convert_quran_qul(paths: list[Path], target: "Target") -> list[Document]:
+    """QUL dict keyed ``"surah:ayah"`` -> ``{verse_key, text, ...}`` → one document."""
+    docs: list[Document] = []
+    for path in paths:
+        data = _load_json(path)
+        if not isinstance(data, dict):
+            raise ConvertError(f"{path}: expected an object keyed by 'surah:ayah' (quran_qul)")
+        entries: list[Entry] = []
+        for key, rec in data.items():
+            if not isinstance(rec, dict):
+                raise ConvertError(f"{path}: entry {key!r} is not an object")
+            verse_key, text = rec.get("verse_key"), rec.get("text")
+            if not isinstance(verse_key, str) or not isinstance(text, str):
+                raise ConvertError(f"{path}: entry {key!r} missing 'verse_key'/'text'")
+            if not text.strip():
+                continue
+            entries.append(Entry(unit_type="ayah", citation=f"{target.work} {verse_key}", text=text.strip()))
+        if not entries:
+            raise ConvertError(f"{path}: produced no ayat")
+        _require_unique_citations(entries, str(path))
+        docs.append(_doc(target, entries))
+    return docs
+
+
+# --- Hadith collections (hadith_sunnah) --------------------------------------
+
+
+def convert_hadith_sunnah(paths: list[Path], target: "Target") -> list[Document]:
+    """sunnah.com ``{metadata, chapters[], hadiths[{idInBook, arabic}]}`` → one document."""
+    docs: list[Document] = []
+    for path in paths:
+        data = _load_json(path)
+        if not isinstance(data, dict):
+            raise ConvertError(f"{path}: top level must be an object (hadith_sunnah)")
+        hadiths = data.get("hadiths")
+        if not isinstance(hadiths, list):
+            raise ConvertError(f"{path}: expected a 'hadiths' list (hadith_sunnah)")
+        entries: list[Entry] = []
+        for i, h in enumerate(hadiths):
+            if not isinstance(h, dict):
+                raise ConvertError(f"{path}: hadiths[{i}] is not an object")
+            number, text = h.get("idInBook"), h.get("arabic")
+            if number is None or not isinstance(text, str):
+                raise ConvertError(f"{path}: hadiths[{i}] missing 'idInBook'/'arabic'")
+            if not text.strip():
+                continue
+            entries.append(Entry(unit_type="hadith", citation=f"{target.work} {number}", text=text.strip()))
+        if not entries:
+            raise ConvertError(f"{path}: produced no hadiths")
+        _require_unique_citations(entries, str(path))
+        docs.append(_doc(target, entries))
+    return docs
+
+
+# --- Babylonian Talmud (sefaria_talmud) --------------------------------------
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _clean_markup(s: str) -> str:
+    """Strip HTML tags and unescape entities so standardized text is exact clean text."""
+    return re.sub(r"\s+", " ", _html.unescape(_TAG_RE.sub("", s))).strip()
+
+
+def convert_sefaria_talmud(paths: list[Path], target: "Target") -> list[Document]:
+    """Sefaria tractate files (``{title, text: [[line, ...], ...]}``) → one document.
+
+    ``text`` is indexed ``[section][line]`` where section 0/1 are empty (tractates
+    begin at daf 2a), so section index ``i`` maps to daf ``(i // 2) + 1`` with side
+    ``a`` (even) / ``b`` (odd). HTML markup is stripped so the stored text is exact.
+    All given tractate files merge into one ``Talmud Bavli`` document; the tractate
+    name prefixes each citation (``<Tractate> <daf><side>:<line>``).
+    """
+    entries: list[Entry] = []
+    seen: dict[str, list] = {}  # tractate -> its text, to dedup redundant copies
+    for path in paths:
+        data = _load_json(path)
+        if not isinstance(data, dict):
+            raise ConvertError(f"{path}: top level must be an object (sefaria_talmud)")
+        tractate, text = data.get("title"), data.get("text")
+        if not isinstance(tractate, str) or not isinstance(text, list):
+            raise ConvertError(f"{path}: expected {{title, text: [...]}} (sefaria_talmud)")
+        if tractate in seen:
+            # the committed tree has a redundant identical copy of one tractate
+            # (Shevuot, in the Davidson-English subdir); skip it, but refuse a
+            # genuinely conflicting duplicate rather than silently picking one.
+            if text != seen[tractate]:
+                raise ConvertError(f"{path}: conflicting duplicate tractate {tractate!r}")
+            continue
+        seen[tractate] = text
+        for i, section in enumerate(text):
+            if not section:
+                continue  # empty leading sections (tractates start at 2a) and gaps
+            if not isinstance(section, list):
+                raise ConvertError(f"{path}: section {i} is not a list of lines")
+            daf = (i // 2) + 1
+            side = "a" if i % 2 == 0 else "b"
+            for line_no, raw in enumerate(section, start=1):
+                if not isinstance(raw, str):
+                    raise ConvertError(f"{path}: {tractate} {daf}{side}:{line_no} is not text")
+                clean = _clean_markup(raw)
+                if not clean:
+                    continue
+                entries.append(
+                    Entry(unit_type="line", citation=f"{tractate} {daf}{side}:{line_no}", text=clean)
+                )
+    if not entries:
+        raise ConvertError("sefaria_talmud produced no entries")
+    _require_unique_citations(entries, str(paths[0]) if paths else "sefaria_talmud")
+    return [_doc(target, entries)]
+
+
 CONVERTERS = {
     "bible_flat": convert_bible_flat,
     "lds_nested": convert_lds_nested,
     "encyclicals": convert_encyclicals,
     "nabre": convert_nabre,
+    "quran_qul": convert_quran_qul,
+    "hadith_sunnah": convert_hadith_sunnah,
+    "sefaria_talmud": convert_sefaria_talmud,
 }
 
 

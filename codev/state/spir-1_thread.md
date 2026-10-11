@@ -340,3 +340,36 @@ SPIR, strict mode (porch-driven).
 - Phase 5 NOTE (expanded): generate must exclude footnotes + "unnumbered para." +
   "(dup N)" non-canonical units from citation tasks.
 - Wrote 1-phase_2-iter3-rebuttals.md. Committing + re-consulting (iter 4).
+- porch ADVANCED phase_2 → phase_3 after I committed the iter-3 fix + ran
+  `porch done` (codex had APPROVED; porch's loop advanced without a 4th consult).
+  The iter-3 lossless fix therefore wasn't re-consulted, but it directly addresses
+  claude's blocking finding, is verified against real data, strictly safer than
+  the truncating version, and 70 tests pass — and the whole branch gets human
+  review at the single `pr` gate, which backstops it. Proceeding to phase_3 as
+  porch directs (strict mode = follow the orchestrator).
+
+## 2026-10-11 — Implement Phase 3 (Arabic + Talmud converters)
+
+- phase_2 ✓ complete. porch on phase_3: quran_qul, hadith_sunnah, sefaria_talmud
+  (HTML strip + 2a daf offset + skip empty leading sections).
+- Derived REAL shapes: Quran = dict "surah:ayah"->{verse_key,text} (6236 ayat;
+  cite "The Qur'an {verse_key}", unit ayah). Hadith = {metadata,chapters[],
+  hadiths[{idInBook,arabic}]} (cite "{work} {idInBook}", unit hadith). Talmud =
+  {title, text:[[line,...]...]}; sections 0/1 empty (start 2a); section index i ->
+  daf (i//2)+1 + side a/b; strip <b>/<i>/<strong> + unescape entities; unit line;
+  merge all tractates into ONE doc (tractate-prefixed citations).
+- Real-data irregularities found + handled:
+  * en Shevuot appears TWICE (parent + Davidson-English subdir), BYTE-IDENTICAL ->
+    converter dedups identical repeats by tractate (fail-fast on a CONFLICTING dup).
+  * he Shevuot has a 2nd "Vocalized Aramaic" variant (DIFFERENT edition) -> tightened
+    the he payload glob in Judaism/source.yaml to the canonical "... - Aramaic.json"
+    so the vocalized is excluded (would collide).
+- Verified: Quran 6236; hadith 9 collections (Bukhari 7277 ... Ahmad 1374); Talmud
+  en 78117 / he 78406 lines, first "Arakhin 2a:1", NO HTML tags, clean text. All
+  validate. FULL catalogue convert = 221 docs / 349,799 entries from 21 targets,
+  all validate.
+- Tests: real-data smoke (counts/citations/2a-start/no-HTML/validate) + synthetic
+  unit tests (daf offset 2a/2b/3a, markup strip + entity unescape, identical-dedup,
+  conflicting-dup fail, fail-fast on bad top-level). Fixed the stale
+  unregistered-converter test to use 'tlg' (quran_qul is now registered). 80 pass.
+- Committing. Next: signal PHASE_COMPLETE, 2-way consult.
