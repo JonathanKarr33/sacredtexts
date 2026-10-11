@@ -52,6 +52,33 @@ class ScoreError(Exception):
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
+# Arabic and Hebrew combining marks + script-specific editorial code points, deleted
+# so a vocalized and an unvocalized spelling of the same word normalise to the SAME
+# bare-consonantal string. Derived from the REAL data: the Arabic set spans every mark
+# present in the QUL Uthmani text — harakat/tanwin/shadda/sukun/madda/hamza
+# (U+064B–U+0655), superscript alef (U+0670), tatweel (U+0640), and the full Qur'anic
+# annotation block incl. the rub-el-hizb / sajdah symbols and small waw/yeh
+# (U+06D6–U+06ED); the Hebrew set is the points + cantillation marks. These are
+# DELETED (not turned into spaces) because they occur mid-word — the old `[^\w\s]`
+# pass turned each into a space and split every vocalised word into single letters.
+_SCRIPT_MARKS_RE = re.compile(
+    "[ً-ٰٕـۖ-ۭ"  # Arabic marks / annotation / tatweel
+    "֑-ׇֽֿׁׂׅׄ]"  # Hebrew points + cantillation
+)
+
+
+def strip_script_marks(text: str) -> str:
+    """Fold Arabic/Hebrew letter variants and remove their combining marks so quote
+    scoring compares bare consonantal text. Latin (and every other script) is
+    untouched. Applied to BOTH the answer and the expected text, so the direction of
+    vocalisation does not matter (a vocalised model answer vs. an unvocalised expected
+    scores the same as the reverse)."""
+    text = text.replace("ٱ", "ا")  # Arabic alef-wasla -> bare alef (atomic;
+    #                                           alef-madda/hamza fold via NFKD + marks)
+    text = text.replace("־", " ")  # Hebrew maqaf -> word boundary (NOT deleted:
+    #                                      it joins words, so it must stay a separator)
+    return _SCRIPT_MARKS_RE.sub("", text)
+
 # Similarity sub-metrics reported per task (the spec's per-task contract table).
 _SUBMETRICS = {
     "retrieve_quote": ("exact", "normalized", "token_f1"),
@@ -65,6 +92,8 @@ def normalize(text: str) -> str:
     text = text.replace("‘", "'").replace("’", "'")
     text = text.replace("“", '"').replace("”", '"')
     text = text.replace("–", "-").replace("—", "-")
+    text = strip_script_marks(text)  # Arabic/Hebrew marks BEFORE the punctuation pass,
+    #                                  so they are removed, not turned into word splits
     text = _PUNCT_RE.sub(" ", text.casefold())
     return _WS_RE.sub(" ", text).strip()
 
