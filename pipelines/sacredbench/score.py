@@ -111,8 +111,14 @@ def score_file(answers_path: Path, scores_path: Path) -> dict:
     if not rows:
         raise ScoreError(f"{answers_path}: no answer rows")
 
-    # all answers must come from one question set (collect stamps the digest)
-    digests = {d["question_set_digest"] for d in rows if d.get("question_set_digest")}
+    # all answers must come from one question set (collect stamps the digest on
+    # every row); a missing digest means a foreign/pre-digest file
+    digests = {d.get("question_set_digest") for d in rows}
+    if None in digests or "" in digests:
+        raise ScoreError(
+            f"{answers_path}: answer row(s) carry no question_set_digest — refusing a "
+            "foreign/legacy answers file"
+        )
     if len(digests) > 1:
         raise ScoreError(
             f"{answers_path}: mixes {len(digests)} question sets {sorted(digests)} — "

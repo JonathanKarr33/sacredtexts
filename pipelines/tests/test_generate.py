@@ -76,14 +76,17 @@ def test_identify_version_present_for_multi_version_work():
 
 
 def test_identify_version_excludes_text_shared_across_versions():
-    # one verse identical across versions (ambiguous) must never be an identify_version item
-    shared = f"{WORDS} shared verse text"
-    kjv = _doc("The Bible", "KJV", [shared] + [f"{WORDS} kjv {i}" for i in range(20)])
-    asv = _doc("The Bible", "ASV", [shared] + [f"{WORDS} asv {i}" for i in range(20)])
-    qs = generate([kjv, asv], per_task=8, seed=3)
-    for q in (q for q in qs if q.task == "identify_version"):
-        assert normalize(q.expected.get("version", "")) != ""
-        assert normalize(shared) not in normalize(q.prompt)
+    # Shared verses dominate the pool; only 2 verses are version-unique. With the
+    # ambiguity exclusion the identify_version pool is exactly those 2, so the
+    # emitted set is deterministic and must be exactly them (if the exclusion were
+    # removed the pool would be ~26 and the emitted set would differ).
+    shared = [f"{WORDS} shared verse {i}" for i in range(12)]
+    uniq_a, uniq_b = f"{WORDS} only in kjv", f"{WORDS} only in asv"
+    kjv = _doc("The Bible", "KJV", shared + [uniq_a])
+    asv = _doc("The Bible", "ASV", shared + [uniq_b])
+    qs = generate([kjv, asv], per_task=2, seed=3)
+    iv_texts = {q.prompt.split('"')[1] for q in qs if q.task == "identify_version"}
+    assert iv_texts == {uniq_a, uniq_b}  # exactly the version-unique verses, no shared
 
 
 # --- verify_source negatives -------------------------------------------------
@@ -106,12 +109,12 @@ def test_verify_source_negatives_exclude_overlapping_text():
     for d in (a, b, c):
         for e in d.entries:
             work_texts[d.work].add(normalize(e.text))
-    for q in qs:
-        if q.task == "verify_source" and q.expected["answer"] == "no":
-            true_work = q.expected["true_work"]
-            neg_work = q.prompt.split(" from ", 1)[1].split("?")[0].strip()
-            text = normalize(q.prompt.split('"')[1])
-            assert text not in work_texts[neg_work]  # negative text absent from attributed work
+    negatives = [q for q in qs if q.task == "verify_source" and q.expected["answer"] == "no"]
+    assert negatives  # the test must not go vacuous
+    for q in negatives:
+        neg_work = q.prompt.split(" from ", 1)[1].split("?")[0].strip()
+        text = normalize(q.prompt.split('"')[1])
+        assert text not in work_texts[neg_work]  # negative text absent from attributed work
 
 
 # --- balancing + insufficient pool -------------------------------------------
@@ -172,3 +175,94 @@ def test_build_manifest_fields():
     assert m["seed"] == 1 and m["per_task"] == 4 and m["n_questions"] == len(qs)
     assert m["question_set_digest"] == question_set_digest(qs)
     assert m["corpus_hash"] == corpus_hash(docs)
+    assert "verify_source_negatives" in m and "tasks_by_count" in m
+
+
+def test_digest_reflects_full_content_not_just_ids():
+    # changing a field that the id does NOT encode (unit_type) must change the digest
+    base = [Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(10)]
+    changed = [Entry("line", f"W 1:{i}", f"{WORDS} t{i}") for i in range(10)]  # unit_type differs
+    d1 = Document(tradition=["T"], work="W", version="V", language="en", document_type="scripture", entries=base)
+    d2 = Document(tradition=["T"], work="W", version="V", language="en", document_type="scripture", entries=changed)
+    q1 = generate([d1], per_task=5, seed=1)
+    q2 = generate([d2], per_task=5, seed=1)
+    assert question_set_digest(q1) != question_set_digest(q2)  # prompt unit_type differs
+    assert corpus_hash([d1]) != corpus_hash([d2])  # unit_type is in the corpus hash
+
+
+# --- quotas / task filter ----------------------------------------------------
+
+
+def test_tasks_filter_restricts_output():
+    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
+    qs = generate(docs, per_task=4, tasks=("retrieve_quote",))
+    assert {q.task for q in qs} == {"retrieve_quote"}
+    assert len(qs) == 4
+
+
+def test_quotas_override_per_task():
+    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
+    qs = generate(docs, per_task=4, quotas={"retrieve_quote": 7, "verify_source": 0})
+    counts = {t: sum(1 for q in qs if q.task == t) for t in {q.task for q in qs}}
+    assert counts["retrieve_quote"] == 7
+    assert "verify_source" not in counts  # quota 0 -> skipped
+    assert counts["cite_passage"] == 4  # others fall back to per_task
+
+
+def test_unknown_task_fails():
+    with pytest.raises(GenerateError):
+        generate([make_doc()], per_task=2, tasks=("nope",))
+
+
+# --- negative-ratio fail-fast ------------------------------------------------
+
+
+def test_insufficient_negative_pool_fails_fast():
+    # a single work -> no wrong work exists, so a requested negative share can't be met
+    a = _doc("Solo", "V", [f"{WORDS} a{i}" for i in range(30)])
+    b = _doc("Solo", "V2", [f"{WORDS} a{i}" for i in range(30)])  # same work, different version
+    # len(works)==1 so negatives are off entirely -> no failure, all positive
+    qs = [q for q in generate([a, b], per_task=6, tasks=("verify_source",)) if q.task == "verify_source"]
+    assert all(q.expected["answer"] == "yes" for q in qs)
+
+    # two works but B contains ALL of A and vice-versa -> no eligible negatives
+    x = _doc("X", "V", [f"{WORDS} same {i}" for i in range(30)], tradition=("TX",))
+    y = _doc("Y", "V", [f"{WORDS} same {i}" for i in range(30)], tradition=("TY",))
+    with pytest.raises(GenerateError) as e:
+        generate([x, y], per_task=10, negatives_share=0.5, tasks=("verify_source",), seed=1)
+    assert "negative" in str(e.value)
+
+
+# --- balancing with list-valued traditions -----------------------------------
+
+
+def test_balancing_on_primary_tradition_is_deterministic():
+    # documents with multi-element tradition lists: balancing buckets on the primary
+    a = Document(tradition=["Alpha", "Shared"], work="A", version="V", language="en",
+                 document_type="scripture",
+                 entries=[Entry("verse", f"A 1:{i}", f"{WORDS} a{i}") for i in range(30)])
+    b = Document(tradition=["Beta", "Shared"], work="B", version="V", language="en",
+                 document_type="scripture",
+                 entries=[Entry("verse", f"B 1:{i}", f"{WORDS} b{i}") for i in range(30)])
+    q1 = generate([a, b], per_task=8, tasks=("retrieve_quote",), seed=4)
+    q2 = generate([b, a], per_task=8, tasks=("retrieve_quote",), seed=4)
+    assert [q.id for q in q1] == [q.id for q in q2]  # input order independent
+    prim = [q.source["tradition"][0] for q in q1]
+    assert set(prim) == {"Alpha", "Beta"} and abs(prim.count("Alpha") - prim.count("Beta")) <= 1
+
+
+# --- duplicate-id guard ------------------------------------------------------
+
+
+def test_duplicate_ids_from_colliding_shards_deduped():
+    # two shards sharing (work, version, language, citation, text) under different
+    # traditions would yield identical ids; generate must emit each id once
+    shard1 = Document(tradition=["T1"], work="W", version="V", language="en",
+                      document_type="scripture",
+                      entries=[Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(15)])
+    shard2 = Document(tradition=["T2"], work="W", version="V", language="en",
+                      document_type="scripture",
+                      entries=[Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(15)])
+    qs = generate([shard1, shard2], per_task=5, seed=1)
+    ids = [q.id for q in qs]
+    assert len(ids) == len(set(ids))  # no duplicate ids

@@ -1,0 +1,43 @@
+I'll start by reading the key files for phase_5.## Review — Phase 5: deterministic, version-gated, balanced generation with resume-guarded collection
+
+I read `generate.py`, `collect.py`, the `score.py` delta, `cli.py`, `conftest.py`, `test_generate.py`, `test_collect.py`, and the two relevant `source.yaml` files. I ran the suite read-only (`108 passed`) and probed two behaviours with throwaway scripts in `/tmp` (no writes to the tree; `git status` confirms it is untouched).
+
+### What's solid
+
+- **Version gating** is correct and tested both ways, and the *second* overlap hazard (text identical across versions ⇒ two correct answers) is actually implemented via `version_texts` normalized-text maps, not just asserted in prose.
+- **Content-derived IDs** (`task + work/version/language/citation/text + neg_work`) with a final `sort(task, id)` makes order independent of sampling internals. Determinism is genuinely machine-stable: no `hash()`, no set iteration — `works`, `traditions`, and `candidates` are all built from sorted sequences, and `load_documents`/`expand_json` sort directory walks.
+- **The digest chain is the right shape**: `question_set_digest` → stamped on every answer row → `collect` refuses a foreign digest → `score` refuses a mixed file. `test_collect.py`'s fake-provider dead-key/refill test is exactly the test the seed lacked (and the one the plan called out), and it asserts "exactly 4 cells, each once" rather than just a count.
+- `GenerateError`/`CollectError` are both wired into `main()`'s exit-2 tuple; `collect` exits 1 with the failed cells listed.
+
+### Issues
+
+**1. `quotas` is a Phase 5 deliverable but is unreachable and untested.** The plan deliverable is "Configurable quotas/negative-ratio/tradition-balancing". `generate()` takes `quotas`, but `cli.py:generate` exposes only `--per-task` (`min=1`) and never passes `quotas`; `build_manifest(..., None)` is hardcoded, so the manifest would misreport if quotas were ever used. No test covers the `quotas` path. Concretely this blocks the Phase 8 run shape as planned (~100 seeded English `retrieve_quote` questions): the only CLI route is `--per-task 100`, which emits ~600 questions across six tasks — roughly 6× the panel spend, or an ad-hoc script outside the CLI. Fix is small: a repeatable `--quota task=N` (or `--tasks` filter) threaded into both `run_generate` and `build_manifest`, plus one test.
+
+**2. The identify_version ambiguity test can't reliably catch its own regression.** `test_identify_version_excludes_text_shared_across_versions` builds 21+21 entries, all one tradition, and draws `per_task=8`. If the `len(version_texts[...]) == 1` filter were deleted, the shared verse (2 of 42 pool items) would be sampled with probability ≈ 1 − C(40,8)/C(42,8) ≈ 0.35 — i.e. the test passes ~65% of the time against the very bug it names. Make it deterministic: size the corpus so `quota == len(pool)` (the shared entry must then appear if not excluded), or assert positively that the count of emitted `identify_version` items equals the number of version-unique entries. Related, weaker: `test_verify_source_negatives_exclude_overlapping_text` iterates negatives without asserting any exist — I confirmed 6 are produced today, so just add `assert negatives` to keep it from going vacuous later.
+
+### Comments (no change required this phase)
+
+3. **Silent negative-ratio drift.** In `generate`, when `candidates` is empty the item silently becomes a **positive** (`neg_work = None`) instead of being excluded or replaced. The spec's word is "excluded". Low-probability on real data, but it changes the positive/negative mix with no trace — recording the realized negative count in the manifest would make it auditable.
+
+4. **"Task not applicable" vs "pool too small" are conflated.** Verified: `generate` over a corpus whose only multi-version work has byte-identical versions dies with `task identify_version: pool of 0 < quota 5` and aborts *everything*. That corpus is not hypothetical — it is `KJV` + `KJV (LDS 2013 edition)`, which the LDS `source.yaml` documents as the same text under a distinct version label. Consistent with the existing single-version skip, an emptied-by-ambiguity pool reads more like "skip with a warning" than "fail the run".
+
+5. **Duplicate question IDs are structurally possible across colliding shards.** With two standardized docs sharing `(work, version, language, citation, text)` under different traditions, I got 3 duplicate IDs out of 60. Today's catalogue dodges this via the distinct LDS version label, and Phase 4 merges collisions in the *interchange* tier — but `generate` reads shards, so nothing enforces it. Duplicates would double-charge `collect` and double-count `score` (the plan's "counts not distorted" concern). A one-line uniqueness guard in `generate` would make the protection structural rather than incidental.
+
+6. `_balanced_sample` balances on `d.tradition[0]` only, while Phase 6 will aggregate once per *listed* tradition. Fine for today's single-element lists; the docstring should say "primary (first-listed) tradition" so the two axes aren't assumed identical.
+
+7. `score_file`'s digest check skips rows lacking `question_set_digest` (`if d.get(...)`), so a file half-written by a pre-Phase-5 `collect` mixes silently. Consider requiring the field now that nothing legitimate omits it.
+
+8. `except (ProviderError, Exception)` in `collect.run_cell`'s caller is redundant — `Exception` subsumes `ProviderError`.
+
+9. `pipelines/README.md` wasn't updated for the manifest/digest/resume-refusal. Not in the plan's doc list, but `collect`'s "refusing to resume" is operator-facing and Phase 8's TUTORIAL will need the explanation anyway.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Generation contract and the digest-bound resume guard are well implemented and all 108 tests pass, but the `quotas` deliverable is unreachable from the CLI (and untested), and the identify_version ambiguity test only catches its regression ~35% of the time.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `quotas` (a Phase 5 deliverable) has no CLI surface and no test; `build_manifest` hardcodes `quotas=None`. Blocks Phase 8's "~100 retrieve_quote" run shape — `--per-task 100` yields ~600 questions (~6× panel spend).
+- `test_identify_version_excludes_text_shared_across_versions` is probabilistic: deleting the exclusion leaves it passing ~65% of the time (shared verse is 2 of 42 pool items, 8 drawn). Make it deterministic; also add `assert negatives` to the verify_source overlap test to prevent future vacuity.
+- Non-blocking: empty-by-ambiguity `identify_version` pool aborts the whole run (reproduced with the committed `KJV` / `KJV (LDS 2013 edition)` pair) rather than skipping the task; `candidates`-empty negatives silently flip to positives; duplicate question IDs possible across colliding shards (reproduced, 3/60) with no uniqueness guard in `generate`.

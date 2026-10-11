@@ -22,19 +22,20 @@ from pathlib import Path
 
 from sacredbench.config import RunConfig
 from sacredbench.generate import Question, question_set_digest
-from sacredbench.providers import ProviderError, complete
+from sacredbench.providers import complete
 
 
 class CollectError(Exception):
     """Collection cannot proceed (e.g. resuming against a different question set)."""
 
 
-def _existing(answers_path: Path) -> tuple[set[tuple[str, str]], set[str]]:
-    """Return ((question_id, model_id) keys, question-set digests) already present."""
+def _existing(answers_path: Path) -> tuple[set[tuple[str, str]], set[str], int]:
+    """Return ((question_id, model_id) keys, digests present, rows missing a digest)."""
     keys: set[tuple[str, str]] = set()
     digests: set[str] = set()
+    missing = 0
     if not answers_path.exists():
-        return keys, digests
+        return keys, digests, missing
     with open(answers_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
@@ -42,7 +43,9 @@ def _existing(answers_path: Path) -> tuple[set[tuple[str, str]], set[str]]:
                 keys.add((d["question_id"], d["model_id"]))
                 if d.get("question_set_digest"):
                     digests.add(d["question_set_digest"])
-    return keys, digests
+                else:
+                    missing += 1
+    return keys, digests, missing
 
 
 def collect(
@@ -57,13 +60,12 @@ def collect(
     ``answers.jsonl`` built for a different question set is refused (``CollectError``)
     so a stale or mixed run can never be silently appended to or scored."""
     digest = question_set_digest(questions)
-    done_keys, existing_digests = _existing(answers_path)
-    other = existing_digests - {digest}
-    if other:
+    done_keys, existing_digests, missing = _existing(answers_path)
+    if (existing_digests - {digest}) or missing:
         raise CollectError(
-            f"{answers_path} was built for a different question set "
-            f"(digest(s) {sorted(other)} != current {digest}); refusing to resume — "
-            "regenerate or point --out at a fresh file"
+            f"{answers_path} was not built for this question set (current digest {digest}; "
+            f"found digest(s) {sorted(existing_digests) or 'none'}, {missing} row(s) with no "
+            "digest); refusing to resume — regenerate or point --out at a fresh file"
         )
     cells = [
         (q, m) for q in questions for m in config.models if (q.id, m.id) not in done_keys
@@ -101,7 +103,7 @@ def collect(
             q, m = futures[fut]
             try:
                 fut.result()
-            except (ProviderError, Exception) as e:  # noqa: BLE001 — record, keep cell pending
+            except Exception as e:  # noqa: BLE001 — record any failure, keep the cell pending
                 failures.append(f"{q.id} x {m.id}: {e}")
 
     return done, len(failures), failures

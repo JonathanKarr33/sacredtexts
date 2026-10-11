@@ -482,3 +482,22 @@ SPIR, strict mode (porch-driven).
   120 Qs, manifest digest 3c9f548c, deterministic (same seed → same digest).
   Single-work warning correct (3 versions = 1 work → verify_source negatives off;
   identify_version on). Committing. Next: signal PHASE_COMPLETE, 2-way consult.
+
+### Phase 5 — iter 1 impl consult (BOTH REQUEST_CHANGES / HIGH)
+
+- Converged, real gaps. Accepted all blocking + actionable. 120 tests pass.
+- Digest now hashes FULL question JSON; corpus_hash includes unit_type/tradition/
+  document_type (codex #2). collect refuses resume if existing rows lack OR mismatch
+  the digest; score refuses missing/mixed (codex #1, claude #7).
+- verify_source negatives: fail-fast if < negatives_share×quota are negative-eligible;
+  realized count in manifest (codex #3, claude #3).
+- CLI --tasks + --quota task=N (was unreachable; blocks Phase 8 ~100 retrieve_quote).
+  Threaded into generate + manifest. CLI + library tests (codex #4, claude #1).
+- Balancing documented as PRIMARY tradition; _balanced_sample made input-order-
+  independent (sort sub-pools by content before seeded shuffle) — determinism bug
+  the multi-tradition angle surfaced (codex #5, claude #6).
+- identify_version ambiguity test now deterministic (dominant shared + exact-set,
+  ~99.6% mutation-catch); empty-by-ambiguity pool SKIPS not aborts (claude #2,#4);
+  duplicate-id dedup guard in generate (claude #5); except cleanup + README manifest/
+  resume note (claude #8,#9).
+- Verified: --tasks retrieve_quote --per-task 100 → 100 Qs. Committing + re-consulting.

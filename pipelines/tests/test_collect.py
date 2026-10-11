@@ -75,7 +75,15 @@ def test_resume_against_different_question_set_refused(tmp_path, monkeypatch):
     collect([_q("retrieve_quote-aaaaaa")], config, answers)  # stamps digest of set A
     with pytest.raises(CollectError) as e:
         collect([_q("retrieve_quote-zzzzzz")], config, answers)  # set B -> different digest
-    assert "different question set" in str(e.value)
+    assert "refusing to resume" in str(e.value)
+
+
+def test_legacy_answers_without_digest_refused(tmp_path, monkeypatch):
+    answers = tmp_path / "answers.jsonl"
+    answers.write_text(json.dumps({"question_id": "retrieve_quote-aaaaaa", "model_id": "good"}) + "\n")
+    monkeypatch.setattr(collect_mod, "complete", _fake(set()))
+    with pytest.raises(CollectError):
+        collect([_q("retrieve_quote-aaaaaa")], _config("good"), answers)
 
 
 def test_digest_stamped_into_rows(tmp_path, monkeypatch):

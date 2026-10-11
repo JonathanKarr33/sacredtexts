@@ -3,6 +3,7 @@ import json
 import pytest
 
 from sacredbench.score import (
+    ScoreError,
     normalize,
     parse_yes_no,
     score_answer,
@@ -10,6 +11,17 @@ from sacredbench.score import (
     summary_markdown,
     token_f1,
 )
+
+
+def _row(qid, digest, **over):
+    r = {
+        "question_id": qid, "model_id": "m1", "task": "retrieve_quote",
+        "answer": "x", "question": {"expected": {"text": "x"}},
+    }
+    if digest is not None:
+        r["question_set_digest"] = digest
+    r.update(over)
+    return r
 
 
 def test_normalize_folds_unicode_and_punct():
@@ -54,12 +66,13 @@ def test_score_file_and_summary(tmp_path):
     rows = [
         {
             "question_id": "retrieve_quote-00000", "model_id": "m1", "task": "retrieve_quote",
-            "answer": "alpha beta gamma",
+            "answer": "alpha beta gamma", "question_set_digest": "deadbeef",
             "question": {"expected": {"text": "alpha beta gamma"}},
         },
         {
             "question_id": "verify_source-00001", "model_id": "m1", "task": "verify_source",
-            "answer": "Yes", "question": {"expected": {"answer": "no", "true_work": "W"}},
+            "answer": "Yes", "question_set_digest": "deadbeef",
+            "question": {"expected": {"answer": "no", "true_work": "W"}},
         },
     ]
     answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
@@ -70,3 +83,22 @@ def test_score_file_and_summary(tmp_path):
     assert m1["_overall"]["n"] == 2 and m1["_overall"]["accuracy"] == 0.5
     md = summary_markdown(summary)
     assert "m1" in md and "retrieve_quote" in md
+
+
+def test_score_rejects_missing_digest(tmp_path):
+    answers = tmp_path / "answers.jsonl"
+    answers.write_text(json.dumps(_row("retrieve_quote-0", digest=None)) + "\n")
+    with pytest.raises(ScoreError) as e:
+        score_file(answers, tmp_path / "scores.jsonl")
+    assert "digest" in str(e.value)
+
+
+def test_score_rejects_mixed_digests(tmp_path):
+    answers = tmp_path / "answers.jsonl"
+    answers.write_text(
+        json.dumps(_row("retrieve_quote-0", digest="aaaa")) + "\n"
+        + json.dumps(_row("retrieve_quote-1", digest="bbbb")) + "\n"
+    )
+    with pytest.raises(ScoreError) as e:
+        score_file(answers, tmp_path / "scores.jsonl")
+    assert "mixes" in str(e.value)

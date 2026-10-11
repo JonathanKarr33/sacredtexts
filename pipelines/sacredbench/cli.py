@@ -173,6 +173,8 @@ def generate(
     inputs: list[Path] = typer.Argument(help="standard-format file(s)/director(ies)"),
     out: Path = typer.Option(Path("runs/questions.jsonl")),
     per_task: int = typer.Option(10, min=1),
+    tasks: str = typer.Option(None, help="comma-separated task subset, e.g. 'retrieve_quote,verify_source'"),
+    quota: list[str] = typer.Option(None, help="per-task quota override, repeatable: 'task=N'"),
     seed: int = typer.Option(20261010),
     negatives_share: float = typer.Option(0.5, min=0.0, max=1.0, help="verify_source negative ratio"),
     raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (for the license gate)"),
@@ -184,6 +186,16 @@ def generate(
     ),
 ) -> None:
     """Generate benchmark questions from the six working-group templates."""
+    task_subset = tuple(t.strip() for t in tasks.split(",") if t.strip()) if tasks else None
+    quotas: dict[str, int] = {}
+    for item in quota or []:
+        if "=" not in item:
+            raise typer.BadParameter(f"--quota must be 'task=N', got {item!r}")
+        name, _, count = item.partition("=")
+        try:
+            quotas[name.strip()] = int(count)
+        except ValueError as e:
+            raise typer.BadParameter(f"--quota {item!r}: N must be an integer") from e
     sources = _require_catalogue(raw_root)
     for p in inputs:
         if not Path(p).exists():
@@ -207,7 +219,10 @@ def generate(
             "(pass --include-restricted to include them)"
         )
     docs = schema.load_documents(kept)
-    questions = run_generate(docs, per_task=per_task, seed=seed, negatives_share=negatives_share)
+    questions = run_generate(
+        docs, per_task=per_task, seed=seed, negatives_share=negatives_share,
+        quotas=quotas or None, tasks=task_subset,
+    )
     works = {d.work for d in docs}
     if len(works) < 2:
         typer.secho(
@@ -215,7 +230,7 @@ def generate(
             "(false-premise negatives need >=2 works).", fg="yellow", err=True,
         )
     write_questions(questions, out)
-    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, None)
+    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, quotas or None)
     mpath = gen.manifest_path(out)
     with open(mpath, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

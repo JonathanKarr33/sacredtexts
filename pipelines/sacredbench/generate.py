@@ -144,7 +144,10 @@ def _balanced_sample(
     pool: list[tuple[Document, Entry]], quota: int, rng: random.Random, task: str
 ) -> list[tuple[Document, Entry]]:
     """Sample ``quota`` items balanced across traditions (round-robin over each
-    tradition's shuffled sub-pool). Fail-fast if the whole pool is too small."""
+    tradition's shuffled sub-pool). Balancing is on the **primary (first-listed)**
+    tradition of each document — today's corpora have single-element tradition
+    lists, so primary == the tradition; Phase 6 aggregates once per *listed*
+    tradition, a separate axis. Fail-fast if the whole pool is too small."""
     if len(pool) < quota:
         raise GenerateError(
             f"task {task}: pool of {len(pool)} < quota {quota} (insufficient entries)"
@@ -152,10 +155,13 @@ def _balanced_sample(
     by_tradition: dict[str, list[tuple[Document, Entry]]] = {}
     for d, e in pool:
         by_tradition.setdefault(d.tradition[0], []).append((d, e))
-    for items in by_tradition.values():
-        rng.shuffle(items)
-    chosen: list[tuple[Document, Entry]] = []
     traditions = sorted(by_tradition)
+    # sort each sub-pool by content, then shuffle, in a fixed tradition order — so
+    # the selection depends only on content and seed, never on input document order
+    for t in traditions:
+        by_tradition[t].sort(key=lambda de: (de[0].work, de[0].version, de[0].language, de[1].citation, de[1].text))
+        rng.shuffle(by_tradition[t])
+    chosen: list[tuple[Document, Entry]] = []
     cursor = {t: 0 for t in traditions}
     while len(chosen) < quota:
         progressed = False
@@ -178,10 +184,17 @@ def generate(
     seed: int = 20261010,
     negatives_share: float = 0.5,
     quotas: dict[str, int] | None = None,
+    tasks: tuple[str, ...] | None = None,
 ) -> list[Question]:
-    """Sample questions per task over all documents (``quotas`` overrides ``per_task``
-    per task). Deterministic for a given (docs, seed). Tasks are version-gated and
-    both overlap hazards are excluded."""
+    """Sample questions per task over all documents.
+
+    ``quotas`` overrides ``per_task`` per task; ``tasks`` restricts to a subset
+    (default all six). Deterministic for a given (docs, seed). Tasks are
+    version-gated and both overlap hazards are excluded."""
+    active = tuple(tasks) if tasks else TASKS
+    unknown = set(active) - set(TASKS)
+    if unknown:
+        raise GenerateError(f"unknown task(s) {sorted(unknown)} (known: {list(TASKS)})")
     if not docs:
         raise GenerateError("no documents to generate from")
     rng = random.Random(seed)
@@ -216,6 +229,8 @@ def generate(
 
     questions: list[Question] = []
     for task in TASKS:
+        if task not in active:
+            continue
         quota = (quotas or {}).get(task, per_task)
         if quota <= 0:
             continue
@@ -232,45 +247,74 @@ def generate(
                 if d.work in multi_version_works
                 and len(version_texts[d.work].get(normalize(e.text), ())) == 1
             ]
+            if not task_pool:
+                continue  # every multi-version passage is ambiguous -> task not applicable
         sample = _balanced_sample(task_pool, quota, rng, task)
-        n_negatives = int(quota * negatives_share) if (task == "verify_source" and len(works) >= 2) else 0
-        for i, (doc, entry) in enumerate(sample):
-            neg_work = None
-            if i < n_negatives:
-                # a wrong work whose texts do NOT include this passage
-                candidates = [
-                    w for w in works if w != doc.work and normalize(entry.text) not in work_texts[w]
-                ]
-                if candidates:
-                    neg_work = rng.choice(candidates)
-            questions.append(_build(task, doc, entry, neg_work=neg_work))
+
+        if task == "verify_source" and len(works) >= 2:
+            n_negatives = int(quota * negatives_share)
+            # a negative needs a wrong work that does NOT also contain the passage
+            annotated = [
+                (doc, entry, sorted(w for w in works if w != doc.work and normalize(entry.text) not in work_texts[w]))
+                for doc, entry in sample
+            ]
+            eligible = [i for i, (_, _, cands) in enumerate(annotated) if cands]
+            if len(eligible) < n_negatives:
+                raise GenerateError(
+                    f"verify_source: only {len(eligible)} of {quota} sampled items can be "
+                    f"false-premise negatives (a wrong work not containing the text), but "
+                    f"negatives_share={negatives_share} needs {n_negatives}"
+                )
+            neg_idx = set(eligible[:n_negatives])
+            for i, (doc, entry, cands) in enumerate(annotated):
+                neg_work = rng.choice(cands) if i in neg_idx else None
+                questions.append(_build(task, doc, entry, neg_work=neg_work))
+        else:
+            for doc, entry in sample:
+                questions.append(_build(task, doc, entry))
 
     if not questions:
         raise GenerateError("generation produced no questions")
-    # stable, deterministic order independent of sampling internals
+    # stable, deterministic order; drop any duplicate ids from colliding shards
+    # (same work/version/language/citation/text under different traditions) so a
+    # cell is never double-collected or double-scored.
     questions.sort(key=lambda q: (q.task, q.id))
-    return questions
+    deduped: list[Question] = []
+    seen_ids: set[str] = set()
+    for q in questions:
+        if q.id in seen_ids:
+            continue
+        seen_ids.add(q.id)
+        deduped.append(q)
+    return deduped
 
 
 # --- manifest + question-set digest ------------------------------------------
 
 
 def question_set_digest(questions: list[Question]) -> str:
-    """Content digest of the question set (order-independent): binds collect/score."""
+    """Content digest of the full question set (order-independent): binds collect/score.
+
+    Hashes each question's complete canonical JSON (id, task, prompt, expected,
+    source), so any change to a prompt or source field — not just the id — changes
+    the digest and a resumed/scored run against it is refused."""
     h = hashlib.sha256()
-    for qid in sorted(q.id for q in questions):
-        h.update(qid.encode("utf-8"))
+    blobs = sorted(json.dumps(asdict(q), ensure_ascii=False, sort_keys=True) for q in questions)
+    for blob in blobs:
+        h.update(blob.encode("utf-8"))
         h.update(b"\0")
     return h.hexdigest()[:16]
 
 
 def corpus_hash(docs: list[Document]) -> str:
-    """Content hash of the input corpus; any edit changes it (manifest provenance)."""
+    """Content hash of the input corpus; any edit — including metadata or unit_type
+    — changes it (manifest provenance)."""
     h = hashlib.sha256()
     for d in sorted(docs, key=lambda d: (d.work, d.version, d.language)):
-        h.update(f"{d.work}\0{d.version}\0{d.language}\0{len(d.entries)}\0".encode("utf-8"))
+        meta = f"{d.work}\0{d.version}\0{d.language}\0{d.document_type}\0{','.join(d.tradition)}\0{len(d.entries)}\0"
+        h.update(meta.encode("utf-8"))
         for e in d.entries:
-            h.update(f"{e.citation}\0{e.text}\0".encode("utf-8"))
+            h.update(f"{e.unit_type}\0{e.citation}\0{e.text}\0".encode("utf-8"))
     return h.hexdigest()[:16]
 
 
@@ -278,11 +322,17 @@ def build_manifest(
     docs: list[Document], questions: list[Question], seed: int, per_task: int,
     negatives_share: float, quotas: dict[str, int] | None,
 ) -> dict:
+    by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
+    realized_negatives = sum(
+        1 for q in questions if q.task == "verify_source" and q.expected.get("answer") == "no"
+    )
     return {
         "seed": seed,
         "per_task": per_task,
         "negatives_share": negatives_share,
         "quotas": quotas or {},
+        "tasks_by_count": by_task,
+        "verify_source_negatives": realized_negatives,
         "corpus_hash": corpus_hash(docs),
         "question_set_digest": question_set_digest(questions),
         "n_questions": len(questions),

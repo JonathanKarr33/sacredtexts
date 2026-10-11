@@ -1,0 +1,11 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 5 adds the main generation and resume mechanisms, but digest enforcement and generation-policy guarantees remain incomplete.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `collect.py:32-67` fails open for existing answer rows without `question_set_digest`: their cells are skipped while `existing_digests` remains empty. `score.py:114-120` likewise accepts files with missing digests, and `test_score_file_and_summary` explicitly exercises this. Nonempty legacy/mixed files must be rejected.
+- `generate.py:258-264` hashes only question IDs. Those IDs omit fields such as `unit_type`, `tradition`, and `document_type`, so prompts/source metadata can change without changing the resume digest. `corpus_hash()` similarly omits document metadata and entry `unit_type`. Hash canonical complete question/corpus content and add mutation tests.
+- The configured `verify_source` negative ratio is not guaranteed. At `generate.py:236-246`, sampled items lacking an eligible wrong work silently become positives, potentially yielding zero negatives instead of the requested ratio. The phase requires fail-fast reporting when the eligible negative pool is insufficient.
+- Per-task quotas are only available through the Python function. The Typer command exposes only `--per-task`, always passes `quotas=None`, and writes an empty quota configuration to the manifest (`cli.py:172-218`). The pipeline CLI therefore cannot use the promised configurable per-task policy.
+- Tradition balancing buckets each document solely under `d.tradition[0]` (`generate.py:152-155`). This ignores the interchange format’s list-valued traditions and can omit shared traditions from balancing. Tests cover only single-tradition documents and should include overlapping tradition lists.

@@ -72,7 +72,12 @@ uv --project pipelines run python -m sacredbench export texts/standardized
 #    recovered from its path is refused (fail-closed).
 uv --project pipelines run python -m sacredbench generate texts/standardized --per-task 10
 
-# 4. Collect answers from the model panel (resumable; non-zero exit on failures)
+# 4. Collect answers from the model panel (resumable; non-zero exit on failures).
+#    `generate` also writes runs/questions.jsonl.manifest.json (seed, params,
+#    corpus hash, question-set digest). collect stamps that digest into every
+#    answer row and REFUSES to resume an answers file built for a different
+#    question set (regenerate, or point --out at a fresh file); score refuses a
+#    file that mixes question sets.
 cp configs/models.example.yaml configs/models.yaml   # then edit; keys via env
 uv --project pipelines run python -m sacredbench collect runs/questions.jsonl configs/models.yaml
 
