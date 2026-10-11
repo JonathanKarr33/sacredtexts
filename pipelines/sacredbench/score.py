@@ -38,6 +38,13 @@ class ScoreError(Exception):
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
+# Similarity sub-metrics reported per task (the spec's per-task contract table).
+_SUBMETRICS = {
+    "retrieve_quote": ("exact", "normalized", "token_f1"),
+    "complete_unit": ("exact", "normalized", "token_f1"),
+    "identify_version": ("exact", "normalized"),
+}
+
 
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFKD", text)
@@ -68,22 +75,37 @@ def _contains(answer: str, needle: str) -> bool:
     return normalize(needle) in normalize(answer)
 
 
-# A citation token: chapter:verse / surah:ayah / Talmud daf "2a:1" / encyclical "para. 5".
-# (Number-only citations like a hadith number fall back to containment — Arabic
-# corpora are a follow-on; the first run is English.)
-_CITATION_TOKEN = re.compile(r"\d+[ab]?\s*:\s*\d+|para\.?\s*\d+", re.IGNORECASE)
+# A citation SPAN: the numeric/para token WITH its leading work/book words
+# ("John 1:1", "1 Nephi 3:7", "Taanit 2a:1", "2:255", "Rerum Novarum, para. 5"),
+# so a cross-book hedge ("John 1:1, Genesis 1:1, or Micah 1:1") is three distinct
+# candidates, not one. (Number-only citations, e.g. a bare hadith number, are not
+# span-extracted — Arabic corpora are a follow-on; the first run is English.)
+_COLON_CITE = re.compile(r"(?:[A-Z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
+_PARA_CITE = re.compile(r"(?:[A-Z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
 
 
 def _citation_candidates(answer: str) -> set[str]:
-    return {re.sub(r"\s+", "", m.group(0).lower()) for m in _CITATION_TOKEN.finditer(answer)}
+    spans: set[str] = set()
+    for rx in (_COLON_CITE, _PARA_CITE):
+        for m in rx.finditer(answer):
+            spans.add(normalize(m.group(0)))
+    return spans
 
 
-def _single_citation_correct(answer: str, expected_citation: str) -> int:
-    """Anti-hedge: a multi-candidate answer ('could be A, B, or C') scores 0; a
-    single citation matching the expected one scores 1."""
-    if len(_citation_candidates(answer)) > 1:
-        return 0  # offered more than one citation candidate -> hedge
-    return int(_contains(answer, expected_citation))
+def _bounded_equal(answer: str, expected: str) -> bool:
+    """The full normalized expected citation appears with word boundaries (so
+    ``Jude 1:3`` does not match ``Jude 1:30``), not mere substring containment."""
+    ne = normalize(expected)
+    return re.search(r"(?<!\w)" + re.escape(ne) + r"(?!\w)", normalize(answer)) is not None
+
+
+def _single_citation_correct(answer: str, expected_citation: str) -> tuple[int, int]:
+    """Returns (correct, n_candidates). A multi-candidate answer scores 0; otherwise
+    the single candidate must EQUAL ground truth (boundary-aware, not containment)."""
+    n = len(_citation_candidates(answer))
+    if n > 1:
+        return 0, n  # offered more than one citation candidate -> hedge
+    return int(_bounded_equal(answer, expected_citation)), n
 
 
 def score_answer(task: str, answer: str, expected: dict) -> dict:
@@ -99,22 +121,36 @@ def score_answer(task: str, answer: str, expected: dict) -> dict:
         correct = int(parsed == expected["answer"])
         return {"parsed": parsed, "expected": expected["answer"], "correct": correct}
     if task == "identify_version":
-        return {"correct": int(_contains(answer, expected["version"]))}
+        # the answer must BE the version label (exact/normalized), so an evasive
+        # "KJV or WEB" or "not the KJV, it's the ASV" does not score correct
+        version = expected["version"]
+        exact = int(answer.strip() == version)
+        norm = int(normalize(answer) == normalize(version))
+        return {"exact": exact, "normalized": norm, "correct": norm}
     if task == "cite_passage":
-        return {"correct": _single_citation_correct(answer, expected["citation"])}
+        correct, n = _single_citation_correct(answer, expected["citation"])
+        return {"correct": correct, "n_candidates": n}
     if task == "identify_source":
         work_found = int(_contains(answer, expected["work"]))
-        citation_ok = _single_citation_correct(answer, expected["citation"])
+        citation_ok, n = _single_citation_correct(answer, expected["citation"])
         return {
             "work_found": work_found,
             "citation_found": citation_ok,
+            "n_candidates": n,
             "correct": int(work_found and citation_ok),
         }
     raise ScoreError(f"unknown task {task!r}")
 
 
 def score_file(answers_path: Path, scores_path: Path) -> dict:
-    """Score every answer row; write per-answer scores and return the summary dict."""
+    """Score every answer row; write per-answer scores and return the summary dict.
+
+    Scoring sees only successful answer rows (``collect`` leaves failed cells
+    pending and exits non-zero). A model present with some answers shows its real
+    per-task ``n`` and renders ``—`` for tasks it has no answers for; a model whose
+    cells ALL failed is absent from the panel here and is surfaced instead by
+    ``collect``'s non-zero exit and failure list — score never silently reports it
+    as complete."""
     if not answers_path.exists():
         raise ScoreError(f"{answers_path}: no answers file")
     rows = []
@@ -180,10 +216,8 @@ def score_file(answers_path: Path, scores_path: Path) -> dict:
     summary: dict = {"models": {}, "by_tradition": {}}
     for (model_id, task), acc in sorted(per_cell.items()):
         cell = {"n": acc["n"], "accuracy": round(acc["correct"] / acc["n"], 4)}
-        if task in ("retrieve_quote", "complete_unit"):
-            cell["exact"] = round(acc["exact"] / acc["n"], 4)
-            cell["normalized"] = round(acc["normalized"] / acc["n"], 4)
-            cell["token_f1"] = round(acc["token_f1"] / acc["n"], 4)
+        for sm in _SUBMETRICS.get(task, ()):
+            cell[sm] = round(acc[sm] / acc["n"], 4)
         summary["models"].setdefault(model_id, {})[task] = cell
     # _overall from RAW counts (not a lossy round(accuracy*n) reconstruction)
     for model_id in summary["models"]:

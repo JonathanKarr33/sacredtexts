@@ -542,3 +542,19 @@ SPIR, strict mode (porch-driven).
   _overall, tradition counts-once-per-listed + markdown section. 125 pass.
   Real smoke: hedge scored 0, single 1 (50%); tradition table rendered.
 - Committing. Next: signal PHASE_COMPLETE, 2-way consult.
+
+### Phase 6 — iter 1 impl consult (BOTH REQUEST_CHANGES / HIGH)
+
+- Converged: tradition aggregation + raw overall right, but per-task contract not
+  fully met. Accepted all. 127 tests pass.
+- Anti-hedge was numeric-only + containment: cross-book hedge ("John 1:1, Genesis
+  1:1, Micah 1:1") scored 1, "Jude 1:30" matched "Jude 1:3". Fixed: full-SPAN
+  candidate count (>1 -> 0) + boundary-aware EQUALITY (not containment). (both #1/#2)
+- identify_version: was containment; now label exact/normalized (spec table),
+  correct=normalized -> "KJV or WEB" / "not KJV it's ASV" score 0. Summary shows
+  per-task sub-metrics. (both)
+- Missing cells: documented (score sees only successful rows; partial-missing ->
+  "—", all-failed -> collect non-zero exit). Test added. (both #3)
+- Minors: n_candidates in metrics (auditability); score --summary-md for Phase 8
+  evidence. Noted limitation: citation word-order / number-only (follow-on).
+- Committing + re-consulting (iter 2).

@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core aggregation works, but missing-cell handling and parts of the authoritative scoring contract remain incomplete.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `score_file()` only sees successful answer rows, while `collect()` persists no failed-cell records or expected model/question grid. Consequently failed or entirely missing model × task × tradition cells disappear rather than being represented, contrary to Phase 6’s explicit requirement. The tests also contain no missing/failed-cell scenario.
+- Citation comparison uses normalized substring containment (`score.py:81-86`), not equality against the extracted candidate. For example, expected `Jude 1:3` incorrectly accepts `Jude 1:30`, violating the requirement that the single extracted citation equal ground truth.
+- `identify_version` does not implement its declared metrics contract: it emits only `correct`, omits `exact` and `normalized`, and uses containment. Thus an evasive answer such as `KJV or WEB` scores correct for expected `KJV`. Tests do not cover the required per-task metric presence.

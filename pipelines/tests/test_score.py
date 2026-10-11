@@ -109,9 +109,16 @@ def test_score_rejects_mixed_digests(tmp_path):
 
 def test_cite_passage_single_candidate():
     assert score_answer("cite_passage", "The citation is Jude 1:3.", {"citation": "Jude 1:3"})["correct"] == 1
-    # hedging multiple candidates scores 0
-    multi = score_answer("cite_passage", "It could be Jude 1:3, Jude 1:4, or Jude 1:5.", {"citation": "Jude 1:3"})
-    assert multi["correct"] == 0
+    # same-number hedge
+    assert score_answer("cite_passage", "It could be Jude 1:3, Jude 1:4, or Jude 1:5.",
+                        {"citation": "Jude 1:3"})["correct"] == 0
+    # CROSS-BOOK hedge (same verse numbers) must also fail — not numeric-only
+    assert score_answer("cite_passage", "It could be John 1:1, Genesis 1:1, or Micah 1:1.",
+                        {"citation": "John 1:1"})["correct"] == 0
+    assert score_answer("cite_passage", "Either Jude 1:3 or John 1:3.",
+                        {"citation": "Jude 1:3"})["correct"] == 0
+    # near-miss must not pass via substring containment
+    assert score_answer("cite_passage", "Jude 1:30", {"citation": "Jude 1:3"})["correct"] == 0
 
 
 def test_identify_source_single_candidate():
@@ -122,6 +129,15 @@ def test_identify_source_single_candidate():
         {"work": "Jude", "citation": "Jude 1:3"},
     )
     assert hedge["correct"] == 0 and hedge["work_found"] == 1  # work right, citation hedged
+
+
+def test_identify_version_label_metrics():
+    ok = score_answer("identify_version", "KJV", {"version": "KJV"})
+    assert ok == {"exact": 1, "normalized": 1, "correct": 1}
+    assert score_answer("identify_version", "kjv.", {"version": "KJV"})["normalized"] == 1  # normalized label
+    # evasive / multi-label answers score 0
+    assert score_answer("identify_version", "KJV, ASV, or WEB", {"version": "KJV"})["correct"] == 0
+    assert score_answer("identify_version", "Not the KJV; it is the ASV.", {"version": "KJV"})["correct"] == 0
 
 
 # --- raw-count overall + tradition aggregation -------------------------------
@@ -165,3 +181,18 @@ def test_tradition_counts_once_per_listed_tradition(tmp_path):
     assert by["Shared"]["_overall"]["n"] + by["Xtrad"]["_overall"]["n"] + by["Ytrad"]["_overall"]["n"] == 4 > 2
     md = summary_markdown(summary)
     assert "By tradition" in md and "Shared" in md
+
+
+def test_missing_cell_rendered_as_dash(tmp_path):
+    # m1 answered retrieve_quote only; m2 answered verify_source only -> each is
+    # missing the other's task, shown as '—' (not dropped)
+    answers = tmp_path / "answers.jsonl"
+    rows = [
+        _answer("retrieve_quote-0", "m1", "retrieve_quote", "x", {"text": "x"}, ["A"]),
+        _answer("verify_source-0", "m2", "verify_source", "Yes", {"answer": "yes"}, ["A"]),
+    ]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    summary = score_file(answers, tmp_path / "scores.jsonl")
+    assert "retrieve_quote" not in summary["models"]["m2"]  # m2 has no retrieve_quote
+    md = summary_markdown(summary)
+    assert "—" in md  # the missing cell is represented, not dropped

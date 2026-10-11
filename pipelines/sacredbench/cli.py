@@ -272,6 +272,7 @@ def score(
     answers: Path = typer.Argument(help="answers.jsonl from `collect`"),
     scores_out: Path = typer.Option(Path("runs/scores.jsonl")),
     summary_out: Path = typer.Option(Path("runs/summary.json")),
+    summary_md: Path = typer.Option(None, help="also write the markdown summary (incl. tradition breakdown) here"),
 ) -> None:
     """Score all answers (strict + normalized + token-F1) and write the per-model summary."""
     summary = score_file(answers, scores_out)
@@ -279,8 +280,12 @@ def score(
     with open(summary_out, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)
         f.write("\n")
-    typer.echo(f"wrote {scores_out} and {summary_out}\n")
-    typer.echo(summary_markdown(summary))
+    md = summary_markdown(summary)
+    if summary_md is not None:
+        summary_md.parent.mkdir(parents=True, exist_ok=True)
+        summary_md.write_text(md, encoding="utf-8")
+    typer.echo(f"wrote {scores_out} and {summary_out}" + (f" and {summary_md}" if summary_md else "") + "\n")
+    typer.echo(md)
 
 
 def main() -> None:
