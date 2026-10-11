@@ -58,3 +58,22 @@ worktree. Folded all into one revision:
 
 Open Questions now only nice-to-know. Committing revised draft, then re-signal for the
 consult re-check.
+
+## 2026-10-11 — PLAN phase draft
+
+Specify phase complete (porch advanced to plan). Wrote the implementation plan: 5 phases,
+order seam → purge → three views:
+1. Run-data seam + hardened run-index endpoint (lib + dev middleware + roster + missing
+   fixture; no page changes; gate stays green).
+2. Purge multibrowser to a clean shell (delete all legacy routes/pages/components/libs/
+   GitHub layer/test scaffolding; minimal router with interim local-results home; rework
+   deploy.test.ts + app.test.tsx KEEPING the #86 CSS probe + SPA smoke; prune deps).
+3. Leaderboard home + run selector (replaces interim home; gate reworked onto leaderboard).
+4. Error explorer (roster-based missing cells, composing filters, per-metric side-by-side).
+5. Cross-run aggregate / current standings (all-runs load, provider+model dedupe, links).
+
+Rationale: purge-first localizes the risky mass-deletion + deploy/app-test rework into one
+atomic reviewable commit; feature phases then build additively on a clean green base.
+Interim Phase-2 home reuses the existing local-results view so `/` is never broken.
+
+Committing initial plan draft, then signal PLAN_DRAFTED for the 2-way consult.
