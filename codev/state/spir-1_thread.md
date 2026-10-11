@@ -696,3 +696,26 @@ SPIR, strict mode (porch-driven).
   the committed run (4 models, 400 joined cells, discriminates). The "view the real
   run" step is now pinned in the gate. Committed answers/scores/summary(.json/.md).
 - NEXT: full gate -> phase_8 2-way consult -> take PR #3 out of draft -> signal.
+- Phase_8 iter-1 consult: codex + claude BOTH REQUEST_CHANGES (both independently
+  re-ran the pipeline; claude re-derived questions/scores/summary byte-identically,
+  both confirmed the 0% is genuine refusal/fabrication). All accepts are plan
+  deliverables / spec criteria. Fixed:
+  (1) usage/token totals -> summary.json/.md usage block (per-model + total 25,220
+      in / 134,131 out; cost only if config has prices);
+  (2) keyless TUTORIAL step 6 (load_config fail-fast + ConfigError in main; keyless
+      score variant on committed answers);
+  (3) panel proof -> summary.json/.md panel block (provider/model/endpoint/served_by,
+      no secrets): claude-haiku=api.anthropic.com, others=openrouter.ai = 2 providers;
+  (4) audit content layer (fingerprint restricted unit texts when payloads present;
+      flag committed files containing one) + test injecting restricted TEXT + README
+      two-layer doc; committed-run test now globs all tracked runs/ files;
+  (5) models.example.yaml = the panel that actually ran.
+  Deferred to review doc (gated contract): abstention-vs-hallucination split; the 17
+  haiku near-misses (token_f1 surfaces them).
+- FRESH-CLONE VERBATIM VERIFICATION (acceptance gate): cloned origin@builder/spir-1
+  to /tmp, ran TUTORIAL 1-7 verbatim: convert 221 docs, validate 221, generate ->
+  digest ef837474 BYTE-IDENTICAL to committed, audit OK (origin-only, payloads
+  absent as documented), collect keyed smoke 8/8, keyless score reproduced the table
+  (24/1/0/0), viewer realRun test renders the committed run. All pass. Scratch clone
+  removed.
+- Gate green: pipelines 140, viewer 412/9-skipped. NEXT: porch done -> iter-2 consult.
