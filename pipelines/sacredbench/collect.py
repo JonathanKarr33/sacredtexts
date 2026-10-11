@@ -31,8 +31,9 @@ class CollectError(Exception):
 
 def _panel_fingerprint(m) -> str:
     """A model cell's panel identity — so a model id can't be silently re-pointed at a
-    different provider/model/host between resumes."""
-    return f"{m.provider}|{m.model}|{m.base_url or ''}"
+    different provider/model/host/tools between resumes. The tools setting is part of the
+    identity (Spec 8): a web-search-on cell must never be resumed as web-search-off."""
+    return f"{m.provider}|{m.model}|{m.base_url or ''}|{','.join(m.tools)}"
 
 
 def _existing(

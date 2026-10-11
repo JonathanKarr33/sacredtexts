@@ -45,6 +45,7 @@ import json
 import re
 import unicodedata
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -423,9 +424,15 @@ def score_file(
             summary["panel"][model_id] = {
                 "provider": p.get("provider"),
                 "model": p.get("model") or um.get("model"),
+                # raw API model string (viewer-ignored); keeps the proof truthful when
+                # `model` carries a tools marker (Spec 8).
+                "api_model": p.get("api_model") or p.get("model") or um.get("model"),
                 "endpoint": p.get("endpoint"),
                 "served_by": sorted(um.get("served_by", {})) or None,
             }
+    # Additive run timestamp (Issue #7 pipeline half): a committed, mtime-independent
+    # recency signal. The current viewer ignores it; it never affects scoring.
+    summary["generated_at"] = datetime.now(timezone.utc).isoformat()
     return summary
 
 

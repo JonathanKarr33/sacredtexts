@@ -27,6 +27,11 @@ from sacredbench.config import ModelSpec
 _BACKOFF_BASE_SECONDS = 2.0
 REQUEST_TIMEOUT_SECONDS = 300.0
 
+# Anthropic server-side web-search tool, pinned to one param version (the SDK exposes
+# several; this is recorded in the committed run's README as part of what the run proves).
+# max_uses bounds the per-call search cost.
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
+
 
 class ProviderError(Exception):
     """A provider call failed (credentials / transport / empty response) — fail loud."""
@@ -71,11 +76,24 @@ def _anthropic(model: ModelSpec, prompt: str) -> tuple[str, dict]:
     import anthropic
 
     client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT_SECONDS)
-    resp = client.messages.create(
-        model=model.model,
-        max_tokens=model.max_tokens,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    kwargs: dict[str, Any] = {
+        "model": model.model,
+        "max_tokens": model.max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if "web_search" in model.tools:
+        kwargs["tools"] = [WEB_SEARCH_TOOL]
+    resp = client.messages.create(**kwargs)
+    # A truncated response (search + citation blocks share the output budget) yields a
+    # partial quote that scores 0 on whole-answer equality; fail loud so the cell stays
+    # pending with a clear reason, rather than retrying (which re-bills the web search).
+    if getattr(resp, "stop_reason", None) == "max_tokens":
+        raise ProviderError(
+            f"{model.id}: response hit max_tokens ({model.max_tokens}) and was truncated — "
+            "raise max_tokens for this model (retrying would re-bill the web search)"
+        )
+    # text blocks only — a web-search response also carries server_tool_use /
+    # web_search_tool_result blocks, which are not the answer.
     text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
     return text, _anthropic_usage(resp)
 
@@ -129,10 +147,19 @@ def _anthropic_usage(resp: Any) -> dict:
     u = getattr(resp, "usage", None)
     if u is None:
         return {}
-    return {
+    usage = {
         "in": getattr(u, "input_tokens", 0) or 0,
         "out": getattr(u, "output_tokens", 0) or 0,
     }
+    # server-side web-search is billed per request (not in in/out tokens); record the
+    # count as provenance when present (the committed run stays unpriced, so this never
+    # feeds a cost figure — it just documents that search ran and how much).
+    stu = getattr(u, "server_tool_use", None)
+    if stu is not None:
+        wsr = getattr(stu, "web_search_requests", None)
+        if wsr:
+            usage["web_search_requests"] = wsr
+    return usage
 
 
 def _openai_usage(resp: Any) -> dict:
