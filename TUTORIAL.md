@@ -66,7 +66,7 @@ uv --project pipelines run python -m sacredbench score \
 diff <(sort /tmp/scores.jsonl) <(sort runs/first-run-2026-10-11/scores.jsonl) && echo "reproduced"
 ```
 
-Then view it (Track C below): `/local-results?run=/runs/first-run-2026-10-11`.
+Then view it (Track C below): open `/` — the viewer loads the most-recent run under `runs/`.
 
 ## Track B — do your own run (needs API keys — the only paid part)
 
@@ -116,10 +116,12 @@ pnpm -C apps/viewer install
 pnpm -C apps/viewer dev          # then open the printed URL
 ```
 
-- `/local-results` renders a built-in sample run out of the box.
-- `/local-results?run=/runs/first-run-2026-10-11` renders the committed run; point
-  `?run=` at your own `runs/<id>` to view Track B's output (the dev server serves the
-  repo's `runs/` at `/runs/`).
+- `/` loads the **most-recent** run under `runs/` automatically (the committed
+  `runs/first-run-2026-10-11/` when it's the only one; your Track B `runs/<id>` once you
+  add it). The dev server serves the repo's `runs/` at `/runs/`.
+- An empty `runs/` shows an informative empty state.
+- The multibrowser surface (`/t/...`, `/results`, `/raw`, `/review*`) has been removed;
+  the dedicated leaderboard + error explorer land in the Spec 2 feature phases.
 
 ## Re-running the whole thing / tests
 

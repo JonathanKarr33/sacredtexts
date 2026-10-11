@@ -1,6 +1,21 @@
 @import "tailwindcss";
 @import "@heroui/styles";
-@plugin "@tailwindcss/typography";
+
+/*
+ * Safelist the numbered-shade ramp (#86 determinism).
+ *
+ * Under `@theme inline` (below) a numbered utility like `text-default-500` is emitted
+ * only when that class appears in scanned content. Before the multibrowser purge the
+ * deploy-test shade probe passed only because Tailwind's auto-detection happened to scan
+ * the probe's own string literals in deploy.test.ts (self-seeding) — fragile. This
+ * `@source inline(...)` safelist (Tailwind v4.1+) pins the whole semantic ramp regardless
+ * of app usage, so the probe asserts a guarantee rather than an accident.
+ *
+ * Tradeoff: a safelisted ramp means the #86 probe no longer catches "the app used a shade
+ * the shim doesn't define"; `noInvisibleText.test.ts` (glob-based, self-maintaining)
+ * remains the guard against actual invisible text.
+ */
+@source inline("{text,bg,border}-{default,warning,danger,success}-{50,100,200,300,400,500,600,700,800,900}");
 
 /*
  * Numbered-shade shim (#86).

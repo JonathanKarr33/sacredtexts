@@ -67,13 +67,22 @@ round-trip that proves no invention/reordering.
   restricted payloads are present locally.
 - **config.py**: model-panel YAML; `ModelSpec` carries optional `price_in`/`price_out`.
 
-## Viewer local results (Phase 7)
+## Viewer local results
 
-`apps/viewer/src/lib/localResults.ts` (`loadRun` fetches `summary.json` +
-`scores.jsonl` + `answers.jsonl`, joins on `(question_id, model_id)`), rendered at
-`/local-results?run=<base>`. `vite.config.ts` `serveRuns()` is a dev-only plugin
-serving the repo's gitignored `runs/` at `/runs/` (confined to the runs dir).
-`realRun.test.ts` pins the committed run through `loadRun` in the gate.
+`apps/viewer/src/lib/localResults.ts` (`loadRun` fetches `summary.json` + `scores.jsonl`
++ `answers.jsonl` + `questions.jsonl` and joins panel × roster on `(question_id,
+model_id)`, surfacing un-answered roster questions as missing cells), rendered through
+`components/LocalResults.tsx`. As of the Spec 2 purge the viewer is **local-only**: the
+multibrowser surface (`/t/...` traditions, the GitHub-data-layer `/results`/`/raw`
+explorers, the `/review*` flows, and their data layer/components) is gone. The route tree
+is just `/` (the interim home, which loads the most-recent run from the `/runs/_index`
+index) plus a 404; the dedicated leaderboard + run selector and the error explorer land in
+the Spec 2 feature phases. `vite.config.ts` `serveRuns()` (logic in
+`vite/runsEndpoint.ts`) is a dev-only plugin serving the repo's gitignored `runs/` at
+`/runs/` with a `/runs/_index` run index (confined to the runs dir; symlink traversal
+rejected, so symlinked run dirs are omitted). `realRun.test.ts` pins the committed run
+through `loadRun` in the gate. Production is a static SPA host (`server/index.mjs`, hono +
+history fallback; no `/api` proxy).
 
 ## Run evidence layout
 

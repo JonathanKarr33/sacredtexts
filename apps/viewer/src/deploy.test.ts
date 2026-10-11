@@ -1,16 +1,15 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { execSync, spawn } from "node:child_process";
 import { createServer } from "node:net";
-import { createServer as createHttpServer } from "node:http";
 
 /**
  * Acquire a free ephemeral port (OS-assigned via bind 0) to run the smoke server on. A FIXED
- * port would deterministically collide when two builders touch multibrowser concurrently (and a
- * leaked `serve` once squatted on a hardcoded port for days, #49 review) — an ephemeral port
- * sidesteps both. There is a tiny window between close and the server's re-bind, but ephemeral
- * ports effectively never collide there.
+ * port would deterministically collide when two builders touch the viewer concurrently (and a
+ * leaked static server once squatted on a hardcoded port for days, #49 review) — an ephemeral
+ * port sidesteps both. There is a tiny window between close and the server's re-bind, but
+ * ephemeral ports effectively never collide there.
  */
 async function getFreePort(): Promise<number> {
   return new Promise<number>((resolve, reject) => {
@@ -24,8 +23,8 @@ async function getFreePort(): Promise<number> {
   });
 }
 
-// Build / deploy invariants (the Phase-6 acceptance items). Some run against the repo files;
-// two run a REAL production build and a REAL static server. Run by vitest from apps/multibrowser.
+// Build / deploy invariants. Some run against the repo files; two run a REAL production build and
+// a REAL static server. Run by vitest from apps/viewer.
 
 // Production source only — test files and test/ helpers are NOT bundled by vite build.
 function sourceFiles(dir: string): string[] {
@@ -47,7 +46,7 @@ describe("build / deploy invariants", () => {
     execSync("pnpm build", { stdio: "ignore" });
   }, 120_000);
 
-  it("NO source module imports tradition data — the corpus is fetched from GitHub at runtime", () => {
+  it("NO source module imports tradition data (the multibrowser corpus surface is gone)", () => {
     for (const file of sourceFiles("src")) {
       const src = readFileSync(file, "utf8");
       expect(src, file).not.toMatch(/\bfrom\s+['"][^'"]*\/traditions\//);
@@ -55,7 +54,7 @@ describe("build / deploy invariants", () => {
     }
   });
 
-  it("the REAL production bundle bakes in NO tradition data and is the SPA entry", () => {
+  it("the REAL production bundle carries NO corpus identifiers and is the SPA entry", () => {
     const assetsDir = "dist/assets";
     const js = readdirSync(assetsDir)
       .filter((f) => f.endsWith(".js"))
@@ -71,20 +70,20 @@ describe("build / deploy invariants", () => {
     expect(readFileSync("vite.config.ts", "utf8")).toMatch(/base:\s*["']\/["']/);
   });
 
-  it("numbered HeroUI shades emit real rules mapped onto theme-aware tokens (#86 shim)", () => {
+  it("numbered HeroUI shades emit real rules mapped onto theme-aware tokens (#86 shim, safelisted)", () => {
     // @heroui/styles v3 ships ONLY semantic tokens (--color-default, --color-warning, …) — no
     // numbered scale — so before the src/styles.css @theme shim, EVERY numbered utility the app
     // uses (text-default-500, border-default-200, bg-warning-50, …) compiled to nothing (the #55
-    // tooltip scar, root-caused). Assert against the REAL built CSS that each such utility now
-    // emits a rule whose value is a color-mix over HeroUI's theme-aware poles (--foreground /
-    // --background / the semantic hue) — that construction is what keeps the ramp flipping
-    // correctly between light and dark mode, so a static-color regression would fail here too.
+    // tooltip scar, root-caused). The styles.css @source inline(...) safelist pins the ramp
+    // deterministically; this probe asserts, against the REAL built CSS, that each safelisted
+    // utility emits a rule whose value is a color-mix over HeroUI's theme-aware poles
+    // (--foreground / --background / the semantic hue) — the construction that keeps the ramp
+    // flipping correctly between light and dark mode. Every probed class is in the safelist, so
+    // the assertion no longer depends on the app happening to use it.
     const css = readdirSync("dist/assets")
       .filter((f) => f.endsWith(".css"))
       .map((f) => readFileSync(join("dist/assets", f), "utf8"))
       .join("\n");
-    // Representative classes drawn from actual app usage, spanning both the neutral ramp and the
-    // status hues, and both the "toward background" (low) and "toward foreground" (high) ends.
     const probes: { cls: string; prop: string; pole: string }[] = [
       { cls: "text-default-400", prop: "color", pole: "foreground" },
       { cls: "text-default-500", prop: "color", pole: "foreground" },
@@ -96,6 +95,7 @@ describe("build / deploy invariants", () => {
       { cls: "border-warning-200", prop: "border-color", pole: "warning" },
       { cls: "bg-danger-50", prop: "background-color", pole: "danger" },
       { cls: "text-danger-700", prop: "color", pole: "danger" },
+      { cls: "text-success-600", prop: "color", pole: "success" },
     ];
     for (const { cls, prop, pole } of probes) {
       // The utility must exist at all (the whole bug was that it did not) ...
@@ -110,49 +110,28 @@ describe("build / deploy invariants", () => {
     }
   });
 
-  it("a normal build bundles NO baked raw tier — public/data-raw/ is deploy-only (#51)", () => {
-    // The ~126 MB gz raw tier is baked into `public/data-raw/` ONLY at `railway up` time (see
-    // scripts/bake-and-deploy.sh) and gitignored; a normal `pnpm build` (this test's beforeAll)
-    // must not carry it into `dist/`, or every CI/dev build would balloon.
-    expect(
-      existsSync("dist/data-raw"),
-      "dist/data-raw exists — you have a leftover local bake. Run `rm -rf apps/multibrowser/public/data-raw` " +
-        "and rebuild; the baked tier is deploy-only (bake-and-deploy.sh cleans it via an EXIT trap).",
-    ).toBe(false);
-    // And the baked dir is gitignored so it never lands in git.
-    expect(readFileSync(".gitignore", "utf8")).toMatch(/public\/data-raw\//);
-  });
-
-  it("the start command runs the same-origin edge server (proxy + SPA fallback) with its deps present", () => {
+  it("the start command runs the minimal static host with its deps present (no /api proxy)", () => {
     const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
       scripts: Record<string, string>;
       dependencies: Record<string, string>;
     };
-    // The edge server (server/index.mjs) reverse-proxies /api/* AND serves the SPA — it replaced the
-    // old `serve -s dist` static host so the API can live private-only behind one public origin.
     expect(pkg.scripts.start).toBe("node server/index.mjs");
     expect(pkg.dependencies.hono).toBeDefined();
     expect(pkg.dependencies["@hono/node-server"]).toBeDefined();
-    expect(pkg.dependencies.serve, "serve is retired — the edge server replaces it").toBeUndefined();
-    expect(existsSync("server/index.mjs")).toBe(true);
+    expect(pkg.dependencies.serve, "serve is retired — the static host replaces it").toBeUndefined();
+    // The removed reverse proxy mounted an `app.all("/api/*", …)` route and forwarded to an
+    // upstream; assert that route handler is gone (a comment mentioning the proxy must not trip
+    // this, so match the actual route call, not the words "/api").
+    const server = readFileSync("server/index.mjs", "utf8");
+    expect(server, "the reverse-proxy route must be gone after the purge").not.toMatch(/app\.all\(/);
   });
 
-  it("REAL smoke: the edge server serves the SPA fallback AND proxies /api/* with Set-Cookie verbatim", async () => {
-    // A stand-in upstream API: echoes the path/method and sets TWO cookies (session + CSRF), the exact
-    // shape login returns — so we prove BOTH survive the proxy distinctly, the classic folding bug.
-    const upstream = createHttpServer((req, res) => {
-      res.setHeader("content-type", "application/json");
-      res.setHeader("set-cookie", ["mb_session=s3ss; HttpOnly; Path=/", "mb_csrf=c5rf; Path=/"]);
-      res.end(JSON.stringify({ ok: true, method: req.method, path: req.url }));
-    });
-    const apiPort = await getFreePort();
-    await new Promise<void>((r) => upstream.listen(apiPort, "127.0.0.1", r));
-
+  it("REAL smoke: the static host serves the SPA fallback for deep routes AND /runs/_index", async () => {
     const port = await getFreePort(); // ephemeral — safe under concurrent builders
-    // Run the ACTUAL `start` command (the edge server) with the proxy target pointed at our stub.
-    // `detached` makes the child a process-group leader so we can reap the whole tree.
+    // Run the ACTUAL `start` command (the static host). `detached` makes the child a
+    // process-group leader so we can reap the whole tree.
     const server = spawn("pnpm", ["start"], {
-      env: { ...process.env, PORT: String(port), API_ORIGIN: `http://127.0.0.1:${apiPort}` },
+      env: { ...process.env, PORT: String(port) },
       stdio: "ignore",
       detached: true,
     });
@@ -167,23 +146,20 @@ describe("build / deploy invariants", () => {
         }
         if (!ready) await new Promise((res) => setTimeout(res, 250));
       }
-      expect(ready, "edge server did not start").toBe(true);
+      expect(ready, "static host did not start").toBe(true);
 
       // A nested route that is NOT a real file must fall back to index.html (the SPA shell).
-      const deep = await fetch(`http://localhost:${port}/t/sunni-islam/JLS-001`);
+      const deep = await fetch(`http://localhost:${port}/some/unknown/deep/route`);
       expect(deep.status).toBe(200);
       expect(await deep.text()).toContain('id="root"');
 
-      // /api/* is reverse-proxied to the upstream, and BOTH Set-Cookie headers pass through verbatim.
-      const api = await fetch(`http://localhost:${port}/api/anything?x=1`, { redirect: "manual" });
-      expect(api.status).toBe(200);
-      const body = (await api.json()) as { ok: boolean; path: string };
-      expect(body.ok).toBe(true);
-      expect(body.path).toBe("/api/anything?x=1"); // path + query forwarded intact
-      const cookies = api.headers.getSetCookie();
-      expect(cookies).toHaveLength(2); // session AND csrf survive distinctly (no folding)
-      expect(cookies.some((c) => c.startsWith("mb_session="))).toBe(true);
-      expect(cookies.some((c) => c.startsWith("mb_csrf="))).toBe(true);
+      // Prod-host robustness: there is NO /runs endpoint in production (dev-only middleware), so
+      // /runs/_index also falls through to index.html/200 — proving the home page's run-index
+      // fetch gets HTML (which InterimHome shape-sniffs into the empty state), never a hard 404
+      // crash loop.
+      const index = await fetch(`http://localhost:${port}/runs/_index`);
+      expect(index.status).toBe(200);
+      expect(await index.text()).toContain('id="root"');
     } finally {
       try {
         if (server.pid) process.kill(-server.pid, "SIGTERM");
@@ -191,7 +167,6 @@ describe("build / deploy invariants", () => {
         /* group may already be gone */
       }
       server.kill();
-      upstream.close();
     }
   }, 60_000);
 });

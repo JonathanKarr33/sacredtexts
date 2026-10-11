@@ -1,5 +1,12 @@
 # multibrowser
 
+> **Historical provenance only.** This document describes `multibench/apps/multibrowser`,
+> the app this viewer was seeded from. As of the Spec 2 purge, **none of the surface
+> described below ships** — the `/t/...` tradition browser, the GitHub data layer, the
+> `/results`/`/raw` explorers, and the `/review*` flows have all been removed. The current
+> app is described in `README.md`. This file is kept for its data-layer and
+> rate-limit lessons, which may inform future work.
+
 A **pure client-side web app** for browsing and exploring **MultiBench traditions** and their
 scenarios — the tradition index, each tradition's manifest / prose / taxonomies, and per-scenario
 the turn-1 opening, the six pressure pushes, and the judge-guidance — with filter/slice by
