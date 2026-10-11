@@ -67,6 +67,13 @@ def test_parse_normalises_string_tradition():
         lambda d: d.update(entries=[]),
         lambda d: d["entries"][0].pop("citation"),
         lambda d: d["entries"][0].update(text="  "),
+        # malformed source metadata must be rejected, not str()-coerced
+        lambda d: d["source"].update(work=None),
+        lambda d: d["source"].update(language=[]),
+        lambda d: d["source"].update(document_type="  "),
+        lambda d: d["source"].update(version=3),
+        lambda d: d["source"].update(tradition=["ok", "  "]),
+        lambda d: d["source"].update(tradition=[]),
     ],
 )
 def test_parse_fails_fast(mutate):

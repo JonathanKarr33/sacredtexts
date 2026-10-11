@@ -1,0 +1,25 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Strong end-to-end implementation, but scoring does not enforce the question-set digest contract and schema validation accepts malformed source metadata.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `score` never compares the digest in `answers.jsonl` with the supplied `--questions` file. `cli.py:305-323` builds a roster from those questions, while `score.py:200-212` only checks that answer rows agree with each other. Consequently, answers from run A can be scored with questions from run B without refusal, producing an incorrect missing-cell roster and panel summary. Compute `question_set_digest(qs)`, require the answers’ digest to match it, and add a mismatch regression test.
+- `schema.parse_document()` checks only that required source keys exist, then coerces their values with `str()` (`schema.py:87-113`). Values such as `work: null`, `language: []`, blank strings, or empty tradition names therefore pass the mechanical validation gate. Require non-empty strings for `work`, `version`, `language`, `document_type`, and every tradition value; test malformed types and blanks.
+- Branch history is not compliant with the repository’s prescribed `[Spec 1][Phase: ...]` format: numerous `chore(porch): ...` commits omit the spec/phase prefix, and the PR contains 118 commits including many state/context-only commits. Clean or squash the history before integration if these generated commits are not intentionally preserved.
+
+PR_SUMMARY: |
+  ## Summary
+  Implements the Phase 1 Sacred Texts benchmark pipeline end to end, covering corpus cataloguing and conversion, deterministic question generation, multi-provider collection, task-specific scoring, copyright auditing, and a local results viewer. It also commits a 100-question, four-model evidence run and an end-to-end tutorial.
+
+  ## Key Changes
+  - Added provenance- and license-aware corpus conversion and interchange export.
+  - Added deterministic generation, resumable model collection, scoring, and tradition-aware summaries.
+  - Added copyright auditing, committed run evidence, and a local viewer route.
+  - Added extensive Python and viewer test coverage and project documentation.
+
+  ## Test Plan
+  - Run `bash .codev/checks/test.sh`.
+  - Add and run a regression test proving scoring rejects answers whose digest differs from `--questions`.
+  - Add schema tests for null, non-string, and blank source metadata.
+  - Follow `TUTORIAL.md` against a fresh run directory and open `/local-results?run=/runs/<id>`.

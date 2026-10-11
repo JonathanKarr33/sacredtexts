@@ -172,6 +172,7 @@ def score_file(
     answers_path: Path, scores_path: Path, expected: dict[tuple[str, str], int] | None = None,
     expected_tradition: dict[tuple[str, str, str], int] | None = None,
     panel: dict[str, dict] | None = None,
+    expected_digest: str | None = None,
 ) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
@@ -210,6 +211,16 @@ def score_file(
             f"{answers_path}: mixes {len(digests)} question sets {sorted(digests)} — "
             "answers from different generate runs must not be scored together"
         )
+    # bind to the question set the roster was built from: scoring run A's answers
+    # against run B's questions would silently produce a wrong roster / panel
+    if expected_digest is not None:
+        answers_digest = next(iter(digests))
+        if answers_digest != expected_digest:
+            raise ScoreError(
+                f"{answers_path}: answers' question_set_digest {answers_digest} does not match "
+                f"the --questions digest {expected_digest} — scoring answers against a different "
+                "question set than they were collected for; point --questions at the matching set"
+            )
 
     scores_path.parent.mkdir(parents=True, exist_ok=True)
     per_cell: dict[tuple[str, str], dict] = {}  # (model_id, task) -> accumulators

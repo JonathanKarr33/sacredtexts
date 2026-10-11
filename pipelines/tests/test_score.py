@@ -128,6 +128,17 @@ def test_total_cost_when_every_model_priced(tmp_path):
     assert u["total"]["cost_usd"] == round(1500/1e6*1.0 + 2500/1e6*2.0, 6)  # all priced → total present
 
 
+def test_score_rejects_digest_not_matching_questions(tmp_path):
+    # answers carry digest "aaaa"; the roster/--questions digest is "bbbb" → refuse
+    answers = tmp_path / "answers.jsonl"
+    answers.write_text(json.dumps(_row("retrieve_quote-0", digest="aaaa")) + "\n")
+    with pytest.raises(ScoreError, match="does not match"):
+        score_file(answers, tmp_path / "scores.jsonl", expected_digest="bbbb")
+    # matching digest scores fine
+    summary = score_file(answers, tmp_path / "scores.jsonl", expected_digest="aaaa")
+    assert summary["models"]["m1"]["_overall"]["n"] == 1
+
+
 def test_score_rejects_missing_digest(tmp_path):
     answers = tmp_path / "answers.jsonl"
     answers.write_text(json.dumps(_row("retrieve_quote-0", digest=None)) + "\n")

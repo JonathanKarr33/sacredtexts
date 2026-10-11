@@ -320,7 +320,8 @@ def score(
             endpoint = urlparse(m.base_url).netloc if m.base_url else default_host.get(m.provider)
             panel[m.id] = {"provider": m.provider, "model": m.model, "endpoint": endpoint,
                            "price_in": m.price_in, "price_out": m.price_out}
-        summary = score_file(answers, scores_out, expected, expected_tradition, panel)
+        summary = score_file(answers, scores_out, expected, expected_tradition, panel,
+                             expected_digest=gen.question_set_digest(qs))
     else:
         summary = score_file(answers, scores_out)
     summary_out.parent.mkdir(parents=True, exist_ok=True)
