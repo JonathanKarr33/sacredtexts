@@ -23,7 +23,8 @@ models:
   - id: opus
     provider: anthropic
     model: claude-opus-5-5
-    max_tokens: 1024             # parametric recall (no tools)
+    max_tokens: 4096             # parametric recall (no tools); headroom so a long
+    #                              Hebrew/Aramaic quote does not trip the truncation guard
   - id: haiku-search
     provider: anthropic
     model: claude-haiku-5-5
@@ -32,4 +33,4 @@ models:
   - id: haiku
     provider: anthropic
     model: claude-haiku-5-5
-    max_tokens: 1024
+    max_tokens: 4096

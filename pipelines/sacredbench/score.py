@@ -483,7 +483,7 @@ def summary_markdown(summary: dict) -> str:
 
     panel = summary.get("panel") or {}
     if panel:
-        lines += ["", "### Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)"]
+        lines += ["", "### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)"]
         lines += ["| model_id | provider | model | endpoint | served_by |", "|" + "---|" * 5]
         for mid in sorted(panel):
             p = panel[mid]

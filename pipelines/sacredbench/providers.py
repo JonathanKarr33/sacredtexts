@@ -32,6 +32,14 @@ REQUEST_TIMEOUT_SECONDS = 300.0
 # max_uses bounds the per-call search cost.
 WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
 
+# stop_reasons that mean the turn FINISHED and its text is the model's real answer. Any
+# other value is an incomplete turn — max_tokens (truncated), pause_turn (a long-running
+# server-tool turn that wants continuation), refusal, or model_context_window_exceeded —
+# whose partial text must never be committed as the answer and must not be retried (each
+# retry re-bills the web search). We make single-turn requests with no CLIENT-side tools,
+# so tool_use is not a terminal-success reason for us either.
+_TERMINAL_STOP = frozenset({"end_turn", "stop_sequence"})
+
 
 class ProviderError(Exception):
     """A provider call failed (credentials / transport / empty response) — fail loud."""
@@ -84,13 +92,17 @@ def _anthropic(model: ModelSpec, prompt: str) -> tuple[str, dict]:
     if "web_search" in model.tools:
         kwargs["tools"] = [WEB_SEARCH_TOOL]
     resp = client.messages.create(**kwargs)
-    # A truncated response (search + citation blocks share the output budget) yields a
-    # partial quote that scores 0 on whole-answer equality; fail loud so the cell stays
-    # pending with a clear reason, rather than retrying (which re-bills the web search).
-    if getattr(resp, "stop_reason", None) == "max_tokens":
+    # Only a FINISHED turn carries a real answer. An incomplete stop_reason (max_tokens
+    # truncation, pause_turn mid-web-search, refusal, context-exceeded) would otherwise be
+    # committed as a partial quote — indistinguishable from a genuinely wrong answer, which
+    # corrupts the search-on/off contrast — or, when empty, retried, re-billing the web
+    # search. Fail loud so the cell stays pending with a clear reason.
+    stop = getattr(resp, "stop_reason", None)
+    if stop not in _TERMINAL_STOP:
         raise ProviderError(
-            f"{model.id}: response hit max_tokens ({model.max_tokens}) and was truncated — "
-            "raise max_tokens for this model (retrying would re-bill the web search)"
+            f"{model.id}: incomplete turn (stop_reason={stop!r}) — not committing a partial "
+            f"answer. For max_tokens, raise max_tokens ({model.max_tokens}); pause_turn means "
+            "the server-tool turn wanted continuation. Retrying would re-bill the web search."
         )
     # text blocks only — a web-search response also carries server_tool_use /
     # web_search_tool_result blocks, which are not the answer.

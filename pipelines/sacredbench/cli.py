@@ -323,7 +323,9 @@ def score(
             # standings view rolls up on — distinguishes web-search-on from -off AND never
             # collides with a plain (unmarked) model id from another run. api_model keeps
             # the true API model string recoverable (the viewer ignores it).
-            marked = f"{m.model} [web_search]" if "web_search" in m.tools else f"{m.model} [no-tools]"
+            # mark with the full tool set (kept general so it stays consistent with the
+            # tools-general collect fingerprint if a second tool is ever added)
+            marked = f"{m.model} [{'+'.join(m.tools)}]" if m.tools else f"{m.model} [no-tools]"
             panel[m.id] = {"provider": m.provider, "model": marked, "api_model": m.model,
                            "endpoint": endpoint, "price_in": m.price_in, "price_out": m.price_out}
         summary = score_file(answers, scores_out, expected, expected_tradition, panel,

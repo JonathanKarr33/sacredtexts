@@ -110,13 +110,6 @@ def _install_fake_anthropic(monkeypatch, resp):
     (so patching sys.modules is required; there is no module-level import to setattr)."""
     captured = {}
 
-    class _Client:
-        def __init__(self, **kw):
-            pass
-
-        class messages:  # noqa: N801 — mirrors the SDK's client.messages.create shape
-            pass
-
     def create(**kwargs):
         captured.update(kwargs)
         return resp
@@ -155,11 +148,22 @@ def test_extracts_text_alongside_tool_and_citation_blocks(monkeypatch):
     assert text == "In the beginning was the Word."  # only the text blocks, joined
 
 
-def test_max_tokens_truncation_fails_loud(monkeypatch):
-    _install_fake_anthropic(monkeypatch, _Resp([_Block("text", "partial")], _Usage(), stop_reason="max_tokens"))
+@pytest.mark.parametrize("stop_reason", ["max_tokens", "pause_turn", "refusal", "model_context_window_exceeded"])
+def test_incomplete_turn_fails_loud_not_committed(monkeypatch, stop_reason):
+    # an incomplete turn (truncation, or a paused server-tool turn) must NOT commit its
+    # partial text and must NOT retry (re-billing the web search) — it fails loud.
+    _install_fake_anthropic(monkeypatch, _Resp([_Block("text", "partial")], _Usage(), stop_reason=stop_reason))
     on = ModelSpec(id="x", provider="anthropic", model="claude-haiku-5-5", tools=("web_search",))
-    with pytest.raises(ProviderError, match="max_tokens"):
+    with pytest.raises(ProviderError, match="incomplete turn"):
         complete(on, "prompt")
+
+
+def test_terminal_stop_reasons_succeed(monkeypatch):
+    for sr in ("end_turn", "stop_sequence"):
+        _install_fake_anthropic(monkeypatch, _Resp([_Block("text", "ok")], _Usage(), stop_reason=sr))
+        off = ModelSpec(id="x", provider="anthropic", model="claude-haiku-5-5", tools=())
+        text, _, _ = complete(off, "prompt")
+        assert text == "ok"
 
 
 # --- tools-aware panel identity in summary.json ------------------------------
