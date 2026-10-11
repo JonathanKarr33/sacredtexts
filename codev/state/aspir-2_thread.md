@@ -370,3 +370,24 @@ RunSelector.test + LeaderboardPage.test, so it's load-bearing, keep it) + correc
 arch-critical.md's stale "multibrowser seed" bullet.
 
 Next: run .codev/checks/test.sh, then `porch done 2` for the 3-way impl consult.
+
+## 2026-10-11 — IMPLEMENT phase_3 consult iter1 (codex RC / claude APPROVE) + fixes
+
+2-way impl consult. claude APPROVE HIGH (verified suite/types/build itself; all plan items
+landed; rapid-switch test non-vacuous). codex REQUEST_CHANGES HIGH on ONE item — which both
+reviewers in fact flagged at the same spot (the null-overall cell), from opposite framings:
+- codex (blocking): spec edge case says a null-overall model "formats as 'n/a'", but
+  formatCell returned "—" for an {n:0, accuracy:null} cell (n===0 branch short-circuited).
+- claude (non-blocking #2): same test over-claimed "n/a" while code yielded "—"; rename or assert.
+Resolution: the spec is the source of truth and literally says "n/a" → fixed formatCell so a
+present no-observation cell is "n/a" (missing count still wins as "miss N"; undefined still "—").
+This satisfies codex AND makes claude's test assertion true. Updated localResults.test.ts
+(+ {n:0,accuracy:null}→"n/a") and LeaderboardTable null-overall test (asserts "n/a" now).
+Also folded claude's cheap in-scope #3: fixed the stale "pnpm dev → /local-results" comment in
+sample.ts (now described as a test fixture).
+
+Deferred (claude non-blocking, explicitly phase_5): widen RunRef with mtimeMs + sort defensively
+(standings needs run dates anyway); formatInt export (used internally by formatTokens; harmless).
+
+Verified: check-types clean; full suite 61 passed / 0 skipped. Committing fixes + both consult
+outputs, re-signalling for the re-check.

@@ -1,0 +1,7 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 3 is substantially complete, but null-accuracy cells violate an explicit display requirement.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `formatCell` returns `"—"` when `cell.n === 0` before checking `accuracy === null` (`apps/viewer/src/lib/localResults.ts:328-333`). Thus a typical no-data overall cell `{n: 0, accuracy: null}` does not display `"n/a"` as required. The purported coverage in `LeaderboardTable.test.tsx:55-63` only asserts the model name and explicitly acknowledges the incorrect em-dash output; update the formatter and assert `"n/a"` directly.

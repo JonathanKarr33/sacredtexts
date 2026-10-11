@@ -58,7 +58,8 @@ describe("LeaderboardTable", () => {
         summary={{ models: { x: { _overall: { n: 0, accuracy: null } } }, by_tradition: {} }}
       />,
     );
-    // formatCell renders an n=0 overall with no missing count as the em dash placeholder.
+    // The model still appears, ranked last, and its null-overall cell formats as "n/a".
     expect(screen.getByText("x")).toBeInTheDocument();
+    expect(screen.getAllByText("n/a").length).toBeGreaterThan(0);
   });
 });

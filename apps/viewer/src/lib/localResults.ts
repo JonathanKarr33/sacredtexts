@@ -326,8 +326,11 @@ export function rankedModels(summary: Summary): string[] {
 }
 
 export function formatCell(cell: Cell | undefined): string {
-  if (!cell) return "—";
-  if (cell.n === 0) return cell.missing ? `miss ${cell.missing}` : "—";
+  if (!cell) return "—"; // no cell at all for this model × column
+  // A present cell with no observations has null accuracy: surface the missing count when
+  // there is one (more informative), otherwise "n/a" — the spec's required display for a
+  // null-accuracy (e.g. null-overall) cell, rather than crashing or an ambiguous dash.
+  if (cell.n === 0) return cell.missing ? `miss ${cell.missing}` : "n/a";
   const pct = cell.accuracy === null ? "n/a" : `${Math.round(cell.accuracy * 100)}%`;
   const miss = cell.missing ? ` −${cell.missing}` : "";
   return `${pct} (n=${cell.n})${miss}`;

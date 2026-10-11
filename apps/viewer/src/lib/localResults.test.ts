@@ -64,6 +64,8 @@ describe("localResults lib", () => {
   it("formats cells (accuracy/n, n/a, missing)", () => {
     expect(formatCell({ n: 2, accuracy: 0.5 })).toBe("50% (n=2)");
     expect(formatCell({ n: 0, accuracy: null, missing: 3 })).toBe("miss 3");
+    // A null-accuracy cell with no observations formats as "n/a" (spec edge case), not a dash.
+    expect(formatCell({ n: 0, accuracy: null })).toBe("n/a");
     expect(formatCell(undefined)).toBe("—");
   });
 

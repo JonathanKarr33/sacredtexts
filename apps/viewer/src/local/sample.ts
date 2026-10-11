@@ -1,7 +1,7 @@
-// A tiny committed sample run so the local results view renders out of the box
-// (`pnpm dev` → /local-results) and the component test has a fixture. Shapes match
-// pipelines/sacredbench `score` output (summary.json / scores.jsonl / answers.jsonl).
-// Synthetic text — no copyrighted translation is committed.
+// A tiny in-repo sample run used as a test fixture (the leaderboard/loader tests join and
+// render these shapes). Shapes match pipelines/sacredbench `score` output
+// (summary.json / scores.jsonl / answers.jsonl / questions.jsonl). Synthetic text — no
+// copyrighted translation is committed.
 
 import type { Summary } from "../lib/localResults";
 
