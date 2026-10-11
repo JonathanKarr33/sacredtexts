@@ -1,0 +1,10 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The live run is complete, but Phase 8’s usage reporting, copyright audit, and fresh-clone verification requirements remain unmet.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- No computed usage totals are committed. The answers contain 25,220 input and 134,131 output tokens, but neither summary reports them, despite the phase explicitly requiring token totals.
+- `audit.py` only checks `(work, version, language)` metadata. It cannot detect restricted text injected into an otherwise public-origin question or answer; the tests likewise inject restricted metadata, not restricted text. This does not meet “would fail on injected restricted text.”
+- The actual live panel configuration is gitignored, while `models.example.yaml` describes different model IDs than the evidence. Add committed run metadata proving the actual ≥3-model/≥2-provider panel without secrets.
+- The required fresh-clone walkthrough has not been completed: `codev/state/spir-1_thread.md` records non-collect commands verified only “on the tree,” followed by the live collection in the existing worktree. Run the tutorial verbatim from a clean clone before completing the phase.

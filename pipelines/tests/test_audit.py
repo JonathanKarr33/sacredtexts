@@ -5,10 +5,11 @@ are the restricted targets)."""
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from sacredbench import catalogue as cat
-from sacredbench.audit import audit_paths, restricted_keys
+from sacredbench.audit import _norm, audit_paths, restricted_keys
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RAW = REPO_ROOT / "texts" / "raw"
@@ -29,13 +30,36 @@ def _question_row(work, version, language="en"):
     }
 
 
-def test_committed_first_run_is_clean():
-    # the committed benchmark evidence must never derive from a restricted source
-    run = REPO_ROOT / "runs" / "first-run-2026-10-11"
-    if not run.exists():
+def test_committed_run_evidence_is_clean():
+    # every COMMITTED file under runs/ must pass the audit (globs tracked run dirs,
+    # so a second committed run is covered too — not one hardcoded path)
+    tracked = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "ls-files", "runs/"],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    paths = [REPO_ROOT / p for p in tracked if p.endswith((".json", ".jsonl"))]
+    if not paths:
         import pytest
-        pytest.skip("committed run evidence not present")
-    assert audit_paths([run], cat.discover_catalogue(RAW)) == []
+        pytest.skip("no committed run evidence")
+    assert audit_paths(paths, cat.discover_catalogue(RAW)) == []
+
+
+def test_content_layer_catches_restricted_text_under_a_public_label(tmp_path):
+    # a restricted unit MISLABELED with a public (work, version, language): origin
+    # alone can't see it; the content layer (fingerprints) must. This is the plan's
+    # "would fail on injected restricted text".
+    sources = cat.discover_catalogue(RAW)
+    secret = "this exact wording belongs to a copyrighted restricted translation and must never be committed here"
+    fp = _norm(secret)
+    row = _question_row("The Bible", "KJV")  # public ORIGIN
+    row["expected"]["text"] = secret         # ...but restricted TEXT
+    p = tmp_path / "questions.jsonl"
+    p.write_text(json.dumps(row) + "\n")
+    # without fingerprints: origin is public -> clean (content scan skipped)
+    assert audit_paths([p], sources) == []
+    # with the restricted fingerprint supplied: caught
+    v = audit_paths([p], sources, {fp})
+    assert len(v) == 1 and "restricted text" in v[0]
 
 
 def test_clean_evidence_passes(tmp_path):

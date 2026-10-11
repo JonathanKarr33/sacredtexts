@@ -1,0 +1,69 @@
+I'll start by reading the Phase 8 deliverables from disk.## Review — Phase 8: First benchmark run and TUTORIAL walkthrough
+
+I verified the evidence rather than taking the thread's word for it. Everything I ran wrote only to `/tmp`; the worktree is untouched.
+
+### What I independently verified ✅
+
+| Claim | How I checked | Result |
+|---|---|---|
+| TUTORIAL step 3 produced the committed questions | Re-ran the generate command verbatim → `/tmp` | **Byte-identical** to `runs/first-run-2026-10-11/questions.jsonl`; manifest identical except `generated_at`. Digest `ef837474ed7b22ec` reproduced. |
+| "221 documents" (step 1/2) | `validate texts/standardized` | 221 docs / 349,799 entries — matches. |
+| Audit passes on the evidence | `audit runs/first-run-2026-10-11` | OK. And **non-vacuous**: `_iter_source_dicts` actually sees 400 sources in `answers.jsonl` + 100 in `questions.jsonl` (not a silent zero-record pass). |
+| Committed `scores`/`summary.json`/`summary.md` really came from the committed `answers.jsonl` | Re-ran `score` → `/tmp` | **All three byte-identical.** Excellent evidence integrity. |
+| The headline numbers aren't a scoring artifact | Read actual `claude-haiku` Catholic/Judaism cells | Genuine: the model *explicitly refuses* ("I can't reliably reproduce the exact wording… from memory"), token_f1 0.08–0.22. The 0% is real behavior, not a format penalty. |
+| Gate | `bash .codev/checks/test.sh` | exit 0 — pipelines 139 passed, viewer 412 passed / 9 skipped. |
+| Copyright / secret hygiene | `git check-ignore`, `git ls-files`, key-pattern scan over `runs/` + configs | `runs/*` + `!runs/first-run-2026-10-11/` negation works (6 files tracked); `configs/models.yaml` ignored & untracked; no `sk-`/`AIza`/`Bearer` strings anywhere. |
+
+`realRun.test.ts` pinning the committed run through the viewer's own `loadRun()` (400 joined cells, discriminates) is a genuinely good move — it makes the "view the real run" tutorial step a gate, not a promise.
+
+### Issues
+
+**1. Token/cost totals are never computed or committed (plan deliverable + spec criterion).**
+Plan Phase 8 design decision: *"Usage/cost: totals from `collect`'s recorded `usage` tokens … report token totals"*; deliverable: *"token (and optional cost) totals computed"*; spec success criterion: *"commit the summary + artifacts as evidence, **with usage/cost totals computed from the data**."*
+
+`usage` is recorded per row (`{"in":37,"out":21,"provider":"Novita"}`), but nothing aggregates it: `summary.json` has only `models` and `by_tradition`; `grep usage` in `score.py` → nothing; `cli.py` → nothing; no mention in `TUTORIAL.md`, `summary.md`, or `pipelines/README.md`. I computed it in one line from the committed data:
+
+```
+claude-haiku   in   5,810  out  41,140
+gpt-oss-20b    in  10,080  out  80,188
+gemma-3-4b     in   4,615  out   6,252
+llama-3.1-8b   in   4,715  out   6,551
+TOTAL          in  25,220  out 134,131   (400 cells)
+```
+
+That it's a one-liner is the point — the deliverable is cheap and currently absent. Smallest honest fix: add a `usage` block to `summary.json`/`summary.md` in `score` (per-model `in`/`out` + totals, plus optional cost when the run config supplies prices, per the plan's "do not invent prices").
+
+**2. TUTORIAL step 6 crashes for a reader without API keys.**
+Step 6 passes `--config configs/models.yaml`, which only exists after step 5 (the paid step). A keyless reader — exactly the demo path the spec requires (*"Demo-able … no gitignored restricted data required"*, and the committed answers exist precisely so collect can be skipped) — gets an unhandled traceback:
+
+```
+FileNotFoundError: [Errno 2] No such file or directory: 'configs/models.yaml'
+  (sacredbench/config.py:51, load_config)
+```
+
+I confirmed the keyless path works fine if you just drop `--questions`/`--config` — identical `scores.jsonl`, same summary table. So this is a one-line TUTORIAL fix ("no keys? skip step 5; drop `--questions/--config` and score the committed `answers.jsonl`"). Optionally also wrap `load_config`'s open so a missing panel is a clean fail-fast message rather than a traceback.
+
+### Comments (non-blocking)
+
+- **≥2 providers isn't verifiable from the committed artifacts alone.** The spec wants the panel bar *"verified by committed run artifacts, not CI"*, but `configs/models.yaml` is gitignored — and it contains **no secrets** (only `api_key_env` names). A reviewer must infer "anthropic direct + OpenRouter" from model slugs. Consider committing the panel snapshot into `runs/first-run-2026-10-11/` (e.g. `panel.yaml`); it costs nothing and makes the claim checkable.
+- **`configs/models.example.yaml` is untouched seed** (`gpt-5.6-terra`, `gemini-3.6-flash`, `google/gemma-4-27b-it`) — none of those ids were exercised; the verified panel is different. Since step 5 says `cp` it and run, pointing the example at the panel that actually worked would make the tutorial's paid step more likely to succeed first try.
+- **Audit is origin-only, not text-containment.** The plan said "maps to a restricted catalogue entry **or contains restricted text**", and the acceptance criterion says "would fail on injected restricted *text*" — the tests inject restricted *origin*. The docstring argues origin is the enforceable proxy, which I find defensible (restricted payloads are never committed, so CI has nothing to match against). The residual hole is a mislabeled artifact (NABRE text tagged `version: "KJV"`). Worth one sentence in `pipelines/README.md` stating the limitation; a containment scan when a local restricted payload *is* present is a reasonable follow-on.
+- **Gate audits one hardcoded path.** `test_committed_first_run_is_clean` pins `runs/first-run-2026-10-11`; a second committed run dir would be unaudited. Globbing tracked `runs/*/` would future-proof it.
+- **`pipelines/README.md` module map omits `audit.py`** and the `audit` command (TUTORIAL documents it; README doesn't).
+- **PR #3's body is stale** — it still carries the `> **DRAFT.** The live-run evidence … is **not yet included**` banner and "collect + score evidence is pending keys", which is now false. Must be rewritten before leaving draft (I see that's already your next step).
+- **Observation for the write-up, not a change:** `correct=0` conflates honest refusal (haiku on the encyclicals) with fabrication (gemma/llama). Given Phase 1's "reject false premises" objective, an abstention-vs-hallucination split is the most interesting number in this run. Phase-6 contract is gated — this belongs in the review doc / Spec 2, not here.
+
+Items 1 and 2 are both small and both trace to an explicit plan deliverable / spec criterion, so I'm asking for changes rather than waving them through — the rest of the phase is strong and verified.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Live run is real, reproducible and copyright-clean (I re-derived questions, scores and summary byte-identically), but the plan's token/cost totals deliverable is absent and TUTORIAL step 6 tracebacks for a keyless fresh-clone reader.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Usage/cost totals never computed or committed, though `usage` is recorded per row — explicit Phase 8 deliverable and spec success criterion ("usage/cost totals computed from the data"); nothing in `summary.json`, `summary.md`, `score.py`, `cli.py`, or the docs.
+- `TUTORIAL.md` step 6 passes `--config configs/models.yaml`, which doesn't exist for a reader who skips the paid step 5 → unhandled `FileNotFoundError` traceback; the working keyless variant (drop `--questions/--config`) is undocumented.
+- ≥2-provider claim not verifiable from committed artifacts (panel config is gitignored despite containing no secrets) — spec wants it verified by artifacts.
+- `configs/models.example.yaml` still the seed panel with unexercised model ids, while step 5 instructs copying and running it.
+- PR #3 body still states the live-run evidence is not included — must be updated before leaving draft.

@@ -1,24 +1,30 @@
 # Example model panel for `sacredbench collect`.
 # Copy to configs/models.yaml (gitignored) and adjust. Keys come from the
-# environment — never from a file in this public repo.
+# environment — never from a file in this public repo. This is the exact shape of
+# the panel that produced runs/first-run-2026-10-11 (≥3 models / ≥2 serving
+# providers: Anthropic direct + OpenRouter). Swap in whatever models you have funded.
 concurrency: 8
 models:
-  - id: haiku
-    provider: anthropic
+  - id: claude-haiku
+    provider: anthropic            # direct Anthropic API (ANTHROPIC_API_KEY)
     model: claude-haiku-5-5
     max_tokens: 1024
-  - id: gpt
-    provider: openai
-    model: gpt-5.6-terra
-    max_tokens: 1024
-  - id: gemini-flash
-    provider: gemini
-    model: gemini-3.6-flash
-    max_tokens: 1024
-  # Any OpenAI-compatible host (e.g. OpenRouter) works via base_url + api_key_env:
-  - id: gemma-4
+  # Any OpenAI-chat-compatible host (OpenRouter here) via base_url + api_key_env:
+  - id: gpt-oss-20b
     provider: openai
     base_url: https://openrouter.ai/api/v1
     api_key_env: OPENROUTER_API_KEY
-    model: google/gemma-4-27b-it
+    model: openai/gpt-oss-20b
+    max_tokens: 4096               # reasoning model: needs headroom to emit content
+  - id: gemma-3-4b
+    provider: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    model: google/gemma-3-4b-it
+    max_tokens: 1024
+  - id: llama-3.1-8b
+    provider: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    model: meta-llama/llama-3.1-8b-instruct
     max_tokens: 1024

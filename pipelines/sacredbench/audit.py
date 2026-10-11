@@ -18,13 +18,46 @@ Run it over the evidence before committing, and in the test gate:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from sacredbench import catalogue as cat
 
+# origin is the always-on gate; when a restricted PAYLOAD is present locally (never
+# in CI / a fresh clone), the audit ALSO scans committed text for restricted units,
+# so a restricted unit mislabeled with a public (work, version, language) is caught.
+_MIN_FINGERPRINT = 60  # chars of normalized text — long enough to not false-positive
+
 
 class AuditError(Exception):
     """A committed artifact is derived from a restricted source."""
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+
+
+def restricted_text_fingerprints(
+    sources: list[cat.Source], raw_root: Path = cat.RAW_ROOT, min_len: int = _MIN_FINGERPRINT
+) -> set[str]:
+    """Normalized unit texts of every restricted target whose payload is present
+    locally. Empty when the held-back payloads are absent (CI / fresh clone), so the
+    content scan is simply skipped there and only the origin gate runs."""
+    from sacredbench import convert as conv
+
+    fps: set[str] = set()
+    for t in cat.all_targets(sources):
+        if t.license != "restricted":
+            continue
+        paths = t.payload_paths(raw_root)
+        if not paths or not all(p.exists() for p in paths):
+            continue  # payload held back — nothing to fingerprint
+        for doc in conv.convert_target(paths, t):
+            for e in doc.entries:
+                n = _norm(e.text)
+                if len(n) >= min_len:
+                    fps.add(n)
+    return fps
 
 
 def restricted_keys(sources: list[cat.Source]) -> set[tuple[str, str, str]]:
@@ -57,9 +90,19 @@ def _iter_source_dicts(path: Path):
             yield src
 
 
-def audit_paths(paths: list[Path], sources: list[cat.Source]) -> list[str]:
-    """Return a list of violations: committed artifacts derived from a restricted source."""
+def audit_paths(
+    paths: list[Path], sources: list[cat.Source], restricted_texts: set[str] | None = None
+) -> list[str]:
+    """Return a list of violations in the given artifacts. Two layers:
+
+    - **origin** (always): the artifact's source ``(work, version, language)`` maps
+      to a ``restricted`` catalogue target.
+    - **content** (when ``restricted_texts`` is supplied): the artifact's text
+      contains a restricted unit's normalized text — catching a restricted unit
+      mislabeled with a public source, which the origin layer alone cannot see.
+    """
     restricted = restricted_keys(sources)
+    fingerprints = restricted_texts or set()
     violations: list[str] = []
     for p in paths:
         p = Path(p)
@@ -67,9 +110,18 @@ def audit_paths(paths: list[Path], sources: list[cat.Source]) -> list[str]:
         for f in files:
             if f.suffix not in (".json", ".jsonl"):
                 continue
+            flagged = False
             for src in _iter_source_dicts(f):
                 key = (src.get("work"), src.get("version"), src.get("language"))
                 if key in restricted:
                     violations.append(f"{f}: derived from restricted source {key}")
-                    break  # one violation per file is enough
+                    flagged = True
+                    break  # one origin violation per file is enough
+            if flagged or not fingerprints:
+                continue
+            blob = _norm(f.read_text(encoding="utf-8"))
+            for fp in fingerprints:
+                if fp in blob:
+                    violations.append(f"{f}: contains restricted text (…{fp[:48]}…)")
+                    break  # one content violation per file is enough
     return violations

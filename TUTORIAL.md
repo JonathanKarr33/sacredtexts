@@ -69,6 +69,10 @@ uv --project pipelines run python -m sacredbench audit runs/first-run-2026-10-11
 
 ## 5. Collect answers from the model panel  *(needs API keys — the only paid step)*
 
+> **No keys? Skip this step.** The committed run already ships
+> `runs/first-run-2026-10-11/answers.jsonl`, so you can go straight to step 6's
+> keyless variant and still get the summary table and the viewable page.
+
 ```bash
 cp configs/models.example.yaml configs/models.yaml   # edit the panel; keys via env
 uv --project pipelines run python -m sacredbench collect \
@@ -82,6 +86,21 @@ every answer row, so you can't resume against a different question set.
 
 ## 6. Score (strict + normalized + token-F1; per-task contract; tradition breakdown)
 
+**Keyless** — score the committed answers (no panel config needed; produces the
+summary table and token-usage totals; the panel-composition proof is already in the
+committed `summary.json`/`summary.md`):
+
+```bash
+uv --project pipelines run python -m sacredbench score \
+  runs/first-run-2026-10-11/answers.jsonl \
+  --scores-out runs/first-run-2026-10-11/scores.jsonl \
+  --summary-out runs/first-run-2026-10-11/summary.json \
+  --summary-md  runs/first-run-2026-10-11/summary.md
+```
+
+**With your own run** — add `--questions`/`--config` (requires `configs/models.yaml`
+from step 5) for the missing/failed-cell roster and the panel snapshot:
+
 ```bash
 uv --project pipelines run python -m sacredbench score \
   runs/first-run-2026-10-11/answers.jsonl \
@@ -92,8 +111,8 @@ uv --project pipelines run python -m sacredbench score \
   --config      configs/models.yaml
 ```
 
-Prints (and writes) the per-model × task accuracy table and a per-tradition
-breakdown; `--questions`/`--config` add missing/failed-cell reporting.
+Both print (and write) the per-model × task accuracy table, the per-tradition
+breakdown, the panel composition, and token-usage totals.
 
 ## 7. View the results locally
 

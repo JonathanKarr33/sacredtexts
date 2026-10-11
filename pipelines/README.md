@@ -92,6 +92,21 @@ uv --project pipelines run python -m sacredbench collect runs/questions.jsonl co
 #                                   question-set roster (expected_n / 'miss N')
 uv --project pipelines run python -m sacredbench score runs/answers.jsonl \
     --questions runs/questions.jsonl --config configs/models.yaml --summary-md runs/summary.md
+#    The summary also carries a `panel` block (provider/model/endpoint — no secrets,
+#    so the >=3-model / >=2-provider bar is checkable from the committed artifact)
+#    and a `usage` block (per-model + total input/output tokens; cost only if the
+#    run config supplies per-model prices — prices are never invented).
+
+# 6. Copyright audit (runs in the test gate): fail if any committed artifact is
+#    derived from a restricted source. Two layers: ORIGIN (always) — the artifact's
+#    (work, version, language) maps to a restricted catalogue target; and CONTENT —
+#    when the held-back restricted PAYLOADS are present locally, the restricted unit
+#    texts are fingerprinted and any committed file containing one is flagged (this
+#    catches a restricted unit mislabeled with a public source). In CI / a fresh
+#    clone the payloads are absent, so only the origin layer runs — acceptable
+#    because restricted payloads are never committed, making origin the enforceable
+#    proxy there.
+uv --project pipelines run python -m sacredbench audit runs/ texts/standardized
 ```
 
 Tests: `uv --project pipelines run pytest pipelines` (fixtures are real-SHAPE but
@@ -102,7 +117,8 @@ gating · `schema.py` standard format + validation · `convert.py` source-format
 converters (registry) · `export.py` assemble shards → interchange + round-trip ·
 `generate.py` templates → questions · `config.py` model
 panel YAML · `providers.py` anthropic/openai-compatible/gemini seam ·
-`collect.py` resumable fan-out · `score.py` metrics + summary · `cli.py` Typer app.
+`collect.py` resumable fan-out · `score.py` metrics + summary (panel + usage) ·
+`audit.py` restricted-origin/-content copyright audit · `cli.py` Typer app.
 
 Verified live (2026-10-10): 3-question smoke vs claude-haiku-5-5 — collect and
 score worked end-to-end; Haiku returned a near-miss paraphrase of Luke 19:17

@@ -171,6 +171,7 @@ def score_answer(task: str, answer: str, expected: dict) -> dict:
 def score_file(
     answers_path: Path, scores_path: Path, expected: dict[tuple[str, str], int] | None = None,
     expected_tradition: dict[tuple[str, str, str], int] | None = None,
+    panel: dict[str, dict] | None = None,
 ) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
@@ -213,6 +214,7 @@ def score_file(
     scores_path.parent.mkdir(parents=True, exist_ok=True)
     per_cell: dict[tuple[str, str], dict] = {}  # (model_id, task) -> accumulators
     per_trad: dict[tuple[str, str, str], dict] = {}  # (model_id, tradition, task) -> {n, correct}
+    usage: dict[str, dict] = {}  # model_id -> {calls, in, out, model, served_by{host:count}}
     with open(scores_path, "w", encoding="utf-8") as out:
         for d in rows:
             metrics = score_answer(d["task"], d["answer"], d["question"]["expected"])
@@ -237,6 +239,17 @@ def score_file(
             acc["exact"] += metrics.get("exact", 0)
             acc["normalized"] += metrics.get("normalized", 0)
             acc["token_f1"] += metrics.get("token_f1", 0.0)
+            # token usage for cost accounting (recorded per answer row by collect)
+            u = d.get("usage") or {}
+            um = usage.setdefault(
+                d["model_id"], {"calls": 0, "in": 0, "out": 0, "model": d.get("model"), "served_by": {}}
+            )
+            um["calls"] += 1
+            um["in"] += int(u.get("in", 0) or 0)
+            um["out"] += int(u.get("out", 0) or 0)
+            host = u.get("provider")  # OpenRouter reports the upstream serving host
+            if host:
+                um["served_by"][host] = um["served_by"].get(host, 0) + 1
             # tradition breakdown: count this observation once PER listed tradition
             for trad in d.get("question", {}).get("source", {}).get("tradition", []) or []:
                 tacc = per_trad.setdefault((d["model_id"], trad, d["task"]), {"n": 0, "correct": 0})
@@ -298,6 +311,41 @@ def score_file(
                 ov["expected_n"] = exp_total
                 ov["missing"] = max(exp_total - tn, 0)
             tasks["_overall"] = ov
+
+    # Token usage totals (cost accounting). Prices are NOT invented: a cost appears
+    # only for models whose panel entry supplied price_in/price_out ($ per 1M tokens).
+    panel = panel or {}
+    per_model_usage: dict[str, dict] = {}
+    total = {"calls": 0, "in": 0, "out": 0}
+    cost_total = 0.0
+    any_cost = False
+    for model_id in sorted(set(usage) | set(panel)):
+        um = usage.get(model_id, {"calls": 0, "in": 0, "out": 0})
+        row = {"calls": um["calls"], "in": um["in"], "out": um["out"]}
+        p = panel.get(model_id, {})
+        if p.get("price_in") is not None and p.get("price_out") is not None:
+            row["cost_usd"] = round(um["in"] / 1e6 * p["price_in"] + um["out"] / 1e6 * p["price_out"], 6)
+            cost_total += row["cost_usd"]
+            any_cost = True
+        per_model_usage[model_id] = row
+        for k in total:
+            total[k] += um.get(k, 0)
+    if any_cost:
+        total["cost_usd"] = round(cost_total, 6)
+    summary["usage"] = {"per_model": per_model_usage, "total": total}
+
+    # Panel composition, so the ≥3-model / ≥2-provider bar is checkable from the
+    # committed artifact itself (no secrets — provider, model and endpoint host only).
+    summary["panel"] = {}
+    for model_id in sorted(set(usage) | set(panel)):
+        um = usage.get(model_id, {})
+        p = panel.get(model_id, {})
+        summary["panel"][model_id] = {
+            "provider": p.get("provider"),
+            "model": p.get("model") or um.get("model"),
+            "endpoint": p.get("endpoint"),
+            "served_by": sorted(um.get("served_by", {})) or None,
+        }
     return summary
 
 
@@ -345,4 +393,32 @@ def summary_markdown(summary: dict) -> str:
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
                 row.append(f"**{acc}** (n={ov['n']})")
                 lines.append("| " + " | ".join(row) + " |")
+
+    panel = summary.get("panel") or {}
+    if panel:
+        lines += ["", "### Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)"]
+        lines += ["| model_id | provider | model | endpoint | served_by |", "|" + "---|" * 5]
+        for mid in sorted(panel):
+            p = panel[mid]
+            served = ", ".join(p.get("served_by") or []) or "—"
+            lines.append(
+                f"| {mid} | {p.get('provider') or '—'} | {p.get('model') or '—'} "
+                f"| {p.get('endpoint') or '—'} | {served} |"
+            )
+
+    usage = summary.get("usage") or {}
+    if usage.get("per_model"):
+        lines += ["", "### Token usage", "| model_id | calls | in | out |" + (" cost (USD) |" if "cost_usd" in usage["total"] else "")]
+        lines += ["|" + "---|" * (5 if "cost_usd" in usage["total"] else 4)]
+        for mid in sorted(usage["per_model"]):
+            u = usage["per_model"][mid]
+            row = f"| {mid} | {u['calls']} | {u['in']:,} | {u['out']:,} |"
+            if "cost_usd" in usage["total"]:
+                row += f" ${u.get('cost_usd', 0):.4f} |"
+            lines.append(row)
+        t = usage["total"]
+        trow = f"| **total** | {t['calls']} | {t['in']:,} | {t['out']:,} |"
+        if "cost_usd" in t:
+            trow += f" ${t['cost_usd']:.4f} |"
+        lines.append(trow)
     return "\n".join(lines) + "\n"

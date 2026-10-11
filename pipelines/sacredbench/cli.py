@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import typer
 
@@ -21,7 +22,7 @@ from sacredbench import generate as gen
 from sacredbench import schema
 from sacredbench.collect import CollectError
 from sacredbench.collect import collect as run_collect
-from sacredbench.config import load_config
+from sacredbench.config import ConfigError, load_config
 from sacredbench.generate import generate as run_generate
 from sacredbench.generate import load_questions, write_questions
 from sacredbench.score import ScoreError, score_file, summary_markdown
@@ -164,15 +165,19 @@ def audit(
     inputs: list[Path] = typer.Argument(help="committed artifact(s)/dir(s) to audit"),
     raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (catalogue)"),
 ) -> None:
-    """Copyright audit: fail if any committed artifact is derived from a restricted source."""
+    """Copyright audit: fail if any committed artifact derives from a restricted
+    source (origin), or — when the held-back restricted payloads are present locally
+    — contains restricted text (content)."""
     sources = cat.discover_catalogue(raw_root)
-    violations = aud.audit_paths(list(inputs), sources)
+    fingerprints = aud.restricted_text_fingerprints(sources, raw_root)
+    violations = aud.audit_paths(list(inputs), sources, fingerprints)
     if violations:
         typer.secho(f"COPYRIGHT AUDIT FAILED — {len(violations)} violation(s):", fg="red", err=True)
         for v in violations:
             typer.secho(f"  {v}", fg="red", err=True)
         raise typer.Exit(1)
-    typer.echo(f"copyright audit OK — no committed artifact derives from a restricted source ({len(list(inputs))} path(s))")
+    scan = f"origin + {len(fingerprints)} restricted text fingerprint(s)" if fingerprints else "origin only (restricted payloads absent)"
+    typer.echo(f"copyright audit OK — {len(list(inputs))} path(s), {scan}")
 
 
 @app.command()
@@ -307,7 +312,14 @@ def score(
                 for trad in q.source.get("tradition", []) or []:
                     k = (m.id, trad, q.task)
                     expected_tradition[k] = expected_tradition.get(k, 0) + 1
-        summary = score_file(answers, scores_out, expected, expected_tradition)
+        # panel snapshot for the committed artifact (no secrets: provider/model/host only)
+        default_host = {"anthropic": "api.anthropic.com", "openai": "api.openai.com",
+                        "gemini": "generativelanguage.googleapis.com"}
+        panel = {}
+        for m in cfg.models:
+            endpoint = urlparse(m.base_url).netloc if m.base_url else default_host.get(m.provider)
+            panel[m.id] = {"provider": m.provider, "model": m.model, "endpoint": endpoint}
+        summary = score_file(answers, scores_out, expected, expected_tradition, panel)
     else:
         summary = score_file(answers, scores_out)
     summary_out.parent.mkdir(parents=True, exist_ok=True)
@@ -327,7 +339,7 @@ def main() -> None:
         app()
     except (
         schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError, CollectError,
-        gen.GenerateError, ScoreError, aud.AuditError,
+        gen.GenerateError, ScoreError, aud.AuditError, ConfigError,
     ) as e:
         typer.secho(f"error: {e}", fg="red", err=True)
         sys.exit(2)

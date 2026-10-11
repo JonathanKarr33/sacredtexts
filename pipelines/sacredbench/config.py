@@ -48,6 +48,11 @@ class RunConfig:
 
 
 def load_config(path: Path) -> RunConfig:
+    if not Path(path).exists():
+        raise ConfigError(
+            f"{path}: run config not found — copy configs/models.example.yaml to "
+            "configs/models.yaml and set your panel (keys come from the environment)"
+        )
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict) or not isinstance(data.get("models"), list) or not data["models"]:
