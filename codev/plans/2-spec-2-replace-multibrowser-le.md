@@ -76,11 +76,22 @@ foundation the three views build on.
     **malformed JSON/JSONL** (which run, which line). A missing roster is a run-specific
     error here, **not** a silent fallback; the sample fallback is a page concern, not a
     loader concern.
-  - add a **content-type / JSON-shape guard**: a 200 response whose body is not the
-    expected JSON (e.g. the SPA `index.html` a static host returns for an unknown path)
-    is treated as "artifact absent", not parsed as data (prevents the Phase-2 prod-host
-    crash — see finding below).
-- `apps/viewer/src/lib/runsEndpoint.ts` (**new, extracted**) — the run-serving logic as
+  - add a **shape-sniffing "artifact absent" guard** (shape-sniffing is primary, not a
+    `headers.get("content-type")` check): read the body via `.text()` and treat a leading
+    `<` (the SPA `index.html` a static host returns 200 for an unknown path) or a
+    JSON/JSONL parse failure as "artifact absent", not data. A `content-type` header is
+    only an optional hint. (A header-based guard would throw on the existing bare fake
+    fetchers in `realRun.test.ts`/`LocalResults.test.tsx`, which have no `headers`, and
+    the dev middleware serves `.jsonl` as `text/plain` — so shape-sniffing is the robust
+    mechanism. This prevents the Phase-2 prod-host crash.)
+- `apps/viewer/src/routes/LocalResultsPage.tsx` (**modify** — it is the one surviving
+  `loadRun` consumer and its types break under the new contract): adapt its
+  `loadRun(base)` consumption to the typed result — success → render; a typed failure →
+  the existing localized error (the no-`?run=` path still renders the in-memory sample,
+  unchanged, so `/local-results` out-of-the-box behavior is preserved). This is the
+  minimal page edit the contract change forces; no new route/nav is added.
+- `apps/viewer/vite/runsEndpoint.ts` (**new, extracted — placed outside `src/`** so a
+  stray client import of this node-only module cannot slip in): the run-serving logic as
   an importable factory `createRunsHandler(runsDir)` plus a pure `listRuns(runsDir)`, so
   it is unit-testable against a temp dir (the current `serveRuns` is a non-exported
   closure with a hardcoded root and cannot be tested):
@@ -94,17 +105,20 @@ foundation the three views build on.
     `/runs` prefix, so the collection request arrives as `req.url === "/"` or
     `"/_index"` — match on that, not `"/runs/"`.
 - `apps/viewer/vite.config.ts` — import and mount `createRunsHandler` from
-  `runsEndpoint.ts` (replacing the inline `serveRuns` closure); dev-only behavior
+  `./vite/runsEndpoint` (replacing the inline `serveRuns` closure); dev-only behavior
   unchanged otherwise.
 - `apps/viewer/src/local/sample.ts` — add a small sample roster (so the sample still
   joins via the scores-only fallback) and a **`missing > 0` fixture** (a roster question
   with no answer row) for the explorer's missing-cell path.
 - `apps/viewer/src/lib/localResults.test.ts` (new or fold into existing
   `components/LocalResults.test.tsx`) — unit tests for the widened parse/join, the
-  failure-type discrimination, and the missing fixture.
-- `apps/viewer/src/lib/runsEndpoint.test.ts` (new) — confinement tests against a temp
+  failure-type discrimination, and the missing fixture. **Rework** the existing
+  `components/LocalResults.test.tsx:57` case ("loadRun returns null when an artifact
+  404s") to assert the new **typed failure** instead of the removed `null` contract.
+- `apps/viewer/vite/runsEndpoint.test.ts` (new) — confinement tests against a temp
   dir: lists only subdirs with `summary.json`; rejects traversal (`../`), symlink escape,
-  and malformed-percent-encoding; a nonexistent root returns `[]`.
+  and malformed-percent-encoding; a nonexistent root returns `[]`. (A one-line test may
+  also assert no `src/` client module imports the node-only endpoint.)
 - `apps/viewer/src/local/realRun.test.ts` — extend: assert the committed run still joins
   to 400 results (its roster == answered, `missing: 0`), and that per-metric values and
   `usage`/`panel` now parse.
@@ -112,31 +126,37 @@ foundation the three views build on.
 #### Deliverables
 
 - [ ] `loadRun` requires all four artifacts and returns a typed result distinguishing
-      missing-artifact / HTTP-failure / malformed-JSON; a non-JSON 200 is treated as
-      absent, not parsed.
+      missing-artifact / HTTP-failure / malformed-JSON; a non-JSON 200 (shape-sniffed) is
+      treated as absent, not parsed.
 - [ ] `parseSummary`/`joinResults` carry metrics, usage, panel (`served_by` nullable),
       and a roster; missing questions are representable.
-- [ ] `runsEndpoint.ts` is an importable factory + `listRuns(runsDir)`, hardened
-      (realpath + symlink reject + safe decode), empty on a nonexistent root.
+- [ ] `vite/runsEndpoint.ts` is an importable factory + `listRuns(runsDir)`, hardened
+      (realpath + symlink reject + safe decode), empty on a nonexistent root, and lives
+      outside `src/`.
+- [ ] `LocalResultsPage.tsx` adapted to the typed loader; the `LocalResults.test.tsx`
+      404 case reworked to the typed failure.
 - [ ] A `missing > 0` fixture exists and is exercised.
 - [ ] Tests for this phase (parse/join/failure-types/missing/endpoint-confinement).
 
 #### Acceptance Criteria
 
 - [ ] The committed-run gate (`realRun.test.ts`) still passes with the widened model.
-- [ ] `pnpm -C apps/viewer test` and `check-types` pass; `/local-results` still renders.
-- [ ] No page/route/nav changes in this phase (diff is lib + endpoint extraction +
-      vite.config import + tests + sample).
+- [ ] `pnpm -C apps/viewer test` and `check-types` pass; `/local-results` still renders
+      (adapted to the typed loader; the no-`?run=` sample path unchanged).
+- [ ] **No new routes/nav** in this phase; the only page touched is the existing
+      `loadRun` consumer `LocalResultsPage.tsx` (minimal adapter edit). The diff is lib +
+      endpoint extraction + vite.config import + the one adapter + tests + sample.
 
 #### Test Plan
 
 - Unit: metrics preserved/`null` per task; `usage`/`panel` parsed (`served_by` nullable);
   roster join surfaces a missing question; scores-only fallback still works for the
-  sample; `loadRun` returns the right failure type for a 404, a non-JSON 200, and a
-  malformed JSONL line.
+  sample; `loadRun` returns the right failure type for a 404, a shape-sniffed non-JSON
+  200 (body starting `<`), and a malformed JSONL line.
 - Unit: `listRuns`/handler lists only subdirs with `summary.json`; rejects traversal,
   symlink escape, malformed encoding; nonexistent root → `[]` (temp-dir fixtures).
-- Regression: `realRun.test.ts` (400 cells, discriminating, now with metrics).
+- Regression: `realRun.test.ts` (400 cells, discriminating, now with metrics) with its
+  bare `diskFetcher` unchanged (shape-sniffing requires no `headers`).
 
 ### Phase 2: Purge multibrowser surface to a clean shell
 
@@ -164,8 +184,15 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
   `Scenario*.tsx`, `Review*.tsx`, `RateLimitBanner.tsx`, `RawComparison.tsx`,
   `RawPresets.tsx`, `CorpusContext.tsx`, `TaxonomyAxes.tsx`, `FilterBar.tsx`,
   `Collapsible.tsx`, `Notice.tsx`, and test scaffolding `test/fakeRepo.ts`,
-  `test/rawFixture.ts`. **Keep** `ErrorBoundary`, `Loading`, `Markdown` (and their
-  tests), `test/setup.ts`, `test/noInvisibleText.test.ts`.
+  `test/rawFixture.ts`. **Keep** `ErrorBoundary` (used by `main.tsx`) and `Loading`
+  (reused by the new async pages' loading states), plus `test/setup.ts`,
+  `test/noInvisibleText.test.ts`. **Delete** `Markdown.tsx` + `Markdown.test.tsx` — after
+  the purge its only consumers (`ReviewTraditionPage`/`ReviewScenarioPage`) are gone and
+  no new view renders markdown (expected/answer texts are plain strings). Correspondingly
+  **prune the markdown deps** `react-markdown`, `remark-gfm`, `remark-breaks`,
+  `rehype-sanitize`, `@tailwindcss/typography` (per the spec's "only primitives the new
+  pages reuse"). If Phase 3/4 design ends up wanting markdown, keep `Markdown` + its deps
+  instead and note it — but the default is delete.
 - `src/main.tsx` — **rewrite** (it currently imports `PersistQueryClientProvider`,
   `createSyncStoragePersister`, `defaultShouldDehydrateQuery`, `./lib/queryClient`, and
   `RAW_PERSIST_EXCLUDED` from `./lib/constants` — all deleted/pruned here). Reduce to
@@ -188,21 +215,28 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
   app-shell scroll behavior. Rename brand to this app.
 - `src/routes/IndexPage.tsx` — delete (traditions grid gone; `/` now routes to
   `InterimHome`).
-- `src/styles.css` — make the `#86` numbered-shade shim's survival **deliberate**, not
-  dependent on which utilities happen to remain: add a Tailwind v4 `@source inline(...)`
-  safelist covering the semantic ramp the shim guarantees (the exact numbered shades the
-  deploy-test probe asserts). Under `@theme inline` a numbered utility is emitted only if
-  the class appears in scanned content, and today every probed shade lives only in files
-  deleted in Phase 2/3 — without the safelist the probe would go **red** (or pass only by
-  accidentally self-seeding from its own string literals in `deploy.test.ts`).
+- `src/styles.css` — make the `#86` numbered-shade shim's probe **deterministic** rather
+  than accidental: add a Tailwind v4 `@source inline(...)` safelist (available in
+  `tailwindcss@4.3.1`) covering the semantic ramp the shim guarantees — the exact numbered
+  shades the deploy-test probe asserts. Under `@theme inline`, a numbered utility is
+  emitted only if the class appears in scanned content; after the purge the probed shades
+  live only in deleted files, so today the probe passes **only** because Tailwind
+  auto-detection scans the probe's own string literals in `deploy.test.ts` (self-seeding)
+  — fragile. The safelist pins the ramp regardless of app usage. **Tradeoff to accept:** a
+  safelisted ramp means the `#86` probe no longer catches "the app used a shade the shim
+  doesn't define"; `noInvisibleText.test.ts` (glob-based, self-maintaining) remains the
+  guard against actual invisible text.
 - `src/deploy.test.ts` — rework: **drop** the tradition-baking, `public/data-raw`
   raw-tier, and `/api/*` review-proxy assertions and the `/t/...` deep-link smoke;
   **keep and relocate** the `#86` numbered-shade built-CSS probe (now backed by the
   `@source inline` safelist, with the probe list pinned to the safelisted shades); keep a
   generic **SPA-fallback** smoke (an unknown deep route serves `index.html`); keep
-  `base: '/'`; **add** a guard that the built+served app (which has no dev run endpoint —
-  `/runs/_index` returns the SPA `index.html` with HTTP 200) shows the **empty state, not
-  a crash** (this exercises the Phase-1 content-type/JSON-shape guard in `loadRun`).
+  `base: '/'`. The "no crash when the run endpoint is absent in prod" concern is split
+  into two **executable** checks (devDeps are jsdom-only — no browser): (a) here, assert
+  the static host returns `index.html`/200 for `/runs/_index` (a server-response check);
+  (b) a **jsdom** render test (below) renders the home page with a fetcher returning a
+  200 HTML body and asserts the empty state — exercising the Phase-1 shape-sniff guard
+  without running the SPA in a browser.
 - `src/routes/app.test.tsx` — rework: **drop** the GitHub-index / tradition-grid /
   rate-limit / deep-link-to-tradition tests; **keep** the in-SPA 404 test, the
   ErrorBoundary test, and an app-shell test updated to the new header.
@@ -249,9 +283,13 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
       an SPA-fallback smoke survive; the built-app empty-state-not-crash guard is added.
 - [ ] `server/index.mjs` is a minimal hono static+fallback host (no `/api` proxy);
       `scripts/bake-and-deploy.sh` deleted.
+- [ ] `Markdown` deleted and the markdown deps (`react-markdown`/`remark-gfm`/
+      `remark-breaks`/`rehype-sanitize`/`@tailwindcss/typography`) pruned unless a new
+      view needs markdown; `Loading` kept only if the new pages use it.
 - [ ] Dead dependencies pruned from `package.json`; `pnpm-lock.yaml` regenerated;
       build + `check-types` pass.
-- [ ] Tests for this phase (the reworked deploy/app/shell tests).
+- [ ] Tests for this phase (the reworked deploy/app/shell tests + a jsdom
+      home-renders-empty-state-on-HTML-200 test).
 
 #### Acceptance Criteria
 
@@ -261,8 +299,9 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
 - [ ] `/` renders the most-recent run via `InterimHome` (the committed run when it is the
       only one), **not** the synthetic sample; an empty `runs/` shows the empty state;
       404 works.
-- [ ] The built+served static app (no dev run endpoint) shows the empty state rather than
-      crashing on the HTML-200 `/runs/_index` response.
+- [ ] Prod-host robustness is proven by two executable checks: the static host returns
+      `index.html`/200 for `/runs/_index` (server check), and a jsdom render of the home
+      page with a 200-HTML fetcher shows the empty state (not a crash).
 - [ ] HeroUI stays provider-less; the `styles.css` shade shim is intact and the `#86`
       probe passes against the real built CSS.
 
@@ -270,8 +309,9 @@ Delivers "gone, not merely hidden" and a base the feature phases build on.
 
 - The reworked `deploy.test.ts`: real build has no `data-raw`, bundle has no corpus ids,
   `#86` probe passes against real CSS (safelist-backed), SPA fallback serves `index.html`
-  for a deep route, and the served app shows the empty state (no crash) for `/runs/_index`
-  returning HTML 200.
+  for a deep route, and the static host returns `index.html`/200 for `/runs/_index`.
+- A jsdom test: the home page, given a fetcher that returns a 200 HTML body for the run
+  index, renders the empty state (no crash) — the prod-host robustness check.
 - The reworked `app.test.tsx`: 404 renders, ErrorBoundary catches, shell header renders.
 - Manual: `pnpm dev` → `/` shows the committed run (most-recent); deleted routes 404.
 - A source grep (in a test or the deploy test) asserts no `/traditions/` imports remain.
@@ -294,10 +334,14 @@ recent). Delivers requirement 2 — the primary home experience.
   run via `loadRun`, renders the leaderboard; empty/error states per the spec. A
   **stale-request guard** (the existing `live` flag pattern in `LocalResultsPage`)
   ensures rapid run switching cannot let an earlier load overwrite the current selection.
-- **Run-selection URL contract:** the selected run lives in the URL as
+- **Run-selection URL contract:** the selected run lives in the URL as a **bare run id**,
   `/?run=<encodeURIComponent(id)>` (validated via a plain validator, not `zod`), so it is
   shareable and survives refresh; the selector reads and writes it; Phase 4/5 links target
-  this same contract.
+  this same contract. The page resolves the id to the fetch base `/runs/${id}` before
+  `loadRun`. This **changes** the old Spec-1 semantics (`?run=/runs/<id>`, a full base
+  path, documented in `TUTORIAL.md`/arch.md): an old-style value that is not a known run
+  id falls back to the default (most-recent) rather than erroring. Update the docs to the
+  new id form.
 - `src/components/LeaderboardTable.tsx` (new) — one row per model ranked by `_overall`
   accuracy (desc; `model_id` tiebreak; null-overall last); a column per task; overall
   column; per-tradition breakdown; per-model token totals from `usage`.
@@ -429,7 +473,12 @@ detail. Delivers requirement 6. Final doc + dep-prune verification sweep.
   degrades gracefully.
 - Final docs sweep: confirm `README.md`/`TUTORIAL.md`/`arch.md` describe the finished app
   (leaderboard + standings + explorer, local `runs/`); provenance in
-  `README.multibrowser.md` or removed. Verify no dead dependency remains.
+  `README.multibrowser.md` or removed. **Also update `codev/resources/arch-critical.md`**
+  — its always-on HOT-tier bullet still calls `apps/viewer/` a "seed port of multibench's
+  multibrowser … not yet adapted", which would leave future agents with stale guidance;
+  correct that one bullet to describe the adapted viewer (keep the HOT-tier cap — edit the
+  existing bullet, do not add new ones). Verify no dead dependency remains (incl. the
+  markdown deps pruned in Phase 2).
 
 #### Deliverables
 
@@ -459,7 +508,7 @@ detail. Delivers requirement 6. Final doc + dep-prune verification sweep.
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | Mass deletion in Phase 2 breaks the build via a file that imports a deleted module (`main.tsx`, `test/renderApp.tsx`) | High | High | Both are named explicit Phase-2 edits (rewrite `main.tsx`; strip the query wrapper from `renderApp.tsx`); `check-types` + build after the phase catch any stray import; delete in dependency order. |
-| The `#86` CSS probe goes **red** after the purge (the probed numbered shades live only in deleted files, so under `@theme inline` the utilities stop being emitted) — not merely "dropped" | High | High | Phase 2 adds an `@source inline(...)` safelist in `styles.css` for the shim's ramp and pins the probe list to the safelisted shades, so the probe tests the shim deterministically regardless of app usage; `noInvisibleText.test.ts` (glob-based) is a second guard. |
+| The `#86` CSS probe is **fragile** — after the purge the probed shades live only in deleted files, so today it passes only by Tailwind auto-detection self-seeding from the probe's own string literals in `deploy.test.ts` (accidental, not by design) | Medium | High | Phase 2 adds an `@source inline(...)` safelist in `styles.css` for the shim's ramp and pins the probe to the safelisted shades, making it deterministic; tradeoff accepted (it no longer catches an app shade the shim lacks); `noInvisibleText.test.ts` (glob-based) remains the invisible-text guard. |
 | Deployed static host returns HTTP 200 HTML for `/runs/_index` (dev-only endpoint absent in prod), so `loadRun` parses HTML and crashes instead of showing the empty state | Medium | High | Phase-1 content-type/JSON-shape guard treats a non-JSON 200 as "artifact absent"; Phase-2 prod-smoke asserts the served app shows the empty state, not a crash. |
 | Widening `joinResults` to iterate the roster changes the committed-run result count | Low | High | Committed run is `missing: 0` (roster == answered → still 400); the gate asserts it; scores-only fallback preserves the sample. |
 | Run-index endpoint leaks outside `runs/` (symlink/traversal/bad encoding) | Low | High | Realpath confinement + symlink reject + try/caught decode; dedicated Phase-1 confinement tests. |
@@ -478,4 +527,9 @@ detail. Delivers requirement 6. Final doc + dep-prune verification sweep.
 - `codev/resources/arch.md` "Viewer local results" / "Run evidence layout" — the viewer
   now consumes `questions.jsonl` as the roster; note it. (A MAINTAIN-style arch/lessons
   update is the architect's call; this plan flags the touch-point.)
+- `codev/resources/arch-critical.md` (Phase 5) — correct the always-on bullet that still
+  calls `apps/viewer/` a not-yet-adapted multibrowser seed; edit in place within the
+  HOT-tier cap.
+- The `?run=` URL semantics change (bare id, not a base path) — reflected in
+  `TUTORIAL.md` and arch.md's viewer section in Phase 3.
 - No pipeline/texts/scoring doc changes — scope is the viewer only.

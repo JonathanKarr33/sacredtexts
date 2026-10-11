@@ -108,3 +108,29 @@ caught real build-breakers. Folded all into one revision:
   deletions; noted P2 may split into 2a/2b internal commits.
 
 Phases JSON unchanged (5). Committing revised plan + rebuttal, then signal for re-check.
+
+## 2026-10-11 — PLAN iter2 consult + revision
+
+2-way re-consult: BOTH REQUEST_CHANGES HIGH, convergent, confirmed iter-1 blockers fixed
+and approach sound. New gaps were all the same class (contract change → unlisted
+consumer). Folded all in (no disputes):
+- loadRun typed-result breaks LocalResultsPage.tsx:35-41 + LocalResults.test.tsx:57 →
+  Phase 1 now lists LocalResultsPage as a minimal adapter edit + reworks the 404 test
+  case; acceptance reworded to "no NEW routes/nav". (codex+claude)
+- content-type guard would throw on bare fake fetchers (no headers) + .jsonl is
+  text/plain → switched to shape-sniffing primary (leading '<' / parse-fail = absent).
+  (claude)
+- "built+served app shows empty state" not executable (jsdom-only, no browser) → split
+  into (a) deploy server-response check + (b) jsdom render-with-HTML-200 test. (claude)
+- Markdown/Loading post-purge: delete Markdown + prune react-markdown/remark-gfm/
+  remark-breaks/rehype-sanitize/@tailwindcss/typography; keep Loading (reused). (claude)
+- ?run= changes from base-path to bare id → Phase 3 states id→/runs/${id} mapping +
+  old-value fallback-to-default + doc update. (claude)
+- runsEndpoint.ts relocated out of src/ → apps/viewer/vite/runsEndpoint.ts. (claude)
+- Phase 5 doc sweep also corrects arch-critical.md's stale "multibrowser seed" bullet.
+  (codex minor)
+- Correction adopted: #86 probe "would go red" overstated — it self-seeds from
+  deploy.test.ts string literals today (fragile, not red); safelist = deterministic fix;
+  tradeoff noted. Risk reclassified Medium/High. (claude FYI)
+
+Phases JSON unchanged (5). Committing revised plan + iter2 rebuttal, re-signalling.
