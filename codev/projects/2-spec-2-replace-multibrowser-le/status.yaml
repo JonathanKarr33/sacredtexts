@@ -1,7 +1,7 @@
 id: '2'
 title: spec-2-replace-multibrowser-le
 protocol: aspir
-phase: implement
+phase: review
 plan_phases:
   - id: phase_1
     title: Run-data seam + hardened run-index endpoint
@@ -17,15 +17,15 @@ plan_phases:
     status: complete
   - id: phase_5
     title: Cross-run aggregate (current standings)
-    status: in_progress
-current_plan_phase: phase_5
+    status: complete
+current_plan_phase: null
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     build_output: ''
@@ -111,7 +111,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter2-claude.txt
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T11:46:36.650Z'
+updated_at: '2026-10-11T11:49:38.983Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
@@ -125,3 +125,5 @@ context_refreshes:
   - boundary: plan-phase:phase_5
     at: '2026-10-11T11:20:46.783Z'
     acknowledged_at: '2026-10-11T11:22:17.560Z'
+  - boundary: enter:review
+    at: '2026-10-11T11:49:38.983Z'
