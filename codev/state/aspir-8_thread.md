@@ -87,6 +87,24 @@ Critical plan-consult catches folded in:
   run id runs/tutorial-2026-10-11, seed 20261011, per-task 30, 3 standardized paths (verified exist).
   maqaf→space (boundary), marks→delete.
 
+### PLAN approved (autonomous) → IMPLEMENT.
+
+## Phase 1 DONE — Fair Arabic/Hebrew scoring normalisation (committed)
+- `score.py`: added `strip_script_marks()` + `_SCRIPT_MARKS_RE` (Arabic U+064B-0655,0670,0640,
+  06D6-06ED; Hebrew points/cantillation 0591-05BD,05BF,05C1-C2,C4-C5,C7). normalize() deletes
+  marks BEFORE punct-pass (so vocalised words aren't split), folds alef-wasla→alef, maqaf→space.
+  Alef-madda/hamza fold automatically via NFKD+mark-delete. Latin byte-for-byte unchanged.
+- `audit.py::_norm`: NFKD + strip_script_marks + `[^\w]+` (was ASCII-only `[^a-z0-9]` → collapsed
+  non-Latin to ''). Now fingerprints Arabic/Hebrew/Greek; consistent on both fp + blob.
+- Tests: `test_normalize_nonlatin.py` (real tracked QUL + vocalised-Davidson fixtures; symmetric
+  + ASYMMETRIC both directions; maqaf boundary; Latin invariance snapshot), audit non-Latin
+  content-layer test, `test_first_run_regression.py` (re-score committed first-run → reproduces
+  scores [strong Latin regression]; regenerate first-run digest [skipif corpus absent]).
+- Verified empirically: AR vocal==plain f1=1.0, QUL 2:2/7:206 marks gone, HE vocal==plain,
+  Latin "naïve"→"nai ve" (unchanged). Full gate: 165 passed. `ar`/`he` convert cleanly (221 docs)
+  → Phase 3 convert ready. (Gotchas hit: json.dumps ensure_ascii must be False in audit test;
+  Uthmani dagger-alef ≠ full alef — strip programmatically not by hand.)
+
 ### Next
-Plan rebuttal → porch done → advance to implement Phase 1.
+porch done 8 (Phase 1 verify) → Phase 2.
 ⚠️ Phase 3 is LIVE/PAID (Anthropic web search). Will smoke-first; if no key/budget, escalate to architect.
