@@ -28,10 +28,10 @@ gates:
     status: pending
     requested_at: '2026-10-11T16:40:26.007Z'
 iteration: 1
-build_complete: false
+build_complete: true
 history: []
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T16:40:26.008Z'
+updated_at: '2026-10-11T20:57:26.033Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
