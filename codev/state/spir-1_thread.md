@@ -373,3 +373,21 @@ SPIR, strict mode (porch-driven).
   conflicting-dup fail, fail-fast on bad top-level). Fixed the stale
   unregistered-converter test to use 'tlg' (quran_qul is now registered). 80 pass.
 - Committing. Next: signal PHASE_COMPLETE, 2-way consult.
+
+### Phase 3 — iter 1 impl consult (codex REQUEST_CHANGES, claude APPROVE / HIGH)
+
+- codex: 2 plan-contract deviations. claude: APPROVE (daf mapping verified vs
+  external ground truth — Hillel at Shabbat 31a:6 etc.) + 5 non-blocking. Accepted
+  all actionable. 84 tests pass.
+- Quran citation: plan says bare "surah:ayah" → reverted my "The Qur'an" prefix
+  (bare "1:1" is the universal Quran convention; D&C keeps its prefix because bare
+  "1:1" collides with Bible). Hadith "<collection> <idInBook>" already matches plan.
+- en/he Talmud distinct versions: set "William Davidson Edition - English" /
+  "- Aramaic" in the catalogue (were both bare "William Davidson Edition").
+- Added: line-no-renumber regression test (markup-only line skipped w/o shifting
+  later numbers, 207 real spots); language cross-check guard (file lang != target
+  → ConvertError); tightened hadith idInBook guard (str/int, it's a str in data);
+  merged-converter uniqueness diagnostic names work+version not paths[0].
+- Deferred w/ reasons: skipped-empty counts → Phase 8 audit; Talmud 47MB single
+  doc / sharding → Phase 5 generate decision.
+- Wrote 1-phase_3-iter1-rebuttals.md. Committing + re-consulting (iter 2).

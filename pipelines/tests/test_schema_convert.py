@@ -272,7 +272,9 @@ def test_convert_quran_qul_real():
     t = _real_target("Sunni Islam", converter="quran_qul")
     [doc] = convert_target(t.payload_paths(RAW), t)
     assert len(doc.entries) == 6236
-    assert doc.entries[0].citation == "The Qur'an 1:1" and doc.entries[0].unit_type == "ayah"
+    # canonical bare surah:ayah citation (per the plan contract)
+    assert doc.entries[0].citation == "1:1" and doc.entries[0].unit_type == "ayah"
+    assert doc.entries[-1].citation == "114:6"
     parse_document(doc.to_json_dict())
 
 
@@ -288,6 +290,7 @@ def test_convert_sefaria_talmud_real_en():
     t = _real_target("Judaism", language="en")
     [doc] = convert_target(t.payload_paths(RAW), t)
     assert doc.document_type == "talmud"
+    assert doc.version == "William Davidson Edition - English"
     assert doc.entries[0].unit_type == "line"
     assert doc.entries[0].citation == "Arakhin 2a:1"  # tractates start at daf 2a
     assert all("<" not in e.text and ">" not in e.text for e in doc.entries)  # HTML stripped
@@ -301,6 +304,13 @@ def test_convert_sefaria_talmud_real_he_excludes_vocalized():
     [doc] = convert_target(t.payload_paths(RAW), t)
     assert doc.entries[0].citation == "Arakhin 2a:1"
     assert all("<" not in e.text and ">" not in e.text for e in doc.entries)
+
+
+def test_talmud_en_he_are_distinct_versions():
+    en = _real_target("Judaism", language="en")
+    he = _real_target("Judaism", language="he")
+    assert en.version != he.version  # en/he are separate versions (plan contract)
+    assert en.version.endswith("English") and he.version.endswith("Aramaic")
 
 
 # --- Phase 3: Talmud daf offset / markup / duplicate handling (synthetic) -----
@@ -327,6 +337,29 @@ def test_talmud_daf_offset_and_markup_strip(tmp_path):
     assert doc.entries[2].text == "third & line"  # entity unescaped
 
 
+def test_talmud_skipped_empty_line_does_not_renumber(tmp_path):
+    # a markup-only (empty-after-strip) first line must NOT shift the next line's
+    # number — Sefaria refs are positional (load-bearing at 207 real locations).
+    p = tmp_path / "t.json"
+    p.write_text(json.dumps(_talmud("T", [[], [], ["<b></b>", "real line"]])))
+    [doc] = convert_sefaria_talmud([p], _target(converter="sefaria_talmud", document_type="talmud",
+                                                language="en"))
+    assert [e.citation for e in doc.entries] == ["T 2a:2"]  # line 1 dropped, line 2 keeps its number
+
+
+def test_talmud_language_mismatch_fails(tmp_path):
+    # a file whose own language disagrees with the target is refused (guards a
+    # widened glob mislabelling a tractate)
+    p = tmp_path / "t.json"
+    data = _talmud("T", [[], [], ["line"]])
+    data["language"] = "he"
+    p.write_text(json.dumps(data))
+    with pytest.raises(ConvertError) as e:
+        convert_sefaria_talmud([p], _target(converter="sefaria_talmud", document_type="talmud",
+                                             language="en"))
+    assert "language" in str(e.value)
+
+
 def test_talmud_identical_duplicate_tractate_deduped(tmp_path):
     a = tmp_path / "a.json"
     b = tmp_path / "b.json"
@@ -345,6 +378,14 @@ def test_talmud_conflicting_duplicate_tractate_fails(tmp_path):
     with pytest.raises(ConvertError) as e:
         convert_sefaria_talmud([a, b], _target(converter="sefaria_talmud", document_type="talmud"))
     assert "conflicting duplicate tractate" in str(e.value)
+
+
+def test_hadith_malformed_idinbook_fails(tmp_path):
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps({"hadiths": [{"idInBook": {"not": "scalar"}, "arabic": "x"}]}))
+    with pytest.raises(ConvertError) as e:
+        convert_hadith_sunnah([p], _target(converter="hadith_sunnah"))
+    assert "idInBook" in str(e.value)
 
 
 @pytest.mark.parametrize(

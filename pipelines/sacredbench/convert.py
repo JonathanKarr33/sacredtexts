@@ -271,7 +271,7 @@ def convert_nabre(paths: list[Path], target: "Target") -> list[Document]:
                 entries.append(Entry(unit_type="verse", citation=f"{book_name} {ch_num}:{v_num}", text=text.strip()))
     if not entries:
         raise ConvertError("nabre conversion produced no entries")
-    _require_unique_citations(entries, str(paths[0]) if paths else "nabre")
+    _require_unique_citations(entries, f"{target.work} [{target.version}] (merged {len(paths)} book files)")
     return [_doc(target, entries)]
 
 
@@ -294,7 +294,9 @@ def convert_quran_qul(paths: list[Path], target: "Target") -> list[Document]:
                 raise ConvertError(f"{path}: entry {key!r} missing 'verse_key'/'text'")
             if not text.strip():
                 continue
-            entries.append(Entry(unit_type="ayah", citation=f"{target.work} {verse_key}", text=text.strip()))
+            # Canonical Qur'an citation is the bare "surah:ayah" (universally
+            # unambiguous), per the interchange contract.
+            entries.append(Entry(unit_type="ayah", citation=verse_key, text=text.strip()))
         if not entries:
             raise ConvertError(f"{path}: produced no ayat")
         _require_unique_citations(entries, str(path))
@@ -320,8 +322,8 @@ def convert_hadith_sunnah(paths: list[Path], target: "Target") -> list[Document]
             if not isinstance(h, dict):
                 raise ConvertError(f"{path}: hadiths[{i}] is not an object")
             number, text = h.get("idInBook"), h.get("arabic")
-            if number is None or not isinstance(text, str):
-                raise ConvertError(f"{path}: hadiths[{i}] missing 'idInBook'/'arabic'")
+            if not isinstance(number, (str, int)) or not str(number).strip() or not isinstance(text, str):
+                raise ConvertError(f"{path}: hadiths[{i}] missing or malformed 'idInBook'/'arabic'")
             if not text.strip():
                 continue
             entries.append(Entry(unit_type="hadith", citation=f"{target.work} {number}", text=text.strip()))
@@ -360,6 +362,13 @@ def convert_sefaria_talmud(paths: list[Path], target: "Target") -> list[Document
         tractate, text = data.get("title"), data.get("text")
         if not isinstance(tractate, str) or not isinstance(text, list):
             raise ConvertError(f"{path}: expected {{title, text: [...]}} (sefaria_talmud)")
+        # Cross-check the file's own language against the target: the en/he split is
+        # a glob convention, so guard against a widened glob mislabelling a tractate.
+        file_lang = data.get("language")
+        if file_lang is not None and file_lang != target.language:
+            raise ConvertError(
+                f"{path}: file language {file_lang!r} != target language {target.language!r}"
+            )
         if tractate in seen:
             # the committed tree has a redundant identical copy of one tractate
             # (Shevuot, in the Davidson-English subdir); skip it, but refuse a
@@ -386,7 +395,7 @@ def convert_sefaria_talmud(paths: list[Path], target: "Target") -> list[Document
                 )
     if not entries:
         raise ConvertError("sefaria_talmud produced no entries")
-    _require_unique_citations(entries, str(paths[0]) if paths else "sefaria_talmud")
+    _require_unique_citations(entries, f"{target.work} [{target.version}] (merged {len(paths)} tractate files)")
     return [_doc(target, entries)]
 
 

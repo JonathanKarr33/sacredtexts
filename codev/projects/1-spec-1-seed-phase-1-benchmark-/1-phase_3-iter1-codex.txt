@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The converters handle the real data successfully, but two outputs contradict Phase 3’s explicit citation and version contracts.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `convert_quran_qul` emits `"The Qur'an 1:1"` (`convert.py:297`), while the plan explicitly requires the citation to be `"surah:ayah"`—for example, `"1:1"`. The real-data test currently enshrines the incorrect prefixed form and should be corrected.
+- The English and Aramaic Talmud targets both use `version: William Davidson Edition` (`Judaism/source.yaml:22,33`), despite the plan requiring en/he as distinct versions. The raw files provide distinct values—`William Davidson Edition - English` and `William Davidson Edition - Aramaic`—but the converter ignores them, and the tests never assert distinct version metadata. Preserve those distinct version labels and add assertions for them.

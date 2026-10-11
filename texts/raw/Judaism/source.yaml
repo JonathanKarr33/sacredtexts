@@ -19,7 +19,7 @@ targets:
   - payload: Talmud Bavli/**/*- en -*.json
     converter: sefaria_talmud
     work: Talmud Bavli
-    version: William Davidson Edition
+    version: William Davidson Edition - English
     language: en
     document_type: talmud
     tradition: [Judaism]
@@ -30,7 +30,7 @@ targets:
   - payload: Talmud Bavli/**/*- he - William Davidson Edition - Aramaic.json
     converter: sefaria_talmud
     work: Talmud Bavli
-    version: William Davidson Edition
+    version: William Davidson Edition - Aramaic
     language: he
     document_type: talmud
     tradition: [Judaism]
