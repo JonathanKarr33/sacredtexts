@@ -23,11 +23,11 @@ plan_phases:
     status: complete
   - id: phase_7
     title: Minimal local results view
-    status: in_progress
+    status: complete
   - id: phase_8
     title: First benchmark run and TUTORIAL walkthrough
-    status: pending
-current_plan_phase: phase_7
+    status: in_progress
+current_plan_phase: phase_8
 gates:
   spec-approval:
     status: approved
@@ -41,8 +41,8 @@ gates:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -237,7 +237,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/spir-1/codev/projects/1-spec-1-seed-phase-1-benchmark-/1-phase_7-iter1-claude.txt
 started_at: '2026-10-10T19:04:21.292Z'
-updated_at: '2026-10-11T04:26:45.030Z'
+updated_at: '2026-10-11T04:27:11.054Z'
 context_refreshes:
   - boundary: enter:plan
     at: '2026-10-10T22:49:50.661Z'
@@ -260,6 +260,8 @@ context_refreshes:
   - boundary: plan-phase:phase_7
     at: '2026-10-11T03:56:48.789Z'
     acknowledged_at: '2026-10-11T04:02:59.737Z'
+  - boundary: plan-phase:phase_8
+    at: '2026-10-11T04:27:11.054Z'
 force_advanced:
   phase: phase_6
   iteration: 3
