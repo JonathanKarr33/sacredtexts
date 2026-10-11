@@ -1,7 +1,7 @@
 id: '2'
 title: spec-2-replace-multibrowser-le
 protocol: aspir
-phase: verify
+phase: verified
 plan_phases:
   - id: phase_1
     title: Run-data seam + hardened run-index endpoint
@@ -32,7 +32,7 @@ iteration: 1
 build_complete: true
 history: []
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T20:57:28.077Z'
+updated_at: '2026-10-11T20:57:30.095Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
