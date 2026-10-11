@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The prior fixes substantially improve Phase 4, but shard ordering remains input-dependent on citation ties and the round-trip guard still does not verify all preserved metadata and entry fields.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `assemble()` sorts shards only by their first citation. When two shards share that citation, Python preserves caller order, changing subsequent entry order and tradition order. For example, shards `[1:1, 1:2]` and `[1:1, 1:3]` assemble differently when reversed. This violates the phase’s deterministic-order acceptance criterion; add a complete canonical tie-breaker and a same-first-citation permutation test.
+- `roundtrip_ok()` compares entries only by `(citation, text)`, so an assembler that changes `unit_type` still passes. It also checks only that shard traditions are subsets, allowing invented traditions to pass. Since the required round-trip covers source metadata plus ordered entries, compare complete entry fields and require the assembled tradition list/set to equal the exact union. Add mutation tests for altered `unit_type` and extra tradition metadata.

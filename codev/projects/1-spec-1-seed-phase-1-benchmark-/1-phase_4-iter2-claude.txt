@@ -1,0 +1,39 @@
+I'll review Phase 4's implementation. Let me start by reading the key files.I verified Phase 4 by reading the code and running read-only probes (scripts written to `/tmp`, outputs to `/tmp`; the worktree was not modified).
+
+## What I verified
+
+**The iteration-1 blocker is genuinely fixed.** `roundtrip_ok` (export.py:125-153) is no longer tautological: it regroups by `(work, version, language)`, then for each *input* shard checks metadata agreement, `tradition ⊆ union`, and strictly-increasing positions of each shard entry in the assembled document. The mutation test (test_export.py:89-107) monkeypatches `exp.assemble` with a lossy and a reordering assembler — and because `roundtrip_ok` resolves `assemble` through the module global, the patch takes effect. Both assert `False`. I confirmed all 11 export tests pass (and the full suite: **95 passed in 2.68s**). The CLI now acts on the result (`cli.py:146-149`, non-zero exit), so it is not dead code.
+
+**Full-corpus behavior (not just the tested slice).** I ran convert+assemble over every non-restricted target in memory:
+
+```
+total shards: 221  →  assembled: 220 interchange document(s), 349,799 entries
+filename collisions: none
+roundtrip_ok: True   (2.7s total)
+```
+
+So `export` scales to the real corpus (3 Protestant Bibles, 2 Talmud language versions, 201 encyclicals, 10 Sunni works, 5 LDS works) — not just the 8-shard Bible subset the builder reported. `texts/interchange/` is correctly added to `.gitignore` (line 23), so the new output path can't be committed accidentally.
+
+**The plan's "byte-identical KJV" premise was wrong, and the implementation is right to diverge.** The plan said LDS KJV is "byte-for-byte" the Protestant KJV and should merge with a tradition union. Measured on the real data: 30,985 shared citations but only 28,817 identical `(citation, text)` pairs — **2,168 verses differ**. Had they been merged under one key, the new duplicate-citation guard would have made `export` fail outright. The distinct `KJV (LDS 2013 edition)` version label is therefore load-bearing, and the rationale *is* documented in the LDS `source.yaml` (lines 5-9). Good. This also shows the duplicate-citation `ExportError` is one catalogue edit away from firing, not hypothetical.
+
+## Non-blocking findings (verified, with repro)
+
+1. **`roundtrip_ok` can't see in-place entry mutation (aliasing).** `assemble` passes `Entry` references through, and `Entry` is a mutable dataclass. An assembler that rewrote `e.text` in place mutates the shard's own object, so the comparison is against already-corrupted input. Probe: a `text`-lowercasing assembler → `roundtrip_ok: True` with the shard text visibly changed. Fix is one line: deep-copy `docs` before assembling inside `roundtrip_ok` (or `replace()` entries in `assemble`).
+2. **`unit_type` is outside the round-trip key.** The position key is `(citation, text)`; an assembler that set every `unit_type = "WRONG"` → `roundtrip_ok: True`. Since `unit_type` is part of the interchange entry the spec calls lossless, consider `(unit_type, citation, text)` in both the dedup key and the position key.
+3. **The duplicate-citation error path is quadratic.** `dupes = sorted({c for c in citations if citations.count(c) > 1})` (export.py:104) is O(n²). Measured: **11.2s** to raise on a 40k-entry key; Talmud-en is 78k entries (~45s). Fail-fast should also be fail-fast to *report* — `collections.Counter` makes it O(n).
+4. **Shard ordering is safe today but fragile for future shardings.** Ordering shards by first citation is honestly documented and gives OT→NT for the one real multi-shard work. If a converter ever shards per book, the assembled order becomes alphabetical ("1 Chronicles, Acts, Amos…"), not canonical. An optional `order` hint on the catalogue target would future-proof it — worth a note, not work now.
+5. **Dedup can produce a misleading round-trip failure.** If two shards of one key overlap in *different relative orders*, dedup keeps the first occurrence and the second shard's strictly-increasing check fails — reported as "does not reproduce its shards" rather than "shards disagree on ordering". No real data hits this; a clearer message would help if it ever does.
+6. **Minor:** the CLI exits 1 on round-trip failure (`cli.py:149`), not exit 2 as the rebuttal states; and `export`'s restricted-input filtering is untested (it reuses the well-tested `filter_standardized_paths`, so this is low risk).
+
+---
+VERDICT: APPROVE
+SUMMARY: The vacuous round-trip is genuinely fixed and verified non-vacuous; export assembles the full 221-shard real corpus correctly with no collisions, and the remaining findings are hardening, not defects.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking. Non-blocking: `roundtrip_ok` cannot detect in-place `Entry` mutation (shards and output alias the same objects) — deep-copy inputs before assembling.
+- Non-blocking: `unit_type` is excluded from both the dedup key and the round-trip position key, so unit_type corruption round-trips clean.
+- Non-blocking: duplicate-citation error message is O(n²) — 11.2s measured at 40k entries, ~45s for Talmud-en; use `Counter`.
+- Non-blocking: shard ordering by first citation would be alphabetical, not canonical, if any future converter shards per book.
+- Non-blocking: rebuttal says exit 2 on round-trip failure; code exits 1 (still non-zero). `export`'s restricted-input filter is untested but reuses a tested helper.

@@ -432,3 +432,14 @@ SPIR, strict mode (porch-driven).
 - Added export section + module-map entry to pipelines/README.md.
 - Verified: 8 shards → 7 interchange docs, LDS OT+NT merge 31102, round-trip ok.
   95 tests pass. Committing + re-consulting (iter 2).
+
+### Phase 4 — iter 2 impl consult (codex REQUEST_CHANGES, claude APPROVE / HIGH)
+
+- claude APPROVE (round-trip genuinely fixed + non-vacuous; full 221-shard corpus
+  assembles, no collisions). codex: 2 hardening points. Accepted both. 96 pass.
+- Shard sort tie-break: now key = FULL citation sequence (total, input-independent).
+  Permutation test (same first citation) added.
+- roundtrip_ok: compare entries on (citation,text,unit_type) + require tradition ==
+  EXACT union (was subset). Mutation tests: altered unit_type → False, invented
+  tradition → False.
+- Committing + re-consulting (iter 3).

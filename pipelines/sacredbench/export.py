@@ -84,7 +84,9 @@ def assemble(docs: list[Document]) -> list[Document]:
 
     assembled: list[Document] = []
     for key in order:
-        shards = sorted(groups[key], key=lambda d: d.entries[0].citation if d.entries else "")
+        # Total, input-independent order: compare the shards' full citation
+        # sequences (first citation, then the next, …), not just the first.
+        shards = sorted(groups[key], key=lambda d: [e.citation for e in d.entries])
         document_types = {d.document_type for d in shards}
         if len(document_types) != 1:
             raise ExportError(
@@ -126,10 +128,11 @@ def roundtrip_ok(docs: list[Document]) -> bool:
     """Inverse-grouping round-trip: every input shard is reproduced in its
     assembled document. Returns ``False`` on a lossy or reordering assembler.
 
-    Checks, per shard (located in the assembled set by ``(work, version,
-    language)``): metadata agrees, the shard's traditions are a subset of the
-    assembled union, and every shard entry ``(citation, text)`` appears in the
-    assembled document at a strictly increasing position (loss or reordering →
+    Checks, per ``(work, version, language)`` group: ``document_type`` agrees, the
+    assembled ``tradition`` equals the **exact union** of the shards' traditions
+    (no invention), and every shard entry — compared on all of
+    ``(citation, text, unit_type)`` — appears in the assembled document at a
+    strictly increasing position (loss, reordering, or an altered field →
     ``False``). Globally, the assembled set invents no entries (its total entry
     count does not exceed the shards' total).
     """
@@ -137,19 +140,32 @@ def roundtrip_ok(docs: list[Document]) -> bool:
     by_key = {(d.work, d.version, d.language): d for d in assembled}
     if sum(len(d.entries) for d in assembled) > sum(len(d.entries) for d in docs):
         return False  # entries invented
-    for shard in docs:
-        target = by_key.get((shard.work, shard.version, shard.language))
-        if target is None or target.document_type != shard.document_type:
+
+    shards_by_key: dict[tuple[str, str, str], list[Document]] = {}
+    for d in docs:
+        shards_by_key.setdefault((d.work, d.version, d.language), []).append(d)
+
+    for key, shards in shards_by_key.items():
+        target = by_key.get(key)
+        if target is None:
             return False
-        if not set(shard.tradition) <= set(target.tradition):
+        expected_tradition: set[str] = set()
+        for s in shards:
+            expected_tradition |= set(s.tradition)
+        if set(target.tradition) != expected_tradition:  # exact union, no invention
             return False
-        position = {(e.citation, e.text): i for i, e in enumerate(target.entries)}
-        last = -1
-        for e in shard.entries:
-            p = position.get((e.citation, e.text))
-            if p is None or p <= last:
-                return False  # lost, or out of order
-            last = p
+        position = {
+            (e.citation, e.text, e.unit_type): i for i, e in enumerate(target.entries)
+        }
+        for shard in shards:
+            if shard.document_type != target.document_type:
+                return False
+            last = -1
+            for e in shard.entries:
+                p = position.get((e.citation, e.text, e.unit_type))
+                if p is None or p <= last:
+                    return False  # lost, reordered, or a field changed
+                last = p
     return True
 
 

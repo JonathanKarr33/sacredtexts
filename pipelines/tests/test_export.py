@@ -55,6 +55,14 @@ def test_dedup_repeated_citation_text():
     assert [e.citation for e in d.entries] == ["1:1", "1:2", "1:3"]
 
 
+def test_same_first_citation_shards_order_deterministic():
+    # both shards share first citation "1:1" -> tie must break on the full sequence,
+    # not caller order
+    a = _doc("W", "V", "en", ["A"], [("1:1", "x"), ("1:2", "y")])
+    b = _doc("W", "V", "en", ["A"], [("1:1", "x"), ("1:3", "z")])
+    assert assemble([a, b]) == assemble([b, a])
+
+
 def test_distinct_versions_not_merged():
     a = _doc("The Bible", "KJV", "en", ["Protestant"], [("Genesis 1:1", "x")])
     b = _doc("The Bible", "KJV (LDS 2013 edition)", "en", ["LDS"], [("Genesis 1:1", "y")])
@@ -104,6 +112,27 @@ def test_roundtrip_ok_detects_lossy_assemble(monkeypatch):
         return [d]
 
     monkeypatch.setattr(exp, "assemble", reordering)
+    assert roundtrip_ok([a]) is False
+
+    # the imported `assemble` is the original function; monkeypatch only replaces
+    # the module attribute that roundtrip_ok resolves, so mutators can build a
+    # correct document with `assemble` and then corrupt one field.
+    def unit_type_mutator(docs):  # altered unit_type must fail (full-field compare)
+        d = assemble(docs)[0]
+        # replace (don't mutate: assemble reuses the shard's Entry objects)
+        e0 = d.entries[0]
+        d.entries[0] = Entry(unit_type="DIFFERENT", citation=e0.citation, text=e0.text)
+        return [d]
+
+    monkeypatch.setattr(exp, "assemble", unit_type_mutator)
+    assert roundtrip_ok([a]) is False
+
+    def tradition_mutator(docs):  # invented tradition must fail (exact union)
+        d = assemble(docs)[0]
+        d.tradition = d.tradition + ["INVENTED"]
+        return [d]
+
+    monkeypatch.setattr(exp, "assemble", tradition_mutator)
     assert roundtrip_ok([a]) is False
 
 
