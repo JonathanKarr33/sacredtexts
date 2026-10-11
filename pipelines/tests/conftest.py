@@ -17,7 +17,10 @@ LONG2 = (
 )
 
 
-def make_doc(work: str = "Book of Orchards", n: int = 30) -> Document:
+def make_doc(
+    work: str = "Book of Orchards", n: int = 30, version: str = "Test Edition",
+    tradition: list[str] | None = None,
+) -> Document:
     entries = [
         Entry(
             unit_type="verse",
@@ -27,9 +30,9 @@ def make_doc(work: str = "Book of Orchards", n: int = 30) -> Document:
         for i in range(1, n + 1)
     ]
     return Document(
-        tradition=["testfaith"],
+        tradition=tradition or ["testfaith"],
         work=work,
-        version="Test Edition",
+        version=version,
         language="en",
         document_type="scripture",
         entries=entries,

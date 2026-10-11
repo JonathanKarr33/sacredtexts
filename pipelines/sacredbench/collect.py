@@ -21,20 +21,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sacredbench.config import RunConfig
-from sacredbench.generate import Question
+from sacredbench.generate import Question, question_set_digest
 from sacredbench.providers import ProviderError, complete
 
 
-def existing_keys(answers_path: Path) -> set[tuple[str, str]]:
+class CollectError(Exception):
+    """Collection cannot proceed (e.g. resuming against a different question set)."""
+
+
+def _existing(answers_path: Path) -> tuple[set[tuple[str, str]], set[str]]:
+    """Return ((question_id, model_id) keys, question-set digests) already present."""
     keys: set[tuple[str, str]] = set()
+    digests: set[str] = set()
     if not answers_path.exists():
-        return keys
+        return keys, digests
     with open(answers_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 d = json.loads(line)
                 keys.add((d["question_id"], d["model_id"]))
-    return keys
+                if d.get("question_set_digest"):
+                    digests.add(d["question_set_digest"])
+    return keys, digests
 
 
 def collect(
@@ -43,8 +51,20 @@ def collect(
     answers_path: Path,
     on_result=None,
 ) -> tuple[int, int, list[str]]:
-    """Run all pending (question, model) cells. Returns (done, failed, failure_messages)."""
-    done_keys = existing_keys(answers_path)
+    """Run all pending (question, model) cells. Returns (done, failed, failure_messages).
+
+    The question-set digest is stamped into every answer row; resuming against an
+    ``answers.jsonl`` built for a different question set is refused (``CollectError``)
+    so a stale or mixed run can never be silently appended to or scored."""
+    digest = question_set_digest(questions)
+    done_keys, existing_digests = _existing(answers_path)
+    other = existing_digests - {digest}
+    if other:
+        raise CollectError(
+            f"{answers_path} was built for a different question set "
+            f"(digest(s) {sorted(other)} != current {digest}); refusing to resume — "
+            "regenerate or point --out at a fresh file"
+        )
     cells = [
         (q, m) for q in questions for m in config.models if (q.id, m.id) not in done_keys
     ]
@@ -64,6 +84,7 @@ def collect(
             "answer": text,
             "usage": usage,
             "attempts": attempts,
+            "question_set_digest": digest,
             "collected_at": datetime.now(timezone.utc).isoformat(),
             "question": asdict(q),
         }

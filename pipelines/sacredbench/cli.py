@@ -16,7 +16,9 @@ import typer
 from sacredbench import catalogue as cat
 from sacredbench import convert as conv
 from sacredbench import export as exp
+from sacredbench import generate as gen
 from sacredbench import schema
+from sacredbench.collect import CollectError
 from sacredbench.collect import collect as run_collect
 from sacredbench.config import load_config
 from sacredbench.generate import generate as run_generate
@@ -172,6 +174,7 @@ def generate(
     out: Path = typer.Option(Path("runs/questions.jsonl")),
     per_task: int = typer.Option(10, min=1),
     seed: int = typer.Option(20261010),
+    negatives_share: float = typer.Option(0.5, min=0.0, max=1.0, help="verify_source negative ratio"),
     raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (for the license gate)"),
     standardized_root: Path = typer.Option(
         cat.STANDARDIZED_ROOT, help="standardized texts root (for the license gate)"
@@ -204,7 +207,7 @@ def generate(
             "(pass --include-restricted to include them)"
         )
     docs = schema.load_documents(kept)
-    questions = run_generate(docs, per_task=per_task, seed=seed)
+    questions = run_generate(docs, per_task=per_task, seed=seed, negatives_share=negatives_share)
     works = {d.work for d in docs}
     if len(works) < 2:
         typer.secho(
@@ -212,7 +215,14 @@ def generate(
             "(false-premise negatives need >=2 works).", fg="yellow", err=True,
         )
     write_questions(questions, out)
-    typer.echo(f"wrote {len(questions)} questions ({len(questions) // len(set(q.task for q in questions))}/task) to {out}")
+    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, None)
+    mpath = gen.manifest_path(out)
+    with open(mpath, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=1)
+        f.write("\n")
+    by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
+    typer.echo(f"wrote {len(questions)} questions to {out} {by_task}")
+    typer.echo(f"manifest {mpath} (digest {manifest['question_set_digest']}, corpus {manifest['corpus_hash']})")
 
 
 @app.command()
@@ -256,7 +266,10 @@ def score(
 def main() -> None:
     try:
         app()
-    except (schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError) as e:
+    except (
+        schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError, CollectError,
+        gen.GenerateError,
+    ) as e:
         typer.secho(f"error: {e}", fg="red", err=True)
         sys.exit(2)
 

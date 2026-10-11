@@ -13,23 +13,37 @@ Task types (template -> what a correct answer contains):
                          from <work>? <text>"                             -> the citation
 - ``identify_source``   "Where is this quote from? <text>"                -> work + citation
 
-``verify_source`` also generates FALSE-PREMISE negatives (Phase 1 objective:
-"reject false premises and incorrect texts"): a real passage attributed to the
-WRONG work (requires >=2 works in the corpus). Negatives are real text —
-fabricated-text generation is a later, LLM-assisted stage.
+Contract details that keep the benchmark honest:
 
-Each question carries the exact expected answer and full source coordinates, so
-scoring never has to re-derive anything.
+- **Version-gated** ``identify_version`` is emitted only for works that have >=2
+  converted versions in the corpus (live for the Bible via KJV/ASV/WEB), and only
+  for passages whose text is unique to one version (a verse identical across KJV
+  and ASV has two correct answers, so it is excluded).
+- **False-premise** ``verify_source`` negatives attribute a real passage to the
+  WRONG work; a negative is excluded when its text also occurs in that wrong work
+  (the "no" ground truth would be wrong).
+- Only **canonically cited** units are sampled — front-matter ``unnumbered para.``
+  and ``(dup N)`` units (see the encyclicals converter) are not benchmark items.
+- **Stable content-derived IDs** (task + source coordinates + text), a
+  **deterministic order**, configurable **per-task quotas** and a
+  **tradition-balanced** selection over the unbalanced corpus, with fail-fast on an
+  insufficient pool.
+- ``generate`` also produces a **manifest** (seed, params, corpus hash) and a
+  **question-set digest** that ``collect`` binds into its answers and ``score``
+  validates, so a resumed or scored run cannot silently mix question sets.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sacredbench.schema import Document, Entry
+from sacredbench.score import normalize
 
 TASKS = (
     "identify_version",
@@ -40,9 +54,7 @@ TASKS = (
     "identify_source",
 )
 
-# Entries shorter than this are too generic to identify ("may mercy, peace, and
-# love be yours in abundance" is identifiable; "Jesus wept." famously is too, but
-# a bare "Amen." is not). Word count, not characters.
+# Entries shorter than this are too generic to identify. Word count, not characters.
 MIN_WORDS_IDENTIFIABLE = 12
 MIN_WORDS_COMPLETABLE = 16
 
@@ -60,6 +72,12 @@ class Question:
     source: dict  # {tradition, work, version, language, document_type, citation}
 
 
+def _is_canonical_citation(citation: str) -> bool:
+    """Front-matter ('unnumbered para.') and disambiguated ('(dup N)') units are
+    not citable benchmark items — see the encyclicals converter."""
+    return "unnumbered para." not in citation and "(dup " not in citation
+
+
 def _source_dict(doc: Document, entry: Entry) -> dict:
     return {
         "tradition": doc.tradition,
@@ -71,11 +89,18 @@ def _source_dict(doc: Document, entry: Entry) -> dict:
     }
 
 
+def _qid(task: str, doc: Document, entry: Entry, neg_work: str | None = None) -> str:
+    key = "\0".join(
+        [task, doc.work, doc.version, doc.language, entry.citation, entry.text, neg_work or ""]
+    )
+    return f"{task}-{hashlib.sha1(key.encode('utf-8')).hexdigest()[:12]}"
+
+
 _ANSWER_ONLY = "Answer with only the requested answer and no commentary."
 
 
-def _build(task: str, doc: Document, entry: Entry, idx: int, neg_work: str | None = None) -> Question:
-    qid = f"{task}-{idx:05d}"
+def _build(task: str, doc: Document, entry: Entry, neg_work: str | None = None) -> Question:
+    qid = _qid(task, doc, entry, neg_work)
     src = _source_dict(doc, entry)
     if task == "identify_version":
         prompt = (
@@ -115,47 +140,158 @@ def _build(task: str, doc: Document, entry: Entry, idx: int, neg_work: str | Non
     return Question(id=qid, task=task, prompt=prompt, expected=expected, source=src)
 
 
+def _balanced_sample(
+    pool: list[tuple[Document, Entry]], quota: int, rng: random.Random, task: str
+) -> list[tuple[Document, Entry]]:
+    """Sample ``quota`` items balanced across traditions (round-robin over each
+    tradition's shuffled sub-pool). Fail-fast if the whole pool is too small."""
+    if len(pool) < quota:
+        raise GenerateError(
+            f"task {task}: pool of {len(pool)} < quota {quota} (insufficient entries)"
+        )
+    by_tradition: dict[str, list[tuple[Document, Entry]]] = {}
+    for d, e in pool:
+        by_tradition.setdefault(d.tradition[0], []).append((d, e))
+    for items in by_tradition.values():
+        rng.shuffle(items)
+    chosen: list[tuple[Document, Entry]] = []
+    traditions = sorted(by_tradition)
+    cursor = {t: 0 for t in traditions}
+    while len(chosen) < quota:
+        progressed = False
+        for t in traditions:
+            if len(chosen) >= quota:
+                break
+            items = by_tradition[t]
+            if cursor[t] < len(items):
+                chosen.append(items[cursor[t]])
+                cursor[t] += 1
+                progressed = True
+        if not progressed:  # every tradition exhausted before quota (shouldn't happen: len>=quota)
+            break
+    return chosen
+
+
 def generate(
     docs: list[Document],
     per_task: int,
     seed: int = 20261010,
     negatives_share: float = 0.5,
+    quotas: dict[str, int] | None = None,
 ) -> list[Question]:
-    """Sample ``per_task`` questions per task type over all documents.
-
-    ``negatives_share`` of ``verify_source`` questions are false-premise negatives
-    (real text, wrong work) when the corpus has >=2 works; with a single work every
-    verify question is a positive, and that is reported loudly by the CLI.
-    """
+    """Sample questions per task over all documents (``quotas`` overrides ``per_task``
+    per task). Deterministic for a given (docs, seed). Tasks are version-gated and
+    both overlap hazards are excluded."""
     if not docs:
         raise GenerateError("no documents to generate from")
     rng = random.Random(seed)
+
+    # identifiable, canonically-cited entries, in deterministic order
     pool: list[tuple[Document, Entry]] = [
-        (d, e) for d in docs for e in d.entries if len(e.text.split()) >= MIN_WORDS_IDENTIFIABLE
+        (d, e)
+        for d in docs
+        for e in d.entries
+        if _is_canonical_citation(e.citation) and len(e.text.split()) >= MIN_WORDS_IDENTIFIABLE
     ]
-    if len(pool) < per_task:
-        raise GenerateError(
-            f"only {len(pool)} entries with >= {MIN_WORDS_IDENTIFIABLE} words; "
-            f"cannot sample {per_task} per task"
-        )
+    if not pool:
+        raise GenerateError(f"no entries with >= {MIN_WORDS_IDENTIFIABLE} words and a canonical citation")
+
     works = sorted({d.work for d in docs})
+    versions_per_work: dict[str, set[str]] = {}
+    for d in docs:
+        versions_per_work.setdefault(d.work, set()).add(d.version)
+    multi_version_works = {w for w, vs in versions_per_work.items() if len(vs) >= 2}
+
+    # normalized-text membership per work (for the verify_source negative overlap),
+    # and per (work -> text -> versions) for the identify_version ambiguity exclusion.
+    work_texts: dict[str, set[str]] = {}
+    version_texts: dict[str, dict[str, set[str]]] = {w: {} for w in multi_version_works}
+    for d in docs:
+        nt_set = work_texts.setdefault(d.work, set())
+        for e in d.entries:
+            nt = normalize(e.text)
+            nt_set.add(nt)
+            if d.work in multi_version_works:
+                version_texts[d.work].setdefault(nt, set()).add(d.version)
+
     questions: list[Question] = []
-    idx = 0
     for task in TASKS:
+        quota = (quotas or {}).get(task, per_task)
+        if quota <= 0:
+            continue
+        task_pool = pool
         if task == "complete_unit":
             task_pool = [(d, e) for d, e in pool if len(e.text.split()) >= MIN_WORDS_COMPLETABLE]
-        else:
-            task_pool = pool
-        if len(task_pool) < per_task:
-            raise GenerateError(f"task {task}: pool of {len(task_pool)} < per_task {per_task}")
-        sample = rng.sample(task_pool, per_task)
+        elif task == "identify_version":
+            if not multi_version_works:
+                continue  # version-gated: skip when no work has >=2 versions
+            # only passages whose text is unique to ONE version of the work
+            task_pool = [
+                (d, e)
+                for d, e in pool
+                if d.work in multi_version_works
+                and len(version_texts[d.work].get(normalize(e.text), ())) == 1
+            ]
+        sample = _balanced_sample(task_pool, quota, rng, task)
+        n_negatives = int(quota * negatives_share) if (task == "verify_source" and len(works) >= 2) else 0
         for i, (doc, entry) in enumerate(sample):
             neg_work = None
-            if task == "verify_source" and len(works) >= 2 and i < int(per_task * negatives_share):
-                neg_work = rng.choice([w for w in works if w != doc.work])
-            questions.append(_build(task, doc, entry, idx, neg_work=neg_work))
-            idx += 1
+            if i < n_negatives:
+                # a wrong work whose texts do NOT include this passage
+                candidates = [
+                    w for w in works if w != doc.work and normalize(entry.text) not in work_texts[w]
+                ]
+                if candidates:
+                    neg_work = rng.choice(candidates)
+            questions.append(_build(task, doc, entry, neg_work=neg_work))
+
+    if not questions:
+        raise GenerateError("generation produced no questions")
+    # stable, deterministic order independent of sampling internals
+    questions.sort(key=lambda q: (q.task, q.id))
     return questions
+
+
+# --- manifest + question-set digest ------------------------------------------
+
+
+def question_set_digest(questions: list[Question]) -> str:
+    """Content digest of the question set (order-independent): binds collect/score."""
+    h = hashlib.sha256()
+    for qid in sorted(q.id for q in questions):
+        h.update(qid.encode("utf-8"))
+        h.update(b"\0")
+    return h.hexdigest()[:16]
+
+
+def corpus_hash(docs: list[Document]) -> str:
+    """Content hash of the input corpus; any edit changes it (manifest provenance)."""
+    h = hashlib.sha256()
+    for d in sorted(docs, key=lambda d: (d.work, d.version, d.language)):
+        h.update(f"{d.work}\0{d.version}\0{d.language}\0{len(d.entries)}\0".encode("utf-8"))
+        for e in d.entries:
+            h.update(f"{e.citation}\0{e.text}\0".encode("utf-8"))
+    return h.hexdigest()[:16]
+
+
+def build_manifest(
+    docs: list[Document], questions: list[Question], seed: int, per_task: int,
+    negatives_share: float, quotas: dict[str, int] | None,
+) -> dict:
+    return {
+        "seed": seed,
+        "per_task": per_task,
+        "negatives_share": negatives_share,
+        "quotas": quotas or {},
+        "corpus_hash": corpus_hash(docs),
+        "question_set_digest": question_set_digest(questions),
+        "n_questions": len(questions),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def manifest_path(questions_path: Path) -> Path:
+    return questions_path.with_suffix(questions_path.suffix + ".manifest.json")
 
 
 def write_questions(questions: list[Question], path: Path) -> None:

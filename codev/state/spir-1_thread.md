@@ -460,3 +460,25 @@ SPIR, strict mode (porch-driven).
 ### Phase 4 — iter 3: BOTH effectively cleared (claude APPROVE; codex edge-cases addressed). porch advanced phase_4 → phase_5.
 
 ## 2026-10-11 — Implement Phase 5 (generation hardening + resume-guarded collection)
+- Rewrote generate.py: version-gated identify_version (>=2 versions of a work;
+  live for the Bible KJV/ASV/WEB, skipped otherwise); BOTH overlap exclusions
+  (identify_version skips text shared across versions; verify_source negatives skip
+  a wrong work that actually contains the text); content-derived stable IDs
+  (sha1 of task+coords+text) + deterministic sort(task,id); tradition-balanced
+  round-robin sampler with insufficient-pool fail-fast; non-canonical units
+  (unnumbered para./(dup N)) excluded from the pool (Phase 2/4 note); manifest
+  (seed/params/corpus_hash/digest) + question_set_digest.
+- collect.py: binds question_set_digest into every answer row; refuses resume
+  against a different digest (CollectError). score.py: refuses answers that mix
+  question sets (digest validation).
+- cli.py: generate writes the .manifest.json sidecar + prints digest/corpus hash;
+  CollectError/GenerateError wired to exit 2.
+- test_collect.py (NEW): fake-provider resume — dead-key cell stays pending + run
+  reports failures → fixed re-run fills EXACTLY the missing cells once; digest
+  mismatch refused; digest stamped into rows. Rewrote test_generate.py for the new
+  contract (version-gate on/off, both exclusions, balancing, insufficient-pool,
+  determinism, non-canonical exclusion, manifest/digest). 108 tests pass.
+- Verified real end-to-end: 3-version Bible → all 6 tasks incl identify_version,
+  120 Qs, manifest digest 3c9f548c, deterministic (same seed → same digest).
+  Single-work warning correct (3 versions = 1 work → verify_source negatives off;
+  identify_version on). Committing. Next: signal PHASE_COMPLETE, 2-way consult.

@@ -111,6 +111,14 @@ def score_file(answers_path: Path, scores_path: Path) -> dict:
     if not rows:
         raise ScoreError(f"{answers_path}: no answer rows")
 
+    # all answers must come from one question set (collect stamps the digest)
+    digests = {d["question_set_digest"] for d in rows if d.get("question_set_digest")}
+    if len(digests) > 1:
+        raise ScoreError(
+            f"{answers_path}: mixes {len(digests)} question sets {sorted(digests)} — "
+            "answers from different generate runs must not be scored together"
+        )
+
     scores_path.parent.mkdir(parents=True, exist_ok=True)
     per_cell: dict[tuple[str, str], dict] = {}  # (model_id, task) -> accumulators
     with open(scores_path, "w", encoding="utf-8") as out:
