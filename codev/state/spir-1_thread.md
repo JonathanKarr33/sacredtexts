@@ -193,3 +193,24 @@ SPIR, strict mode (porch-driven).
   architect). claude VERIFIED the LDS-KJV correction (309 differing verses) and
   agreed with the 6-vs-7 reading.
 - Wrote 1-phase_1-iter1-rebuttals.md. Committing revisions + artifacts.
+
+### Phase 1 — iter 2 impl consult (codex REQUEST_CHANGES/HIGH, claude COMMENT/HIGH)
+
+- Both confirmed iter-1 fixes landed (claude re-verified the real tree). Two
+  residual asymmetries + minors. Accepted all, no disputes. 53 tests pass.
+- **convert raw gate still fail-open on unmapped paths** (both): `nabre (1).json`
+  converted with no flag. Fixed: convert now refuses None (uncatalogued) AND
+  restricted by default; --include-restricted is the single opt-in. CLI test.
+- **standardized tie-break + slug collisions** (both): tie now prefers
+  `restricted`; load asserts same-slug targets agree on license. Tests.
+- **README drift** (both): convert examples now use the standardized_dir
+  convention + NABRE has --include-restricted; generate distinguishes
+  path-not-found / no-docs / unmapped. CLI test.
+- **fetch_date unknown discarded a known date** (claude): texts/README.md records
+  the Box drop 2026-10-10. Updated all committed sources' provenance to Box drop
+  2026-10-10 (upstream dates kept in retrieved_from); restricted held-back ones
+  stay unknown.
+- Minor: yaml errors wrapped in CatalogueError (+ test); _slugify collapses
+  doubled hyphens (before Phase 2 writes dirs). Phase-2 notes: catalogue-driven
+  convert closes the raw hole structurally; keep skipping encyclicals/index.json.
+- Wrote 1-phase_1-iter2-rebuttals.md. Committing + re-consulting (iter 3).

@@ -6,7 +6,7 @@
 # glob resolves to nothing until a user supplies it locally.
 provenance:
   retrieved_from: Thesaurus Linguae Graecae (TLG); Rahlfs Septuagint / Nestle-Aland editions
-  fetch_method: licensed corpus extract — payload held back from this public repo
+  fetch_method: licensed corpus extract, held back; obtain from working-group Box ("Phase I / raw JSON")
   fetch_date: unknown
 notes: >-
   Payload absent from the public repo. Converter and metadata are recorded for

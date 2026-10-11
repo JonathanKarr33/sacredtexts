@@ -1,0 +1,45 @@
+I'll start by locating the worktree and reading the implementation files.Now the CLI wiring, tests, and gitignore.Now the catalogue YAMLs and the real tree they describe.Now let me verify the catalogue's payload globs actually resolve against the real tree (read-only checks).I've verified the implementation against the real tree. Here's my review.
+
+## What I verified independently
+
+**Catalogue loads and matches the plan's design** — `discover_catalogue()` on the real tree yields **6 sources / 23 targets / 21 selected** (2 restricted excluded). The `targets:` manifest shape, the 3-value `license` enum with verbatim `license_detail`, and the `standardized_dir` convention all match the Phase 1 design decisions in the plan.
+
+**Every payload glob resolves against the real data** (I globbed them directly):
+- Protestant kjv/asv/web → 1 each; Sunni Quran + 9 hadith → 1 each; LDS 5 works → 1 each; encyclicals `en/*.json` → **201**.
+- Talmud split: `*- en -*` → **35**, `*- he -*` → **35**, `Talmud Bavli/**/*.json` total **70**, **zero unmatched, zero double-counted**. The iter-1 language-split fix is correct, including the English tractates in the `Talmud - English Translation (Davidson)/` subdirectory.
+- The only zero-match globs are `Roman Catholic/nabre.json` and `Greek Orthodox/*.json` — the held-back restricted payloads, as designed.
+
+**Gitignore reachability holds** (`git check-ignore` on the real repo): all 6 `source.yaml` are trackable *and* tracked; `nabre.json`, `Greek Orthodox/septuagint.json`, a nested `Greek Orthodox/sub/dir/x.json`, and `texts/standardized/**` are all ignored.
+
+**The iter-1 fail-open fix is real in code**, not just claimed: `CatalogueMissing` is a distinct type, `_require_catalogue` converts it to a loud `BadParameter`, and `filter_standardized_paths` raises on an unmapped file rather than passing it through. CLI-level tests exercise all four paths.
+
+**Tests pass**: 47 passed (run read-only with `--no-sync`, `PYTHONDONTWRITEBYTECODE=1`, `-p no:cacheprovider`; the tree is unchanged by my review).
+
+## Findings (none blocking)
+
+**1. `convert`'s raw-path gate is still fail-open for out-of-catalogue paths.** `license_for_raw_path` returns `None` for an unmapped file, and the gate only refuses `== "restricted"`. Concretely: the NABRE target's glob is exactly `nabre.json`, so `texts/raw/Roman Catholic/nabre (1).json` is both git-trackable and convertible with no flag and no warning. This is the inverse of the standardized side, which you deliberately made fail-closed. I accept your argument that catalogue-driven `convert` is Phase 2 — but please make Phase 2's `convert_target` resolve inputs *only* from catalogue targets, so the hole closes rather than persisting behind a now-asymmetric gate.
+
+**2. README drift that the new fail-closed path makes user-visible.** Step 1 still writes to `texts/bible-nabre.json` / `texts/encyclicals/` (both gitignored and declared "legacy, superseded"), while step 3 now reads `texts/standardized` with path-based license recovery. Following the README verbatim: nothing lands in `texts/standardized`, then `generate texts/standardized` hits `expand_json`, which appends a *nonexistent* path unchanged (`is_dir()` is False) and fail-closes with `not under any catalogue target's standardized directory … refusing (fail-closed)`. Loud, but it reports "you haven't converted anything yet" as a license-verification failure. Two cheap fixes: distinguish *path absent / no documents found* from *exists but unmapped*, and point step 1 at the `standardized_dir` convention (or mark it "Phase 2").
+
+**3. `license_for_standardized_path` tie-breaks by first-at-max-depth, not most-conservative** — unlike `build_raw_license_index`, which deliberately lets `restricted` win. I checked for live collisions: the only one is the intentional LDS OT/NT pair, and both are `public-domain`, so there's no fail-open today. But it's a latent copyright hazard, and slug collapse makes it more reachable than it looks (`ASV (1901)` → `asv--1901-`). Two one-liners remove the class: prefer `restricted` on ties, and assert at load that colliding `(source_id, slug)` targets agree on license.
+
+**4. `fetch_date: unknown` discards a date the repo already knows.** Sunni Islam, Judaism, and LDS all record `unknown`, yet `texts/README.md` states these came from the working group's Box folder "Phase I / raw JSON", **downloaded 2026-10-10** — and `retrieved_from` names only the upstream (sefaria.org, QUL, sunnah.com, Ben Crowder), omitting the Box channel that was the actual fetch. The spec asks for "where it came from, how it was fetched, fetch date". Recommend `fetch_method: working-group Box drop (Phase I / raw JSON)`, `fetch_date: "2026-10-10"`, upstream attribution staying in `retrieved_from`/`notes`, and reserving `unknown` for the genuinely unknown *upstream* generation date. Honest either way — but currently less informative than the evidence allows.
+
+**5. Minor: `yaml.safe_load` errors aren't wrapped.** A syntactically broken `source.yaml` escapes as `yaml.YAMLError`, which `main()`'s handler doesn't catch — traceback + exit 1 instead of `error: …` + exit 2. PyYAML's mark does name the file so it is loud, and no test covers malformed-YAML (as distinct from malformed-schema).
+
+**6. Minor: `_slugify` leaves doubled hyphens** (`the-bible-asv--1901--en`, `septuagint---greek-new-testament-tlg-grc`). Collapsing runs of `-` is cheaper *now* than after Phase 2 writes those directories — once standardized dirs exist, the slug function is load-bearing for license recovery and changing it orphans them.
+
+**7. Note for Phase 2**: `encyclicals/index.json` is under no target's payload glob, so it carries no catalogue license. Harmless today, but a catalogue-driven convert that expands the encyclicals directory will pick it up.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase 1 is complete and independently verified against the real tree (6 sources/23 targets, all globs resolve, 70 Talmud shards partitioned exactly, gitignore negations hold, 47 tests pass); the iter-1 fail-open fix is genuinely in the code, with small residual asymmetries worth closing.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `convert`'s raw-path gate remains fail-open for out-of-catalogue paths (`nabre (1).json` converts with no flag) — asymmetric with the now fail-closed standardized filter; Phase 2's `convert_target` must resolve inputs only from the catalogue.
+- README step 1 still writes legacy gitignored paths while step 3 reads `texts/standardized`, so following it verbatim surfaces the fail-closed message as a misleading license error on an absent directory.
+- `license_for_standardized_path` tie-breaks first-at-max-depth instead of preferring `restricted` (no live collision today; latent copyright hazard, one-line fix plus a load-time slug/license-agreement assertion).
+- `fetch_date: unknown` on three sources despite `texts/README.md` recording the 2026-10-10 Box drop; `retrieved_from` omits the Box fetch channel.
+- Minor: `yaml.YAMLError` not wrapped in `CatalogueError` (escapes `main()`'s clean handler, untested); `_slugify` doubled hyphens are cheapest to fix before Phase 2 writes standardized dirs.

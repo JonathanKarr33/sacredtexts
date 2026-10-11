@@ -44,15 +44,24 @@ Run everything from the **repo root**:
 ```bash
 uv --project pipelines run python -m sacredbench --help
 
-# 1. Convert known source shapes into the standard flat format
-#    (restricted sources are refused unless --include-restricted is passed)
-uv --project pipelines run python -m sacredbench convert nabre <books...|dir> \
-    --out texts/bible-nabre.json --tradition Christianity --tradition Catholic
-uv --project pipelines run python -m sacredbench convert encyclicals <files|dir> \
-    --out texts/encyclicals --tradition Catholic
+# 1. Convert known source shapes into the standard flat format. Output goes under
+#    the standardized-path convention so `generate` can recover each doc's license:
+#      texts/standardized/<source-id>/<target-slug>/
+#    A raw input that isn't in the catalogue, or a restricted one, is refused
+#    unless --include-restricted is passed (fail-closed).
+#    (Phase 2 makes `convert` fully catalogue-driven — one command over all
+#     selected targets; the explicit per-format form below is the seed interface.)
+uv --project pipelines run python -m sacredbench convert encyclicals \
+    "texts/raw/Roman Catholic/encyclicals/en" --tradition "Roman Catholic" \
+    --out "texts/standardized/Roman Catholic/papal-encyclicals-vatican-english-en"
+# Restricted example (requires the local held-back payload):
+uv --project pipelines run python -m sacredbench convert nabre \
+    "texts/raw/Roman Catholic/nabre.json" --tradition "Roman Catholic" \
+    --out "texts/standardized/Roman Catholic/the-bible-nabre-en/nabre.json" \
+    --include-restricted
 
-# 2. Mechanically validate any standard-format documents
-uv --project pipelines run python -m sacredbench validate texts/
+# 2. Mechanically validate any standard-format documents (license-agnostic)
+uv --project pipelines run python -m sacredbench validate texts/standardized
 
 # 3. Generate questions (six working-group templates; deterministic; incl.
 #    false-premise negatives when the corpus has >=2 works). Inputs are

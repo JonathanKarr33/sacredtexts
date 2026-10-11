@@ -9,9 +9,9 @@
 # unit and the English-only first run can select by path.
 source_url: https://www.sefaria.org/
 provenance:
-  retrieved_from: https://www.sefaria.org/ (William Davidson Edition text export)
-  fetch_method: Sefaria text export (JSON per tractate/language)
-  fetch_date: unknown
+  retrieved_from: https://www.sefaria.org/ (William Davidson Edition text export, JSON per tractate/language)
+  fetch_method: working-group Box drop ("Phase I / raw JSON")
+  fetch_date: "2026-10-10"
 notes: >-
   William Davidson Edition (Koren Noe / Steinsaltz). Internal license CC-BY-NC,
   recorded in license_detail and mapped to the "open" enum.

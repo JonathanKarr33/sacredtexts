@@ -276,16 +276,16 @@ def test_cli_generate_filters_restricted(tmp_path):
         ["generate", str(std), "--raw-root", str(raw), "--standardized-root", str(std)],
     )
     assert r.exit_code != 0
-    assert "no standardized documents" in r.output
+    assert "restricted and excluded" in r.output
 
-    # opt-in: the restricted doc is included (so the "nothing to generate" guard
-    # does NOT trigger; generation may still fail later on the tiny pool)
+    # opt-in: the restricted doc is included (so the "all excluded" guard does NOT
+    # trigger; generation may still fail later on the tiny pool)
     r2 = runner.invoke(
         app,
         ["generate", str(std), "--raw-root", str(raw), "--standardized-root", str(std),
          "--include-restricted"],
     )
-    assert "no standardized documents" not in r2.output
+    assert "restricted and excluded" not in r2.output
 
 
 def test_cli_generate_fail_closed_on_unmapped(tmp_path):
@@ -310,6 +310,80 @@ def test_cli_gate_requires_catalogue(tmp_path):
     )
     assert r.exit_code != 0
     assert "catalogue" in r.output.lower()
+
+
+# --- iter-2 review fixes -----------------------------------------------------
+
+
+def test_slugify_collapses_runs():
+    t = cat.Target(
+        source_id="x", payload="p", converter="c", work="The Bible",
+        version="ASV (1901)", language="en", document_type="scripture",
+        tradition=("x",), license="public-domain", provenance=cat.Provenance("a", "b", "c"),
+    )
+    assert t.slug == "the-bible-asv-1901-en"  # no doubled hyphens
+
+
+def test_same_slug_license_disagreement_fails(tmp_path):
+    item = _TARGET[len("targets:\n"):]  # one list item, same (work, version, language)
+    body = PROV + "targets:\n" + item + "\n" + item.replace("license: open", "license: restricted") + "\n"
+    y = _write(tmp_path / "texts" / "raw" / "X" / "source.yaml", body)
+    with pytest.raises(cat.CatalogueError) as e:
+        cat.load_source(y, tmp_path / "texts" / "raw")
+    assert "disagree on license" in str(e.value)
+
+
+def test_malformed_yaml_wrapped(tmp_path):
+    y = _write(tmp_path / "texts" / "raw" / "X" / "source.yaml", "targets: [unclosed\n")
+    with pytest.raises(cat.CatalogueError) as e:
+        cat.load_source(y, tmp_path / "texts" / "raw")
+    assert "invalid YAML" in str(e.value)
+
+
+def test_standardized_tie_prefers_restricted(tmp_path):
+    std = tmp_path / "std"
+    common = dict(
+        source_id="x", payload="p", converter="c", work="W", version="V",
+        language="en", document_type="scripture", tradition=("x",),
+        provenance=cat.Provenance("a", "b", "c"),
+    )
+    open_t = cat.Target(license="open", **common)
+    restricted_t = cat.Target(license="restricted", **common)
+    doc = _std_doc(open_t.standardized_dir(std) / "d.json")  # same dir for both
+    # most-conservative wins the depth tie, regardless of target order
+    assert cat.license_for_standardized_path(doc, [_src(open_t, restricted_t)], std) == "restricted"
+    assert cat.license_for_standardized_path(doc, [_src(restricted_t, open_t)], std) == "restricted"
+
+
+def _src(*targets: cat.Target) -> cat.Source:
+    return cat.Source(
+        source_id=targets[0].source_id, yaml_path=Path("x/source.yaml"),
+        targets=tuple(targets), provenance=cat.Provenance("a", "b", "c"),
+    )
+
+
+def test_cli_convert_refuses_uncatalogued_path(tmp_path):
+    raw = _fixture_tree(tmp_path)
+    stray = raw / "Roman Catholic" / "nabre (1).json"  # exists, matched by no glob
+    stray.write_text("{}", encoding="utf-8")
+    r = runner.invoke(
+        app,
+        ["convert", "nabre", str(stray), "--out", str(tmp_path / "o.json"),
+         "--tradition", "Roman Catholic", "--raw-root", str(raw)],
+    )
+    assert r.exit_code != 0
+    assert "not in the source catalogue" in r.output
+
+
+def test_cli_generate_reports_missing_path_distinctly(tmp_path):
+    raw = _fixture_tree(tmp_path)
+    r = runner.invoke(
+        app,
+        ["generate", str(tmp_path / "texts" / "standardized"),
+         "--raw-root", str(raw), "--standardized-root", str(tmp_path / "texts" / "standardized")],
+    )
+    assert r.exit_code != 0
+    assert "input path not found" in r.output  # not a misleading license error
 
 
 # --- gitignore reachability (regression guard for the real repo) -------------

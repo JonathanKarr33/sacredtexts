@@ -84,7 +84,13 @@ def convert(
         sources = _require_catalogue(raw_root)
         index = cat.build_raw_license_index(sources, raw_root)
         for path in cat.expand_json(list(inputs)):
-            if cat.license_for_raw_path(path, sources, raw_root, index=index) == "restricted":
+            lic = cat.license_for_raw_path(path, sources, raw_root, index=index)
+            if lic is None:
+                raise typer.BadParameter(
+                    f"{path} is not in the source catalogue — cannot verify its license "
+                    "(fail-closed; add it to a source.yaml, or pass --include-restricted)"
+                )
+            if lic == "restricted":
                 raise typer.BadParameter(
                     f"refusing restricted source {path} (pass --include-restricted to convert it)"
                 )
@@ -132,14 +138,26 @@ def generate(
 ) -> None:
     """Generate benchmark questions from the six working-group templates."""
     sources = _require_catalogue(raw_root)
+    for p in inputs:
+        if not Path(p).exists():
+            raise typer.BadParameter(
+                f"input path not found: {p} — run `convert` to populate "
+                f"{standardized_root} first"
+            )
+    files = cat.expand_json(list(inputs))
+    if not files:
+        raise typer.BadParameter(
+            f"no standardized .json documents found under {[str(p) for p in inputs]} "
+            "— run `convert` first"
+        )
     kept = cat.filter_standardized_paths(
-        list(inputs), sources, include_restricted=include_restricted,
+        files, sources, include_restricted=include_restricted,
         standardized_root=standardized_root,
     )
     if not kept:
         raise typer.BadParameter(
-            "no standardized documents to generate from "
-            "(all inputs were restricted and excluded, or none matched)"
+            "all standardized documents were restricted and excluded "
+            "(pass --include-restricted to include them)"
         )
     docs = schema.load_documents(kept)
     questions = run_generate(docs, per_task=per_task, seed=seed)

@@ -9,8 +9,8 @@
 # merge into one document downstream.
 provenance:
   retrieved_from: Ben Crowder LDS scripture reference compilations (2013 edition)
-  fetch_method: downloaded JSON
-  fetch_date: unknown
+  fetch_method: working-group Box drop ("Phase I / raw JSON")
+  fetch_date: "2026-10-10"
 notes: >-
   Reference compilations by Ben Crowder of the LDS 2013 edition scriptures.
 targets:

@@ -4,8 +4,8 @@
 # (Phase 3). All Arabic.
 provenance:
   retrieved_from: Quranic Universal Library (qul.tarteel.ai); sunnah.com (hadith, Arabic)
-  fetch_method: downloaded JSON
-  fetch_date: unknown
+  fetch_method: working-group Box drop ("Phase I / raw JSON")
+  fetch_date: "2026-10-10"
 notes: >-
   Qur'an: KFGQPC Uthmani script via the Quranic Universal Library (QUL).
   Hadith: classical Arabic text mirrored from sunnah.com (Arabic only).

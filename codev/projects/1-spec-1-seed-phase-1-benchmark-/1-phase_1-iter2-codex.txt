@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Prior licensing and provenance defects are fixed, but two remaining fail-open paths undermine the catalogue as the licensing control point.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `convert` still permits uncatalogued raw inputs by default. `license_for_raw_path()` returns `None`, while `cli.py:87` rejects only `"restricted"`. A renamed, misplaced, or otherwise unmapped restricted payload therefore bypasses the gate. Default conversion should fail closed on `None`, with a CLI test.
+- Standardized-path license recovery is order-dependent when targets produce the same slug. `license_for_standardized_path()` keeps the first equal-depth match; the schema permits collisions, and LDS already intentionally shares a standardized directory. Conflicting licenses could expose restricted output. Reject conflicting directory mappings during catalogue loading or resolve them conservatively.
+- `pipelines/README.md:49-52` contradicts the implemented rules: the NABRE example omits `--include-restricted`, and both examples write to legacy paths outside `texts/standardized/<source-id>/<target-slug>/`, making their output unusable by the fail-closed `generate` command. Update the examples to the documented convention.

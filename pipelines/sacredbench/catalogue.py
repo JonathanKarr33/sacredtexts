@@ -76,7 +76,17 @@ class CatalogueMissing(CatalogueError):
 
 
 def _slugify(text: str) -> str:
-    return "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")
+    """Lowercase alnum, runs of anything else collapsed to a single hyphen."""
+    out: list[str] = []
+    prev_dash = False
+    for c in text.lower():
+        if c.isalnum():
+            out.append(c)
+            prev_dash = False
+        elif not prev_dash:
+            out.append("-")
+            prev_dash = True
+    return "".join(out).strip("-")
 
 
 @dataclass(frozen=True)
@@ -146,7 +156,10 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
     """Parse and validate one ``source.yaml``. Raises ``CatalogueError`` fail-fast."""
     where = str(yaml_path)
     with open(yaml_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
+        try:
+            data = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise CatalogueError(f"{where}: invalid YAML ({e})") from e
     if not isinstance(data, dict):
         raise CatalogueError(f"{where}: top level must be a mapping")
     try:
@@ -204,6 +217,17 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
                 license_detail=detail,
             )
         )
+    # Targets that share a standardized directory (slug) must agree on license, or
+    # license recovery by path would be ambiguous and could expose restricted text.
+    by_slug: dict[str, set[str]] = {}
+    for t in targets:
+        by_slug.setdefault(t.slug, set()).add(t.license)
+    for slug, licenses in by_slug.items():
+        if len(licenses) > 1:
+            raise CatalogueError(
+                f"{where}: targets sharing standardized slug {slug!r} disagree on "
+                f"license {sorted(licenses)} — they would collide in one directory"
+            )
     return Source(
         source_id=source_id,
         yaml_path=yaml_path,
@@ -274,8 +298,10 @@ def license_for_standardized_path(
 ) -> str | None:
     """License of a standardized document, recovered from its path.
 
-    Matches the deepest target ``standardized_dir`` that contains ``path``.
-    Returns ``None`` if the path is under no target directory.
+    Matches the deepest target ``standardized_dir`` that contains ``path``. On a
+    depth tie the most conservative license (``restricted``) wins, so a collision
+    can never downgrade a restricted document. Returns ``None`` if the path is
+    under no target directory.
     """
     resolved = Path(path).resolve()
     best_depth = -1
@@ -284,7 +310,7 @@ def license_for_standardized_path(
         target_dir = t.standardized_dir(standardized_root).resolve()
         if resolved == target_dir or target_dir in resolved.parents:
             depth = len(target_dir.parts)
-            if depth > best_depth:
+            if depth > best_depth or (depth == best_depth and t.license == "restricted"):
                 best_depth, best_license = depth, t.license
     return best_license
 
