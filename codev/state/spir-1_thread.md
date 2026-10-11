@@ -767,3 +767,8 @@ SPIR, strict mode (porch-driven).
   (Phases 2/4/5 final verdicts) + added review-phase disposition section.
   Gate: pipelines 150, viewer 412/9. NEXT: commit+push, re-run PR consult (iter-2),
   signal architect. pr gate remains a HUMAN decision.
+- PR gate SURFACED (porch gate 1) → WAITING FOR HUMAN APPROVAL. All PR-consult +
+  architect pre-merge items resolved (HEAD 6682737). I will NOT run `porch approve 1 pr`
+  (human-only, relayed by architect). Open decisions for the human: (a) merge approval;
+  (b) Vatican encyclicals license:open vs restricted (©LEV) sign-off. On approval:
+  porch approve 1 pr (relayed) → merge → porch done 1 --merged 3 → verify.
