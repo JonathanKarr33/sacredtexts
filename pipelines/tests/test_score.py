@@ -134,6 +134,16 @@ def test_cite_passage_lowercase_hedge_caught():
     assert score_answer("cite_passage", "perhaps sahih al-bukhari 1, or sahih muslim 2", {"citation": "Sahih al-Bukhari 1"})["correct"] == 0
 
 
+def test_cite_passage_paragraph_shape():
+    # encyclical citations ("<Title>, para. N") — single correct vs hedge
+    assert score_answer("cite_passage", "The citation is Rerum Novarum, para. 5.",
+                        {"citation": "Rerum Novarum, para. 5"})["correct"] == 1
+    assert score_answer("cite_passage", "maybe Rerum Novarum, para. 5 or Rerum Novarum, para. 6",
+                        {"citation": "Rerum Novarum, para. 5"})["correct"] == 0
+    assert score_answer("cite_passage", "Either Rerum Novarum para. 5 or Quadragesimo Anno para. 5",
+                        {"citation": "Rerum Novarum, para. 5"})["correct"] == 0
+
+
 def test_identify_source_single_candidate():
     ok = score_answer("identify_source", "From Jude, Jude 1:3.", {"work": "Jude", "citation": "Jude 1:3"})
     assert ok["correct"] == 1

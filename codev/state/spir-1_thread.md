@@ -589,3 +589,17 @@ SPIR, strict mode (porch-driven).
   identify_version short-label strictness (accepted limitation, not in first run);
   tradition .get tolerance (kept intentional).
 - Committing + re-consulting (iter 4).
+
+### Phase 6 — iter 4 impl consult (codex COMMENT, claude REQUEST_CHANGES / HIGH)
+
+- codex COMMENT (all requirements met). claude: 1 hole — _PARA_CITE greedy prefix
+  collapsed encyclical hedges ("Rerum Novarum, para. 5 or ... para. 6" -> 1 cand ->
+  correct=1) AND the para branch had NO tests (why 2 rounds missed it). Accepted.
+- Fix (claude's, verified): (?![Pp]ara) guard on prefix words so each para. N is its
+  own candidate. Added both-direction para regression tests. 133 pass.
+- README: documented per-task contract + tradition breakdown + --summary-md /
+  --questions/--config flags (Phase 7/8 consume them).
+- Disposition: identify_source work-field hedge (containment) scores correct=1 on a
+  work-only hedge — accepted low-priority limitation (citation already anti-hedged,
+  work_found auditable, not in first run).
+- Committing + re-consulting (iter 5).

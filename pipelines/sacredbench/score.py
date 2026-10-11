@@ -85,7 +85,9 @@ def _contains(answer: str, needle: str) -> bool:
 # by the SHAPE of the ground-truth citation — a colon citation only counts colon
 # spans, so an incidental "ASV 1901" or "Chapter 1" is not a spurious candidate.
 _COLON_CITE = re.compile(r"(?:[A-Za-z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
-_PARA_CITE = re.compile(r"(?:[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
+# the (?![Pp]ara) guard stops the greedy prefix from swallowing an earlier
+# "para. N", so each paragraph citation in a hedge is its own candidate
+_PARA_CITE = re.compile(r"(?:(?![Pp]ara)[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
 # number-only (hadith "Sahih al-Bukhari 1"): >=1 leading word + a TERMINAL number
 _NUM_CITE = re.compile(r"(?:[A-Za-z][^\s,:]*\s+){1,8}\d+(?![\d:ab])")
 

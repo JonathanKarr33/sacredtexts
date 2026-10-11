@@ -1,0 +1,8 @@
+---
+VERDICT: COMMENT
+SUMMARY: Phase 6 meets its scoring, anti-hedge, raw-count aggregation, tradition breakdown, and missing-cell requirements with strong regression coverage.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Non-blocking: `score.py`’s module docstring still describes the former containment-based rules and should be updated to reflect label equality and single-candidate citation scoring.
+- Non-blocking: `ScoreError` is not included in `cli.main()`’s handled exceptions, so invalid scoring input produces a traceback rather than the CLI’s normal concise error output.

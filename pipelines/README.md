@@ -81,8 +81,17 @@ uv --project pipelines run python -m sacredbench generate texts/standardized --p
 cp configs/models.example.yaml configs/models.yaml   # then edit; keys via env
 uv --project pipelines run python -m sacredbench collect runs/questions.jsonl configs/models.yaml
 
-# 5. Score (strict + normalized + token-F1) and print the summary table
-uv --project pipelines run python -m sacredbench score runs/answers.jsonl
+# 5. Score and print the summary. Per-task contract: retrieve_quote/complete_unit
+#    -> normalized-exact (+ exact/token-F1); verify_source -> boolean; identify_version
+#    -> label exact/normalized; cite_passage/identify_source -> the SINGLE extracted
+#    citation must equal ground truth (a multi-candidate hedge scores 0). The summary
+#    also breaks down per model x task x TRADITION (each observation once per listed
+#    tradition). Optional flags:
+#      --summary-md PATH            also write the markdown summary (Phase 8 evidence)
+#      --questions Q --config CFG   report missing/failed cells against the panel x
+#                                   question-set roster (expected_n / 'miss N')
+uv --project pipelines run python -m sacredbench score runs/answers.jsonl \
+    --questions runs/questions.jsonl --config configs/models.yaml --summary-md runs/summary.md
 ```
 
 Tests: `uv --project pipelines run pytest pipelines` (fixtures are real-SHAPE but
