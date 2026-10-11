@@ -158,8 +158,20 @@ generated_at), aggregate.ts standings key, 190 tests.
 (Did NOT re-touch approved phase 2 for these — they're non-blocking / operational, per the Phase-1
 lesson about not eagerly re-opening approved phases.)
 
+## Phase 3 — BLOCKED on credentials + paid-spend authorization (2026-10-11)
+Free/deterministic prep DONE + verified (on disk at runs/tutorial-2026-10-11/, gitignored WIP):
+- generate: 30 questions, seed 20261011, per-task 30, 3 corpora. VERIFIED: 10/10/10 across
+  Sunni Islam / Judaism / Protestant Christian; expected-text script 10 Arabic / 10 Hebrew / 10
+  Latin. digest 0e3af4805373e5e5, corpus ed3f05dcf703e2e3. audit OK (origin-only, clean).
+BLOCKER: `ANTHROPIC_API_KEY` NOT in builder env → paid web-search collect can't run. AND the
+collect is a real spend (30Q × 4 entries = 120 cells; 60 web-search, max_uses 5 each) — budget
+authorization is the human/architect's call, not mine. Notified architect; signalled BLOCKED; waiting.
+Do NOT fabricate the run. When unblocked, resume at: smoke (pause_turn hard gate #1) → full collect
+→ score (unpriced) → clearance (review ALL search-on answers, strip web bidi/joiner/BOM) → audit →
+commit run + README + gitignore negation.
+
 ### Next
-porch next 8 → advance to Phase 3 (LIVE/PAID run).
+WAIT for architect: key + spend go-ahead, OR architect runs collect & hands me answers, OR defer P3.
 ⚠️ Phase 3 = paid Anthropic web-search run. Order: convert → generate (seed 20261011, per-task 30,
 3 corpora) → audit → SMOKE (few cells, check pause_turn gate #1) → full collect → score (unpriced)
 → copyright-clearance (review ALL search-on answers; strip web bidi/joiner/BOM chars if present) →
