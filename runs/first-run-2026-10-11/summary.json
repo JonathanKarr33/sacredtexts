@@ -1,0 +1,306 @@
+{
+ "models": {
+  "claude-haiku": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.24,
+    "exact": 0.16,
+    "normalized": 0.24,
+    "token_f1": 0.505,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.24,
+    "expected_n": 100,
+    "missing": 0
+   }
+  },
+  "gemma-3-4b": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.0,
+    "exact": 0.0,
+    "normalized": 0.0,
+    "token_f1": 0.1496,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.0,
+    "expected_n": 100,
+    "missing": 0
+   }
+  },
+  "gpt-oss-20b": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.0,
+    "exact": 0.0,
+    "normalized": 0.0,
+    "token_f1": 0.13,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.0,
+    "expected_n": 100,
+    "missing": 0
+   }
+  },
+  "llama-3.1-8b": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.01,
+    "exact": 0.01,
+    "normalized": 0.01,
+    "token_f1": 0.2085,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.01,
+    "expected_n": 100,
+    "missing": 0
+   }
+  }
+ },
+ "by_tradition": {
+  "claude-haiku": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.24,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.24,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Roman Catholic": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "The Church of Jesus Christ of Latter-Day Saints": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.72,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.72,
+     "expected_n": 25,
+     "missing": 0
+    }
+   }
+  },
+  "gemma-3-4b": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Roman Catholic": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "The Church of Jesus Christ of Latter-Day Saints": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   }
+  },
+  "gpt-oss-20b": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Roman Catholic": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "The Church of Jesus Christ of Latter-Day Saints": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   }
+  },
+  "llama-3.1-8b": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "Roman Catholic": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.0,
+     "expected_n": 25,
+     "missing": 0
+    }
+   },
+   "The Church of Jesus Christ of Latter-Day Saints": {
+    "retrieve_quote": {
+     "n": 25,
+     "accuracy": 0.04,
+     "expected_n": 25,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 25,
+     "accuracy": 0.04,
+     "expected_n": 25,
+     "missing": 0
+    }
+   }
+  }
+ }
+}

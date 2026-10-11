@@ -676,3 +676,23 @@ SPIR, strict mode (porch-driven).
   score -> commit answers/scores/summary/summary.md under runs/first-run-2026-10-11/
   -> audit the full evidence -> point viewer at ?run=/runs/first-run-2026-10-11 and
   verify -> run the phase_8 2-way consult on the COMPLETE phase -> mark PR ready.
+- LIVE RUN DONE (keys sourced out-of-repo, never echoed/committed; models.yaml
+  gitignored). Panel: 4 models / 2 serving providers — claude-haiku (anthropic
+  direct) + openai/gpt-oss-20b, google/gemma-3-4b, meta-llama/llama-3.1-8b (all via
+  OpenRouter, OpenAI-compatible). gpt-oss (reasoning model) needed max_tokens 4096
+  to stop returning empty; collect is resumable so the 13 stragglers filled cleanly
+  -> 400/400 answers.
+- Results (retrieve_quote, strict "exact text and nothing else" = Phase-6 contract):
+  claude-haiku 24% (72% LDS, 24% Protestant, 0% Catholic/Judaism; meanF1 0.51, 17
+  near-misses lost to the format rule), llama 1%, gemma 0%, gpt-oss 0%. The three
+  small models' ~0% is GENUINE (meanF1 0.13-0.21 = wrong text, refuse/paraphrase/
+  hallucinate = the target failure mode), not a scoring artifact. Clear
+  discrimination; loop closed on real data. token_f1 surfaces the near-miss gap; a
+  relaxed "quote-contained" metric is a reasonable Phase-2 refinement (NOT changing
+  the gated contract now).
+- Safety: scanned all evidence for sk-/AIza/Bearer key strings -> clean;
+  configs/models.yaml ignored+untracked; full-evidence copyright audit OK.
+- Viewer: added src/local/realRun.test.ts — runs the viewer's own loadRun() against
+  the committed run (4 models, 400 joined cells, discriminates). The "view the real
+  run" step is now pinned in the gate. Committed answers/scores/summary(.json/.md).
+- NEXT: full gate -> phase_8 2-way consult -> take PR #3 out of draft -> signal.
