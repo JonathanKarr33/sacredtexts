@@ -9,6 +9,11 @@
 - **Copyright gate**: corpora derived from copyrighted translations (e.g. NABRE) are NOT committed to this public repo — `texts/*` is gitignored; converters rebuild locally from the source repos.
 - `pipelines/` is a single uv project (`sacredbench`); run via `uv --project pipelines run python -m sacredbench …` from the repo root. Providers: anthropic / any OpenAI-compatible host (base_url+api_key_env) / gemini; keys from env only.
 - `apps/viewer/` is a **seed port of multibench's multibrowser** (client-side GitHub data layer, SHA-pinned) — not yet adapted to this domain; read `apps/viewer/README.md` before touching it.
+- **Copyright audit gate** (`pipelines/sacredbench/audit.py`, in `.codev/checks/test.sh`): no committed artifact may derive from a `restricted` source — origin always, plus a restricted-text content layer when the held-back payloads are present locally. Never commit a standardized doc or run artifact built from a restricted target.
 
 ## Map of arch.md (consult when…)
-- (arch.md not yet written — seed it from Spec 1 after the first implementation round.)
+- **Texts: two tiers + catalogue** — adding/altering a corpus, `source.yaml`, or the licence gate.
+- **Interchange format** — exporting or consuming the working-group flat JSON.
+- **Pipeline (four subsystems)** — touching convert/generate/collect/score/providers/config.
+- **Viewer local results** — rendering a run locally.
+- **Run evidence layout / Test gate** — committing run evidence or wiring tests.

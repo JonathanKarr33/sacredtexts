@@ -10,6 +10,10 @@
 - **A client-side GitHub data layer** is unauthenticated (60/hr per IP): SHA-pin the tree, fetch content via `raw`, poll gently, serve stale + banner on 403 (ported with apps/viewer — details in `apps/viewer/README.multibrowser.md`).
 - **HeroUI v3 is provider-less** — don't add a v2-era provider to the viewer.
 - Gemini's per-phase impl/review consult can't see the worktree → per-phase consult is `["codex","claude"]` (set in `.codev/config.json`).
+- **Never re-run `collect`/`score`/`generate` over committed run evidence** — write to a fresh `runs/<id>/`. Collect resume-skips every cell (zero calls) and a keyless score overwrites the committed panel/usage proof with nulls.
 
 ## Map of lessons-learned.md (consult when…)
-- (lessons-learned.md not yet written — demote entries here as the hot tier fills.)
+- **Scoring & evaluation** — designing/changing a scoring contract or interpreting scores.
+- **Live runs & providers** — running a panel, picking model slugs, debugging empty/failed cells.
+- **Evidence & copyright** — committing run evidence or reasoning about the audit.
+- **Process / SPIR** — consult dispositions, deriving formats from real data.

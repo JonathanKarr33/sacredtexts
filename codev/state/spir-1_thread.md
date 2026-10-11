@@ -743,3 +743,10 @@ SPIR, strict mode (porch-driven).
       abstention(gpt-oss ~58/100 refusals)-vs-fabrication(gemma/llama) caveat, haiku
       near-misses, origin-only audit scope.
   Gate: pipelines 142, viewer 412/9. NEXT: porch done -> should advance phase_8.
+- REVIEW phase: wrote codev/reviews/1-phase1-benchmark-pipeline.md (full template:
+  spec compliance, deviations, per-phase consult dispositions, lessons, routing,
+  follow-ups). Routed governance: seeded cold arch.md + lessons-learned.md; added 1
+  hot fact (audit gate) to arch-critical (now 9) + 1 hot lesson (fresh-path evidence)
+  to lessons-critical (now 10, at cap) + fixed both hot->cold maps. Driving issue #1.
+  NEXT: update PR #3 body (Closes #1, drop stale draft banner) + gh pr ready 3 ->
+  porch done (review checks) -> pr gate (HUMAN) -> notify architect + WAIT.
