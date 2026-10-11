@@ -399,3 +399,16 @@ SPIR, strict mode (porch-driven).
   phase_3 ✓.)
 
 ## 2026-10-11 — Implement Phase 4 (interchange exporter + round-trip)
+- Built export.py: assemble(docs) groups standardized shards by (work,version,
+  language) → one interchange Document each; shards sorted by first citation
+  (OT before NT), entries deduped by (citation,text), tradition UNION, doctype
+  must agree (else ExportError), source_url first-non-None. roundtrip_equal =
+  assemble idempotent (semantic round-trip; no shard-boundary metadata to recover).
+  cli `export` command (license-gated like generate, fail-closed); writes
+  texts/interchange/<slug>.json (gitignored, rebuildable).
+- Verified end-to-end: 8 shards → 7 interchange docs; LDS KJV OT+NT merge to ONE
+  31102-entry doc (Genesis..Revelation), tradition union; distinct versions
+  (Protestant KJV vs LDS KJV-2013) NOT merged; round-trip ok. 92 tests pass
+  (synthetic merge/order/dedup/distinct-version/doctype-disagree/roundtrip +
+  real LDS OT+NT merge).
+- Committing. Next: signal PHASE_COMPLETE, 2-way consult.

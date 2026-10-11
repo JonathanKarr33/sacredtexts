@@ -19,6 +19,8 @@ texts/raw/Greek Orthodox/*
 
 # Standardized corpora are rebuilt locally from texts/raw (never committed)
 texts/standardized/
+# Assembled interchange documents are rebuilt locally from texts/standardized
+texts/interchange/
 
 # Legacy pre-two-tier converted corpora (superseded by texts/raw + texts/standardized)
 texts/bible-nabre.json

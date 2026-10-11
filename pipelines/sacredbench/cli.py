@@ -15,6 +15,7 @@ import typer
 
 from sacredbench import catalogue as cat
 from sacredbench import convert as conv
+from sacredbench import export as exp
 from sacredbench import schema
 from sacredbench.collect import collect as run_collect
 from sacredbench.config import load_config
@@ -112,6 +113,45 @@ def convert(
     typer.echo(
         f"converted {total_docs} document(s), {total_entries} entries from {len(targets)} target(s)"
     )
+
+
+@app.command()
+def export(
+    inputs: list[Path] = typer.Argument(help="standardized doc(s)/dir(s) to assemble"),
+    out: Path = typer.Option(Path("texts/interchange"), help="output directory (one file per work/version/language)"),
+    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (for the license gate)"),
+    standardized_root: Path = typer.Option(cat.STANDARDIZED_ROOT, help="standardized texts root (for the license gate)"),
+    include_restricted: bool = typer.Option(False, help="include restricted standardized docs"),
+) -> None:
+    """Assemble standardized shards into the interchange document per (work, version, language)."""
+    sources = _require_catalogue(raw_root)
+    for p in inputs:
+        if not Path(p).exists():
+            raise typer.BadParameter(f"input path not found: {p} — run `convert` first")
+    files = cat.expand_json(list(inputs))
+    if not files:
+        raise typer.BadParameter(
+            f"no standardized .json documents found under {[str(p) for p in inputs]}"
+        )
+    kept = cat.filter_standardized_paths(
+        files, sources, include_restricted=include_restricted, standardized_root=standardized_root,
+    )
+    if not kept:
+        raise typer.BadParameter(
+            "all standardized documents were restricted and excluded (pass --include-restricted)"
+        )
+    docs = schema.load_documents(kept)
+    assembled = exp.assemble(docs)
+    out.mkdir(parents=True, exist_ok=True)
+    for d in assembled:
+        schema.write_document(d, out / exp.interchange_filename(d))
+    ok = exp.roundtrip_equal(docs)
+    typer.echo(
+        f"assembled {len(assembled)} interchange document(s) from {len(docs)} shard(s) "
+        f"-> {out}/ (round-trip {'ok' if ok else 'FAILED'})"
+    )
+    if not ok:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -214,7 +254,7 @@ def score(
 def main() -> None:
     try:
         app()
-    except (schema.SchemaError, conv.ConvertError, cat.CatalogueError) as e:
+    except (schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError) as e:
         typer.secho(f"error: {e}", fg="red", err=True)
         sys.exit(2)
 
