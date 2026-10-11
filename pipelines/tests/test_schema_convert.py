@@ -95,7 +95,8 @@ def test_convert_encyclicals(tmp_path):
     p = tmp_path / "de-testibus.json"
     p.write_text(json.dumps(ENCYCLICAL_SHAPE))
     [doc] = convert_encyclicals([p], _target(document_type="encyclical"))
-    assert [e.citation for e in doc.entries] == ["De Testibus, para. 1", "De Testibus, para. 2"]
+    # null paragraph -> non-canonical "unnumbered"; declared number preserved; blank dropped
+    assert [e.citation for e in doc.entries] == ["De Testibus, unnumbered para. 1", "De Testibus, para. 2"]
     assert doc.work == "De Testibus"
     assert doc.document_type == "encyclical"
     assert doc.source_url == "https://example.org/de-testibus"
@@ -134,12 +135,30 @@ def test_convert_encyclicals_real():
     t = _real_target("Roman Catholic", converter="encyclicals")
     docs = convert_target(t.payload_paths(RAW), t)
     assert len(docs) == 201
-    assert sum(len(d.entries) for d in docs) == 10925
+    assert sum(len(d.entries) for d in docs) == 10263  # body prose; footnote block excluded
     for d in docs:
         assert all(e.unit_type == "paragraph" for e in d.entries)
         cites = [e.citation for e in d.entries]
-        assert len(cites) == len(set(cites))  # unique within each document (no null/collision dups)
+        assert len(cites) == len(set(cites))  # unique within each document
         parse_document(d.to_json_dict())  # validate-passing
+
+
+def test_convert_encyclicals_citations_bind_to_declared_numbers():
+    """Body paragraphs are cited by their DECLARED paragraph number (not position),
+    front matter is marked non-canonical, and the footnote block is excluded."""
+    t = _real_target("Roman Catholic", converter="encyclicals")
+    docs = convert_target(t.payload_paths(RAW), t)
+    by_work = {d.work: {e.citation: e.text for e in d.entries} for d in docs}
+
+    # Ad Petri Cathedram: 2 null front-matter paragraphs precede declared #2, so a
+    # positional citation would mislabel it. The declared-number binding is correct:
+    apc = by_work["Ad Petri Cathedram"]
+    assert apc["Ad Petri Cathedram, para. 2"].startswith("For these reflections of Ours")
+    assert apc["Ad Petri Cathedram, unnumbered para. 1"].startswith("To the Venerable Brethren")
+
+    # Aeterni Patris: the footnote block (numbering restart) is not emitted as prose.
+    ap = [d for d in docs if d.work == "Aeterni Patris"][0]
+    assert not any("De Trinitate" in e.text and "PL 42" in e.text for e in ap.entries)
 
 
 # --- lds_nested (real committed data: 3-level, 2-level, metadata skip) --------

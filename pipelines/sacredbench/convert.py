@@ -189,20 +189,40 @@ def convert_encyclicals(paths: list[Path], target: "Target") -> list[Document]:
             raise ConvertError(f"{path}: expected {{title, paragraphs}} (encyclicals format)")
         pope, date = data.get("pope", ""), data.get("publicationDate", "")
         entries: list[Entry] = []
-        # The source `paragraph` field is unreliable — null in thousands of
-        # paragraphs and duplicated across others — so cite by stable 1-based
-        # position in the document, which is unique by construction.
+        # Each file is body prose followed by a footnote block whose numbering
+        # RESTARTS (a declared number <= the running body max). Body paragraphs are
+        # cited by their DECLARED number (unique across the body); the footnote
+        # block is bibliographic apparatus, not encyclical prose, so it is skipped.
+        # Body paragraphs with no declared number (front matter) get an explicitly
+        # non-canonical "unnumbered para." citation so later stages can exclude them
+        # from citation-dependent tasks.
+        running_max = 0
+        unnumbered = 0
+        in_footnotes = False
         for i, para in enumerate(paragraphs, start=1):
             if not isinstance(para, dict):
                 raise ConvertError(f"{path}: paragraphs[{i - 1}] is not an object")
             text = para.get("text")
             if not isinstance(text, str):
                 raise ConvertError(f"{path}: paragraphs[{i - 1}] has no text")
+            num = para.get("paragraph")
+            if num is not None:
+                if num <= running_max:
+                    in_footnotes = True  # numbering restarted -> footnote block
+                else:
+                    running_max = num
+            if in_footnotes:
+                continue
             if not text.strip():
                 continue
-            entries.append(Entry(unit_type="paragraph", citation=f"{title}, para. {i}", text=text.strip()))
+            if num is not None:
+                citation = f"{title}, para. {num}"
+            else:
+                unnumbered += 1
+                citation = f"{title}, unnumbered para. {unnumbered}"
+            entries.append(Entry(unit_type="paragraph", citation=citation, text=text.strip()))
         if not entries:
-            raise ConvertError(f"{path}: encyclical has no non-empty paragraphs")
+            raise ConvertError(f"{path}: encyclical has no non-empty body paragraphs")
         _require_unique_citations(entries, str(path))
         docs.append(
             Document(

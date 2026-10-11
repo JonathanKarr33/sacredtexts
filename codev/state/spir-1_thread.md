@@ -297,3 +297,25 @@ SPIR, strict mode (porch-driven).
   to avoid re-churning signatures. PRESERVE: LDS-KJV distinct version label (claude
   re-verified 2168 diffs) — do not merge back.
 - Wrote 1-phase_2-iter1-rebuttals.md. Committing + re-consulting (iter 2).
+
+### Phase 2 — iter 2 impl consult (codex APPROVE, claude REQUEST_CHANGES / HIGH)
+
+- codex APPROVE (all iter-1 fixes confirmed). claude found my iter-1 encyclicals
+  positional fix was WRONG and data-proved it. Accepted fully.
+- Encyclical files = body prose THEN a footnote block whose numbering RESTARTS
+  (declared num <= running body max). My positional citation (a) diverged from the
+  true declared number wherever null front matter preceded the body (141/201 docs;
+  Ad Petri Cathedram: 2 null paras then declared #2 → positional called it para.3),
+  and (b) emitted 662 footnotes (6.1%) as prose. Both inflate the headline
+  hallucination metric. Same class as the iter-1 heading bug; the "derive from real
+  data" lesson.
+- Fixed: detect the footnote restart and SKIP footnotes; cite body paragraphs by
+  DECLARED number (unique 201/201); null front matter → non-canonical
+  "unnumbered para. {k}". Verified: 201 docs / 10263 entries (was 10925); Ad Petri
+  "para. 2" now = declared-#2 text; aeterni-patris footnote excluded; all validate.
+- Closed the test gap: added a test binding citations to declared numbers +
+  asserting footnote exclusion (old uniqueness-only test couldn't catch it). 70
+  tests pass.
+- Phase 5 NOTE: generate must treat "unnumbered para." citations as non-canonical
+  (exclude from cite_passage / citation-keyed retrieve_quote).
+- Wrote 1-phase_2-iter2-rebuttals.md. Committing + re-consulting (iter 3).

@@ -1,0 +1,72 @@
+I'll start by reading the key implementation files to verify the iteration-2 fixes.Now let me read the tests and CLI to verify the fixes are actually tested.Let me verify the builder's data claims independently against the real committed corpora.Confirmed BoM=6604 (heading is the only non-digit key — fix #1 verified). But the encyclical positional citation looks problematic. Let me dig in.Found a real defect. Let me characterize the duplicates and run the test suite.The earlier `cd pipelines` changed my working directory. Re-running with absolute paths.Significant finding — the "duplicates" are footnotes, not continuations. Let me examine the paragraph object structure.`paragraphCount` at top level may be the body/footnote discriminator. Let me check.Let me verify whether excluding the footnote block resolves the duplicate-number problem — that would make the fix concrete.I have everything I need. Let me confirm the test gate one more time and note that I made no changes to the tree.# Implementation Review — Phase 2 (iteration 2)
+
+I read the implementation from disk and verified every numeric claim in the builder's rebuttal directly against the committed corpora. **No files were modified by this review.**
+
+## Iteration-1 fixes: verified correct
+
+I independently reproduced each claim rather than trusting the rebuttal:
+
+| Fix | Claim | My verification |
+|---|---|---|
+| #1 chapter-`heading` skip | BoM = 6604, `heading` is the only non-digit verse key | **Confirmed** — 6604 digit verses, exactly 15 `heading` keys, no other non-digit key |
+| #3 D&C self-identifying citation | 3654, `Doctrine and Covenants 1:1` | **Confirmed** (3654, no non-digit keys) |
+| #5 LDS scalar guard | Pearl = 635, OT = 23145, NT = 7957 | **Confirmed** all three; `last_modified`/`version` are the only scalar top-level keys |
+| #4/#6 fail-fast + uniqueness | `ConvertError` names the file; duplicate post-condition | **Confirmed** in code and tests |
+
+`bible_flat` is correct (31102/31102/31098, Genesis 1:1 → Revelation 22:21, exact text). The `convert_target(paths, target)` common interface is clean, the catalogue drives dispatch uniformly, and the OT/NT same-slug targets do **not** collide in `cli.convert` (distinct payload stems). 69 tests pass. The `KJV (LDS 2013 edition)` version-label decision is right and well-documented.
+
+## Blocking: the `encyclicals` rebuttal premise is false, and the fix papers over the real shape
+
+Fix #2 replaced the colliding `paragraph` field with a positional index. The rebuttal justified discarding the source numbers entirely:
+
+> **50 of 201 files even have duplicate *non-null* paragraph numbers**, so no number-preserving rule is collision-free.
+
+The 50-file count is accurate, but the inference is wrong. I checked *why* those numbers collide — they are not ambiguous source numbering. Each encyclical's `paragraphs` array concatenates **body prose followed by a footnote block whose numbering restarts**:
+
+```
+aeterni-patris.json
+  idx 36  paragraph 34  "In fine, relying on the divine assistance…"   <- last body para
+  idx 37  paragraph  5  "De Trinitate, 14, 1, 3 (PL 42, 1037); quoted by Thomas Aquinas…"
+  idx 38  paragraph  6  "Clement of Alexandria, Stromata, 1, 16 (PG 8, 795)…"
+```
+
+All 258 duplicate groups are non-adjacent (zero are continuations) — they are body-vs-footnote pairs. Splitting at the numbering restart (`paragraph < running max`) yields **unique body numbers in 201/201 documents**. A number-preserving, collision-free rule therefore does exist; the collisions were an artifact of a shape the converter doesn't model. This is precisely the project's own `lessons-critical.md` rule — derive the format from the real data, not from a summary statistic about it.
+
+Two consequences, both affecting the headline metric:
+
+**1. Ground-truth citations are wrong in 141/201 documents.** The positional index diverges from the true paragraph number wherever unnumbered front matter precedes the body:
+
+```
+ad-petri-cathedram.json   (all 148 numbered paragraphs mismatch)
+  pos 1 -> paragraph None  "To the Venerable Brethren, the Patriarchs…"
+  pos 2 -> paragraph None  "We who have been elevated despite Our unworthiness…"
+  pos 3 -> paragraph 2     "For these reflections of Ours…"
+```
+
+So `retrieve_quote` for `"Ad Petri Cathedram, para. 3"` carries real paragraph 2's text as ground truth. A model that knows the encyclical correctly is scored **wrong**, and `cite_passage` ground truth is likewise non-canonical. This inflates the measured hallucination rate — the number the FAccT paper reports — and it is the same class of defect as the heading-as-verse bug fixed in #1.
+
+**2. 662 entries (6.1%, across 55 docs) are bibliographic footnotes emitted as `unit_type="paragraph"`.** Asking a model to retrieve *"Clement of Alexandria, Stromata, 1, 16 (PG 8, 795)."* as encyclical prose is not a meaningful benchmark item. (`paragraphCount` is just the array length — it equals `len(paragraphs)` in all 201 files, so it is not a usable discriminator; the numbering restart is.)
+
+A rule consistent with the data: split the footnote block at the restart; cite body paragraphs by their **declared** number (`{title}, para. {n}`) — now unique everywhere; skip footnotes or namespace them (`{title}, n. {k}`); and for the 2881 null-numbered body paragraphs (genuine prose, no citable number) use an explicitly non-canonical marker so Phase 5 `generate` can exclude them from citation-dependent tasks. The existing `_require_unique_citations` post-condition will hold.
+
+The current real-data test (`test_convert_encyclicals_real`) asserts 201 docs / 10925 entries and per-document citation uniqueness — all true, but uniqueness is satisfied by construction under positional indexing, so the test cannot detect either problem. It needs an assertion tying a citation to the source's declared number, and one that no entry is a footnote.
+
+## Minor (non-blocking)
+
+- `cli.convert`'s `len(docs) == len(paths)` stem heuristic is correct for all four converters today. The deferral reason is sound; returning `(stem, doc)` is the clean fix for Phase 3.
+- `convert_encyclicals` filters `index.json` from `paths`, which would silently shift the stem heuristic to the `{slug}-{i:03d}` branch if the glob ever included it. It doesn't today (`encyclicals/en/*.json`), so this is latent only.
+
+Phase 2's acceptance criterion is "each English source converts to validate-passing documents with **correct citations**/unit_type/exact text." The Bibles and LDS editions now meet it; encyclicals do not.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Bibles and LDS converters verified correct against real data, but the encyclicals citation fix rests on a premise the data disproves — footnote blocks are mixed into entries and positional citations diverge from true paragraph numbers in 141/201 documents.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- **Blocking** — `convert_encyclicals` positional citations (`para. {i}`) diverge from the true declared paragraph number in 141/201 documents (systematic offset from unnumbered front matter; `ad-petri-cathedram` mismatches all 148), making `retrieve_quote`/`cite_passage` ground truth non-canonical and scoring correct model answers as wrong.
+- **Blocking** — 662 entries (6.1%, 55 docs) are bibliographic footnotes emitted as `unit_type="paragraph"` prose units; the footnote block is detectable by the paragraph-number restart.
+- **Rebuttal premise disproven** — "50 files have duplicate non-null numbers, so no number-preserving rule is collision-free": the collisions are entirely body-vs-footnote (258/258 groups non-adjacent); splitting at the restart gives unique body numbers in **201/201** docs, so a number-preserving rule is available.
+- **Test gap** — `test_convert_encyclicals_real` asserts citation uniqueness, which positional indexing satisfies by construction; it cannot detect either defect. Needs an assertion binding citations to declared source numbers and excluding footnotes.
+- Minor/latent: `cli.convert`'s `len(docs) == len(paths)` stem heuristic (deferral accepted) and the `index.json` filter that could silently shift it.
