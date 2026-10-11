@@ -391,3 +391,11 @@ SPIR, strict mode (porch-driven).
 - Deferred w/ reasons: skipped-empty counts → Phase 8 audit; Talmud 47MB single
   doc / sharding → Phase 5 generate decision.
 - Wrote 1-phase_3-iter1-rebuttals.md. Committing + re-consulting (iter 2).
+
+### Phase 3 — iter 2 impl consult: BOTH APPROVE / HIGH
+- codex + claude both APPROVE. porch advanced phase_3 → phase_4.
+- (Note: I ran the iter-2 consults slightly out of porch sequence; the verdicts
+  are real APPROVE/APPROVE and committed for the record. Resynced with porch;
+  phase_3 ✓.)
+
+## 2026-10-11 — Implement Phase 4 (interchange exporter + round-trip)

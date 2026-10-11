@@ -1,0 +1,37 @@
+I'll start by reading the key implementation files for phase_3.Now let me read the tests, relevant source.yaml files, and the prior iteration review context.## Review — Phase 3: Converters for the Arabic and Talmud corpora
+
+I read `convert.py`, `catalogue.py`, `cli.py`, the test file, the Judaism/Sunni `source.yaml`s, and the iter-1 rebuttals, then verified the load-bearing claims against the real committed data. I ran `convert`/`validate` with `--standardized-root /tmp/sbrev` so nothing was written inside the worktree; `git status` confirms the tree is as I found it.
+
+### Verified working (not just asserted)
+
+- **All three converters land and dispatch** through the Phase 2 `convert_target(paths, target)` contract. Live run: Judaism → 2 docs / 156,523 entries; Sunni Islam → 10 docs / 47,054 entries; `validate` passes all 12 documents. 84 tests pass (`uv --project pipelines run pytest pipelines`), and the real-data tests genuinely execute (Talmud en is 1.5 s of the 2.6 s).
+- **Daf offset is right, and I checked it against external ground truth independently of the builder's claim.** `(i//2)+1` + parity is general (not hardcoded to 2a), and `Shabbat` section 60 line 6 → `Shabbat 31a:6` is the Shammai/Hillel "teach me the entire Torah" incident, matching Sefaria's ref. I also confirmed **no** real en tractate has a non-empty section 0 or 1, so the "tractates start at 2a" premise holds across all 35 files rather than the one that's tested.
+- **Markup strip verified on output, not just in a unit test**: 0 of 78,117 English entries contain an HTML tag or a residual entity.
+- **Line numbering is positional and does not renumber** when a markup-only line is dropped — locked by a 4-line test. This was the right catch to accept from iter 1; it's invisible to count/first-citation assertions and load-bearing at 207 real locations.
+- **Glob accounting is complete.** 70 Judaism JSON files = 35 en + 34 he + 1 deliberately excluded Vocalized Aramaic Shevuot; nothing unaccounted. Both targets are version-homogeneous (`versionTitle` matches the catalogue `version` verbatim, 35/35 and 34/34), and en/he cover the identical 34 tractates. codex's iter-1 version-distinctness point is properly fixed.
+- **Qur'an citation**: reverting to bare `verse_key` is correct, and I confirmed `key == verse_key` for all 6,236 entries, so ignoring the dict key is safe.
+- **Scope discipline**: the phase diff is `convert.py` +130, tests +145, one `source.yaml` version rename. No creep.
+
+### Findings (none blocking)
+
+1. **Hadith citations are a positional index, not a verified canonical reference — write this down now.** `idInBook` is an int, strictly contiguous `1..N` in all nine collections (I checked every file). Bukhari ends at **7277**, not sunnah.com's 7563 reference ceiling — so `Sahih al-Bukhari 5000` in this corpus is not demonstrably the hadith the world calls Bukhari 5000 (7277 is close to the often-cited 7275-with-repetition Arabic print count). Hadith 1 *does* match canonical Bukhari 1 (I verified the "actions are by intentions / migration" text), so the head aligns and the tail is unverified. The export carries no canonical-number field (`id`/`idInBook` both positional, `bookId ≡ 1`, 97 `chapterId`s), so **the converter cannot do better** — this is a documentation duty, not a code bug. In a benchmark whose whole point is provenance honesty, a citation scheme of unverified provenance deserves a line in the converter docstring and in `Sunni Islam/source.yaml` `notes`, plus a Phase 5 flag. Plan-aligned ("citation from collection + number"), hence a comment.
+2. **The iter-1 rebuttal's stated basis for the `idInBook` type guard is factually wrong.** It says "in the real data `idInBook` is a string, so an int-only check would be wrong" — all nine collections are ints. The permissive `(str, int)` guard is harmless, but the recorded reasoning is false and will mislead whoever reads it next. It also accepts `"12 "` or `"3-4"` straight into a citation; int-or-digit-string would be more faithful to the data.
+3. **`versionTitle` isn't cross-checked, only `language`.** The language guard catches an en/he mix-up but not a *different same-language edition* merged under the wrong version label (e.g. a Sefaria community English translation would pass). The Vocalized Aramaic variant is excluded by a tightened glob and only errors today because its text happens to conflict with standard Shevuot. Since the catalogue `version` now equals `versionTitle` verbatim, the symmetric guard is two lines.
+4. **`_clean_markup` ordering is latently unsafe**: tags are stripped *before* `html.unescape`, so a source `&lt;b&gt;` becomes a literal `<b>` in stored text. Absent from the real data (verified), so latent only — unescape-then-strip would be strictly safer.
+5. **125 Malik hadiths (6.3% of 1,985) and 207 Talmud lines are dropped silently.** Dropping is correct; deferring the "skipped N" echo to Phase 8 is defensible, but it's a 3-line `typer.echo` and the project's fail-loudly norm argues for now — a future converter bug that empties units would be invisible.
+6. **Docstring drift**: `convert.py`'s "Registered converters" list still names only `bible_flat`/`lds_nested`/`encyclicals`/`nabre`; this phase's three are missing from the list that claims to enumerate the registry.
+7. **For later phases** (agreeing with the builder's deferrals, adding one): Talmud en is a single 49 MB / 78,117-entry doc against an in-memory `load_documents` (Phase 5 — agreed); `Musnad Ahmad` ships only **1,374** hadith, a small subset of the real Musnad, which will skew Phase 5 balancing; Talmud entries are ordered alphabetically by tractate, not in seder order — Phase 4's "canonical ordering" decision should name that explicitly.
+
+---
+VERDICT: APPROVE
+SUMMARY: All three Phase 3 converters are correct and independently verified against the real data (daf offset confirmed against external ground truth, markup-free output, complete glob accounting); findings are documentation and hardening nits, none blocking.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Hadith citations use the contiguous positional `idInBook` (Bukhari 1..7277, vs sunnah.com's 7563 ceiling); the export has no canonical-number field, so record the caveat in the converter docstring + `Sunni Islam/source.yaml` notes and flag it for Phase 5 ground-truth validity.
+- The iter-1 rebuttal's claim that `idInBook` is a string is wrong — it is an int in all nine collections; correct the record and consider tightening the guard.
+- `convert_sefaria_talmud` cross-checks `language` but not `versionTitle`, leaving a same-language wrong-edition merge undetected (two-line fix, catalogue version already equals `versionTitle`).
+- `_clean_markup` strips tags before `html.unescape`, so escaped markup could be re-introduced as literal tags (not present in current data).
+- 125 Malik hadiths and 207 Talmud lines are dropped with no count reported; a one-line echo now is cheaper than Phase 8.
+- `convert.py`'s "Registered converters" docstring list omits `quran_qul`/`hadith_sunnah`/`sefaria_talmud`.
