@@ -1,0 +1,16 @@
+id: '8'
+title: spec-3-tutorial-centered-on-kj
+protocol: aspir
+phase: specify
+plan_phases: []
+current_plan_phase: null
+gates:
+  pr:
+    status: pending
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: false
+history: []
+started_at: '2026-10-11T21:00:43.465Z'
+updated_at: '2026-10-11T21:00:43.466Z'
