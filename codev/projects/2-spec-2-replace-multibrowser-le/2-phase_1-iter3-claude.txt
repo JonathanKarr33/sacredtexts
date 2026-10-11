@@ -1,0 +1,49 @@
+I'll start by reading the key implementation files.I read every changed implementation/test file, ran `check-types` and the full suite, and exercised the endpoint against the real `runs/` directory rather than trusting the tests alone.
+
+## Verification performed
+
+- `pnpm run check-types` — clean.
+- `pnpm run test` — **428 passed / 9 skipped (30 files)**; the 9 skips are pre-existing, and the committed-run gate (`realRun.test.ts`) **runs** here (not skipped) — confirmed via a verbose targeted run (22/22 phase-1 tests green).
+- Real-path check (read-only, no tree mutation): imported `vite/runsEndpoint.ts` directly and called it against the actual `../../runs` dir — `listRuns` → `[{id:"first-run-2026-10-11", mtimeMs:…}]`, `resolveRunFile("first-run-2026-10-11/summary.json")` → real path, `resolveRunFile("../package.json")` → `null`, `/_index` handler → correct JSON, `questions.jsonl` served (86,475 bytes). The endpoint genuinely works, not just in fixtures.
+
+## Prior-iteration findings — verified fixed in code
+
+- **Symlink traversal (codex iter 1).** `resolveRunFile` now walks components and `lstat`s each, returning `null` on *any* symlink component and on `..` (runsEndpoint.ts:73–84) — in-root symlinks included, with a covering test (`inlink/summary.json` → null). Not merely claimed.
+- **Symlinked `summary.json` (codex iter 2).** `listRuns` `lstat`s `summary.json` before `accessSync` and skips symlinks/non-regular files (lines 48–52), with a `symsummary/` fixture asserting non-indexing. The one remaining hole from iter 2 is genuinely closed.
+- **Body-read escaping `LoadResult` (claude iter 2).** `await res.text()` is inside try/catch → typed `kind:"http"` (localResults.ts:258–265).
+- **Failure-contract coverage.** `http` / `missing` (404) / shape-sniffed HTML-200 / malformed `summary.json` (localized) / malformed JSONL with `scores.jsonl:2` / absent-submetrics → all `null` — each has a test.
+
+## Plan-phase_1 deliverables — all met
+
+Typed `LoadResult` requiring all four artifacts ✓; metrics/`usage`/`panel` (`served_by` nullable, asserted against real data) ✓; roster-driven `joinResults` with `missing: boolean` plus scores-only back-compat for the sample ✓; `vite/runsEndpoint.ts` as factory + pure `listRuns`, outside `src/`, nonexistent root → `[]` ✓; `LocalResultsPage` adapted, no new routes ✓; `missing > 0` fixture exercised (6 rows, 2 missing) ✓; `tsconfig.json` `include` extended for `vite/` ✓.
+
+## Non-blocking comments (carry into later phases)
+
+1. **`formatCell` guards `=== null`, not `== null`** (localResults.ts:331). `Cell.accuracy` is typed `number | null`, but a real cell lacking the key arrives as `undefined` and renders `NaN%`. `rankedModels` already handles both via `?? -1`. One-character hardening (`== null`) would make the spec's "formats as n/a rather than crashing" edge case total. Phase 3 owns the display, so not a phase-1 blocker.
+2. **`parseSummary` casts `usage`/`panel` without shape validation.** A malformed `usage` passes the loader and would blow up at `summary.usage.total.calls` in the leaderboard. Given the "fail fast, loudly" house rule, Phase 3 should either validate these two blocks or read them defensively.
+3. **`listRuns` gates only on `summary.json`**, so a run missing `questions.jsonl` is indexed and then fails to load — intentional and plan-aligned, and the spec already requires the Phase-3 selector to isolate that error per run. Flagging only so it isn't mistaken for a regression later.
+4. **`resolveRunFile` has a theoretical TOCTOU window** (per-component `lstat`, then `statSync`/`readFileSync`). Dev-only, local-only, single-user — not worth code.
+5. `README.md`'s `/local-results?run=/runs/<id>` wording is still correct under this phase's loader contract; the rewrite is Phase 2/3 work, correctly deferred.
+
+I was not asked to edit the tree and did not; all checks above were read-only or ran in a temp dir.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 1's widened run-data seam and hardened run-index endpoint are complete, type-clean, genuinely tested (22/22 phase tests, 428 suite-wide), verified working against the real runs/ directory, and both prior reviewers' symlink findings are fixed in code.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- Minor: `formatCell` uses `=== null` where `== null` would also cover an absent `accuracy` (renders `NaN%` today) — Phase 3 display concern.
+- Minor: `parseSummary` casts `usage`/`panel` without shape validation; Phase 3 consumers should validate or read defensively per the fail-fast rule.
+- Informational: `listRuns` indexes a run on `summary.json` alone, so an incomplete run surfaces as a per-run load error — intentional per spec, must be isolated by the Phase-3 selector.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - apps/viewer/tsconfig.tsbuildinfo
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.
