@@ -1,0 +1,72 @@
+I'll verify this spec against the actual codebase before judging it.I verified the spec against the actual worktree (`sacredtexts/.builders/aspir-2`): the file inventory, `localResults.ts`, `vite.config.ts`'s `serveRuns`, `deploy.test.ts`, the committed `runs/first-run-2026-10-11/` artifacts, `score.py`'s `missing` semantics, and GitHub issue #2. I made no changes to the tree.
+
+## What holds up
+
+The spec is unusually well-grounded. Every factual claim I checked is accurate:
+
+- The purge/keep/seam three-way split of `src/` matches the real tree (`lib/github.ts`, `review*`, `raw*`, `Scenario*` etc. all exist exactly as listed; `ErrorBoundary`/`Loading`/`Markdown` are the generic three).
+- The run data model is verified against the real `summary.json`: `models`/`by_tradition`/`usage`/`panel`, `Cell` fields, `usage.per_model{calls,in,out}`, `panel{provider,model,endpoint,served_by}`.
+- The Current State diagnosis of `loadRun` is correct: `QuestionResult` keeps only `correct` and drops `metrics.exact/normalized/token_f1`; `parseSummary` discards `usage` and `panel` entirely.
+- The numbers in Test Scenarios check out: claude-haiku `_overall` 0.24 (first), llama 0.01, two models at 0.0 (last), and claude-haiku × "The Church of Jesus Christ of Latter-Day Saints" = 0.72.
+- `serveRuns` really is file-only with `startsWith(runsDir + sep)` confinement, so Approach 1 (dev directory listing) is both feasible and the honest reuse of existing confinement.
+- `deploy.test.ts` really does assert tradition-baking, `public/data-raw`, and the hono `/api/*` proxy with `/t/sunni-islam/JLS-001` deep links — the "High probability" red-suite risk is real.
+- Structure matches `protocols/spir/templates/spec.md` heading-for-heading.
+
+## Blocking issue: a human requirement is missing
+
+Issue #2 has an **Addendum (human, 2026-10-11), requirement 6**:
+
+> **Cross-run aggregate view**: a page/table that shows, for each LLM, its **most recent** result across all runs — one row per model, taken from the latest run that includes that model (per-task scores + the run id/date it came from, linking to that run's detail). This is the 'current standings' view when models are benchmarked at different times in different runs.
+
+The spec contains nothing about it. Its Constraints copy requirements 1–5 and stop; its References even claims requirements were "copied verbatim into Constraints." I grepped the spec, `codev/state/`, `codev/specs/`, and `codev/plans/` for "cross-run", "standings", "aggregate" — the only hits are "most recent *run*" as the **selector default**, which is a different thing. Requirement 6 is a distinct view with a distinct data shape (per-model latest-run resolution across runs, requiring *all* runs' summaries loaded, not just the selected one). It needs to be in Constraints, Success Criteria, and Test Scenarios — or explicitly deferred with the architect's sign-off, not silently dropped.
+
+## Second issue: the missing-cell path is underspecified, and the fix is sitting in the run dir
+
+Success criteria require filtering by "failure mode (missing cell vs wrong answer)" at **per-question** granularity. But `score.py` only scores rows that exist in `answers.jsonl`, and `missing = expected_n - n` is computed from a roster. So missing questions appear in **neither** `scores.jsonl` nor `answers.jsonl` — `joinResults` iterates `scores`, so those questions cannot be listed at all from the three artifacts the spec names.
+
+The spec's Assumption calls cell-level `missing`/`expected_n` "equivalently" derivable, but it isn't: the cell tells you *how many* are missing, not *which*. There is a clean resolution the spec misses — `runs/first-run-2026-10-11/` actually contains **`questions.jsonl`** (and `questions.jsonl.manifest.json`), which with `summary.json`'s `panel` gives the exact roster. Pick one and say so:
+
+- name `questions.jsonl` as a fourth (optional) artifact for roster-based missing-question rows — and then update the error condition "a run missing one of the three artifacts," plus the "adding a run needs summary+scores+answers" criterion; or
+- scope the failure-mode filter to cell level ("this model/task has N missing") and reword the criterion to match.
+
+## Smaller things worth fixing before approval
+
+1. **The #86 CSS probe lives inside `deploy.test.ts`.** The "numbered HeroUI shades emit real rules" test — your only guard against the invisible-text scar — is in the same file as the multibrowser deploy assertions. Risks says "the deploy/CSS probe test guards it," but the Approach-3 sub-decision says only "keep a generic SPA build + fallback assertion." Make it an explicit requirement that the #86 built-CSS probe survives the deploy-test rework. (Good news: `test/noInvisibleText.test.ts` is glob-based and self-maintaining, so it needs no attention.)
+2. **"Grepping the built bundle finds no tradition/scenario identifiers" is self-contradictory as written.** `src/local/sample.ts` is production source and contains `tradition: ["Protestant Christian"]` — a literal reading fails on your own fixture. Name the patterns the way `deploy.test.ts` already does: `from '…/traditions/'` imports, `JLS-\d{3}`, `BZ-\d{3}`, `al-jalīs`.
+3. **`/local-results` references outside `apps/viewer/README.md` go stale.** Desired State retires the flat view, but the doc criterion covers only the viewer README. `TUTORIAL.md:69,119-120` and `codev/resources/arch.md:74` both document `/local-results?run=/runs/<id>`. Either keep the route as a redirect or add those two files to the doc criterion.
+4. **Dead dependencies.** The human said "gone, not merely hidden." After the purge, `js-yaml`, `zod`, the TanStack Query persisters, and (depending on the deploy decision) `hono`/`@hono/node-server` are plausibly unreferenced. A criterion like "no dependency remains that only the multibrowser surface used" would close this; at minimum state that dep pruning is out of scope so it isn't left ambiguous.
+5. **Minor:** `_overall` cells carry no `exact`/`normalized`/`token_f1` in the real data (only per-task cells do). The leaderboard's per-metric display, if any, should expect that.
+
+Nothing here is a feasibility blocker — the data is all present, the seam is sound, and the recommended approaches are the right ones. It's requirement 6 and the missing-cell derivation that need to land before this goes to the human.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Technically sound, well-verified spec, but it silently drops issue #2's addendum requirement 6 (cross-run "current standings" view) and leaves the per-question missing-cell path underivable from the artifacts it names.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Issue #2 requirement 6 (cross-run aggregate: each model's most recent result across all runs, with source run id/date + link) is absent from Constraints, Success Criteria, and Test Scenarios — and References wrongly claims requirements were copied verbatim. Add it or get explicit deferral.
+- Per-question "missing cell" failure mode is not derivable from summary.json + scores.jsonl + answers.jsonl (score.py only emits rows for present answers; cell `missing` gives a count, not identities). `questions.jsonl` is present in the run dir and supplies the roster — name it as a data source, or scope the filter to cell level.
+- The #86 HeroUI numbered-shade built-CSS probe lives in `deploy.test.ts`; the spec must require it survive the deploy-test rework, not just "keep a generic SPA build assertion."
+- Criterion "grepping the built bundle finds no tradition/scenario identifiers" contradicts `src/local/sample.ts`'s own `tradition: ["Protestant Christian"]`; specify concrete patterns (`/traditions/` imports, `JLS-\d{3}`, `BZ-\d{3}`, `al-jalīs`).
+- Retiring `/local-results` staleness: `TUTORIAL.md:69,119-120` and `codev/resources/arch.md:74` document it, but only `apps/viewer/README.md` is in the doc criterion.
+- Dependency pruning (`js-yaml`, `zod`, TanStack Query persisters, possibly `hono`) is unaddressed despite "gone, not merely hidden" — state in or out of scope.Confirmed the template resolution: this repo has no local `codev/protocols/`, so the spec template resolves from the installed package skeleton (`/opt/homebrew/lib/node_modules/@cluesmith/codev/skeleton/protocols/spir/templates/spec.md`) — the one I read. The other hits the search found belong to unrelated projects (`waleedkadous/test`, `modtrail`) and don't apply here.
+
+So my structure finding is unchanged: the spec matches the delivered template heading-for-heading (Problem Statement → Current State → Desired State → Success Criteria → Constraints → Assumptions → Solution Approaches → Open Questions → Test Scenarios → Risks and Mitigation → References), with no missing or renamed sections. Structure is not a defect here.
+
+My review stands as given above — the blocking items remain issue #2's dropped addendum requirement 6 (cross-run "current standings" view) and the per-question missing-cell derivation, which `questions.jsonl` in the run directory can resolve.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Technically sound, well-verified spec, but it silently drops issue #2's addendum requirement 6 (cross-run "current standings" view) and leaves the per-question missing-cell path underivable from the artifacts it names.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Issue #2 requirement 6 (cross-run aggregate: each model's most recent result across all runs, with source run id/date + link) is absent from Constraints, Success Criteria, and Test Scenarios — and References wrongly claims requirements were copied verbatim. Add it or get explicit deferral.
+- Per-question "missing cell" failure mode is not derivable from summary.json + scores.jsonl + answers.jsonl (score.py only emits rows for present answers; cell `missing` gives a count, not identities). `questions.jsonl` is present in the run dir and supplies the roster — name it as a data source, or scope the filter to cell level.
+- The #86 HeroUI numbered-shade built-CSS probe lives in `deploy.test.ts`; the spec must require it survive the deploy-test rework, not just "keep a generic SPA build assertion."
+- Criterion "grepping the built bundle finds no tradition/scenario identifiers" contradicts `src/local/sample.ts`'s own `tradition: ["Protestant Christian"]`; specify concrete patterns (`/traditions/` imports, `JLS-\d{3}`, `BZ-\d{3}`, `al-jalīs`).
+- Retiring `/local-results` staleness: `TUTORIAL.md:69,119-120` and `codev/resources/arch.md:74` document it, but only `apps/viewer/README.md` is in the doc criterion.
+- Dependency pruning (`js-yaml`, `zod`, TanStack Query persisters, possibly `hono`) is unaddressed despite "gone, not merely hidden" — state in or out of scope.
