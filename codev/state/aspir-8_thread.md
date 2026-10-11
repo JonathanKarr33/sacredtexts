@@ -105,6 +105,23 @@ Critical plan-consult catches folded in:
   → Phase 3 convert ready. (Gotchas hit: json.dumps ensure_ascii must be False in audit test;
   Uthmani dagger-alef ≠ full alef — strip programmatically not by hand.)
 
+### Phase 1 review: iter1 REQUEST_CHANGES (QUL-only mark set) → fixed (Mn-in-RTL-blocks superset)
+### → iter2 BOTH APPROVE/HIGH. Claude verified corpus-wide: 6236/6236 QUL symmetric, 0 splits,
+### 176 tests no-skip, Latin invariant even over Davidson English transliteration lines.
+
+⚠️ **Phase-3 WATCH ITEM (invisible-format chars)**: bidi/joiner/BOM/soft-hyphen (U+200C-200F,
+U+061C, U+FEFF, U+00AD) in web-fetched RTL answers split a word mid-token → under whole-string
+`correct=normalized` one RLM zeroes a correct search-on item. I tried an eager global-delete fix
+but it BROKE Latin invariance (soft-hyphen in a committed English answer: old→space, new→deleted;
+the byte-for-byte re-score guard caught it). Can't be fully fixed without violating the hard
+Latin-invariance contract, and it's NON-blocking (both reviewers approved without it). So:
+REVERTED to approved state (score.py diff now comment-only), documented in the code comment +
+here. **Phase 3: during the copyright-clearance answer review, also scan search-on answers for
+these chars; if present, strip them from that cell's answer context or re-collect.** A split
+answer is visible in the explorer.
+Also noted (out of scope, Phase 3 orthographic variance): explicit-alef الرحمان vs dagger-alef,
+alef-maksura/ya, ta-marbuta/ha — read as variance, not a normalise bug.
+
 ### Next
-porch done 8 (Phase 1 verify) → Phase 2.
+porch next 8 (both approved) → advance. Then Phase 2 (web-search config/collect/identity).
 ⚠️ Phase 3 is LIVE/PAID (Anthropic web search). Will smoke-first; if no key/budget, escalate to architect.

@@ -55,12 +55,22 @@ class ScoreError(Exception):
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
-# Arabic/Hebrew Unicode blocks (base + extensions + presentation forms). Combining
-# marks (category Mn) ANYWHERE in these blocks are deleted — a strict superset of the
-# QUL mark set, so a search-on answer carrying marks from another Uthmani digitization
-# (e.g. U+0617–U+061A, U+0656–U+065F, Arabic Extended-A U+08D3–U+08FF) is still folded,
-# not split mid-word. The ranges are script-scoped, so Latin combining marks
+# The RTL Unicode blocks (U+0590–U+08FF is Hebrew + Arabic + their extensions — and also
+# Syriac/Thaana/N'Ko/Samaritan/Mandaic, whose marks we strip too; harmless for this
+# benchmark's Arabic/Hebrew corpora; plus U+FB1D–U+FB4F Hebrew/Arabic presentation forms).
+# Combining marks (category Mn) ANYWHERE in these blocks are deleted — a strict superset
+# of the QUL mark set, so a search-on answer carrying marks from another Uthmani
+# digitization (U+0617–U+061A, U+0656–U+065F, Arabic Extended-A U+08D3–U+08FF) is still
+# folded, not split mid-word. The ranges are script-scoped, so Latin combining marks
 # (U+0300–U+036F) are untouched and Latin output is byte-for-byte unchanged.
+#
+# NOT handled here (deliberately): invisible bidi/joiner/BOM formatting from the General
+# Punctuation block (U+200C–U+200F, U+FEFF, U+00AD) that can ride along in web-fetched RTL
+# answers. Deleting them globally would change the Latin path (soft hyphen currently folds
+# to a space, which the committed first-run relies on), breaking the Latin-invariance
+# contract — the re-score regression guard enforces this. They are a Phase-3 answer-review
+# watch item (a split answer is visible there), not a Phase-1 concern (no committed corpus
+# text carries them).
 _SCRIPT_BLOCKS = ((0x0590, 0x08FF), (0xFB1D, 0xFB4F))
 # Editorial code points in those blocks that are NOT category Mn and so must be deleted
 # explicitly: the Arabic tatweel (Lm) and the Qur'anic annotation block U+06D6–U+06ED,
@@ -84,7 +94,7 @@ def strip_script_marks(text: str) -> str:
     text = text.replace("־", " ")  # Hebrew maqaf -> word boundary (NOT deleted:
     #                                      it joins words, so it must stay a separator)
     # delete combining marks (Mn) + the non-Mn editorial code points, but only within
-    # the Arabic/Hebrew blocks — so the mark/annotation stripping never reaches Latin.
+    # the RTL blocks — so the mark/annotation stripping never reaches Latin.
     return "".join(
         ch for ch in text
         if not (

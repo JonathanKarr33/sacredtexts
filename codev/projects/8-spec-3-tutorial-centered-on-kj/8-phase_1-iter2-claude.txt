@@ -1,0 +1,40 @@
+I'll read the implementation files from disk.I read all five implementation/test files from disk and independently verified the key claims (read-only probes; I did not modify the tree).
+
+## Verification performed
+
+**Test suite**: `uv --project pipelines run --no-sync pytest pipelines -q` → **176 passed, 0 skipped**. The zero-skip count matters: it means both regression guards in `test_first_run_regression.py` actually *executed* (the standardized corpus is built and the first-run manifest is present), so the byte-for-byte re-score over the committed `answers.jsonl` and the manifest-driven question-set-digest regeneration are real evidence, not silently-skipped tests.
+
+**Independent corpus-wide probe of the iteration-1 blocking fix** (my own stdlib normalizer, not the code under test), over all 6236 QUL ayat:
+- distinct codepoints in QUL: 70
+- non-letter/non-space survivors of `normalize()` across the whole corpus: **{} (none)**
+- vocalised vs. Mn-stripped: **0 asymmetric ayat, 0 token-count mismatches of 6236**
+
+So the widened rule (`category == "Mn"` anywhere in U+0590–U+08FF / U+FB1D–U+FB4F, plus the non-Mn editorial set: tatweel + U+06D6–U+06ED incl. U+06DD Cf end-of-ayah, U+06DE rub-el-hizb, U+06E9 sajdah, U+06E5/E6) genuinely subsumes the QUL set and the out-of-QUL ranges Codex and I flagged in iteration 1. **That finding is resolved; I am not re-raising it.**
+
+**Hebrew/Aramaic probe** over 37 Davidson `he` files (85,668 lines): 1201 lines asymmetric. I chased the cause rather than reporting the number: it is entirely **Latin** combining marks in the *English* lines of those files — U+0323 (1917×, academic transliteration "Ḥanina"/"ṭ"), U+0301, U+0300 — i.e. the deliberately-preserved pre-existing Latin behaviour (`naïve → nai ve`), which the spec requires be left byte-for-byte unchanged. Not a defect in this phase. Zero asymmetry attributable to in-block marks; zero maqaf occurrences in the catalogued corpus (hence the Shevuot vocalised fixture, correctly documented in the test module docstring as fixture-only and never converted).
+
+**Diff review**: `score.py` is +45/−2 — the mark helper, the one call site in `normalize()`, and a docstring. `_SUBMETRICS` and the `retrieve_quote` headline (`correct = normalized`) are untouched, confirming the contract constraint. `audit._norm` extension is 3 effective lines and shares the helper, so the two normalizers cannot drift. Test-helper independence (last iteration's `_MARK` divergence) is genuinely fixed — `_strip_combining` is pure stdlib and the word-count assertion would actually catch mark→space splitting.
+
+## Non-blocking observations
+
+1. **Invisible format characters still split words mid-token** — the same failure mode as the fixed one, and arguably *more* likely in a search-on answer than exotic harakat, since web-fetched RTL text routinely carries them. Verified: `الرحمن` with U+200F/U+200E/U+061C/U+200C/U+200D/U+FEFF/U+00AD inserted mid-word → `'الر حمن'`, 2 tokens, `normalize` inequality in every case. With the whole-string `correct = normalized` headline, one RLM pasted from quran.com zeroes the item. A fix is small but needs care — a blanket Cf delete is wrong (U+200B ZWSP should remain a boundary); the targeted form is Cf *within* the script blocks (catches U+061C) plus an explicit joiner/bidi/BOM set {200C, 200D, 200E, 200F, FEFF, 00AD}. I'd consider it now since you're in the file, but it does not block this phase: the phase-1 criteria concern combining marks and annotation symbols present in the data, and those are fully handled. If deferred, it is worth watching for during Phase 3's answer review — a split answer will be visible there.
+2. **Block span is broader than Arabic/Hebrew.** U+0590–U+08FF also covers Syriac, Thaana, N'Ko, Samaritan, Mandaic, whose Mn marks are meaning-bearing (Thaana vowels in particular). Harmless for this benchmark's corpora, and the simplicity is worth it — but the comment says "Arabic/Hebrew blocks," which is not quite what the range is. A one-clause comment amendment would prevent a future contributor adding a Thaana corpus from being surprised.
+3. **`audit._norm` Latin behaviour changed slightly** (it now NFKDs, where the old version did not): `"café"` fingerprints as `cafe` rather than `caf`. Self-consistent — both the fingerprint source and the scanned blob use the same function, and no fingerprints are persisted — so this is a harmless improvement, not a regression. Noting it only so it isn't a surprise later.
+4. **Cosmetic**: `frozenset("ـ")` relies on the reader recognising a bare tatweel glyph; `frozenset("\u0640")` would be self-documenting next to the comment that names it.
+
+## Assessment
+
+Phase 1's deliverables and acceptance criteria are all met: symmetric and asymmetric non-Latin equality (the contrast-preserving direction is explicitly tested via `score_answer`, which is the right level), the maqaf word-boundary rule, the strong Latin-invariance re-score, the generation-side digest guard, the `audit._norm` extension with a real non-Latin content-layer test, and an unchanged scoring contract. The iteration-1 blocking issue is fixed with the shape both reviewers recommended, and I verified it empirically rather than taking the rebuttal's word for it.
+
+---
+VERDICT: APPROVE
+SUMMARY: Iteration-1 blocking issue fully resolved and independently verified corpus-wide (6236/6236 QUL ayat symmetric, zero token splits, no surviving marks); 176 tests pass with no skips so both regression guards really ran; contract and Latin path provably unchanged.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- (Non-blocking) Invisible format chars — U+200E/200F/061C/200C/200D/FEFF/00AD — still become spaces and split Arabic/Hebrew words mid-token; plausible in web-search answers and fatal under the whole-string `correct = normalized` headline. Targeted fix: delete Cf inside the script blocks plus that explicit set (do not blanket-delete Cf — U+200B must stay a boundary). Watch for it in Phase 3's answer review if deferred.
+- (Non-blocking) `_SCRIPT_BLOCKS` U+0590–U+08FF also spans Syriac/Thaana/N'Ko/Samaritan, whose marks are meaning-bearing; behaviour is fine today but the "Arabic/Hebrew blocks" comment understates the span.
+- (Non-blocking) `audit._norm` now NFKDs, so precomposed Latin fingerprints differ from before (`café` → `cafe`, previously `caf`); self-consistent on both sides, no persisted fingerprints, so an improvement rather than a regression.
+- (Cosmetic) Spell the tatweel as `frozenset("\u0640")` rather than a bare glyph.
