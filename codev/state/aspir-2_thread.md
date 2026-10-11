@@ -419,3 +419,21 @@ Still deferred (both reviewers agree, phase_5): RunRef mtimeMs widening + defens
 Verified: check-types clean; `pnpm build` green; full suite 62 passed / 0 skipped (+1 for the
 fully-missing-model test). Committing fixes + both iter2 consult outputs, writing the iter2
 rebuttal, re-signalling.
+
+## 2026-10-11 — phase_3 APPROVED (codex + claude iter3, both HIGH)
+
+Both APPROVE HIGH, no blocking issues. codex: none. claude: verified 62 tests / types / the
+committed-run gate green itself; confirmed InterimHome/LocalResultsPage/LocalResults all deleted
+and the /?run=<id> contract consistent across README/TUTORIAL/arch.md. The iter1→iter2 null-accuracy
+fix is now generalized to the real score.py cell shape with assertions on it.
+
+Non-blocking carry-forwards (NOT phase_3 — noted for later):
+- claude: the committed-run gate uses describe.skipIf(!present) (project convention, also in
+  realRun.test.ts from phase_1); a `expect(present).toBe(true)` sentinel would make a vanished
+  fixture loud instead of silently skipping. A MAINTAIN-style test-hardening, not a phase_3 fix.
+- claude: formatCell's partial-missing "−N" (U+2212) annotation lacks a legend — cosmetic;
+  phase_4's explorer is where missing cells get real surface area.
+- both: RunRef carries only {id}; "most recent = runs[0]" rides listRuns' mtime-desc/id-asc sort.
+  Widen RunRef with mtimeMs + defensive client sort in phase_5 (standings needs run dates anyway).
+
+Letting porch commit phase_3 and advance to phase_4 (error explorer).
