@@ -1,0 +1,16 @@
+id: '3'
+title: spec-1-phase-1-benchmark-pipel
+protocol: aspir
+phase: specify
+plan_phases: []
+current_plan_phase: null
+gates:
+  pr:
+    status: pending
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: false
+history: []
+started_at: '2026-10-11T20:57:48.674Z'
+updated_at: '2026-10-11T20:57:48.675Z'
