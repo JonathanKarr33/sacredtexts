@@ -26,11 +26,12 @@ gates:
     approved_at: '2026-10-11T16:38:55.696Z'
   verify-approval:
     status: pending
+    requested_at: '2026-10-11T16:40:26.007Z'
 iteration: 1
 build_complete: false
 history: []
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T16:39:36.592Z'
+updated_at: '2026-10-11T16:40:26.008Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
