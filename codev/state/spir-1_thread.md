@@ -609,3 +609,22 @@ SPIR, strict mode (porch-driven).
   repeated correct citation collapses to ONE candidate (claude verified 16/16); stale
   docstring rewritten; ScoreError added to main(). parse_yes_no hardening declined (no-op).
   134 tests pass. These land as a post-advance branch improvement (pr-gate reviews it).
+
+## 2026-10-11 — Implement Phase 7 (minimal local results viewer)
+
+- porch was already at phase_7 (consult step) because the global tests pass even
+  with no viewer. Built the viewer BEFORE running the phase_7 consult so it reviews
+  real code.
+- Self-contained, GitHub-data-layer-UNTOUCHED, no HeroUI v2 provider:
+  * lib/localResults.ts — parse summary.json/scores.jsonl/answers.jsonl + joinResults
+    (correctness x question/answer text) + formatCell/ranked/summaryTasks. Pure.
+  * components/LocalResults.tsx — per-model x task accuracy table + per-question list
+    (✓/✗, prompt, answer, expected). Plain Tailwind.
+  * local/sample.ts — tiny committed sample run (synthetic) so `pnpm dev`
+    /local-results works out of the box.
+  * routes/LocalResultsPage.tsx + /local-results route in router.tsx.
+  * components/LocalResults.test.tsx — join + formatCell + render-from-fixture.
+  * README: documented the local-only view; kept the seed-not-adapted status.
+- pnpm install (node_modules was absent). Full viewer suite: 409 passed / 9 skipped
+  (the 9 are repo-data-coupled seed suites, skipped w/o the dataset — as planned).
+  check-types clean. pipelines still 134. Committing, then phase_7 consult.

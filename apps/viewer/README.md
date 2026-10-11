@@ -1,5 +1,19 @@
 # viewer (seeded from multibench's multibrowser)
 
+## Local benchmark results view (Spec 1, Phase 7)
+
+One adapted page lives here already: **`/local-results`** — a minimal, local-only
+view of a benchmark run's `summary.json` + per-question `scores.jsonl`/`answers.jsonl`
+(from `pipelines/sacredbench score`). It renders a per-model × task accuracy table
+and a per-question list (✓/✗, prompt, model answer, expected). It is **independent
+of the GitHub data layer** (`src/lib/localResults.ts`, `src/components/LocalResults.tsx`,
+`src/routes/LocalResultsPage.tsx`) and ships a tiny committed sample run
+(`src/local/sample.ts`) so `pnpm -C apps/viewer dev` → `/local-results` works out of
+the box. Local only — no deploy, no domain adaptation (that is Spec 2). Pointing it
+at a real run under `runs/` is the TUTORIAL's final step.
+
+Everything below is the unadapted seed.
+
 **STATUS: seed, not yet adapted.** This app is a verbatim port of
 `multibench/apps/multibrowser` (commit 14f6c9d4), with only the upstream repo
 default repointed to `faithfamilytechnologynetwork/sacredtexts` and the baked
