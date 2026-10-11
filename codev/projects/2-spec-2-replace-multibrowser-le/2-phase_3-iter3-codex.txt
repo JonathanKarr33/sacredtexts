@@ -1,0 +1,7 @@
+---
+VERDICT: APPROVE
+SUMMARY: Phase 3 fully implements the leaderboard home, run selector, URL contract, error isolation, stale-request guard, documentation updates, and committed-run coverage; prior null-accuracy issues are correctly resolved.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- None

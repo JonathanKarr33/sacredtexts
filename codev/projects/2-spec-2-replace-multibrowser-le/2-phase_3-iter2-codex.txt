@@ -1,0 +1,7 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The prior fix handles only null cells without missing counts; realistic all-missing models still violate the required “n/a” overall display.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `formatCell` returns `miss N` before honoring `accuracy === null` when `missing > 0` (`localResults.ts:328–336`). `score.py` explicitly emits fully missing models as `{n: 0, accuracy: null, missing: N}`, so their leaderboard overall cell displays `miss N`, not the specification-required `n/a`. Add coverage for this realistic null-overall shape and ensure the overall column renders `n/a`—potentially with an overall-specific formatter if task cells should retain the informative missing count.

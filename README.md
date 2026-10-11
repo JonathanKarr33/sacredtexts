@@ -22,8 +22,8 @@ questions.jsonl × model panel ─collect─▶ answers.jsonl ─score─▶ sco
 - `texts/` — converted standard-format corpora (gitignored pending licensing;
   rebuilt locally by the converters).
 - `configs/` — model-panel configs (`models.example.yaml`; real panel gitignored).
-- `apps/viewer/` — results/corpus browser SPA, seeded from multibench's
-  multibrowser; not yet adapted (see `apps/viewer/README.md`).
+- `apps/viewer/` — the benchmark viewer over local `runs/` (leaderboard +
+  error explorer + cross-run standings; see `apps/viewer/README.md`).
 - `codev/` — specs/plans/reviews. Start at
   `codev/specs/1-phase1-benchmark-pipeline.md`.
 

@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The data seam is largely correct, but the endpoint does not fully implement required symlink rejection and Phase 1’s failure-contract tests are incomplete.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `apps/viewer/vite/runsEndpoint.ts:69-82` permits symlinks that resolve inside `runs/`; `realpathSync` plus containment only rejects escaping symlinks. The binding requirement rejects any path that traverses a symlink. Add `lstat`-based component checks and a test for an in-root symlink.
+- `listRuns()` claims to require a readable `summary.json`, but `existsSync` plus `statSync` only verifies existence/type. An unreadable file can be indexed, and the uncaught `readFileSync` at line 119 can then terminate middleware handling. Verify readability and safely handle read failures.
+- The explicit Phase 1 failure-contract coverage is incomplete: there is no HTTP-failure test, no malformed-JSONL line/context test, and no assertion for nullable `panel.served_by` or absent task metrics becoming `null`. The malformed-summary message also omits the run/file context because raw `JSON.parse` errors are returned unchanged.

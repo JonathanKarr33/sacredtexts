@@ -1,5 +1,12 @@
 # multibrowser
 
+> **Historical provenance only.** This document describes `multibench/apps/multibrowser`,
+> the app this viewer was seeded from. As of the Spec 2 purge, **none of the surface
+> described below ships** — the `/t/...` tradition browser, the GitHub data layer, the
+> `/results`/`/raw` explorers, and the `/review*` flows have all been removed. The current
+> app is described in `README.md`. This file is kept for its data-layer and
+> rate-limit lessons, which may inform future work.
+
 A **pure client-side web app** for browsing and exploring **MultiBench traditions** and their
 scenarios — the tradition index, each tradition's manifest / prose / taxonomies, and per-scenario
 the turn-1 opening, the six pressure pushes, and the judge-guidance — with filter/slice by
@@ -144,7 +151,9 @@ pnpm preview        # serve the built bundle locally
 | `VITE_MULTIBENCH_REF` | `main` | Branch/ref to read. |
 | `VITE_SHA_POLL_MS` | `300000` | SHA poll interval (ms). Conservative for the unauthenticated rate limit. |
 
-See `.env.example`. There is no runtime/server config and **no token**.
+(This historical config was documented in a `.env.example` that was removed when the
+multibrowser surface was purged — none of it applies to the current local-only viewer.)
+There was no runtime/server config and **no token**.
 
 ## Deploy on Railway (static site)
 

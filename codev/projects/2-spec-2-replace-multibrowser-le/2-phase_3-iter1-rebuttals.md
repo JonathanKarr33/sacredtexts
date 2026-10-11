@@ -1,0 +1,55 @@
+# Phase 3 — rebuttal to iter1 review feedback
+
+- **codex**: REQUEST_CHANGES (HIGH)
+- **claude**: APPROVE (HIGH)
+
+Both reviewers verified the suite/types/build and confirmed every Phase-3 plan item
+landed. There is exactly one blocking item, and the two reviewers flagged the *same spot*
+(the null-overall cell) from opposite framings. I agreed and fixed it; no disputes.
+
+## codex (blocking) — null-overall cell must display "n/a"
+
+> `formatCell` returns `"—"` when `cell.n === 0` before checking `accuracy === null`
+> (`localResults.ts:328-333`); a no-data overall cell `{n:0, accuracy:null}` does not
+> display `"n/a"` as required. The `LeaderboardTable` test only asserts the model name and
+> acknowledges the em-dash. Update the formatter and assert `"n/a"`.
+
+**Agreed — fixed.** The spec's edge case is explicit: *"A model with `null` overall
+accuracy sorts last and formats as 'n/a' rather than crashing."* The spec is the source of
+truth, so the display must be `"n/a"`, not `"—"`.
+
+Changed `formatCell` (`apps/viewer/src/lib/localResults.ts`): a present cell with no
+observations (`n === 0`) now returns `"n/a"` when there is no missing count, and still
+returns `"miss N"` when there is one (more informative). An absent cell (`undefined`) is
+unchanged (`"—"`), and the `n > 0` path is unchanged. The change is confined to the
+`n === 0 && !missing` branch; no committed-run cell hits it (all `n = 100 / 25`), and no
+existing assertion asserted `"—"` for an `n === 0` cell.
+
+Tests updated to assert the requirement directly:
+- `lib/localResults.test.ts`: added `formatCell({ n: 0, accuracy: null })` → `"n/a"`.
+- `components/LeaderboardTable.test.tsx`: the null-overall test now asserts `"n/a"` renders
+  (removed the comment that acknowledged the old em-dash).
+
+This also resolves claude's non-blocking note #2 (the test name no longer over-claims).
+
+## claude (non-blocking notes)
+
+1. **`RunRef` drops `mtimeMs`; "most recent" relies on server sort order.** Deferred to
+   Phase 5 as claude suggested — the standings view needs each run's date anyway, so
+   widening `RunRef` and sorting defensively lands there. Today it is correct: `listRuns`
+   sorts mtime-desc / id-asc and the page takes `runs[0]`.
+2. **Null-cell test name over-claims.** Resolved by the codex fix above (now genuinely
+   `"n/a"`).
+3. **Stale `/local-results` pointer in `src/local/sample.ts:2`.** Fixed now (cheap,
+   in-scope with this phase's doc-accuracy pass): the header comment now describes the
+   sample as a test fixture, not a `pnpm dev → /local-results` page.
+4. **`formatInt` exported but only used internally.** Left as-is — it is used by
+   `formatTokens`, and exporting it is harmless and plausibly wanted by Phase 5's
+   standings table.
+
+## Verification after the fixes
+
+- `pnpm -C apps/viewer check-types` — clean.
+- `pnpm -C apps/viewer test` — **61 passed / 0 skipped** (both gates ran: `realRun.test.ts`
+  and the `LeaderboardPage` committed-run gate).
+- `pnpm -C apps/viewer build` — green.

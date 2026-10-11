@@ -1,14 +1,12 @@
-# `railway up --no-gitignore` disables .gitignore (needed to force-upload the baked
-# public/data-raw/ gz tier). That also un-excludes everything ELSE .gitignore covered, so
-# re-exclude the heavy/local artifacts here — otherwise a stale coverage/, .vite/ cache, or a
-# *.local secrets file would silently ride along in the upload. Mirrors .gitignore minus
-# public/data-raw/ (the one dir we DO want uploaded).
+# Heavy/local build artifacts and caches that must never ride along in a `railway up`
+# upload. (The old `--no-gitignore` baked raw-tier gotcha is gone with the multibrowser
+# purge — there is no longer a gitignored bundle we need to force-upload.)
 node_modules
 dist
 dist-ssr
 .vite
 coverage
 *.local
-# Root .gitignore patterns --no-gitignore also disables — belt-and-braces (OS/editor cruft):
+# OS/editor cruft
 .DS_Store
 *.sw?

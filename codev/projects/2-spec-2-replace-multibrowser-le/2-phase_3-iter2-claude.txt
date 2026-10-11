@@ -1,0 +1,34 @@
+I'll review Phase 3 by reading the actual implementation files.I read the Phase 3 implementation from disk, ran the suite and typecheck myself (61 tests / 10 files green, `tsc --noEmit` clean), and checked the real committed-run data shape.
+
+## What's solid
+
+**Plan alignment — every Phase 3 item landed.**
+- `routes/LeaderboardPage.tsx` — index fetch with HTML-shape-sniff → empty state, failed-index vs empty distinguished, selected-run load with a `live` stale-request guard, localized per-run error that leaves the selector intact.
+- `components/LeaderboardTable.tsx` + `lib/leaderboard.ts` — ranking via `rankedModels` (overall desc, id tiebreak, null last), task columns from `summaryTasks`, overall column, token totals from `usage.per_model`, by-tradition section gated on **emptiness** (`hasTraditionData`) not truthiness — correct, since `parseSummary` normalizes an absent block to `{}`.
+- `components/RunSelector.tsx` — presentational, parent owns the URL; error shown without disabling the control.
+- `router.tsx` — `/` → `LeaderboardPage` with a **plain** `validateSearch` (zod stays pruned, per the Phase 2 decision).
+- Interim surface retired as planned: `InterimHome.tsx`, `LocalResultsPage.tsx`, `components/LocalResults.tsx` + its test are gone; the loader unit tests were relocated to `lib/localResults.test.ts` and the render gate reworked onto `LeaderboardPage.test.test` — nothing silently dropped.
+- Docs genuinely updated to the new `/?run=<id>` contract (`README.md`, `TUTORIAL.md` Track C, `arch.md` "Viewer local results"); I grepped for stale `/local-results` pointers and found none outside spec/plan/history files, where they belong.
+
+**Committed-run gate is real, not vacuous.** `LeaderboardPage.test.tsx` reads the actual `runs/first-run-2026-10-11` artifacts off disk, asserts the exact row order `["claude-haiku","llama-3.1-8b","gemma-3-4b","gpt-oss-20b"]`, the `5,810 in · 41,140 out · 100 calls` totals, four traditions ×4 rows, and the LDS `72% (n=25)` cell. The stale-request test is the good kind: it gates the slow fetch on a promise, switches, releases, and asserts `slowmodel` never appears. Deleting the `live` flag would fail it.
+
+**Iteration-1 blocker:** addressed and asserted (`formatCell({n:0,accuracy:null})` → `"n/a"` in `localResults.test.ts:68`, `"n/a"` rendered in `LeaderboardTable.test.tsx:55-64`). I did not re-raise it.
+
+## One thing worth a cheap follow-up
+
+The `"n/a"` fix landed on the branch real pipeline output never produces. From the committed `summary.json`, an `_overall` cell is `{n, accuracy, expected_n, missing}` — `missing` is **always present**. So the spec's edge case in its real shape is `{n:0, accuracy:null, expected_n:100, missing:100}`, and `formatCell` (`localResults.ts:333`) checks `cell.missing` first and returns `"miss 100"` — not `"n/a"`. The branch now covered by tests (`missing` absent) only occurs in hand-written fixtures.
+
+This isn't a crash and `"miss 100"` is arguably more informative, so I'm not blocking. But the agreed iteration-1 resolution was "the display must be `n/a`", and for real data it still isn't. A combined string (`n/a (miss 100)`) satisfies both, plus one test asserting the real-shaped cell.
+
+Two smaller notes, both already deferred by the builder with reasoning I accept: `RunRef` drops `mtimeMs` so the "most recent" default rides entirely on `listRuns`' server-side sort (correct today; a defensive client sort is one line and Phase 5 needs the date anyway) — note the test fixtures already carry `mtimeMs` that nothing consumes. And the bad-default-run test asserts the good option *exists* but not that selecting it recovers.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase 3 is complete and faithful to the plan — leaderboard home, `?run=<id>` contract, run selector, stale-request guard, reworked committed-run gate, docs updated; 61 tests and types verified green by me.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Non-blocking: the `"n/a"` fix covers `{n:0, accuracy:null}` (fixture-only shape); real `_overall` cells always carry `missing`, so a no-data model displays `"miss 100"` via `localResults.ts:333`, not `"n/a"`. Suggest `n/a (miss N)` plus a test on the real-shaped cell.
+- Minor: `RunRef` omits `mtimeMs`; the most-recent default relies on `listRuns`' sort order rather than sorting client-side (deferred to Phase 5 — acceptable, correct today).
+- Minor test gap: the bad-default-run case asserts the good run is listed but not that selecting it recovers the view.

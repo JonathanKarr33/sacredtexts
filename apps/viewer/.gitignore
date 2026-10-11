@@ -4,6 +4,4 @@ dist-ssr/
 *.local
 .vite/
 coverage/
-
-# #51 raw tier: baked into the deploy bundle at `railway up` time, NEVER committed
-public/data-raw/
+*.tsbuildinfo

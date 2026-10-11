@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The revised architecture is strong, but Phase 1’s loader contract change cannot compile while its existing caller remains untouched.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Phase 1 changes `loadRun` from nullable data to a typed failure result, yet explicitly forbids page changes. The current `LocalResultsPage.tsx` treats every non-null result as loaded data, so a discriminated result union will break its types or mishandle failures. Add `LocalResultsPage.tsx` to Phase 1 and define how it unwraps success and handles typed failures/sample fallback, or preserve a compatible loader signature with typed thrown errors.
+- Minor: the final documentation sweep should update `codev/resources/arch-critical.md`, whose always-on context still describes the viewer as a multibrowser seed; updating only `arch.md` would leave future agents with stale architectural guidance.

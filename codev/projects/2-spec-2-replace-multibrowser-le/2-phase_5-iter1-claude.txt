@@ -1,0 +1,38 @@
+I'll start by locating the worktree and reading the Phase 5 deliverables.Phase 5 work is in the working tree. Let me read the new files.I've read all Phase 5 files, run the full test suite, typecheck, and build. Here's my review.
+
+## What Phase 5 delivers
+
+**`src/lib/aggregate.ts`** — the pure rollup. It is genuinely pure and matches the binding requirement: keys on `${panel.provider}\u0000${panel.model}`, falls back to the bare `model_id` when the run has no panel entry, selects the row with the greatest `mtimeMs` (run id desc as a deterministic tie-break), and ranks with the same comparator contract as `rankedModels` in `localResults.ts` (`accuracy ?? -1` desc, `modelId` asc) — so the spec's "standings over a single run == that run's leaderboard rows" holds structurally, not just in the fixture.
+
+**`src/routes/StandingsPage.tsx`** — loads the shared run index, then every run's `summary.json` in parallel via the new `loadSummary`, skipping unreadable runs; `loading / empty / failed / ready` states; one row per identity with per-task + overall cells, panel identity sub-label, source run id/date, and `/?run=<id>` links (the Phase-3 URL contract). The `live` flag is present. The 200-HTML prod-host guard is reused rather than re-implemented — `loadSummary` goes through the same `fetchArtifact` shape-sniff, and that's tested.
+
+**`src/lib/runIndex.ts`** — sensible extraction of `fetchRunIndex` out of `LeaderboardPage` so leaderboard and standings share one HTML-200 guard. Behavior-preserving.
+
+**Route + nav + docs + dep sweep** — `/standings` registered, header link added (`[&.active]` works: TanStack's `Link` applies `STATIC_ACTIVE_OBJECT = { className: "active" }`), and `README.md` / `TUTORIAL.md` / `arch.md` / `arch-critical.md` all describe the finished three-surface app with no stale `/local-results` or "lands in a later phase" wording. Dep check: `@heroui/react` is still live (`Loading.tsx` → `Spinner`), `hono`/`@hono/node-server` live in `server/index.mjs`; nothing dead that I can find.
+
+**Verification I ran:** `pnpm test` → 15 files / 109 tests pass (incl. `aggregate.test.ts` 7, `StandingsPage.test.tsx` 5, `deploy.test.ts` 6 with the `#86` probe); `check-types` clean; `build` clean.
+
+## Non-blocking observations
+
+1. **Phase 5 is uncommitted.** `HEAD` is `chore(porch): 2 implement build-complete`, but `aggregate.ts`, `StandingsPage.tsx`, `runIndex.ts` and the doc edits are still working-tree changes — there is no `[Spec 2][Phase: implement] phase_5` commit. Worth committing before the PR gate.
+2. **The Standings nav link is untested.** `app.test.tsx` only asserts the *absence* of old multibrowser links; `StandingsPage.test.tsx` navigates via `renderApp("/standings")`. Delete the header `<Link to="/standings">` and the suite stays green. One `getByRole("link", { name: "Standings" })` in the shell test closes it.
+3. **The new defensive sort in `runIndex.ts` is vacuous.** Every index fixture (`LeaderboardPage.test.tsx` lines 59–133, `StandingsPage.test.tsx`) is already newest-first, so removing the `runs.sort(...)` would break no test. Risk is low — `runsEndpoint.test.ts` pins the server-side ordering — but the doc comment's "callers can rely on `runs[0]` being the most recent even if the server's ordering ever changes" is currently unverified. A 5-line `runIndex.test.ts` feeding an out-of-order index would make the guarantee real.
+4. **`runDate(mtimeMs)` labels directory mtime as the run's date.** For the committed run that renders the *checkout* date, not 2026-10-11. Spec-sanctioned as the ordering key, and the id (which carries the real date) is displayed next to it, so this is cosmetic — but "indexed <date>" would be more honest than an unlabeled date.
+5. **`package.json`'s `description`** still reads "renders a leaderboard and error explorer" — the only doc string the Phase-5 sweep missed.
+6. **Skipped runs are invisible.** A run whose `summary.json` is unreadable is dropped silently (tested). The header count reflects *loaded* runs so nothing is misstated, but a "1 run could not be read" note would match the localized-error spirit of the leaderboard.
+7. **Carry-forward, not new:** `expect(present).toBe(true)` inside `describe.skipIf(!present)` is unreachable when false, so the "must fail loudly, not skip silently" comment doesn't hold — the gate skips silently if the committed run vanishes. Same pattern in `ExplorerPage.test.tsx`; if it's ever fixed, fix all of them together.
+8. Trivial: `StandingsPage.tsx` lines 4–5 are two imports from the same module.
+
+I did not modify anything in the tree.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 5 cross-run standings is complete and correct — panel-keyed rollup, newest-run-wins, graceful panel/summary fallbacks, docs swept, and tests/typecheck/build all green; only minor coverage and labeling nits remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Phase 5 code is still uncommitted (no `[Spec 2][Phase: implement] phase_5` commit despite porch build-complete)
+- Standings nav link has no test — deleting it would not fail the suite
+- `runIndex.ts`'s new defensive mtime sort is unexercised (all index fixtures are already newest-first) and has no dedicated test
+- `runDate` presents directory mtime as the run's date (checkout time for the committed run); `package.json` description omits standings

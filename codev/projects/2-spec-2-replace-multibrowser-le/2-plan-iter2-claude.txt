@@ -1,0 +1,49 @@
+I'll review the plan against the actual tree to verify the iteration-1 fixes landed and check for remaining gaps.I read the actual tree (not diffs) to verify the iteration-1 fixes and hunt for the next layer of problems. The approach, phase ordering, and spec coverage are sound; the iteration-1 blockers are genuinely fixed. Three new gaps, all of the same class that was blocking last round.
+
+## Verified fixed from iteration 1
+
+- **A (main.tsx / renderApp.tsx)** — confirmed real: `main.tsx` imports `PersistQueryClientProvider`, `createSyncStoragePersister`, `defaultShouldDehydrateQuery`, `./lib/queryClient`, `RAW_PERSIST_EXCLUDED`; `test/renderApp.tsx` wraps in `QueryClientProvider`. Both now named Phase-2 edits. Also verified `RootLayout.tsx` imports `REF, REPO` from `lib/constants` and `useLatestSha` from `lib/queries` — covered by the plan's RootLayout rework.
+- **B** — confirmed `serveRuns` is a non-exported closure with a hardcoded `runsDir` and a lexical `startsWith` check. Extraction to `runsEndpoint.ts` is the right fix; `tsconfig.json` includes `node` types and `vite.config.ts`, so it will type-check.
+- **C** — confirmed `loadRun` fetches only three artifacts and returns `… | null`; `questions.jsonl` *is* in the committed run (86 KB, alongside `questions.jsonl.manifest.json`).
+- **E** — `tailwindcss@4.3.1` per `apps/viewer/pnpm-lock.yaml`, so `@source inline(...)` (v4.1+) is available. Safelist is viable.
+- **Deletion list completeness** — I enumerated `src/lib`, `src/components`, `src/routes`, `src/test`: every file is covered by the plan's globs. No orphans.
+
+## Blocking
+
+**1. Phase 1 breaks its own "no page changes" acceptance — `loadRun`'s two surviving consumers are unlisted.**
+Changing `loadRun` from `{summary,results}|null` to a typed discriminated result breaks:
+- `src/routes/LocalResultsPage.tsx:35-41` — branches `run ? {data: run} : sampleRun()`. A typed result is always truthy and no longer has `.summary`/`.results` → type error under `strict`.
+- `src/components/LocalResults.test.tsx:57` — `"loadRun returns null when an artifact 404s"` asserts the removed contract.
+
+Phase 1's acceptance says *"No page/route/nav changes in this phase"* and *"`/local-results` still renders."* Both are false as specified. Fix: name `LocalResultsPage.tsx` as a minimal Phase-1 adapter edit (typed failure → its existing sample fallback), name the `LocalResults.test.tsx` case as reworked, and reword the acceptance line to "no new routes/nav."
+
+**2. The content-type guard will break every existing fake fetcher.**
+`realRun.test.ts`'s `diskFetcher` and `LocalResults.test.tsx`'s `fakeFetcher` both return bare `{ok, status, json, text}` objects with **no `headers`** — a `res.headers.get("content-type")` guard throws `TypeError` on all of them. Compounding it: the dev middleware serves `.jsonl` as `text/plain`, so a header allowlist must admit `text/plain` for JSONL. Specify **shape-sniffing as primary** (read `.text()`, treat a leading `<` or a parse failure as "artifact absent"), with content-type as an optional hint — otherwise the builder picks the header route and re-fixes three fetchers.
+
+**3. The Phase-2 "built+served app shows the empty state, not a crash" criterion isn't executable.**
+devDependencies have `jsdom` only — no playwright/puppeteer — and `deploy.test.ts` runs the server from node, so it can fetch HTML but cannot *run* the SPA. Split it: (a) deploy test asserts the static host returns `index.html`/200 for `/runs/_index`; (b) a jsdom test renders the home page with a fetcher returning a 200 HTML body and asserts the empty state. As written, a builder either can't satisfy the criterion or adds a browser dep — contradicting the prune.
+
+## Non-blocking
+
+**4. `Markdown` and `Loading` have zero consumers after the purge.** Verified: `Markdown` is imported only by `ReviewTraditionPage`/`ReviewScenarioPage`; `CenteredSpinner` only by `IndexPage`/`ScenarioPage`/`Raw*`/`ResultsPage` — all deleted. The plan says "Keep `ErrorBoundary`, `Loading`, `Markdown`," but the spec's criterion is "only generic primitives the new pages **actually reuse**" plus pruning deps used only by the removed surface. If nothing in Phases 3–5 renders markdown, `react-markdown`/`remark-gfm`/`remark-breaks`/`rehype-sanitize` are dead too. Decide in Phase 2; verify in Phase 5's sweep. (`lucide-react`/`tailwind-merge`/`@heroui/react` are in the same position but HeroUI retention is spec-fixed and new tables will plausibly use them.)
+
+**5. `?run=` semantics silently change** from today's base path (`?run=/runs/<id>`, as documented in `TUTORIAL.md`/arch.md) to a bare id. State the id→base resolution (`/runs/${encodeURIComponent(id)}`) and that an old-style value falls to the default rather than erroring.
+
+**6. `src/lib/runsEndpoint.ts` is a node-only module in the client source root.** It type-checks, but a stray client import fails only at build. Consider `apps/viewer/vite/runsEndpoint.ts`, or a one-line test asserting no `src/` client module imports it.
+
+**7. FYI, no action:** the plan's premise that the `#86` probe "would go red" is probably wrong — the probe class names appear as string literals in `deploy.test.ts`, which Tailwind v4 auto-detection scans, so it likely self-seeds today. The `@source inline` safelist is the right fix regardless (it makes the probe deterministic instead of accidental). Note the tradeoff: a safelisted ramp means the probe can no longer catch "the app uses a shade the shim doesn't define."
+
+I made no changes to the tree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Iteration-1 blockers are genuinely fixed and the seam→purge→views sequencing is right, but Phase 1 repeats the unlisted-consumer build-breaker (LocalResultsPage/LocalResults.test.tsx), the content-type guard breaks all three existing fake fetchers, and one Phase-2 acceptance criterion isn't executable with jsdom-only tooling.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Phase 1's `loadRun` signature change breaks `src/routes/LocalResultsPage.tsx:35-41` and `src/components/LocalResults.test.tsx:57`, neither listed; its "no page changes" / "`/local-results` still renders" acceptance lines are self-contradictory.
+- A `headers.get("content-type")` guard throws on `realRun.test.ts`'s `diskFetcher` and `LocalResults.test.tsx`'s `fakeFetcher` (no `headers` property); dev middleware also serves `.jsonl` as `text/plain`. Specify shape-sniffing as the primary mechanism.
+- Phase 2's "built+served static app shows the empty state" assertion needs a browser; devDeps are jsdom-only. Split into a server-response assertion plus a jsdom render-with-HTML-200 test.
+- `Markdown`/`Loading` have no consumers post-purge; plan keeps them and their 4 markdown deps, against the spec's "only primitives the new pages reuse" + dep-prune criteria.
+- `?run=` changes from base path to bare id without the plan saying so; state the id→base mapping and the old-value fallback.

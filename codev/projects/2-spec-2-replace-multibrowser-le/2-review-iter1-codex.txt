@@ -1,0 +1,24 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core functionality is strong, but the run endpoint misses the required canonical-path confinement and missing failures omit the specified metric display.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `apps/viewer/vite/runsEndpoint.ts:65-91` canonicalizes only the root, then relies on `lstat` and lexical containment for the requested file. It never calls `realpath` on the target, contrary to the binding spec requirement, and a directory swapped to a symlink between checks can escape `runs/`. Canonicalize the resolved target, verify containment, retain component-level symlink rejection, and add a regression test.
+- `apps/viewer/src/components/QuestionList.tsx:78-84` hides the metric grid for missing failures, while the specification requires every failing question to show its per-metric values. Render the metrics as `n/a` for missing results, or reconcile the specification and documentation; currently the component test explicitly codifies behavior that contradicts the spec and review’s AC6 claim.
+
+PR_SUMMARY: |
+  ## Summary
+  Replaces the legacy multibrowser surface with a local Sacred Texts benchmark viewer. It provides a per-run leaderboard, roster-based error explorer, and cross-run current standings.
+
+  ## Key Changes
+  - Adds local run discovery, artifact loading, ranking, filtering, and panel-keyed cross-run aggregation.
+  - Removes the GitHub data layer, scenario/review routes, and obsolete dependencies.
+  - Adds comprehensive unit, integration, committed-run, build, and deployment coverage.
+
+  ## Test Plan
+  - Run `pnpm -C apps/viewer test`.
+  - Run `pnpm -C apps/viewer check-types`.
+  - Run `pnpm -C apps/viewer build`.
+  - Verify traversal and symlink confinement, including canonical target-path checks.
+  - Verify missing explorer rows display prompt, expected value, missing answer, and `n/a` metrics.

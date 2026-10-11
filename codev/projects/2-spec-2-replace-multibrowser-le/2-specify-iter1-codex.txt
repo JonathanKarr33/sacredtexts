@@ -1,0 +1,12 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The direction is sound, but artifact-contract contradictions and unresolved critical decisions prevent reliable planning.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The missing-cell explorer is not feasible from the three required artifacts alone. `score.py` emits score rows only for successful answer rows, while `summary.json` contains missing counts but not missing question identities or prompts. Specify loading `questions.jsonl` and reconstructing the expected model × question roster, or narrow “missing” to aggregate-only display.
+- Requiring exact/normalized/token-F1 for every failure contradicts the scoring contract. `verify_source`, `cite_passage`, and `identify_source` do not emit those metrics, and `identify_version` omits token-F1. Define unavailable metrics as “n/a” or limit the three-metric requirement to tasks that emit them.
+- The purge criterion is self-contradictory: the new viewer must retain tradition fields, columns, and filters, yet the success criteria prohibit tradition identifiers in source and the built bundle. Replace this with precise forbidden legacy routes, component/module names, and multibrowser-specific identifiers.
+- Critical scope remains undecided: run discovery, “most recent” ordering, and the Railway/edge-server fate are still Open Questions. Settle these before planning. In particular, define deterministic ordering/tie-breaking and whether the production server remains as a plain SPA host.
+- The stated path-confinement mitigation is incomplete. A lexical `startsWith` check does not prevent a symlink beneath `runs/` from resolving outside it, and malformed URL encoding can throw. Require canonical-path confinement or explicit symlink rejection plus safe decoding and tests.
+- Clarify deterministic leaderboard ordering for equal scores and localized load-error behavior so a malformed or incomplete selected run does not remove access to the run selector.

@@ -1,0 +1,138 @@
+id: '2'
+title: spec-2-replace-multibrowser-le
+protocol: aspir
+phase: review
+plan_phases:
+  - id: phase_1
+    title: Run-data seam + hardened run-index endpoint
+    status: complete
+  - id: phase_2
+    title: Purge multibrowser surface to a clean shell
+    status: complete
+  - id: phase_3
+    title: Leaderboard home + run selector
+    status: complete
+  - id: phase_4
+    title: Error explorer with roster-based missing cells
+    status: complete
+  - id: phase_5
+    title: Cross-run aggregate (current standings)
+    status: complete
+current_plan_phase: null
+gates:
+  pr:
+    status: approved
+    requested_at: '2026-10-11T12:09:38.642Z'
+    approved_at: '2026-10-11T16:38:55.696Z'
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: true
+history:
+  - iteration: 1
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-plan-iter1-codex.txt
+      - model: claude
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-plan-iter1-claude.txt
+  - iteration: 1
+    plan_phase: phase_1
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_1-iter1-codex.txt
+      - model: claude
+        verdict: APPROVE
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_1-iter1-claude.txt
+  - iteration: 2
+    plan_phase: phase_1
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_1-iter2-codex.txt
+      - model: claude
+        verdict: APPROVE
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_1-iter2-claude.txt
+  - iteration: 1
+    plan_phase: phase_3
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_3-iter1-codex.txt
+      - model: claude
+        verdict: APPROVE
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_3-iter1-claude.txt
+  - iteration: 2
+    plan_phase: phase_3
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_3-iter2-codex.txt
+      - model: claude
+        verdict: COMMENT
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_3-iter2-claude.txt
+  - iteration: 1
+    plan_phase: phase_5
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter1-codex.txt
+      - model: claude
+        verdict: APPROVE
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter1-claude.txt
+  - iteration: 2
+    plan_phase: phase_5
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: APPROVE
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter2-codex.txt
+      - model: claude
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter2-claude.txt
+started_at: '2026-10-11T09:19:07.638Z'
+updated_at: '2026-10-11T16:38:55.696Z'
+context_refreshes:
+  - boundary: plan-phase:phase_2
+    at: '2026-10-11T10:13:25.171Z'
+    acknowledged_at: '2026-10-11T10:15:07.980Z'
+  - boundary: plan-phase:phase_3
+    at: '2026-10-11T10:34:19.714Z'
+    acknowledged_at: '2026-10-11T10:35:38.454Z'
+  - boundary: plan-phase:phase_4
+    at: '2026-10-11T11:01:37.627Z'
+    acknowledged_at: '2026-10-11T11:03:12.081Z'
+  - boundary: plan-phase:phase_5
+    at: '2026-10-11T11:20:46.783Z'
+    acknowledged_at: '2026-10-11T11:22:17.560Z'
+  - boundary: enter:review
+    at: '2026-10-11T11:49:38.983Z'
+    acknowledged_at: '2026-10-11T11:54:22.060Z'
+pr_history:
+  - phase: review
+    pr_number: 6
+    branch: builder/aspir-2
+    created_at: '2026-10-11T11:57:02.199Z'
+pr_ready_for_human: false

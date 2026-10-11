@@ -1,0 +1,41 @@
+I'll review phase_4 (the error explorer). Let me start by reading the relevant files.I read all phase_4 files from disk, ran the suite (excluding `deploy.test.ts`, which does a real `vite build` into your live tree), and typechecked.
+
+## Verification
+
+- `npx vitest run src/… vite` → **83 passed / 0 skipped**, including the two committed-run gates (`realRun`, `ExplorerPage` drill-in) — they ran, not skipped.
+- `tsc --noEmit` → clean.
+- Spot-checked `runs/first-run-2026-10-11/scores.jsonl`: metrics are pre-rounded (`0.2865`), so `formatMetric`'s `String(v)` is fine against real data.
+
+## Phase_4 deliverables — all met
+
+| Deliverable | Status |
+|---|---|
+| Drill-in from leaderboard | ✅ model-name cell, per-task cell (`?task=`), per-tradition cell (`?task=&tradition=`) |
+| All roster questions incl. missing | ✅ `modelQuestions` over the roster-joined results; `missing` badge + "no answer produced", no metric grid |
+| Failure detail side by side | ✅ prompt / expected / answer / exact / normalized / token-F1, `null → "n/a"` |
+| Composing filters | ✅ `filterQuestions` AND-composed; task / tradition (membership, multi-tradition aware) / correct / mode |
+| Plain `validateSearch`, zod stays pruned | ✅ `router.tsx:44` |
+| Tests | ✅ lib unit, `QuestionList` unit, page integration over the Phase-1 `missing>0` fixture, committed-run gate (100 questions / 24 correct / "Showing 24 of 100") |
+
+The `?run=` back-link contract, the `live` stale-request guard, and the legend (phase_3 cosmetic carry-forward) all land cleanly.
+
+## Non-blocking findings
+
+1. **No test exercises the filter UI.** Every filter assertion is either lib-level or driven by an *initial* URL. `ExplorerFilters.tsx` and `ExplorerPage.onFilters` → `navigate({search: next})` are untested, and phase_3 set the opposite precedent (`RunSelector.test` / `LeaderboardPage.test` use `userEvent.selectOptions`). I settled the mechanism by reading rather than mutating: `@tanstack/router-core`'s `qss.encode` skips `val !== void 0`, so selecting "all" genuinely drops the param — so this is a coverage gap, not a known bug. But a regression in the select's `onChange` mapping or the navigate call would ship silently, and the spec's "clearing filters restores the full list" scenario is currently unverified. One `selectOptions` test on `ExplorerPage` closes both. (Your thread's phase_4 "VERIFIED" line lists check-types/build/suite but no `pnpm dev` click-through, unlike phase_2 — so neither path covers it today.)
+2. **Tradition filter never exercised at page level.** `LeaderboardTable.test:97` asserts the href string `tradition=The+Church+of+Jesus+Christ+of+Latter-Day+Saints`, but nothing parses it back. The leaderboard→explorer link therefore depends on a `+`↔space round-trip through TanStack's qss that no test pins. I read qss (URLSearchParams both directions) and it does work; a one-line `renderApp("/run/fix/model/haiku?tradition=Protestant+Christian")` assertion would make the contract explicit.
+3. **Unknown model id reads as "empty run".** `/run/<id>/model/typo` renders "0 questions · 0 correct · 0 wrong · 0 missing" + "No questions match the current filters." `loadRun`'s result already carries `summary.models`, so a "model not in this run" guard is cheap.
+4. **Cosmetic:** a hand-edited `?task=`/`?tradition=` value not in the derived options leaves the controlled `<select>` with no matching option (renders blank) while the filter still silently applies.
+
+None of these block phase_5 (standings); items 1–2 are worth folding in while the explorer is fresh.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase_4 error explorer is complete, correct, and green (83 tests, typecheck clean); the one real gap is that no test or manual check exercises the filter selects or the tradition round-trip the leaderboard links depend on.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Filter UI untested: `ExplorerFilters.onChange` and `ExplorerPage.onFilters`→`navigate` have no interaction test (phase_3 used `userEvent.selectOptions` for `RunSelector`); the spec's "clearing filters restores the full list" scenario is unverified. Mechanism verified correct by reading qss, so coverage gap not a bug.
+- Tradition filter never exercised at page level; the leaderboard's `tradition=A+B` link round-trip is asserted only as an href string, never parsed back.
+- `/run/<id>/model/<unknown>` renders "0 questions / No questions match the current filters" instead of "model not in this run", though `summary.models` is available.
+- Cosmetic: a `?task=`/`?tradition=` value absent from the derived options leaves the controlled `<select>` blank while still filtering.

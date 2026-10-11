@@ -1,0 +1,43 @@
+I'll start by reading the Phase 3 implementation files.## Review — Phase 3: Leaderboard home + run selector
+
+I read every Phase-3 file from disk and verified the suite, types, and build myself.
+
+**Verification run** (read-only w.r.t. tracked files; `pnpm build` only wrote the gitignored `apps/viewer/dist/`, which `deploy.test.ts` builds anyway — `git status` shows no tracked modifications):
+- `pnpm -C apps/viewer test` → **61 passed / 10 files, 0 skipped** (both gates ran: `realRun.test.ts` and the `LeaderboardPage` committed-run gate — `present` resolves true, `runs/first-run-2026-10-11` is in the worktree).
+- `check-types` clean; `vite build` green.
+
+### Plan alignment — all Phase-3 items landed
+
+| Plan item | Status |
+|---|---|
+| `routes/LeaderboardPage.tsx` with `?run=` + stale-request guard | ✅ `live` flag keyed on `selectedId`; the rapid-switch test actually gates the slow run on a promise and asserts `fastmodel` survives `slowmodel`'s late resolution — a non-vacuous test |
+| Bare-run-id URL contract (`/?run=<id>`, plain validator, no zod) | ✅ `router.tsx` validateSearch is a plain fn; page resolves `/runs/${encodeURIComponent(id)}`; old `?run=/runs/<id>` falls back to default and is explicitly tested |
+| `components/LeaderboardTable.tsx` | ✅ ranked rows, task columns, overall, tokens, by-tradition breakdown; presentational only |
+| `components/RunSelector.tsx` | ✅ native `<select>` (provider-less), stays enabled on run error and keeps every run listed — tested |
+| `lib/leaderboard.ts` (pure helpers) | ✅ reuses `rankedModels`/`summaryTasks`/`formatCell`, adds token totals + tradition rows; `hasTraditionData` keys on **emptiness**, honoring the Phase-1 `parseSummary` normalization |
+| Retire the interim home | ✅ `InterimHome.tsx`, `LocalResultsPage.tsx`, `LocalResults.tsx`+test deleted; the surviving lib coverage was **relocated** to `lib/localResults.test.ts` rather than dropped |
+| Committed-run gate reworked onto the leaderboard | ✅ asserts exact row order `["claude-haiku","llama-3.1-8b","gemma-3-4b","gpt-oss-20b"]` (0.0 ties by id), `retrieve_quote`+`overall` columns, all four traditions, LDS 72%, `5,810 in · 41,140 out · 100 calls` |
+| Docs (README / TUTORIAL ≈124 / arch.md "Viewer local results") | ✅ all three updated to the `/?run=<id>` contract; no stale `/local-results` in any doc |
+
+Acceptance criteria for this phase are met, including the error-isolation and empty-state cases, and the index-failure-vs-empty distinction carried forward from Phase 2 (`fetchRunIndex` returns `ok:true,[]` for an HTML-200 prod host and `ok:false` for HTTP 500 — both tested).
+
+### Minor notes (non-blocking)
+
+1. **`RunRef` drops `mtimeMs`; "most recent" relies on server sort order.** `fetchRunIndex` filters to `{id}` and the page takes `runs[0]`. That's correct today because `listRuns` sorts mtime-desc/id-asc, but the ordering contract is implicit in the wire format rather than enforced client-side. Phase 5's standings view needs each run's date anyway, so widening `RunRef` to carry `mtimeMs` (and sorting defensively) would be cheap there.
+2. **`LeaderboardTable.test.tsx:55` is named "renders a null-overall model as 'n/a'"** but only asserts the model name renders. `formatCell` returns `—` for an `n === 0` cell, not `n/a` (the `n/a` branch needs `n > 0 && accuracy === null`, which `score.py` doesn't emit). The behavior is graceful and matches the spec's intent ("rather than crashing"); the test name just over-claims. Rename, or assert the actual `—`.
+3. **Stale comment in `src/local/sample.ts:2`** — "(`pnpm dev` → /local-results)" points at the removed route, and the sample is now a test-only fixture (no page renders it). One-line fix; the Phase-5 doc sweep can absorb it.
+4. `formatInt` is exported from `lib/leaderboard.ts` but only used internally — harmless, possibly wanted by Phase 5.
+
+Nothing here blocks Phase 4. No functionality scheduled for Phases 4–5 (explorer links, standings, arch-critical.md bullet) was flagged.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 3 is complete and faithful to the plan — leaderboard home, `?run=<id>` contract, run selector, stale-request guard, and the committed-run gate reworked onto the leaderboard; 61 tests, types, and build all verified green.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- Minor: `RunRef` discards `mtimeMs`, so "most recent" depends implicitly on `listRuns`' sort order (widen in Phase 5, which needs run dates anyway).
+- Minor: `LeaderboardTable.test.tsx:55` test name claims an `n/a` render it doesn't assert (`formatCell` yields `—` for `n === 0`).
+- Minor: stale `/local-results` pointer in the `src/local/sample.ts` header comment.

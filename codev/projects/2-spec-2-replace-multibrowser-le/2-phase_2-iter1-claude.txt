@@ -1,0 +1,38 @@
+I'll start by reading the key files for phase_2.I read the phase-2 files from disk, and verified the two risky claims against artifacts rather than taking them on trust. I did **not** run the suite or a build (that would write into a live builder's tree); instead I checked the existing `dist/` (built 03:28, one minute after the phase-2 commit at 03:27) directly.
+
+## What I verified
+
+**The #86 probe is real, not self-seeding.** I ran deploy.test's exact probe regexes against `dist/assets/index-BoSHlSrI.css`: all 11 probed utilities (`text-default-400/500/900`, `border-default-200`, `bg-default-50`, `bg-warning-50`, `text-warning-800`, `border-warning-200`, `bg-danger-50`, `text-danger-700`, `text-success-600`) emit a rule **and** are mapped onto `color-mix(in oklab,var(--pole)…)`. The `@source inline("{text,bg,border}-{default,warning,danger,success}-{50…900}")` safelist exactly covers the shim's ramp, and `tailwindcss@4.3.1` in the lockfile supports it. The shim wins the cascade over HeroUI's plain `var(--hue)` rules in the real output.
+
+**Bundle purity holds.** `JLS-\d{3}`, `BZ-\d{3}`, `al-jalīs` are all absent from the built JS.
+
+**The purge is internally consistent.** Every relative import in the 22 remaining `src`/`vite`/`server` files resolves; no kept source imports a pruned dep (`js-yaml`, `zod`, react-query + persisters, the markdown stack, `lucide-react`, `tailwind-merge`). `tailwind-merge` removal is safe specifically because it's an `autoInstallPeers` peer of `@heroui/styles` and still resolves at 3.4.0 in the lockfile. `main.tsx` and `test/renderApp.tsx` — the two named build-breakers — are both correctly rewritten. Docs (README, README.multibrowser, TUTORIAL, arch.md) describe the interim state honestly, including the `/local-results` → `/` change the deviation forced.
+
+**`loadRun`'s 404 path doesn't touch `res.text()`**, so `app.test.tsx`'s bare `mapFetcher` 404 objects (no `text`) can't throw — the "broken run" test is sound.
+
+**Hono static root:** I read `@hono/node-server/dist/serve-static.js` — it does `join(root, filename)`, so an absolute `DIST` works. The "relative root only" caveat I half-remembered does not apply to this version.
+
+## Findings (all non-blocking)
+
+1. **Vacuity in the deploy smoke.** Both HTTP assertions (`/some/unknown/deep/route` and `/runs/_index`) are satisfied by the `index.html` fallback. If `serveStatic` ever stopped serving `dist/assets/*`, the test stays green while production serves HTML for the JS bundle. One extra assertion — parse the hashed asset path out of `dist/index.html`, fetch it, expect 200 + a JS content-type — makes the smoke non-vacuous. Cheap, worth doing.
+2. **`InterimHome.fetchRunIndex` collapses every failure into "No runs yet"** — network error, HTTP 500, and a malformed index all read as "no runs". Correct for the prod-host HTML case, misleading for a dev-server failure. Carry forward to phase 3, where the spec requires a localized error with the selector still usable.
+3. **Stale multibrowser strings in kept code.** `vite.config.ts:25` still justifies `base: '/'` with the deleted `/t/sunni-islam/JLS-001` deep link, and `ErrorBoundary.tsx:20` logs `"multibrowser render error:"` — that literal still ships in the bundle (I confirmed). Neither trips a success criterion (they target corpus ids and `src` imports), but "gone, not merely hidden" argues for two word edits.
+4. **`@testing-library/user-event` is imported by nothing** after the purge — a dead devDep against the no-dead-dependency criterion. The deliberate retention for phases 3/4 is reasonable; make sure the phase-5 sweep either confirms use or prunes it.
+5. **`loadRun(`/runs/${id}`)` doesn't encode the id** (phase 3's contract does). Only bites run dirs with URL-special characters.
+
+**Deviations:** both documented in the thread and sound. Deleting `LocalResultsPage.tsx` was the right call (its only consumer was the removed route, and docs were updated in the same commit rather than deferred to phase 3). Pruning `tailwind-merge`/`lucide-react` beyond the plan's list is grep-clean and within the spec's prune mandate.
+
+The one claim I could not check without writing to your tree is the reported "44 passed" suite run.
+
+---
+VERDICT: APPROVE
+SUMMARY: Purge is complete, consistent, and honest — the #86 probe and bundle-purity claims verified against the real built CSS/JS; only nits and one test-vacuity suggestion remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Deploy smoke is vacuous on static serving: both assertions pass via the index.html fallback, so a `serveStatic` regression would ship silently — add an assertion that a hashed `dist/assets/*.js` is served with a JS content-type.
+- `InterimHome.fetchRunIndex` maps all index failures (500, malformed JSON, network) to the "No runs yet" empty state; phase 3 must distinguish "empty" from "index fetch failed".
+- Stale multibrowser strings in kept code: `vite.config.ts:25` cites `/t/sunni-islam/JLS-001`; `ErrorBoundary.tsx:20` logs "multibrowser render error:" (that literal ships in the bundle).
+- `@testing-library/user-event` is now imported by nothing — dead devDep to confirm or prune in the phase-5 sweep.
+- `loadRun(`/runs/${id}`)` omits `encodeURIComponent` on the run id (phase 3's contract adds it).

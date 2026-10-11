@@ -66,7 +66,7 @@ uv --project pipelines run python -m sacredbench score \
 diff <(sort /tmp/scores.jsonl) <(sort runs/first-run-2026-10-11/scores.jsonl) && echo "reproduced"
 ```
 
-Then view it (Track C below): `/local-results?run=/runs/first-run-2026-10-11`.
+Then view it (Track C below): open `/` — the viewer shows the leaderboard for the most-recent run under `runs/`.
 
 ## Track B — do your own run (needs API keys — the only paid part)
 
@@ -116,10 +116,21 @@ pnpm -C apps/viewer install
 pnpm -C apps/viewer dev          # then open the printed URL
 ```
 
-- `/local-results` renders a built-in sample run out of the box.
-- `/local-results?run=/runs/first-run-2026-10-11` renders the committed run; point
-  `?run=` at your own `runs/<id>` to view Track B's output (the dev server serves the
-  repo's `runs/` at `/runs/`).
+- `/` shows the **leaderboard** for the most-recent run under `runs/` automatically (the
+  committed `runs/first-run-2026-10-11/` when it's the only one; your Track B `runs/<id>`
+  once you add it): models ranked by overall accuracy, per-task and per-tradition columns,
+  and per-model token totals. The dev server serves the repo's `runs/` at `/runs/`.
+- A **run selector** lists every run under `runs/`; switching writes the selection to the
+  URL as a bare run id (`/?run=<id>`), so a view is shareable and survives refresh.
+- Click a model (or a task / tradition cell) to open the **error explorer**
+  (`/run/$runId/model/$modelId`): every question with pass / fail / missing status, the
+  prompt, expected text, the model's answer, and the exact / normalized / token-F1 scores
+  side by side, filterable by task, tradition, correct/incorrect, and failure mode.
+- **Standings** (`/standings`, in the header) shows each model's most recent result across
+  all runs — one row per model, keyed on the panel's provider + model, linking back into
+  the run it came from.
+- An empty `runs/` shows an informative empty state.
+- The multibrowser surface (`/t/...`, `/results`, `/raw`, `/review*`) has been removed.
 
 ## Re-running the whole thing / tests
 
