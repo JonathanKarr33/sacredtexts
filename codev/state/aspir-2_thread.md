@@ -29,3 +29,32 @@ Context gathered:
 - runs/ gitignored except !runs/first-run-2026-10-11/ (committed evidence).
 
 Drafting spec next.
+
+## 2026-10-11 — SPECIFY iter1 consult + revision
+
+2-way consult (codex + claude, gemini excluded per lessons): BOTH REQUEST_CHANGES,
+HIGH confidence, strongly convergent. Claude verified every factual claim against the
+worktree. Folded all into one revision:
+- Added requirement 6 (cross-run aggregate "current standings"), keyed on
+  panel.provider+panel.model per architect clarification — both consults flagged it was
+  silently dropped. Now in Constraints (verbatim), Success Criteria, Desired State,
+  Approaches (data shape: load ALL runs' summaries), Test Scenarios. Fixed the
+  References "copied verbatim" claim.
+- Missing-cell: named questions.jsonl (the roster, ships with every run) as 4th
+  artifact; joinResults must iterate roster not scores. Both consults: not derivable
+  from the 3 named artifacts alone (score.py only emits rows for answered questions).
+- Per-task metrics softened: retrieve_quote/complete_unit → all three;
+  identify_version → exact+normalized; others → none; _overall → none (verified
+  _SUBMETRICS in score.py). "n/a" where not emitted.
+- Purge wording fixed: concrete patterns (/traditions/ imports, JLS-\d{3}, BZ-\d{3},
+  al-jalīs) not "no tradition identifiers" (sample.ts legitimately carries tradition
+  NAMES from run data).
+- Settled the Critical/Important open questions into decisions (ASPIR autonomous):
+  run discovery = dev dir-listing (hardened: realpath+symlink-reject+safe-decode);
+  ordering = mtime+id; deploy = static SPA host, rework deploy.test.ts but KEEP the #86
+  CSS probe + SPA-fallback smoke.
+- Added dep-pruning criterion (js-yaml, zod, TanStack Query persisters, maybe hono) and
+  doc-staleness (TUTORIAL.md, arch.md) to doc criterion.
+
+Open Questions now only nice-to-know. Committing revised draft, then re-signal for the
+consult re-check.
