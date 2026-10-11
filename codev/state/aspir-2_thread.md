@@ -231,3 +231,49 @@ plan-phase:phase_2 — refreshing now.
 - Dev env: node_modules installed in worktree (pnpm install done). Tests: pnpm -C
   apps/viewer test / check-types; porch check runs .codev/checks/test.sh (diffs vs
   origin/main — commit before it detects changes).
+
+## 2026-10-11 — IMPLEMENT phase_2 done (purge to a clean local-only shell)
+
+Committed the purge (93cee00). The viewer is now a clean, green, local-only shell.
+
+What landed:
+- Deleted ~75 multibrowser files: all /t, /results, /raw, /review* routes+tests, the
+  GitHub data layer + domain libs (github/queries/queryClient/constants/rateLimit/corpus/
+  identity/model/parse/filtering/leaderboard/results*/raw*/review*/scoreColor/rampColor/
+  searchParams), the components (Tradition*/Scenario*/Review*/RateLimitBanner/RawComparison/
+  RawPresets/CorpusContext/TaxonomyAxes/FilterBar/Collapsible/Notice/Markdown), test
+  scaffolding (fakeRepo/rawFixture), and scripts/bake-and-deploy.sh.
+- KEPT primitives: ErrorBoundary, Loading (InterimHome uses CenteredSpinner), LocalResults
+  (+ test), localResults.ts, sample.ts, realRun.test.ts (gate — ran, not skipped), setup.ts,
+  noInvisibleText.test.ts.
+- Rewrote main.tsx (StrictMode>ErrorBoundary>RouterProvider), router.tsx (/ + 404 only),
+  renderApp.tsx (no QueryClient), RootLayout (Sacred Texts brand, no nav/GitHub link),
+  NotFound copy.
+- NEW InterimHome.tsx: GET /runs/_index → most-recent id → loadRun(/runs/<id>) → LocalResults;
+  empty state when no runs; shape-sniffs 200-HTML index (prod static host) → empty, no crash.
+  Takes an injectable fetcher for the jsdom tests.
+- styles.css: @source inline("{text,bg,border}-{default,warning,danger,success}-{50..900}")
+  pins the #86 ramp (Tailwind 4.3.1). Verified built CSS emits the shim color-mix (it wins
+  the cascade over HeroUI's plain var(--hue) rule). Dropped @tailwindcss/typography plugin.
+- server/index.mjs: minimal hono static + SPA fallback; no /api proxy. railway.json needed
+  no change (bake lived only in the deleted bake-and-deploy.sh). .railwayignore/.gitignore
+  dropped public/data-raw; .gitignore also now ignores *.tsbuildinfo.
+- deploy.test.ts/app.test.tsx reworked (see commit body). Two gotchas hit + fixed: the
+  `/api/*` and `runsEndpoint` strings in my COMMENTS tripped the proxy-gone assertion and
+  the "no src/ imports the node endpoint" guard — reworded to match code, not prose.
+
+### Deviations from the plan (flag for the phase_2 consult)
+1. Deleted LocalResultsPage.tsx (not in the plan's explicit delete list). Its only consumer
+   was the removed /local-results route; InterimHome replaces its role with most-recent-run
+   default behavior. Leaving it would be dead code — chose "gone, not merely hidden".
+2. Also pruned tailwind-merge + lucide-react (beyond the plan's explicit prune list). Both
+   are now unused in kept code (grep-clean); spec says prune deps used only by removed
+   surface. Kept @testing-library/user-event (test tooling the explorer/selector phases need).
+
+Verified: check-types clean; `pnpm build` green (CSS 419KB from the safelist — expected);
+full suite 44 passed / 0 skipped (the 9 prior skips were in deleted multibrowser suites);
+gate realRun.test.ts ran. Manual: `pnpm dev` → GET /runs/_index returns
+[{id:first-run-2026-10-11}], summary.json served, / serves the SPA shell — the InterimHome
+seam works end-to-end.
+
+Next: run .codev/checks/test.sh, then `porch done 2` for the 3-way impl consult.
