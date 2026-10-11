@@ -1,7 +1,7 @@
 id: '1'
 title: spec-1-seed-phase-1-benchmark-
 protocol: spir
-phase: verify
+phase: verified
 plan_phases:
   - id: phase_1
     title: Source catalogue, license gating, and gitignore reachability
@@ -49,7 +49,7 @@ iteration: 1
 build_complete: true
 history: []
 started_at: '2026-10-10T19:04:21.292Z'
-updated_at: '2026-10-11T08:45:45.098Z'
+updated_at: '2026-10-11T08:45:46.842Z'
 context_refreshes:
   - boundary: enter:plan
     at: '2026-10-10T22:49:50.661Z'
