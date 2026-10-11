@@ -1,16 +1,31 @@
 id: '2'
 title: spec-2-replace-multibrowser-le
 protocol: aspir
-phase: plan
-plan_phases: []
-current_plan_phase: null
+phase: implement
+plan_phases:
+  - id: phase_1
+    title: Run-data seam + hardened run-index endpoint
+    status: in_progress
+  - id: phase_2
+    title: Purge multibrowser surface to a clean shell
+    status: pending
+  - id: phase_3
+    title: Leaderboard home + run selector
+    status: pending
+  - id: phase_4
+    title: Error explorer with roster-based missing cells
+    status: pending
+  - id: phase_5
+    title: Cross-run aggregate (current standings)
+    status: pending
+current_plan_phase: phase_1
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     build_output: ''
@@ -24,4 +39,4 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-plan-iter1-claude.txt
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T09:44:46.148Z'
+updated_at: '2026-10-11T09:51:58.234Z'
