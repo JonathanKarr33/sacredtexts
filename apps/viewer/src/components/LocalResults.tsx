@@ -46,6 +46,40 @@ export function LocalResults({ summary, results }: { summary: Summary; results: 
         </table>
       </div>
 
+      {summary.by_tradition && Object.keys(summary.by_tradition).length > 0 && (
+        <>
+          <h2 className="mt-8 text-lg font-semibold">By tradition</h2>
+          <p className="text-xs text-default-400">each observation counts once per listed tradition</p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="py-1 pr-4">model</th>
+                  <th className="py-1 pr-4">tradition</th>
+                  {tasks.map((t) => (<th key={t} className="py-1 pr-4">{t}</th>))}
+                  <th className="py-1 pr-4">overall</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(summary.by_tradition).sort().flatMap((m) =>
+                  Object.keys(summary.by_tradition![m]!).sort().map((trad) => {
+                    const cells = summary.by_tradition![m]![trad]!;
+                    return (
+                      <tr key={`${m}:${trad}`} className="border-b">
+                        <td className="py-1 pr-4 font-medium">{m}</td>
+                        <td className="py-1 pr-4">{trad}</td>
+                        {tasks.map((t) => (<td key={t} className="py-1 pr-4">{formatCell(cells[t])}</td>))}
+                        <td className="py-1 pr-4 font-semibold">{formatCell(cells._overall)}</td>
+                      </tr>
+                    );
+                  }),
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
       <h2 className="mt-8 text-lg font-semibold">Per-question scores ({results.length})</h2>
       <ul className="mt-2 space-y-3">
         {results.map((r) => (

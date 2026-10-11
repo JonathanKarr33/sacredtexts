@@ -628,3 +628,13 @@ SPIR, strict mode (porch-driven).
 - pnpm install (node_modules was absent). Full viewer suite: 409 passed / 9 skipped
   (the 9 are repo-data-coupled seed suites, skipped w/o the dataset — as planned).
   check-types clean. pipelines still 134. Committing, then phase_7 consult.
+
+### Phase 7 — iter 1 consult (BOTH REQUEST_CHANGES / HIGH)
+- Both: the view rendered only the compiled-in fixture; no mechanism read real run
+  artifacts (spec requires it; Phase 8 depends on it). Accepted.
+- Added loadRun(base,fetcher) -> fetch summary/scores/answers; /local-results?run=/runs/<id>;
+  dev-only Vite middleware serveRuns exposes repo runs/ at /runs/ (confined); 404 ->
+  committed-sample fallback; loading/error states. loadRun tests (success + 404).
+- Minors: parseJsonl line context; error state; expectedText work for identify_source;
+  render by_tradition table. 411 viewer tests pass, tsc clean, pipelines 134.
+- Committing + re-consulting (iter 2).

@@ -53,16 +53,27 @@ export function parseSummary(obj: unknown): Summary {
   return { models: s.models ?? {}, by_tradition: s.by_tradition ?? {} };
 }
 
-export function parseJsonl<T>(text: string): T[] {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)
-    .map((l) => JSON.parse(l) as T);
+export function parseJsonl<T>(text: string, where = "jsonl"): T[] {
+  const out: T[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim();
+    if (!line) continue;
+    try {
+      out.push(JSON.parse(line) as T);
+    } catch (e) {
+      throw new Error(`${where}:${i + 1}: invalid JSON (${(e as Error).message})`);
+    }
+  }
+  return out;
 }
 
-function expectedText(expected: Record<string, unknown>): string {
+function expectedText(task: string, expected: Record<string, unknown>): string {
   // the human-readable ground truth for the per-question list
+  if (task === "identify_source" && typeof expected.work === "string") {
+    const cite = typeof expected.citation === "string" ? ` — ${expected.citation}` : "";
+    return `${expected.work}${cite}`;
+  }
   for (const k of ["text", "citation", "version", "answer", "work"]) {
     if (typeof expected[k] === "string") return expected[k] as string;
   }
@@ -83,11 +94,29 @@ export function joinResults(scores: ScoreRow[], answers: AnswerRow[]): QuestionR
       correct: s.metrics.correct === 1,
       prompt: a?.question.prompt ?? "",
       answer: a?.answer ?? "",
-      expected: a ? expectedText(a.question.expected) : "",
+      expected: a ? expectedText(s.task, a.question.expected) : "",
       tradition: a?.question.source?.tradition ?? [],
     });
   }
   return out;
+}
+
+/** Load a run's artifacts from a base path (e.g. "/runs/<id>"), fetching
+ * summary.json + scores.jsonl + answers.jsonl. Returns null if any 404s (the page
+ * then falls back to the committed sample). */
+export async function loadRun(
+  base: string, fetcher: typeof fetch = fetch,
+): Promise<{ summary: Summary; results: QuestionResult[] } | null> {
+  const [s, sc, an] = await Promise.all([
+    fetcher(`${base}/summary.json`),
+    fetcher(`${base}/scores.jsonl`),
+    fetcher(`${base}/answers.jsonl`),
+  ]);
+  if (!s.ok || !sc.ok || !an.ok) return null;
+  const summary = parseSummary(await s.json());
+  const scores = parseJsonl<ScoreRow>(await sc.text(), `${base}/scores.jsonl`);
+  const answers = parseJsonl<AnswerRow>(await an.text(), `${base}/answers.jsonl`);
+  return { summary, results: joinResults(scores, answers) };
 }
 
 /** Tasks present across the summary's models, sorted, excluding the "_overall" key. */

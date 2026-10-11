@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { LocalResults } from "./LocalResults";
 import {
   joinResults,
+  loadRun,
   parseJsonl,
   parseSummary,
   formatCell,
@@ -10,6 +11,18 @@ import {
   type ScoreRow,
 } from "../lib/localResults";
 import { sampleAnswersJsonl, sampleScoresJsonl, sampleSummary } from "../local/sample";
+
+function fakeFetcher(files: Record<string, string>): typeof fetch {
+  return (async (url: string) => {
+    const body = files[url];
+    if (body === undefined) return { ok: false, status: 404 } as Response;
+    return {
+      ok: true, status: 200,
+      json: async () => JSON.parse(body),
+      text: async () => body,
+    } as Response;
+  }) as unknown as typeof fetch;
+}
 
 describe("localResults lib", () => {
   it("joins scores with answers on (question_id, model_id)", () => {
@@ -27,6 +40,24 @@ describe("localResults lib", () => {
     expect(formatCell({ n: 2, accuracy: 0.5 })).toBe("50% (n=2)");
     expect(formatCell({ n: 0, accuracy: null, missing: 3 })).toBe("miss 3");
     expect(formatCell(undefined)).toBe("—");
+  });
+
+  it("loadRun fetches + parses a run from a base path", async () => {
+    const base = "/runs/demo";
+    const run = await loadRun(base, fakeFetcher({
+      [`${base}/summary.json`]: JSON.stringify(sampleSummary),
+      [`${base}/scores.jsonl`]: sampleScoresJsonl,
+      [`${base}/answers.jsonl`]: sampleAnswersJsonl,
+    }));
+    expect(run).not.toBeNull();
+    expect(run!.results).toHaveLength(4);
+    expect(Object.keys(run!.summary.models)).toContain("haiku");
+  });
+
+  it("loadRun returns null when an artifact 404s (page then falls back to the sample)", async () => {
+    const base = "/runs/missing";
+    const run = await loadRun(base, fakeFetcher({ [`${base}/summary.json`]: "{}" }));  // scores/answers 404
+    expect(run).toBeNull();
   });
 });
 

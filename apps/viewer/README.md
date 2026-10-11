@@ -7,10 +7,17 @@ view of a benchmark run's `summary.json` + per-question `scores.jsonl`/`answers.
 (from `pipelines/sacredbench score`). It renders a per-model × task accuracy table
 and a per-question list (✓/✗, prompt, model answer, expected). It is **independent
 of the GitHub data layer** (`src/lib/localResults.ts`, `src/components/LocalResults.tsx`,
-`src/routes/LocalResultsPage.tsx`) and ships a tiny committed sample run
-(`src/local/sample.ts`) so `pnpm -C apps/viewer dev` → `/local-results` works out of
-the box. Local only — no deploy, no domain adaptation (that is Spec 2). Pointing it
-at a real run under `runs/` is the TUTORIAL's final step.
+`src/routes/LocalResultsPage.tsx`).
+
+- **Out of the box:** `pnpm -C apps/viewer dev` → `/local-results` renders a tiny
+  committed sample run (`src/local/sample.ts`).
+- **A real run:** `/local-results?run=/runs/<id>` fetches that run's
+  `summary.json` + `scores.jsonl` + `answers.jsonl`. The dev server exposes the
+  repo's (gitignored) `runs/` at `/runs/` via a dev-only Vite middleware
+  (`serveRuns` in `vite.config.ts`); a 404 falls back to the sample. This is the
+  TUTORIAL's final step.
+
+Local only — no deploy, no domain adaptation (that is Spec 2).
 
 Everything below is the unadapted seed.
 

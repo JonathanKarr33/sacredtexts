@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The UI and component test are sound, but the route cannot load actual local run artifacts as required.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `LocalResultsPage.tsx` imports hard-coded TypeScript fixture constants only. There is no mechanism to read `summary.json`, `scores.jsonl`, and `answers.jsonl` from a committed artifact path or dev-served `runs/` path. Consequently, the README’s claim that the viewer can be pointed at a real run is not currently actionable, and Phase 7’s core artifact-reading requirement is unmet.
+- The component test validates rendering and joining, but not loading artifact files through the route’s real runtime path. Add fixture JSON/JSONL files and test the same loader used by `/local-results`.
