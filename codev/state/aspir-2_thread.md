@@ -437,3 +437,67 @@ Non-blocking carry-forwards (NOT phase_3 — noted for later):
   Widen RunRef with mtimeMs + defensive client sort in phase_5 (standings needs run dates anyway).
 
 Letting porch commit phase_3 and advance to phase_4 (error explorer).
+
+## 2026-10-11 — IMPLEMENT phase_4 done (error explorer with roster-based missing cells)
+
+Re-entered after a context refresh at plan-phase:phase_4. Built the error explorer. What
+landed:
+- lib/explorer.ts (pure): failureMode (correct→null / missing / wrong), filterQuestions
+  (task/tradition/correct/mode, AND-composed; tradition is membership — multi-tradition
+  aware), modelQuestions, explorerTasks/explorerTraditions (sorted distinct options),
+  questionStats {total,correct,wrong,missing}, formatMetric (number→String, null→"n/a").
+  ExplorerFilters type = the URL search shape. + explorer.test.ts (classification, each
+  filter, AND-composition incl. contradictory→empty, option derivation, stats, formatMetric,
+  and the Phase-1 missing fixture: joinResults over sampleQuestionsWithMissingJsonl → ccc
+  missing distinct from bbb wrong).
+- components/QuestionList.tsx (presentational): per-question card — status badge
+  (correct/missing/wrong via success/warning/danger safelisted shades), prompt/expected/
+  answer; a missing cell shows "no answer produced (missing cell…)" and NO metric grid; an
+  answered question shows exact/normalized/token-F1 side by side with null→"n/a". +
+  QuestionList.test.tsx (answered detail+3 metrics; identify_version token_f1:null→"n/a";
+  missing marker + no metric grid; empty-state).
+- components/ExplorerFilters.tsx (presentational): native <select>s (provider-less) for
+  task/tradition/result(correct|incorrect)/failure-mode(missing|wrong); "all" sentinel →
+  undefined; calls onChange with the next full Filters.
+- routes/ExplorerPage.tsx (container, from="/run/$runId/model/$modelId"): useParams +
+  useSearch + useNavigate; loadRun(`/runs/${encodeURIComponent(runId)}`) with a `live`
+  stale guard (same pattern as LeaderboardPage); modelQuestions→filterQuestions(search);
+  header + stats line + a legend (closes the phase_3 cosmetic carry-forward: missing/−N
+  annotations lacked a legend); back-link <Link to="/" search={{run:runId}}> = the Phase-3
+  /?run=<id> contract; localized error on load failure.
+- router.tsx: registered the explorer route with a PLAIN validateSearch fn (zod stays
+  pruned) coercing task/tradition/correct/mode, unknown→undefined.
+- components/LeaderboardTable.tsx: now takes runId; model-name cell → <Link> to the
+  explorer (whole model), each task cell → <Link search={{task}}>, tradition-table task
+  cells → <Link search={{task,tradition}}> (TanStack form-encodes query spaces as '+').
+  LeaderboardPage passes runId={selectedId!}.
+- LeaderboardTable.test.tsx reworked: LeaderboardTable now renders <Link> (needs router
+  context) + requires runId → wrapped renders in a throwaway router (root renders the table,
+  registers the explorer route path so Links resolve); tests are async (router resolves the
+  initial route asynchronously — await "Leaderboard" before sync queries). Added link-target
+  assertions (model → /run/<id>/model/<m>; task cell → ?task=…; tradition cell → ?task=&tradition=).
+- ExplorerPage.test.tsx (integration via renderApp at the explorer path): missing fixture
+  (fix run) → all 3 roster questions listed, ccc missing; ?mode=missing → only ccc (distinct
+  from bbb wrong); ?mode=wrong → bbb + 3 metrics, not ccc; back-link href "/?run=fix";
+  bad-run → localized alert. Committed-run drill-in gate (skipIf-guarded, sentinel
+  expect(present).toBe(true)): claude-haiku 100 questions / 24 correct / 0 missing, "Showing
+  100 of 100", 3 metric labels present; ?correct=correct → "Showing 24 of 100".
+
+Deviations from the plan: none of substance. The plan listed the exact files; I added a
+QuestionList.test.tsx (presentational unit coverage) beyond the two named test files, and
+added the explorer legend to ExplorerPage (phase_3 cosmetic carry-forward lands naturally
+here). Also folded the phase_3 non-blocking test-hardening (expect(present).toBe(true)
+sentinel) into the new committed-run gate.
+
+VERIFIED: check-types clean; `pnpm build` green (CSS 421KB safelist, expected); full suite
+89 passed / 0 skipped (was 62 — +27 for explorer/questionlist/explorerpage/leaderboard-link
+coverage); both committed-run gates (realRun loader + LeaderboardPage + the new ExplorerPage
+drill-in) ran, not skipped.
+
+Carry-forwards into phase_5 (unchanged): standings (/standings) keyed on panel
+provider+model; widen RunRef with mtimeMs + defensive client sort; doc/dep sweep (README/
+TUTORIAL/arch.md describe the finished app incl. the explorer; confirm @testing-library/
+user-event still used — RunSelector/LeaderboardPage tests use it; correct arch-critical.md's
+stale "multibrowser seed" bullet).
+
+Next: run .codev/checks/test.sh, then `porch done 2` for the 3-way impl consult.

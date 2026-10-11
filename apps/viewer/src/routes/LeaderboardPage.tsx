@@ -155,7 +155,7 @@ export function LeaderboardPage() {
         }
       />
       {runState.status === "loading" && <CenteredSpinner label={`Loading run ${selectedId}…`} />}
-      {runState.status === "ready" && <LeaderboardTable summary={runState.summary} />}
+      {runState.status === "ready" && <LeaderboardTable summary={runState.summary} runId={selectedId!} />}
     </div>
   );
 }

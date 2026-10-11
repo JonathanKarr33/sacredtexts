@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   formatCell,
   type Summary,
@@ -11,10 +12,11 @@ import {
 
 // The benchmark leaderboard for a single run: one row per model ranked by overall
 // accuracy, a column per task, an overall column, per-model token totals, and a
-// per-tradition breakdown below. Pure/presentational — it takes a parsed Summary and
-// renders; data loading and run selection live in LeaderboardPage.
+// per-tradition breakdown below. Pure/presentational — it takes a parsed Summary and the
+// run id (so model rows and task cells link into the error explorer); data loading and run
+// selection live in LeaderboardPage.
 
-export function LeaderboardTable({ summary }: { summary: Summary }) {
+export function LeaderboardTable({ summary, runId }: { summary: Summary; runId: string }) {
   const { tasks, rows } = leaderboardRows(summary);
   const showTraditions = hasTraditionData(summary);
   const tRows = showTraditions ? traditionRows(summary, tasks) : [];
@@ -42,9 +44,26 @@ export function LeaderboardTable({ summary }: { summary: Summary }) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.modelId} className="border-b">
-                <td className="py-1 pr-4 font-medium">{row.modelId}</td>
+                <td className="py-1 pr-4 font-medium">
+                  <Link
+                    to="/run/$runId/model/$modelId"
+                    params={{ runId, modelId: row.modelId }}
+                    className="text-default-700 underline"
+                  >
+                    {row.modelId}
+                  </Link>
+                </td>
                 {tasks.map((t) => (
-                  <td key={t} className="py-1 pr-4">{formatCell(row.byTask[t])}</td>
+                  <td key={t} className="py-1 pr-4">
+                    <Link
+                      to="/run/$runId/model/$modelId"
+                      params={{ runId, modelId: row.modelId }}
+                      search={{ task: t }}
+                      className="underline decoration-dotted"
+                    >
+                      {formatCell(row.byTask[t])}
+                    </Link>
+                  </td>
                 ))}
                 <td className="py-1 pr-4 font-semibold">{formatCell(row.overall)}</td>
                 <td className="py-1 pr-4 text-default-500">{formatTokens(row.tokens)}</td>
@@ -73,7 +92,18 @@ export function LeaderboardTable({ summary }: { summary: Summary }) {
                   <tr key={`${row.modelId}:${row.tradition}`} className="border-b">
                     <td className="py-1 pr-4 font-medium">{row.modelId}</td>
                     <td className="py-1 pr-4">{row.tradition}</td>
-                    {tasks.map((t) => (<td key={t} className="py-1 pr-4">{formatCell(row.byTask[t])}</td>))}
+                    {tasks.map((t) => (
+                      <td key={t} className="py-1 pr-4">
+                        <Link
+                          to="/run/$runId/model/$modelId"
+                          params={{ runId, modelId: row.modelId }}
+                          search={{ task: t, tradition: row.tradition }}
+                          className="underline decoration-dotted"
+                        >
+                          {formatCell(row.byTask[t])}
+                        </Link>
+                      </td>
+                    ))}
                     <td className="py-1 pr-4 font-semibold">{formatCell(row.overall)}</td>
                   </tr>
                 ))}
