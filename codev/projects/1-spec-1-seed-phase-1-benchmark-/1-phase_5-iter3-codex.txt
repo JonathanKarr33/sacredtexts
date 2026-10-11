@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Iteration-2 fixes are present, but the CLI still overrides the requested negative policy and duplicate-content handling remains input-order-dependent.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `cli.py:222-229` automatically changes `negatives_share` to zero for single-work corpora. A warning does not make this an explicit user choice: requesting the default 0.5 policy while generating `verify_source` still produces all positives instead of the plan-required insufficient-pool failure. Only bypass the check when `verify_source` is not requested; otherwise propagate `GenerateError` or require an explicit `--negatives-share 0`.
+- `generate.py:205-218` deduplicates colliding entries by keeping whichever document appears first. Reversing two identical shards with different traditions changes each question’s `source.tradition`, balancing bucket, question-set digest, and potentially selection. `corpus_hash()` also retains input order when document sort keys tie. Merge duplicate provenance/traditions or choose a canonical representative, fully canonicalize hash ordering, and test reversed colliding inputs for identical complete questions and hashes.

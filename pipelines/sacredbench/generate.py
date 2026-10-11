@@ -202,9 +202,14 @@ def generate(
         raise GenerateError("no documents to generate from")
     rng = random.Random(seed)
 
+    # Sort documents by a TOTAL key up front so everything downstream — the dedup
+    # representative, selection, and hashes — is independent of input order even
+    # when shards collide on (work, version, language).
+    docs = sorted(docs, key=lambda d: (d.work, d.version, d.language, tuple(d.tradition), d.document_type))
+
     # identifiable, canonically-cited entries, deduplicated by content BEFORE
     # sampling (colliding shards sharing (work, version, language, citation, text)
-    # collapse to one candidate) so quotas are met exactly and ids stay unique.
+    # collapse to one canonical candidate) so quotas are met exactly and ids stay unique.
     pool: list[tuple[Document, Entry]] = []
     seen_content: set[tuple[str, str, str, str, str]] = set()
     for d in docs:
@@ -317,7 +322,7 @@ def corpus_hash(docs: list[Document]) -> str:
     """Content hash of the input corpus; any edit — including metadata or unit_type
     — changes it (manifest provenance)."""
     h = hashlib.sha256()
-    for d in sorted(docs, key=lambda d: (d.work, d.version, d.language)):
+    for d in sorted(docs, key=lambda d: (d.work, d.version, d.language, tuple(d.tradition), d.document_type)):
         meta = f"{d.work}\0{d.version}\0{d.language}\0{d.document_type}\0{','.join(d.tradition)}\0{len(d.entries)}\0"
         h.update(meta.encode("utf-8"))
         for e in d.entries:

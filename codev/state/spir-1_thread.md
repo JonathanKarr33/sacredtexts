@@ -513,3 +513,15 @@ SPIR, strict mode (porch-driven).
 - generate rejects unknown --quota keys; manifest records tasks_requested (codex #3).
 - Verified: Bible+LDS -> 5 negatives/all tasks; single-work Bible -> auto-zero.
 - Committing + re-consulting (iter 3).
+
+### Phase 5 — iter 3 impl consult (codex REQUEST_CHANGES, claude APPROVE / HIGH)
+
+- claude APPROVE (determinism byte-for-byte, all verified). codex 2 determinism/
+  contract items. Accepted both. 121 tests pass.
+- Removed CLI auto-zero of negatives_share (masked the plan's fail-fast); single-work
+  + verify_source now errors with guidance, --tasks retrieve_quote succeeds (codex #1).
+- generate sorts docs by a TOTAL key (work,version,language,tradition,document_type)
+  before pooling so the dedup representative + digest + corpus_hash are input-order-
+  independent; corpus_hash sorts by the same total key. Reversed-colliding-shards
+  test (codex #2).
+- Committing + re-consulting (iter 4).

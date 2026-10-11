@@ -271,3 +271,9 @@ def test_duplicate_ids_from_colliding_shards_deduped():
     qs = generate([shard1, shard2], per_task=5, seed=1, negatives_share=0)
     ids = [q.id for q in qs]
     assert len(ids) == len(set(ids))  # no duplicate ids
+    # fully input-order-independent: reversing the colliding shards yields identical
+    # questions (incl. source.tradition), digest, and corpus hash
+    qs_rev = generate([shard2, shard1], per_task=5, seed=1, negatives_share=0)
+    assert qs == qs_rev  # Question is a dataclass; equal across input orders
+    assert question_set_digest(qs) == question_set_digest(qs_rev)
+    assert corpus_hash([shard1, shard2]) == corpus_hash([shard2, shard1])

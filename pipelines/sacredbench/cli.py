@@ -221,12 +221,15 @@ def generate(
     docs = schema.load_documents(kept)
     works = {d.work for d in docs}
     if len(works) < 2 and negatives_share > 0:
+        # not an automatic override — just a heads-up; generate() fails fast (per the
+        # plan's insufficient-pool contract) if verify_source negatives are requested
+        # on a single-work corpus. Pass --negatives-share 0 to generate positives only.
         typer.secho(
-            "WARNING: single-work corpus — false-premise negatives need >=2 works; "
-            "forcing negatives_share=0 (all verify_source questions are positives).",
+            "NOTE: single-work corpus — false-premise negatives need >=2 works; "
+            "verify_source with negatives_share>0 will fail. Pass --negatives-share 0 "
+            "(or --tasks without verify_source) for a single-work run.",
             fg="yellow", err=True,
         )
-        negatives_share = 0.0
     questions = run_generate(
         docs, per_task=per_task, seed=seed, negatives_share=negatives_share,
         quotas=quotas or None, tasks=task_subset,
