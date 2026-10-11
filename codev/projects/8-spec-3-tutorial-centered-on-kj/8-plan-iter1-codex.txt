@@ -1,0 +1,12 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The architecture is broadly sound, but several spec-design questions remain unresolved and parts of the test plan are ineffective or inconsistent with the planned files.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The copyright-clearance mechanism remains unspecified. The approved spec explicitly says this must be fixed in the plan before committing the run, but Phase 3 only says “documented copyright clearance.” Define the scope, procedure, evidence recorded, pass/fail criteria, and handling of a flagged answer—ideally reviewing every search-enabled answer, not an undefined spot-check.
+- The tools configuration and identity encoding are still abstract. Specify the exact YAML schema and allowed values, the canonical default, and the stable `panel.model` encoding for search-on versus search-off. The spec explicitly requires the identity form to be resolved in the plan.
+- Phase 3 lacks reproducible run parameters: concrete run ID, seed, question count, exact three standardized input paths, and any web-search `max_uses` setting. Phase 3 also says to follow the “to-be-updated” tutorial, but the tutorial is not written until Phase 4. Establish the canonical commands before running, then verify the tutorial reproduces them.
+- The proposed first-run digest test is vacuous: loading the already committed `questions.jsonl`, hashing it, and comparing it with its manifest does not exercise generation or `normalize()`. Re-run generation from the manifest’s parameters and converted inputs, then compare its question-set digest to the committed digest.
+- Phase 3 requires `summary.md` to report `exact`, `normalized`, and `token_f1`, but the current `summary_markdown()` renders only headline accuracy and Phase 2 does not plan a markdown change. Add the required `score.py`/test work, or make the acceptance criterion explicitly rely on `summary.json` and the explorer instead.
+- “Fold the Hebrew maqaf” should state the actual transformation. It must become a word boundary (for example, a space before whitespace collapse), not be deleted in a way that concatenates adjacent words.

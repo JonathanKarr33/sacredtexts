@@ -67,5 +67,26 @@ Both independently verified my empirical claims were exactly right; both found r
   safe (_qid hashes raw text) — added first-run-digest regression criterion.
 Committed as "[Spec 8] Specification with multi-agent review".
 
+### SPEC advanced to PLAN (no human gate). Plan drafted → iter-1 consult (both REQUEST_CHANGES/HIGH, both verified vs real code) → revised.
+Critical plan-consult catches folded in:
+- **Hebrew no-op**: catalogued `he` Aramaic files have ZERO niqqud → "derive from he data" unfollowable.
+  Fixture source = uncatalogued `Shevuot - he - ... Vocalized Aramaic.json` (106k marks), MUST NOT enter corpus.
+- **Standings collision**: unmarked search-off `claude-haiku-5-5` == first-run's key → would REPLACE its
+  standings row. Fix: mark BOTH variants (`[web_search]` / `[no-tools]`); assert non-collision.
+- **Asymmetric Hebrew risk**: unvocalized expected vs vocalized search-on answer → token_f1≈0 inverts contrast.
+  Strip marks both sides; test asymmetric direction.
+- No provider-seam tests exist (lazy `import anthropic`) → mock via monkeypatch.setitem(sys.modules,...).
+- SDK 1.13.0 has 3 web-search tool versions → pin web_search_20250305 + max_uses:5, record in README.
+- max_tokens truncation + retry re-bills → headroom 4096 on search entries + loud stop_reason check.
+- Vacuous digest test → regenerate from manifest params. Strong Latin regression = re-score first-run
+  answers→tmp, diff committed scores (TUTORIAL Track A trick).
+- summary_markdown shows accuracy only → contrast via summary.json + viewer explorer (optional md cols).
+- generated_at (#7) INCLUDED (additive, viewer ignores).
+- Copyright clearance: review EVERY search-on answer (~60), pinned procedure in README.
+- Pinned: tools schema (`tools: [web_search]`, default []), ids opus/opus-search/haiku/haiku-search,
+  run id runs/tutorial-2026-10-11, seed 20261011, per-task 30, 3 standardized paths (verified exist).
+  maqaf→space (boundary), marks→delete.
+
 ### Next
-`porch next 8` — likely another consult iteration or advance toward plan phase.
+Plan rebuttal → porch done → advance to implement Phase 1.
+⚠️ Phase 3 is LIVE/PAID (Anthropic web search). Will smoke-first; if no key/budget, escalate to architect.
