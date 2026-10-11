@@ -45,5 +45,27 @@ Builder: aspir-8 · Protocol: ASPIR (strict) · Issue #8
    that a viewer index test might assert an exact run set.
 3. normalize: delete-marks approach (Arabic/Hebrew ranges), real-script fixtures.
 
+### Spec iter-1 consult (codex + claude, both REQUEST_CHANGES / HIGH) — incorporated
+Both independently verified my empirical claims were exactly right; both found real gaps:
+- **QUL mark coverage**: real QUL has marks far beyond basic harakat (enumerated: U+06D6–U+06ED
+  annotation block, rub-el-hizb U+06DE, sajdah U+06E9, superscript alef U+0670, tatweel, small
+  waw/yeh), many MID-WORD. Approach D expanded + full-ayah fixture required.
+- **Copyright exposure (big)**: committing live-web-search answers to a PUBLIC repo — a search-on
+  model could echo a copyrighted translation (Steinsaltz/NABRE/NA28); audit.py can't see it
+  (origin keys on question's public source; content layer restricted-gated + Latin-only).
+  Added Approach F = documented clearance + PD-originals framing + CC-BY-NC attribution; Critical
+  open question; constraint + risk + criteria.
+- **audit._norm Latin-only** (verified no-op on ar/he): Approach G = extend or state limitation.
+- **web-search cost**: server_tool_use.web_search_requests uncaptured → Approach H = committed run
+  stays UNPRICED (no cost_usd).
+- **headline confound**: correct=normalized whole-answer equality can INVERT the search contrast;
+  pin token_f1/exact as discriminators; do NOT touch _SUBMETRICS (req 4).
+- **config fail-fast**: tools on non-anthropic / invalid value → ConfigError; today config.py does
+  no unknown-key validation (a stray tools: is silently ignored) — must genuinely parse+honor.
+- **api_model**: also emit raw API model string under viewer-ignored key so panel proof stays true.
+- **pin --tasks retrieve_quote**; generate.py imports normalize (blast radius) but Latin digest
+  safe (_qid hashes raw text) — added first-run-digest regression criterion.
+Committed as "[Spec 8] Specification with multi-agent review".
+
 ### Next
-Write spec → `porch check 8` → signal SPEC_DRAFTED (porch runs 3-way consult).
+`porch next 8` — likely another consult iteration or advance toward plan phase.

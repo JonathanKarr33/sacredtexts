@@ -1,0 +1,50 @@
+I'll verify the spec's claims against the actual codebase before judging it.## Review: `codev/specs/8-spec-3-tutorial-centered-on-kj.md`
+
+I read the spec, then verified its factual claims against the worktree (`pipelines/sacredbench/*.py`, `apps/viewer/src/lib/*.ts`, `texts/raw/*/source.yaml`, `TUTORIAL.md`, `.gitignore`, the viewer test suite) and ran the normalization claims in a REPL. I made no changes to the tree.
+
+### What holds up (verified, not taken on trust)
+
+- **`normalize()` failure mode is exactly as described.** `normalize('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ')` → `'ب س م ٱلل ه ٱلر ح م ن ٱلر ح يم'`; equality vs. unvocalized is `False`, `token_f1 = 0.0`; `עַל־כֵּן` → `'ע ל כ ן'`; tatweel (`مـحـمـد`) survives; Latin is unaffected. The diagnosis and Approach D's remedy are sound.
+- **The `he` Talmud target already exists** (`texts/raw/Judaism/source.yaml`, `Talmud Bavli / William Davidson Edition - Aramaic / he`, converter `sefaria_talmud`, `license: open`). The spec is right to reclassify Issue #8 req 1 as "verify the ar/he path end-to-end" rather than build it, and right to flag rather than silently reinterpret.
+- **Approach A is the only shape that satisfies reqs 3 and 5 together.** `aggregate.ts:59` keys on `` `${p.provider}\u0000${p.model}` ``, and `parseSummary` reads only `{provider, model, endpoint, served_by}` — so a `tools` field would be invisible. Encoding into the emitted identity is correct, and Approach B is correctly rejected on the baked "zero viewer changes" constraint.
+- **The "exact run set" risk really is low.** No viewer test enumerates the real `runs/` directory: `LeaderboardPage`/`Standings`/`Explorer` tests stub `fetch` with a hardcoded `[{id:"first-run-2026-10-11"}]` index, and `runsEndpoint.test.ts` works over `tmp`. Approach C (add a run, keep first-run) is safe.
+- **Structure matches the project's template** — identical 11 headings to specs 1 and 2.
+
+### Issues that should be fixed before approval
+
+1. **Live web search introduces a new copyright exposure the spec never addresses — and the audit cannot catch it.** A search-enabled model asked for a Talmud daf or a Bible verse can return a *copyrighted* translation it found on the web (Steinsaltz English, NABRE, NA28), and those answers get committed to a **public** repo. `audit.py`'s origin layer keys on the *question's* source (public/open → passes), and its content layer only fires when restricted payloads are present locally. The project's #1 critical fact is the copyright gate; this spec commits model-generated web-retrieved text for the first time. The spec needs an explicit treatment: a Risks row, and a success criterion or constraint on how the committed search-on answers are cleared (e.g. a documented spot-check, or restricting the committed run's answer content).
+
+2. **`audit.py :: _norm` is Latin-only, so the content layer is a no-op on Arabic/Hebrew.** Verified: `_norm(<vocalized basmala>)` → `''` and `_norm(<Greek John 1:1>)` → `''` (so `len(n) >= 60` never holds). Your criterion "`audit runs/<id>` passes" will pass *trivially* for the non-Latin majority of the committed run. A spec whose whole point is fair non-Latin handling should either extend `_norm` alongside `normalize()` or state the limitation explicitly as out of scope with reasoning.
+
+3. **Web-search cost accounting is unaccounted for.** `providers.py :: _anthropic_usage` extracts only `input_tokens`/`output_tokens`. Anthropic bills server-side web search per request and reports it under `usage.server_tool_use.web_search_requests`. With `price_in`/`price_out` set, the committed run's cost table would understate the true cost — against this codebase's explicit norm that a partial number must not "masquerade as the run's cost" (`score.py:356`). Say whether search-request usage is captured or explicitly excluded (and if excluded, how the artifact says so).
+
+4. **The headline metric may confound the very contrast you want to display.** `retrieve_quote`'s `correct = normalized` is whole-answer equality. A search-enabled model is *more* likely to append attribution/citation prose, so search-on can score **lower** on the headline while being materially better at retrieval. The spec is right that this is a result to display, not assert — but it should name the hazard and state that `token_f1`/`exact` are the discriminating numbers, so the plan doesn't "fix" it by quietly changing the `_SUBMETRICS` contract (which req 4 forbids).
+
+### Smaller points (not blocking)
+
+- **"no duplicate-id or unknown-key error" is inaccurate**: `config.py :: load_config` performs no unknown-key validation at all — a `tools:` key in YAML is silently ignored today. So the criterion as written would pass *before* the feature is implemented. Restate it as "the `tools` setting is parsed into `ModelSpec` and honored", and consider strict unknown-key rejection (fail-fast norm).
+- **Approach A degrades the panel's own stated purpose.** `score.py:361` documents `panel` as committed-artifact *proof* of what ran; a marker-bearing `panel.model` is no longer the true API model string. Cheap fix with zero viewer change: also emit the raw string under a key the viewer ignores (e.g. `api_model`), so the proof stays truthful.
+- **The tutorial's `--tasks` set is never pinned.** Today's tutorial is `--tasks retrieve_quote`; the criteria imply the same but don't say so. Worth stating, because **`generate.py` imports `normalize` from `score`** (for `work_texts` / `version_texts`) — so the normalization change has a *generation-side* blast radius on `verify_source` negatives and `identify_version` ambiguity for non-Latin corpora. (Latin/first-run determinism is safe: `_qid` hashes raw text, and Latin output is unchanged.)
+- `MIN_WORDS_IDENTIFIABLE = 12` silently excludes short ayahs from the Qur'an pool. Not a defect — the pool is ample — but the committed run's Arabic items will skew long; worth a line so it isn't mistaken for a bug later.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Unusually well-grounded spec (every empirical claim I checked was exactly right), but it adds live web-search answers to a public committed artifact without addressing the copyright exposure, the Latin-only audit content layer, or web-search cost accounting.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Committed search-on answers may reproduce copyrighted translations fetched from the web; `audit.py`'s origin layer keys on the question's (public) source and cannot see it — no Risks row, constraint, or criterion covers this.
+- `audit.py :: _norm` strips all non-ASCII (verified: Arabic and Greek → `''`), so the restricted-text content layer is a no-op for the non-Latin run this spec commits; extend it or state the limitation explicitly.
+- `_anthropic_usage` captures only input/output tokens; server-side web-search request charges (`usage.server_tool_use.web_search_requests`) would be silently omitted from the committed cost table.
+- `retrieve_quote`'s `correct = normalized` (whole-answer equality) penalizes tool-assisted answers that append attributions, potentially inverting the search-on/search-off contrast; name the hazard and pin `token_f1`/`exact` as the discriminating metrics so the plan doesn't alter the `_SUBMETRICS` contract.
+- Success criterion "loads cleanly … no unknown-key error" is unverifiable as written: `config.py` does no unknown-key validation, so a `tools:` key is ignored today — restate as "parsed into `ModelSpec` and honored".
+- Approach A overwrites `panel.model`, which `score.py` documents as panel *proof*; also emit the raw API model string under a viewer-ignored key.The background lookup resolved the authoritative template. Confirming my structure finding against it rather than against the sibling-project copy I'd checked earlier:
+
+`@cluesmith/codev/skeleton/protocols/spir/templates/spec.md` has exactly these headings, in this order: Problem Statement, Current State, Desired State, Success Criteria, Constraints, Assumptions, Solution Approaches (+ per-approach `###`), Open Questions, Test Scenarios, Risks and Mitigation, References.
+
+Spec 8 matches all eleven, in order, with per-approach `###` subsections and the spec-vs-plan boundary comment preserved. **Structure is fully compliant** — no departure, nothing reduced to N/A, and it was written against the current delivered template rather than pattern-matched off `codev/specs/1-*`/`2-*` (which happen to share the same shape). The verdict and key issues in my review are unchanged; the structure dimension is clean, and my `REQUEST_CHANGES` rests solely on the four substantive gaps:
+
+1. copyright exposure from committing live-web-search answers (audit can't see it),
+2. `audit.py :: _norm` being Latin-only (verified: Arabic and Greek → `''`),
+3. uncaptured web-search request charges in the committed cost table,
+4. `correct = normalized` potentially inverting the search-on/off contrast.

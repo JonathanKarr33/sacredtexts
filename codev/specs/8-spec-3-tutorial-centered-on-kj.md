@@ -168,8 +168,12 @@ benchmark's thesis, demonstrated rather than asserted.
       Arabic and Hebrew expected text).
 - [ ] `configs/models.example.yaml` describes a **2-model** panel (`claude-opus-5-5` +
       `claude-haiku-5-5`), expressed as **four entries** = each model × web-search-{on,off},
-      with distinct model ids and the tool-use setting on each; it loads cleanly through
-      `config.py` (no duplicate-id or unknown-key error).
+      with distinct model ids and the tool-use setting on each; the tool-use setting is
+      genuinely **parsed into `ModelSpec` and honored** (not silently ignored), and the panel
+      loads through `config.py` with no duplicate-id error.
+- [ ] Tool-config validation is **fail-fast**: enabling the Anthropic web-search tool on a
+      non-`anthropic` provider, or supplying an unrecognised tools value, raises
+      `ConfigError` at load time (before any provider call), never a silent no-op.
 - [ ] `collect` honours a per-model web-search tool setting: when enabled, the Anthropic
       call is made with the server-side web-search tool; when disabled, it is not. A
       search-enabled and a search-disabled entry for the same underlying model are two
@@ -182,20 +186,42 @@ benchmark's thesis, demonstrated rather than asserted.
       run, the merged viewer's standings view shows the search-on and search-off variants of
       the same model as **separate rows** (they do not collapse into one), achieved with
       **no change to viewer source**.
-- [ ] `normalize()` removes Arabic and Hebrew combining vowel marks and the Arabic tatweel
-      without splitting words, and folds alef/hamza/alef-wasla and the Hebrew maqaf, such
-      that a vocalized and an unvocalized form of the same Qur'an/Talmud text are
-      `normalized`-equal and score `token_f1 = 1.0`. Latin normalisation is byte-for-byte
-      unchanged (existing Latin tests still pass). The per-task `_SUBMETRICS` contract and
-      the `retrieve_quote` headline rule are unchanged.
-- [ ] Python tests cover the non-Latin normalisation with **real-script fixtures** (Arabic
-      with/without harakat, tatweel, alef variants; Hebrew with/without niqqud, maqaf),
-      asserting both the equality/`token_f1` outcomes and that Latin behaviour is unchanged.
+- [ ] `normalize()` removes the Arabic- and Hebrew-range combining marks **and the Qur'anic
+      annotation marks / editorial symbols actually present in QUL** (the U+06D6–U+06ED block,
+      the rub-el-hizb / sajdah symbols, superscript alef, tatweel — including those that occur
+      **mid-word**) without splitting words, and folds alef/hamza/alef-wasla and the Hebrew
+      maqaf, such that a vocalized and an unvocalized form of the same Qur'an/Talmud text are
+      `normalized`-equal and score `token_f1 = 1.0`. The mark set is re-derived from the real
+      QUL/Davidson data. Latin normalisation is byte-for-byte unchanged (existing Latin tests
+      still pass). The per-task `_SUBMETRICS` contract and the `retrieve_quote` headline rule
+      are **not** changed.
+- [ ] Python tests cover the non-Latin normalisation with **real-script fixtures** — at least
+      one **full real QUL ayah** carrying annotation marks and a sajdah/rub-el-hizb symbol,
+      and a real Davidson Talmud line — plus Arabic with/without harakat, tatweel, alef
+      variants and Hebrew with/without niqqud, maqaf; asserting the equality/`token_f1`
+      outcomes and a **Latin regression fixture** proving Latin output is byte-for-byte
+      unchanged.
+- [ ] The committed `first-run-2026-10-11` **question-set digest is unchanged** by the
+      `normalize()` change (regression guard): `generate.py` imports `normalize` from `score`
+      for `work_texts`/`version_texts`, so the change has a generation-side blast radius; the
+      first run's Latin digest must not move (it will not, since `_qid` hashes raw text and
+      Latin output is unchanged, but it is asserted).
 - [ ] A **committed tutorial run** exists under `runs/<id>/` with the full four-file set +
       a `README.md`, negated in `.gitignore`; `uv --project pipelines run python -m
       sacredbench audit runs/<id>` passes (origin-clean; the run derives only from
       public-domain/open sources); the committed panel in `summary.json` contains no
-      secrets (provider / model / endpoint / served_by only).
+      secrets (provider / model / endpoint / `api_model` / served_by only — no keys).
+- [ ] The committed run's search-on answers are **copyright-cleared** before commit: a
+      documented check (recorded in the run `README.md`) that the committed answers are the
+      intended original-language text, not lifted copyrighted third-party editions/
+      translations fetched by web search. Answers are **not** truncated to dodge this (the
+      explorer must show them) — they are cleared.
+- [ ] The committed run's `README.md` preserves source / attribution / **CC-BY-NC** licence /
+      non-commercial notice for the Davidson Talmud (coarse `open` audit-pass is not
+      attribution).
+- [ ] The committed run reports **no misleading cost**: its panel is unpriced (token-only, no
+      `cost_usd`) so that uncaptured per-request web-search charges cannot understate a
+      reported cost; if any search-request usage is captured it is additive provenance only.
 - [ ] The merged viewer, run against the repo with the committed tutorial run present,
       renders it with **zero source changes**: it appears in the run selector; its
       leaderboard ranks the four entries with per-task + per-tradition columns and token
@@ -207,10 +233,14 @@ benchmark's thesis, demonstrated rather than asserted.
       run does not break them.
 - [ ] `.codev/checks/test.sh` is green (pipeline pytest + viewer vitest + audit).
 - [ ] The web-search-vs-no-search contrast is **observable** in the committed run: the
-      search-enabled entries' `retrieve_quote` accuracy / similarity is reported alongside
-      the search-disabled entries so a viewer can see the difference (the human's
-      expectation that search-enabled scores higher is a result to *display*, not a value
-      to assert as a pass/fail threshold).
+      search-enabled entries' `retrieve_quote` `exact` / `normalized` / `token_f1` are
+      reported alongside the search-disabled entries so a viewer can see the difference. The
+      human's expectation that search-enabled scores higher is a result to *display*, not a
+      pass/fail threshold — and because the headline `correct = normalized` is **whole-answer
+      equality**, a search-on answer that appends an attribution/citation can score *lower*
+      on the headline while retrieving better; `token_f1`/`exact` are named as the
+      discriminating numbers. The `_SUBMETRICS` contract is **not** altered to "fix" this
+      (requirement 4 forbids it).
 
 ## Constraints
 
@@ -268,7 +298,21 @@ settled (baked); not relitigated in Solution Approaches:**
   committed-run gate target; it is not removed by this work.
 - Web search is an **Anthropic server-side** tool, so the tool toggle is meaningful only for
   the two `anthropic`-provider models; the panel for this tutorial is all-Anthropic by
-  design (the ≥2-provider story was a Spec-1 proof concern, not a gate).
+  design (the ≥2-provider story was a Spec-1 proof concern, not a gate). Enabling it on a
+  non-Anthropic provider is a config error (fail-fast), not a silent no-op.
+- **New copyright surface: committing live-web-search answers to a public repo.** The
+  existing `audit.py` cannot detect a copyrighted third-party edition/translation echoed by a
+  search-enabled model (its origin layer keys on the question's public source; its content
+  layer is restricted-payload-gated and, as verified, Latin-only). The committed search-on
+  answers must be copyright-cleared by a documented step before commit (see Solution
+  Approaches F); the project's #1 critical fact is the copyright gate, so this is a
+  first-class constraint, not a footnote.
+- **The scoring contract does not change.** `_SUBMETRICS` and the per-task headline rules
+  (incl. `retrieve_quote`'s `correct = normalized`) stay exactly as they are (requirement 4);
+  only the *values* `normalize()` produces for non-Latin text change.
+- **Attribution for CC-BY-NC.** The committed run's README preserves the Davidson Talmud's
+  source/attribution/licence/non-commercial notice; the coarse `open` enum is a gate
+  classification, not a substitute for attribution.
 
 ## Assumptions
 
@@ -293,8 +337,25 @@ settled (baked); not relitigated in Solution Approaches:**
 - The Davidson Talmud (`he`) and QUL Qur'an quotes in a committed run are copyright-clean
   (open / public-domain), so the committed run passes the origin audit in a clone / CI.
 - Adding a second committed run does not break the viewer's run-discovery or committed-run
-  gate tests (to be verified; see Risks — a viewer test asserting an *exact* run set would
-  be the one place this assumption could fail).
+  gate tests (checked during the consult: the viewer tests stub `fetch` with a hardcoded
+  index and `runsEndpoint.test.ts` works over a temp dir — none enumerate the real `runs/`
+  — so the risk is low; still verified by running the suite).
+- The benchmark targets the **original-language** texts (KJV English, Qur'an Uthmani Arabic,
+  Talmud Hebrew/Aramaic original), which are public-domain as originals; the CC-BY-NC applies
+  to the Davidson *edition/English translation*. A web-search answer that returns a
+  copyrighted translation is both wrong (scores 0 against the original-language target) and
+  flagged by the Approach-F clearance.
+- `generate.py` imports `normalize` from `score` (for `work_texts`/`version_texts` in
+  `verify_source`/`identify_version` pooling). The normalize change therefore has a
+  generation-side blast radius for non-Latin pooling, but Latin determinism is safe:
+  `generate._qid` hashes **raw** text and Latin `normalize()` output is unchanged. The
+  tutorial pins `--tasks retrieve_quote`, which does not use that pooling.
+- `generate.py`'s `MIN_WORDS_IDENTIFIABLE = 12` excludes short units from some pools, so the
+  committed run's Arabic items may skew toward longer ayat — expected behaviour, not a bug
+  (the Qur'an pool is ample).
+- Anthropic reports server-side web-search usage under `usage.server_tool_use.
+  web_search_requests`, which the current token-only usage extraction does not capture; the
+  committed run avoids a misleading cost by staying unpriced (Solution Approaches H).
 
 ## Solution Approaches
 
@@ -317,13 +378,24 @@ suffix/marker), while the **actual API model string sent to the provider is unch
   `provider\u0000model`, so a tools-marked `model` yields distinct rows; leaderboard/explorer
   key on `model_id` and already separate the four entries. No new viewer field, no viewer
   behaviour change.
+- **Keep the proof truthful.** `score.py` documents the `panel` block as the committed
+  artifact's *proof* of what actually ran, so a marker-bearing `panel.model` must not erase
+  the real API model string. The panel entry also emits the **raw API model string** under a
+  key the viewer ignores (e.g. `api_model`), so `(provider, model)` carries the tools-aware
+  identity the viewer keys on while the true model id remains recoverable from the artifact.
 - **Cons:** the emitted `panel.model` is a display/identity string that now carries a tools
-  marker, not purely the raw API model id; the panel markdown header ("≥3-model / ≥2-provider
-  proof") becomes a slight misnomer for a 2-model all-Anthropic panel (cosmetic — see Open
-  Questions).
+  marker, not purely the raw API model id (mitigated by the `api_model` field above); the
+  panel markdown header ("≥3-model / ≥2-provider proof") becomes a slight misnomer for a
+  2-model all-Anthropic panel (cosmetic — see Open Questions).
 - **Risk/complexity:** low. The real API model string is kept separate from the panel-identity
   string; fingerprint and panel changes are localized to `config.py` / `collect.py` /
   `cli.py` / `score.py`.
+- **Tool-config validation is fail-fast** (project "no fallbacks" norm). `ModelSpec` also
+  accepts `openai`/`gemini`; web search is an Anthropic server-side tool, so enabling it on a
+  non-`anthropic` provider, or supplying an unrecognised tools value, must raise
+  `ConfigError` at load time — never be silently ignored. (Today `config.py` does **no**
+  unknown-key validation, so a stray `tools:` is silently dropped; the new setting must be
+  genuinely parsed and validated, not merely tolerated.)
 
 ### Approach B: Tools-setting identity — add a `tools` field to the panel and change the viewer (REJECTED)
 
@@ -354,24 +426,44 @@ keeps targeting first-run untouched.
 
 ### Approach D: Non-Latin normalisation — delete marks before punctuation-stripping (CHOSEN)
 
-In `normalize()`, before the `[^\w\s]`→space step, **delete** (not space-replace) Unicode
-combining marks in the Arabic and Hebrew ranges (harakat U+064B–U+065F / U+0670, niqqud
-U+05B0–U+05BD / U+05BF / U+05C1–U+05C2 / U+05C4–U+05C5 / U+05C7), remove the Arabic tatweel
-(U+0640), fold alef/hamza/alef-wasla variants to a bare alef (U+0622/0623/0625/0671 → U+0627)
-and fold the Hebrew maqaf (U+05BE) to the dash the function already normalises. Keep the
-existing NFKD / quote / dash / casefold / whitespace steps for Latin so Latin output is
-byte-for-byte unchanged.
+In `normalize()`, before the `[^\w\s]`→space step, **delete** (not space-replace) the Arabic-
+and Hebrew-range combining marks and editorial annotation code points, remove the Arabic
+tatweel (U+0640), fold alef/hamza/alef-wasla variants to a bare alef (U+0622/0623/0625/0671 →
+U+0627) and fold the Hebrew maqaf (U+05BE). Keep the existing NFKD / quote / dash / casefold /
+whitespace steps for Latin so Latin output is byte-for-byte unchanged.
 
-- **Pros:** fixes the real failure (verified: harakat/niqqud were being turned into
-  word-splitting spaces and alef-wasla left unfolded) with a targeted, auditable set of
-  transformations derived from real fixtures; the per-task contract and Latin behaviour are
-  untouched.
-- **Cons:** an explicit mark/variant list is a maintenance surface (new scripts need new
-  ranges); mitigated by real-script fixtures and by the contract staying put.
+**The mark set is derived from the REAL QUL / Davidson data, not a guessed range** (project
+lesson; a reviewer correctly caught that a U+064B–U+065F-only list would ship broken). An
+enumeration of the committed `quran_uthmani_from_qul.json.json` shows the Qur'anic text
+carries combining marks and editorial symbols *well beyond* the basic harakat — and many
+occur **mid-word**, so the current `[^\w\s]` pass splits those words:
+
+- basic harakat / tanwin / shadda / sukun / maddah / superscript-alef: U+064B–U+0655, U+0670;
+- Qur'anic annotation marks (small high/low marks): the U+06D6–U+06ED block
+  (e.g. U+06D6, U+06DA, U+06DF, U+06E2, U+06ED — all present in QUL);
+- editorial symbols (category So): U+06DE (start of rub-el-hizb), U+06E9 (place of sajdah);
+- small modifier letters (category Lm): U+06E5/U+06E6 (small waw/yeh), and tatweel U+0640;
+- Hebrew points U+05B0–U+05BD / U+05BF / U+05C1–U+05C2 / U+05C4–U+05C5 / U+05C7, cantillation
+  U+0591–U+05AF, and the maqaf U+05BE.
+
+The contract is therefore stated by **range + category** (delete Arabic-block combining marks
+U+064B–U+065F and U+0670 and U+06D6–U+06ED, the Arabic editorial So/Lm annotation code points
+present in QUL, the Hebrew-block combining/cantillation marks, and tatweel), re-derived from
+the real data during implementation, and locked by **full real-ayah and real-Talmud-line
+fixtures** (e.g. a QUL ayah carrying annotation marks + a sajdah/rub-el-hizb symbol such as
+2:5 / 7:206) — not a toy string.
+
+- **Pros:** fixes the real failure (verified: harakat/niqqud were turned into word-splitting
+  spaces and alef-wasla left unfolded) with an auditable, data-derived transformation; the
+  per-task contract and Latin behaviour are untouched.
+- **Cons:** an explicit mark/range set is a maintenance surface (new scripts need new ranges);
+  mitigated by deriving from real data and by real-script fixtures.
 - **Alternative (considered): strip *all* Unicode combining marks (category Mn) generically.**
-  Simpler, but broader than the issue scope and risks changing Latin-with-diacritics
-  behaviour subtly; the Arabic/Hebrew-scoped approach is preferred for a contained, testable
-  change. (Either way the fixtures are the real contract.)
+  Simpler and would catch any missed Arabic/Hebrew mark, but it also changes Latin-with-
+  diacritics behaviour (`naïve` currently normalises to `nai ve`; delete-all-Mn would give
+  `naive`), which risks regressing Latin `normalized`/`token_f1` values and the "Latin
+  byte-for-byte unchanged" guarantee. The script-scoped approach is preferred; a Latin
+  regression fixture guards whichever is chosen.
 
 ### Approach E: Issue #7 `generated_at` timestamp (OPTIONAL — recommend include)
 
@@ -386,12 +478,79 @@ it is safe to include.
   and leave #7 open. The viewer cannot consume it without a (disallowed) change, so it does
   **not** change this spec's viewer behaviour either way.
 
+### Approach F: Web-search answers in a public committed artifact — documented clearance (CHOSEN)
+
+This spec commits, for the first time, **model answers produced with live web search** to a
+**public** repo. That is a new copyright surface the existing gate cannot see: `audit.py`'s
+origin layer keys on the *question's* source (KJV / QUL / Davidson — all public-domain or
+open, so it passes), and its content layer only fingerprints restricted text when the
+held-back payloads are present locally. A search-enabled model asked for a Talmud daf or a
+Bible verse could fetch and echo a *copyrighted third-party edition/translation* (e.g.
+Steinsaltz English, NABRE, NA28) that then lands in a committed `answers.jsonl`.
+
+- **What makes the exposure bounded:** the tutorial's expected answers are the
+  **original-language** texts — the KJV (public domain), the Qur'an Uthmani **Arabic**
+  (public domain), and the Talmud **Hebrew/Aramaic original** (ancient text; the CC-BY-NC
+  applies to the Davidson *edition/English translation*, not the original-language letters).
+  A model that returns a copyrighted *translation* is both answering the wrong thing (it
+  scores 0 against the original-language target) and an easy-to-spot outlier.
+- **Chosen mitigation:** a **documented copyright clearance of the committed search-on
+  answers** before they are committed — at minimum a recorded spot-check (described in the
+  run README) that the committed answers are original-language text, not lifted copyrighted
+  editions; the exact mechanism is a plan decision, but the spec *requires one to exist* and
+  requires the README to state it ran. **Truncating/omitting the committed answers is
+  rejected** — the viewer's error explorer must show the model's actual answer, so the
+  answers stay intact and are cleared instead.
+- **Attribution:** because the Davidson Talmud is **CC-BY-NC**, the committed run's README
+  preserves source / attribution / licence / non-commercial notice for it (coarse `open`
+  audit-pass is not attribution).
+
+### Approach G: `audit.py :: _norm` is Latin-only on the non-Latin run — extend (RECOMMENDED, optional)
+
+Verified: `audit.py :: _norm` strips non-ASCII, so `_norm(<vocalized basmala>)` → `''` and
+the restricted-text content layer (which needs `len(n) >= 60`) is a **no-op** on Arabic /
+Hebrew. For *this* committed run the content layer is not the guard anyway (it fires only when
+restricted payloads are present locally; in a clone/CI the enforceable proxy is origin, and
+this run uses no restricted source). But a spec whose point is fair non-Latin handling should
+not leave the content layer silently blind.
+
+- **Recommendation:** extend `audit._norm` for Arabic/Hebrew alongside the `normalize()` work
+  (small, adjacent, same scripts) so the content layer actually fingerprints non-Latin
+  restricted text. Treat as *optional scope*; if dropped, the spec **states the limitation
+  explicitly** (content layer is Latin-only; origin + Approach F clearance are the committed
+  run's protection) rather than letting "`audit` passes" imply non-Latin coverage it lacks.
+
+### Approach H: Web-search request cost accounting — unpriced committed run (CHOSEN)
+
+`_anthropic_usage` captures only `input_tokens`/`output_tokens`; Anthropic bills server-side
+web search **per request** (`usage.server_tool_use.web_search_requests`), which the current
+extraction omits. With `price_in`/`price_out` set, the committed run's cost table would
+understate the true cost — against `score.py`'s explicit norm that a partial number must not
+masquerade as the run's cost.
+
+- **Chosen:** the committed tutorial run's `models.example.yaml` panel stays **unpriced**
+  (token-only, as the first run did), so `score` emits **no** `cost_usd` and no misleading
+  cost table arises. Optionally also capture `web_search_requests` into the answer-row usage
+  as provenance (additive; the viewer ignores it). The spec forbids emitting a priced cost
+  table for a search-enabled run while per-request search charges are uncaptured.
+
 ## Open Questions
 
+- **Critical** — *How are the committed search-on answers copyright-cleared?* The mechanism
+  (documented spot-check, an automated heuristic, or restricting which corpora the committed
+  run's search-on answers may contain) must be fixed in the plan before the run is committed.
+  Blocks committing the run (Solution Approaches F); the project's copyright gate is its #1
+  critical fact.
 - **Important** — *Exact Anthropic web-search tool spec.* The precise tool type/name/version
   and any `max_uses` cap for the server-side web-search tool must be pinned against the
   installed SDK during implementation (fail loud if the response shape differs). Shapes the
   collect change; does not block the spec.
+- **Important** — *Extend `audit._norm` for non-Latin, or declare it out of scope?* The audit
+  content layer is Latin-only today (verified no-op on Arabic/Hebrew). Recommended to extend
+  it alongside `normalize()` (Solution Approaches G); if not, state the limitation explicitly.
+- **Important** — *Capture `web_search_requests` usage, or only stay unpriced?* The committed
+  run stays unpriced regardless (Approach H); whether to also record search-request counts as
+  provenance is a plan call.
 - **Important** — *Panel-identity encoding form.* Approach A requires a concrete, stable way
   to make the search-on entry's `panel.model` distinct from search-off (a suffix marker vs.
   another scheme). Resolve in the plan; the requirement (standings must distinguish them,
@@ -415,6 +574,10 @@ it is safe to include.
 - `normalize()` on a vocalized vs. unvocalized Qur'an ayah returns equal strings and
   `token_f1 = 1.0`; same for a niqqud vs. plain Hebrew/Aramaic Talmud line. A
   verbatim-correct Arabic `retrieve_quote` answer scores `normalized = 1` (`correct = 1`).
+- A **full real QUL ayah** carrying mid-word annotation marks and a sajdah/rub-el-hizb
+  symbol normalises to the same form as its mark-free spelling (not split into fragments).
+- The committed `first-run-2026-10-11` question-set digest recomputed after the
+  `normalize()` change equals the committed digest (Latin generation unaffected).
 - `config.py` loads the 2-model / 4-entry `models.example.yaml` (opus + haiku, each ×
   search-{on,off}) with distinct ids and the tools setting, no error.
 - `collect` with a search-enabled model issues the Anthropic web-search tool call; with it
@@ -446,8 +609,11 @@ it is safe to include.
 - `audit runs/<tutorial-id>` passes (origin-clean; only public-domain/open sources); a
   deliberately planted restricted-derived artifact would fail (existing gate behaviour,
   not re-implemented).
+- The documented copyright clearance of the committed search-on answers is run and recorded
+  in the run README; an answer that reproduced a copyrighted translation would be caught and
+  not committed.
 - The committed `summary.json.panel` contains no API keys or secrets — only provider / model
-  / endpoint / served_by.
+  / endpoint / `api_model` / served_by.
 - Adding the tutorial run leaves `realRun.test.ts` (first-run gate) and the `#86` CSS probe
   green; `.codev/checks/test.sh` is green overall.
 
@@ -459,7 +625,13 @@ it is safe to include.
 | A viewer test asserts an *exact* set of discovered runs, so adding the tutorial run reds the suite | Low | Medium | Verify against the merged viewer test suite early; if such an assertion exists, **raise it with the architect** (touching a viewer test is the one place requirement 5 may bend) rather than silently editing viewer source. |
 | `generate`'s `retrieve_quote` template or citation uniqueness misbehaves on Arabic/Hebrew entries | Low | Medium | Converters already produce `ar`/`he` documents with unique citations; run convert→generate on the real corpora and inspect the produced questions before collecting (derive from real data). |
 | Anthropic web-search tool spec/SDK shape differs from assumption; tool blocks break text/usage extraction | Medium | High | Pin the exact tool spec against the installed SDK; validate the response structure and **fail loud** on an unexpected shape (no fallback); a budgeted live smoke exercises the search-on path end-to-end. |
-| New `normalize()` silently changes Latin scoring (regresses the committed first-run numbers) | Low | High | Scope mark-deletion/folding to Arabic/Hebrew ranges; add a Latin regression fixture asserting byte-identical output; keep all existing Latin scoring tests. |
+| `normalize()` mark set under-covers the real QUL data (misses Qur'anic annotation marks, some mid-word), so Arabic quotes still mis-score | Medium | High | Derive the mark set from the REAL QUL/Davidson data (enumerated: U+06D6–U+06ED block, rub-el-hizb/sajdah symbols, superscript alef, tatweel); lock with a full real-ayah fixture. |
+| New `normalize()` silently changes Latin scoring (regresses the committed first-run numbers) | Low | High | Scope mark-deletion/folding to Arabic/Hebrew ranges; add a Latin regression fixture asserting byte-identical output; assert the first-run digest is unchanged; keep all existing Latin scoring tests. |
+| **A search-enabled model echoes a copyrighted translation into a committed public artifact; the audit can't see it** | Medium | High | Target original-language (public-domain) texts; a copyrighted translation scores 0 and is an outlier; a **documented copyright clearance** of committed search-on answers runs before commit (Approach F); CC-BY-NC attribution preserved in the README. |
+| `audit._norm` is Latin-only, so the content layer silently no-ops on the non-Latin committed run | Medium | Medium | Extend `audit._norm` for Arabic/Hebrew alongside `normalize()` (Approach G), or state the limitation explicitly; the committed run's enforceable protection is origin + the Approach-F clearance regardless. |
+| A priced search-enabled run reports a cost that omits per-request web-search charges | Low | Medium | Keep the committed panel unpriced (token-only, no `cost_usd`); forbid a priced cost table while search-request charges are uncaptured (Approach H). |
+| Headline `correct = normalized` (whole-answer equality) inverts the search-on/off contrast (attribution prose penalised) | Medium | Medium | Name the hazard; present `token_f1`/`exact` as the discriminating numbers; do NOT alter `_SUBMETRICS` (req 4). |
+| Tool-use config silently ignored (today `config.py` does no unknown-key validation) | Medium | Medium | Parse the tools setting into `ModelSpec` and validate fail-fast (ConfigError on non-Anthropic provider / invalid value); a test asserts the rejection. |
 | Web-search `collect` is slow / costly (4 cells × server-side search) | Medium | Low | Keep the tutorial question count modest; `collect` is the only paid step and stays clearly marked; resumable collect limits waste. |
 | Committed tutorial run re-scored/re-collected over itself corrupts the evidence | Low | High | Write a fresh `runs/<id>/`; the tutorial's own Track-A/B guidance (and the project lesson) forbid collect/score over committed evidence. |
 | Panel markdown header still claims a "≥3-model/≥2-provider" bar for a 2-model panel | Low | Low | Soften the header wording (pipeline, cosmetic) or leave it; noted as nice-to-know. |
@@ -476,9 +648,15 @@ it is safe to include.
   `apps/viewer/src/lib/aggregate.ts`, panel parse `apps/viewer/src/lib/localResults.ts`, run
   discovery `apps/viewer/vite/runsEndpoint.ts`, gate `apps/viewer/src/local/realRun.test.ts`,
   `#86` probe `apps/viewer/src/deploy.test.ts`.
-- `pipelines/sacredbench/score.py` — `normalize()`, `_SUBMETRICS`, the panel snapshot;
-  `collect.py` — `_panel_fingerprint`; `config.py` — `ModelSpec`; `providers.py` —
-  `_anthropic`; `cli.py` — the `score` panel build.
+- `pipelines/sacredbench/score.py` — `normalize()`, `_SUBMETRICS`, the panel snapshot, the
+  "cost must not masquerade" rule; `collect.py` — `_panel_fingerprint`; `config.py` —
+  `ModelSpec` (no unknown-key validation today); `providers.py` — `_anthropic`,
+  `_anthropic_usage` (token-only); `cli.py` — the `score` panel build; `generate.py` —
+  imports `normalize`, `_qid` (raw-text hash), `MIN_WORDS_IDENTIFIABLE`; `audit.py` — origin
+  + content layers, `_norm` (Latin-only).
+- Iter-1 spec consultation (both REQUEST_CHANGES, HIGH): `codev/projects/8-spec-3-tutorial-centered-on-kj/8-specify-iter1-{codex,claude}.txt`
+  — the copyright-exposure, QUL-mark-coverage, audit `_norm`, web-search-cost, headline-metric,
+  config fail-fast, and `api_model` findings folded into this revision.
 - `texts/raw/Protestant Christian/source.yaml` (KJV), `texts/raw/Sunni Islam/source.yaml`
   (Qur'an QUL `ar`), `texts/raw/Judaism/source.yaml` (Talmud Davidson `he`) — the three
   target corpora; `convert.py` converters `bible_flat` / `quran_qul` / `sefaria_talmud`.
