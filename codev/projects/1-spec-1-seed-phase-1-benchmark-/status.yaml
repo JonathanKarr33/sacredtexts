@@ -1,7 +1,7 @@
 id: '1'
 title: spec-1-seed-phase-1-benchmark-
 protocol: spir
-phase: implement
+phase: review
 plan_phases:
   - id: phase_1
     title: Source catalogue, license gating, and gitignore reachability
@@ -26,8 +26,8 @@ plan_phases:
     status: complete
   - id: phase_8
     title: First benchmark run and TUTORIAL walkthrough
-    status: in_progress
-current_plan_phase: phase_8
+    status: complete
+current_plan_phase: null
 gates:
   spec-approval:
     status: approved
@@ -41,8 +41,8 @@ gates:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -261,7 +261,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/spir-1/codev/projects/1-spec-1-seed-phase-1-benchmark-/1-phase_8-iter2-claude.txt
 started_at: '2026-10-10T19:04:21.292Z'
-updated_at: '2026-10-11T06:24:15.219Z'
+updated_at: '2026-10-11T06:31:06.918Z'
 context_refreshes:
   - boundary: enter:plan
     at: '2026-10-10T22:49:50.661Z'
@@ -287,6 +287,8 @@ context_refreshes:
   - boundary: plan-phase:phase_8
     at: '2026-10-11T04:27:11.054Z'
     acknowledged_at: '2026-10-11T06:03:36.257Z'
+  - boundary: enter:review
+    at: '2026-10-11T06:31:06.918Z'
 force_advanced:
   phase: phase_6
   iteration: 3
