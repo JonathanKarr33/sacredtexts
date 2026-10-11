@@ -1,5 +1,11 @@
 {
  "seed": 20261011,
+ "inputs": [
+  "texts/standardized/Protestant Christian",
+  "texts/standardized/The Church of Jesus Christ of Latter-Day Saints",
+  "texts/standardized/Roman Catholic/papal-encyclicals-vatican-english-en",
+  "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-english-en"
+ ],
  "per_task": 100,
  "negatives_share": 0.5,
  "quotas": {},
@@ -13,5 +19,5 @@
  "corpus_hash": "73f9888738e2d02f",
  "question_set_digest": "ef837474ed7b22ec",
  "n_questions": 100,
- "generated_at": "2026-10-11T04:30:39.932715+00:00"
+ "generated_at": "2026-10-11T06:56:13.894403+00:00"
 }

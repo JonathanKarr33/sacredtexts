@@ -36,7 +36,9 @@ def _fake(dead: set[str]):
     def fake(model, prompt, retries=2):
         if model.id in dead:
             raise ProviderError(f"dead key for {model.id}")
-        return (f"ans:{prompt}", {"input_tokens": 1, "output_tokens": 1}, 1)
+        # the real `complete` seam returns usage ALREADY normalized to {in, out}
+        # (providers.py); the fake must match that contract, not the provider-native shape
+        return (f"ans:{prompt}", {"in": 1, "out": 1}, 1)
 
     return fake
 
@@ -76,6 +78,20 @@ def test_resume_against_different_question_set_refused(tmp_path, monkeypatch):
     with pytest.raises(CollectError) as e:
         collect([_q("retrieve_quote-zzzzzz")], config, answers)  # set B -> different digest
     assert "refusing to resume" in str(e.value)
+
+
+def test_resume_under_changed_panel_identity_refused(tmp_path, monkeypatch):
+    answers = tmp_path / "answers.jsonl"
+    monkeypatch.setattr(collect_mod, "complete", _fake(set()))
+    qs = [_q("retrieve_quote-aaaaaa")]
+    collect(qs, _config("m"), answers)  # model id "m" -> model "m-m", provider anthropic
+    # same id, different model string -> panel identity changed -> refuse resume
+    changed = RunConfig(models=(ModelSpec(id="m", provider="anthropic", model="other-model"),), concurrency=1)
+    with pytest.raises(CollectError, match="different panel identity"):
+        collect(qs, changed, answers)
+    # the recorded row carries the fingerprint + provider
+    row = _rows(answers)[0]
+    assert row["provider"] == "anthropic" and row["panel_fingerprint"] == "anthropic|m-m|"
 
 
 def test_legacy_answers_without_digest_refused(tmp_path, monkeypatch):

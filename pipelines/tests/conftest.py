@@ -44,20 +44,25 @@ def two_work_docs() -> list[Document]:
     return [make_doc("Book of Orchards"), make_doc("Book of Roads")]
 
 
-NABRE_SHAPE = {
-    "book": "1Orchards",
-    "chapters": [
-        {
-            "chapter": 1,
-            "verses": [
-                {"verse": 1, "text": LONG},
-                {"verse": 2, "text": LONG2},
-                {"verse": 3, "text": ""},
-            ],
-        },
-        {"chapter": 2, "verses": [{"verse": 1, "text": LONG}]},
-    ],
-}
+# The real nabre.json is a TOP-LEVEL LIST of book objects (one file, many books);
+# verse text can embed heading strings, which are kept verbatim.
+NABRE_SHAPE = [
+    {
+        "book": "1Orchards",
+        "chapters": [
+            {
+                "chapter": 1,
+                "verses": [
+                    {"verse": 1, "text": "Preamble. The Making of Orchards " + LONG},
+                    {"verse": 2, "text": LONG2},
+                    {"verse": 3, "text": ""},
+                ],
+            },
+            {"chapter": 2, "verses": [{"verse": 1, "text": LONG}]},
+        ],
+    },
+    {"book": "2Orchards", "chapters": [{"chapter": 1, "verses": [{"verse": 1, "text": LONG2}]}]},
+]
 
 ENCYCLICAL_SHAPE = {
     "type": "papalEncyclical",

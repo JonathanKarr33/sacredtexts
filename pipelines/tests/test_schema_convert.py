@@ -87,10 +87,14 @@ def test_parse_fails_fast(mutate):
 
 
 def test_convert_nabre(tmp_path):
-    p = tmp_path / "1Orchards.json"
+    # the real shape: one file, a top-level LIST of book objects
+    p = tmp_path / "nabre.json"
     p.write_text(json.dumps(NABRE_SHAPE))
     [doc] = convert_nabre([p], _target(version="TestV"))
-    assert [e.citation for e in doc.entries] == ["1 Orchards 1:1", "1 Orchards 1:2", "1 Orchards 2:1"]
+    assert [e.citation for e in doc.entries] == [
+        "1 Orchards 1:1", "1 Orchards 1:2", "1 Orchards 2:1", "2 Orchards 1:1",
+    ]
+    assert doc.entries[0].text.startswith("Preamble.")  # heading kept verbatim, not stripped
     assert doc.document_type == "scripture" and doc.version == "TestV"
 
 

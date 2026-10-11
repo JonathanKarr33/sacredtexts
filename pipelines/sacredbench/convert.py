@@ -244,34 +244,43 @@ def convert_encyclicals(paths: list[Path], target: "Target") -> list[Document]:
 
 
 def convert_nabre(paths: list[Path], target: "Target") -> list[Document]:
-    """Merge NABRE-shaped book files ``{book, chapters: [...]}`` into one document."""
+    """Merge NABRE book objects into one document.
+
+    The real ``nabre.json`` is a TOP-LEVEL LIST of book objects
+    ``{book, chapters: [{chapter, verses: [{verse, text}]}]}`` (one file, 73 books);
+    a single ``{book, chapters}`` object (one file per book) is also accepted. Verse
+    text is kept verbatim apart from whitespace — NABRE embeds heading strings inside
+    the first verse of a chapter ("Preamble. The Creation of the World Chapter 1 - …"),
+    which are part of the source text and are not stripped."""
     entries: list[Entry] = []
     for path in paths:
         data = _load_json(path)
-        if not isinstance(data, dict):
-            raise ConvertError(f"{path}: top level must be an object (nabre format)")
-        book, chapters = data.get("book"), data.get("chapters")
-        if not isinstance(book, str) or not isinstance(chapters, list):
-            raise ConvertError(f"{path}: expected {{book, chapters}} (nabre format)")
-        book_name = _split_camel_book(book)
-        for ch in chapters:
-            if not isinstance(ch, dict):
-                raise ConvertError(f"{path}: {book} has a non-object chapter entry")
-            ch_num, verses = ch.get("chapter"), ch.get("verses")
-            if not isinstance(ch_num, int) or not isinstance(verses, list):
-                raise ConvertError(f"{path}: chapter entry missing 'chapter'/'verses'")
-            for v in verses:
-                if not isinstance(v, dict):
-                    raise ConvertError(f"{path}: {book} {ch_num} has a non-object verse entry")
-                v_num, text = v.get("verse"), v.get("text")
-                if not isinstance(v_num, int) or not isinstance(text, str):
-                    raise ConvertError(f"{path}: {book} {ch_num} has a malformed verse")
-                if not text.strip():
-                    continue
-                entries.append(Entry(unit_type="verse", citation=f"{book_name} {ch_num}:{v_num}", text=text.strip()))
+        books = data if isinstance(data, list) else [data]
+        for bi, book_obj in enumerate(books):
+            if not isinstance(book_obj, dict):
+                raise ConvertError(f"{path}: book[{bi}] is not an object (nabre format)")
+            book, chapters = book_obj.get("book"), book_obj.get("chapters")
+            if not isinstance(book, str) or not isinstance(chapters, list):
+                raise ConvertError(f"{path}: book[{bi}] expected {{book, chapters}} (nabre format)")
+            book_name = _split_camel_book(book)
+            for ch in chapters:
+                if not isinstance(ch, dict):
+                    raise ConvertError(f"{path}: {book} has a non-object chapter entry")
+                ch_num, verses = ch.get("chapter"), ch.get("verses")
+                if not isinstance(ch_num, int) or not isinstance(verses, list):
+                    raise ConvertError(f"{path}: chapter entry missing 'chapter'/'verses'")
+                for v in verses:
+                    if not isinstance(v, dict):
+                        raise ConvertError(f"{path}: {book} {ch_num} has a non-object verse entry")
+                    v_num, text = v.get("verse"), v.get("text")
+                    if not isinstance(v_num, int) or not isinstance(text, str):
+                        raise ConvertError(f"{path}: {book} {ch_num} has a malformed verse")
+                    if not text.strip():
+                        continue
+                    entries.append(Entry(unit_type="verse", citation=f"{book_name} {ch_num}:{v_num}", text=text.strip()))
     if not entries:
         raise ConvertError("nabre conversion produced no entries")
-    _require_unique_citations(entries, f"{target.work} [{target.version}] (merged {len(paths)} book files)")
+    _require_unique_citations(entries, f"{target.work} [{target.version}] (merged {len(paths)} payload file(s))")
     return [_doc(target, entries)]
 
 

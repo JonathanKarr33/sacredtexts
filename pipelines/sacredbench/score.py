@@ -11,8 +11,8 @@ Metrics emitted per answer:
                   judge-based semantic scoring is a later, pluggable metric
 - ``correct``     the per-task headline judgment (see below)
 
-Per-task headline rule (the spec's contract — robust to evasive answers, so
-containment alone cannot game provenance honesty):
+Per-task headline rule (the spec's contract — designed to resist evasive answers so
+that containment alone cannot game provenance honesty, within the SCOPE noted below):
 
 - retrieve_quote / complete_unit : ``normalized`` match (exact + token-F1 alongside)
 - verify_source                  : parsed leading Yes/No equals expected
@@ -24,6 +24,16 @@ containment alone cannot game provenance honesty):
                                    hedge scores 0, a repeated correct citation does not
 - identify_source                : work present AND a single citation equals ground
                                    truth (same anti-hedge rule as cite_passage)
+
+SCOPE / known gaps (the first run is ``retrieve_quote``-only, so these affect no
+reported number; tracked for the Spec 2 scoring-contract revision):
+- the citation anti-hedge counts only FORMALLY-SHAPED citation candidates, so a
+  PROSE hedge ("it could be Jude 1:3, or perhaps chapter 1 verse 4") is not caught.
+- ``verify_source`` uses the first Yes/No token and ``identify_source``'s work check
+  is substring containment — both are gameable by negation ("it is NOT from X");
+  since every corpus embeds the work in the citation, the work check collapses into
+  the citation check. These tasks must be hardened before any verify_source /
+  identify_source number is reported.
 """
 
 from __future__ import annotations

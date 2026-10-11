@@ -1,0 +1,107 @@
+I'll start by understanding the repo layout and the key artifacts, then read the actual source files.Let me read the core planning documents and check branch state.Branch is up to date with base (0 behind, 118 ahead). Now let me read the spec, plan, and review.Now let me read the core pipeline code and kick off the test suite.Let me launch parallel investigations while I read the core code myself.I'll read the generation/collection core while those run.Significant finding — there's an uncommitted review-phase consult with REQUEST_CHANGES. Let me read it.Codex's first issue may be stale — I read that check in the code. Let me verify both claims against HEAD.`git grep` on HEAD found nothing — I need to verify whether these fixes are actually committed.The builder is actively editing right now. Let me examine the uncommitted work.Let me check the viewer deliverable while the background audits finish.Let me verify the concrete TLG bug the audit agent found.The final-round codex dissents on Phases 4–5 were substantive. Let me verify whether they were actually fixed.Let me independently verify the two most consequential scoring claims.I have everything I need. Both background audits are complete and I independently verified their key claims.
+
+## Review: PR #3 — Phase 1 benchmark pipeline
+
+**Snapshot note:** I reviewed at HEAD `60f1287` (= `origin/builder/spir-1`, so the pushed PR). The worktree was being actively edited *during* my review — 5 files were clean on my first `git status` and dirty on my second. I made no changes to the tree.
+
+### Verified strengths
+
+The engineering here is genuinely strong, and I checked the claims rather than taking them:
+
+- **Tests pass and are under-claimed.** pytest: **149 passed**, 0 skipped (PR says 142 — a stale undercount). vitest: **412 passed / 9 skipped** — exactly as claimed. Suites are hermetic (writes go to `tmp_path`).
+- **Branch is up to date with base** — 0 behind `origin/main`, 118 ahead.
+- **Commit format is clean** — every non-porch commit matches `[Spec 1][Phase: …]`; zero violations. (Codex's review-phase complaint about `chore(porch)` commits is a false positive — those are framework-generated state commits, not builder commits.)
+- **No secrets, no restricted-text leakage, no debug residue.** `git ls-files texts/` tracks only `source.yaml`; NABRE/TLG payloads untracked and `check-ignore`-confirmed. All 100 question sources are KJV/ASV/WEB/LDS/encyclicals/Talmud. The `panel` block stores only `urlparse(...).netloc` hostnames. Zero hits for `TODO|FIXME|breakpoint|console.log|/Users/mwk` across the 52 non-transcript files.
+- **The Phase 4/5 codex dissents were actually fixed**, contrary to how the review doc labels them: `export.py:90-93` now uses a total shard-order key, `roundtrip_ok` (`export.py:153-170`) compares the exact deduplicated entry *set* rather than counts, `generate.py:208` sorts docs by a total key before dedup, and `cli.py:244-254` only warns rather than overriding `negatives_share`.
+- `realRun.test.ts` genuinely pins the committed run through the viewer's own `loadRun` — 400 joined cells, not a fixture.
+
+### Blocking: the work isn't committed
+
+```
+ M pipelines/sacredbench/cli.py          M pipelines/tests/test_schema_convert.py
+ M pipelines/sacredbench/schema.py       M pipelines/tests/test_score.py
+ M pipelines/sacredbench/score.py
+?? codev/projects/.../1-review-iter1-codex.txt
+```
+
+`git grep expected_digest HEAD` returns nothing. The **digest-binding fix is not in the PR.** Neither is the schema hardening nor their two new tests. These are the fixes for the review-phase codex consult (`1-review-iter1-codex.txt`, REQUEST_CHANGES, HIGH) — which is itself untracked. The fixes are good and well-tested; they just need to be committed and pushed.
+
+### Review document accuracy
+
+The review doc states "Every phase converged (codex and claude both non-REQUEST_CHANGES, or codex COMMENT…)". Extracting verdicts from all 53 artifacts:
+
+| Phase | Review doc says | Actual final round |
+|---|---|---|
+| 2 | "codex APPROVE" | codex APPROVE, **claude REQUEST_CHANGES** |
+| 4 | "codex **COMMENT**" | **codex REQUEST_CHANGES** |
+| 5 | "codex **COMMENT**" | **codex REQUEST_CHANGES** |
+| 6 | discloses residual | claude REQUEST_CHANGES, codex COMMENT |
+
+The underlying issues *were* fixed — so this is a documentation defect, not a code defect. But the architect reads this doc as the integration record, and it currently reports convergence that didn't happen. There's also **no review-phase consult disposition** section at all.
+
+### Scoring contract overclaims (verified by execution)
+
+`score.py:22-24` asserts unconditionally that "a multi-candidate hedge scores 0". I ran it:
+
+```
+correct=1  'It could be Jude 1:3 or perhaps Jude, chapter 1 verse 4'
+correct=1  'Probably John 3:16 but it may be from Romans chapter 5'
+```
+
+Prose hedges defeat it — the extractors only count *formally shaped* citations. Related, all untested:
+
+- `parse_yes_no` (`score.py:73`) takes the first `yes|no` **anywhere** though the docstring says "leading": `'No, but yes in a sense.'` → `correct=1`. This is the task carrying the spec's headline "reject false premises" objective.
+- `identify_source` `work_found` is bare containment (`score.py:160`): `'It is NOT from the Book of Roads; it is Book of Roads 1:2.'` → `correct=1` — exactly the evasion `identify_version` is built to reject.
+- Format-conformance scored as knowledge: `'Rerum Novarum, paragraph 5'` → 0 (`_PARA_CITE` can't span `paragraph`); `'Surah 2, Ayah 255'` → 0.
+
+None of this affects the committed numbers (the run is `retrieve_quote`-only), so it's follow-up — but the docstring claim should be scoped before it's cited in a paper.
+
+### Smaller items
+
+- **`sacredbench audit` hard-fails for the one operator who needs it.** `converter: tlg` is in `Greek Orthodox/source.yaml` but absent from `CONVERTERS` (`convert.py:402-409`), so once a TLG payload is present locally, `restricted_text_fingerprints` → `convert_target` raises `ConvertError`. Loud, not silent — but the content layer is unreachable for TLG holders.
+- `audit_paths` filters to `.json`/`.jsonl` (`audit.py:109`), so `summary.md` and run `README.md` are outside the gate. Currently clean.
+- `test_collect.py:39`'s fake returns `{"input_tokens","output_tokens"}` but `providers.py:133-154` normalizes to `{"in","out"}` and `score.py:259` reads `"in"`. A regression breaking normalization would zero all usage accounting with tests green — the repo's own "mocking the provider seam" lesson.
+- `config.py` and `providers.py` have **zero** direct tests; `cli.py` is only exercised for `convert`/`generate`.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Strong, well-tested implementation that closes the loop on real data, but five files of review-phase fixes sit uncommitted and the review doc misreports consult outcomes for three phases.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- **Uncommitted work**: `cli.py`, `schema.py`, `score.py`, `test_score.py`, `test_schema_convert.py` are modified but not committed; `git grep expected_digest HEAD` is empty, so the digest-binding fix and schema hardening are absent from the pushed PR. Commit + push, along with the untracked `1-review-iter1-codex.txt`.
+- **Review doc misreports consults**: claims "every phase converged" and labels Phases 4 and 5 as "codex COMMENT" when both were codex REQUEST_CHANGES (HIGH confidence, specific counterexamples); Phase 2 ended claude REQUEST_CHANGES. The issues were genuinely fixed — correct the record and add a review-phase disposition.
+- **`score.py:22-24` overclaims the anti-hedge guarantee**: verified that prose hedges ("It could be Jude 1:3 or perhaps Jude, chapter 1 verse 4") score `correct=1`. Scope the docstring to formally-shaped citations.
+- **`parse_yes_no` and `identify_source.work_found` are gameable** (first `yes|no` anywhere; bare containment survives negation) — both untested, and `verify_source` carries the spec's headline objective. Follow-up, not blocking.
+- **`sacredbench audit` raises `ConvertError` when a TLG payload is present** because `tlg` is unregistered in `CONVERTERS` — the restricted-content layer is unreachable for the operator holding the payload.
+- **Test-fidelity gap**: `test_collect.py:39` uses `input_tokens`/`output_tokens` while the real seam normalizes to `in`/`out`; `config.py` and `providers.py` have no direct tests.
+
+PR_SUMMARY: |
+  ## Summary
+  Seeds the Sacred Texts (CEFE-AI) Phase 1 benchmark end to end — can models recognize, retrieve and generate sacred text, and reject false premises? — across 8 implementation phases, and closes the loop with a real committed 4-model run. Closes #1.
+
+  ## Key Changes
+  - **Corpus**: two-tier `texts/raw` → `texts/standardized` driven by a committed `source.yaml` catalogue with a 3-value licence gate; restricted payloads (NABRE, TLG) stay local-only.
+  - **Converters**: seven fail-fast converters derived from the real committed data (Protestant Bibles, LDS editions, encyclicals, Qur'an, nine hadith collections, Talmud).
+  - **Pipeline**: interchange exporter with an inverse-grouping round-trip; deterministic version-gated tradition-balanced generation; digest-bound resumable collection; per-task scoring contract with per-model × task × tradition breakdown, missing-cell roster, token usage and a secret-free panel block.
+  - **Evidence**: `runs/first-run-2026-10-11/` — 100 English `retrieve_quote` questions × 4 models / 2 providers, copyright-audited, with a self-describing README; `TUTORIAL.md` verified verbatim on a fresh clone.
+  - **Viewer + gate**: minimal local `/local-results` route independent of the GitHub data layer, pinned by a test that renders the committed run; copyright audit wired into `.codev/checks/test.sh`.
+
+  ## Test Plan
+  - `bash .codev/checks/test.sh` — pipelines 149 passed (pytest), viewer 412 passed / 9 skipped (vitest).
+  - `uv --project pipelines run python -m sacredbench audit runs/first-run-2026-10-11` — copyright gate.
+  - Follow `TUTORIAL.md` Track A (keyless, writes only to `/tmp`) and confirm `scores.jsonl` reproduces byte-identically; Track B against a fresh `runs/<id>/` for a live run.
+  - `pnpm -C apps/viewer dev` → `/local-results?run=/runs/first-run-2026-10-11`.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 5 paths changed while this lane was running:
+  - pipelines/sacredbench/cli.py
+  - pipelines/sacredbench/schema.py
+  - pipelines/sacredbench/score.py
+  - pipelines/tests/test_schema_convert.py
+  - pipelines/tests/test_score.py
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

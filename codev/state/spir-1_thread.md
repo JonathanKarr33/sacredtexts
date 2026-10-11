@@ -750,3 +750,20 @@ SPIR, strict mode (porch-driven).
   to lessons-critical (now 10, at cap) + fixed both hot->cold maps. Driving issue #1.
   NEXT: update PR #3 body (Closes #1, drop stale draft banner) + gh pr ready 3 ->
   porch done (review checks) -> pr gate (HUMAN) -> notify architect + WAIT.
+- REVIEW-phase PR consult + architect integration review (codex REQUEST_CHANGES,
+  claude COMMENT→REQUEST_CHANGES, architect fresh-clone verified). Crash mid-consult:
+  codex landed, claude re-run. All 4 pre-merge items fixed:
+  (1) audit skips restricted targets with unregistered converter (TLG) + loud warning
+      (was exit 2); (2) convert_nabre rewritten to the REAL top-level-list shape
+      (73 books) + fixture, headings kept verbatim; (3) test.sh routes runs/** & texts/**
+      to pipelines lane; (4) collect stamps panel fingerprint (provider|model|base_url)
+      + refuses resume under changed identity; score binds answers' digest to --questions
+      (already) ; schema rejects null/blank/non-string source metadata (codex standalone).
+  Items 5-8 dispositioned in review doc: 5/6 scoring hardening -> Spec 2 (docstring
+  scoped; run is retrieve_quote-only); 7 manifest `inputs` recorded (committed manifest
+  regenerated, questions byte-identical); 8 VATICAN ENCYCLICALS license:open but ©LEV ->
+  ESCALATED to humans/working-group (pre-preprint sign-off; not a code change).
+  Fixed stale arch-critical "texts/* gitignored" line. Fixed review-doc consult accuracy
+  (Phases 2/4/5 final verdicts) + added review-phase disposition section.
+  Gate: pipelines 150, viewer 412/9. NEXT: commit+push, re-run PR consult (iter-2),
+  signal architect. pr gate remains a HUMAN decision.

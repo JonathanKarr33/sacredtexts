@@ -333,6 +333,7 @@ def corpus_hash(docs: list[Document]) -> str:
 def build_manifest(
     docs: list[Document], questions: list[Question], seed: int, per_task: int,
     negatives_share: float, quotas: dict[str, int] | None, tasks: tuple[str, ...] | None = None,
+    inputs: list[str] | None = None,
 ) -> dict:
     by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
     realized_negatives = sum(
@@ -340,6 +341,7 @@ def build_manifest(
     )
     return {
         "seed": seed,
+        "inputs": list(inputs or []),  # the generate invocation's input paths (scoping)
         "per_task": per_task,
         "negatives_share": negatives_share,
         "quotas": quotas or {},

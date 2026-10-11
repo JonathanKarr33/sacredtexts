@@ -43,6 +43,8 @@ def restricted_text_fingerprints(
     """Normalized unit texts of every restricted target whose payload is present
     locally. Empty when the held-back payloads are absent (CI / fresh clone), so the
     content scan is simply skipped there and only the origin gate runs."""
+    import sys
+
     from sacredbench import convert as conv
 
     fps: set[str] = set()
@@ -52,6 +54,16 @@ def restricted_text_fingerprints(
         paths = t.payload_paths(raw_root)
         if not paths or not all(p.exists() for p in paths):
             continue  # payload held back — nothing to fingerprint
+        if t.converter not in conv.CONVERTERS:
+            # converting is not the audit's job: a restricted target with no registered
+            # converter can't be fingerprinted, but the origin layer still enforces it.
+            print(
+                f"audit: WARNING — skipping restricted-text fingerprints for "
+                f"{t.work} [{t.version}]: converter {t.converter!r} is not registered "
+                "(origin layer still enforced)",
+                file=sys.stderr,
+            )
+            continue
         for doc in conv.convert_target(paths, t):
             for e in doc.entries:
                 n = _norm(e.text)

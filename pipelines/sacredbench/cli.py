@@ -257,7 +257,8 @@ def generate(
         quotas=quotas or None, tasks=task_subset,
     )
     write_questions(questions, out)
-    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, quotas or None, task_subset)
+    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, quotas or None,
+                                  task_subset, inputs=[str(p) for p in inputs])
     mpath = gen.manifest_path(out)
     with open(mpath, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

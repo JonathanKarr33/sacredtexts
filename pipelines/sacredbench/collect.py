@@ -29,13 +29,23 @@ class CollectError(Exception):
     """Collection cannot proceed (e.g. resuming against a different question set)."""
 
 
-def _existing(answers_path: Path) -> tuple[set[tuple[str, str]], set[str], int]:
-    """Return ((question_id, model_id) keys, digests present, rows missing a digest)."""
+def _panel_fingerprint(m) -> str:
+    """A model cell's panel identity — so a model id can't be silently re-pointed at a
+    different provider/model/host between resumes."""
+    return f"{m.provider}|{m.model}|{m.base_url or ''}"
+
+
+def _existing(
+    answers_path: Path,
+) -> tuple[set[tuple[str, str]], set[str], int, dict[str, set[str]]]:
+    """Return ((question_id, model_id) keys, digests present, rows missing a digest,
+    {model_id: panel fingerprints seen})."""
     keys: set[tuple[str, str]] = set()
     digests: set[str] = set()
     missing = 0
+    fps: dict[str, set[str]] = {}
     if not answers_path.exists():
-        return keys, digests, missing
+        return keys, digests, missing, fps
     with open(answers_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
@@ -45,7 +55,10 @@ def _existing(answers_path: Path) -> tuple[set[tuple[str, str]], set[str], int]:
                     digests.add(d["question_set_digest"])
                 else:
                     missing += 1
-    return keys, digests, missing
+                fp = d.get("panel_fingerprint")
+                if fp:
+                    fps.setdefault(d["model_id"], set()).add(fp)
+    return keys, digests, missing, fps
 
 
 def collect(
@@ -60,13 +73,24 @@ def collect(
     ``answers.jsonl`` built for a different question set is refused (``CollectError``)
     so a stale or mixed run can never be silently appended to or scored."""
     digest = question_set_digest(questions)
-    done_keys, existing_digests, missing = _existing(answers_path)
+    done_keys, existing_digests, missing, existing_fps = _existing(answers_path)
     if (existing_digests - {digest}) or missing:
         raise CollectError(
             f"{answers_path} was not built for this question set (current digest {digest}; "
             f"found digest(s) {sorted(existing_digests) or 'none'}, {missing} row(s) with no "
             "digest); refusing to resume — regenerate or point --out at a fresh file"
         )
+    # panel-identity binding: a model id already answered under one provider/model must
+    # not be resumed under a different one (its old answers would hide under new metadata)
+    for m in config.models:
+        current = _panel_fingerprint(m)
+        mismatched = existing_fps.get(m.id, set()) - {current}
+        if mismatched:
+            raise CollectError(
+                f"{answers_path}: model id {m.id!r} has answers from a different panel identity "
+                f"{sorted(mismatched)}, but the config now maps it to {current!r}; refusing to "
+                "resume under a changed identity — use a fresh --out or a distinct model id"
+            )
     cells = [
         (q, m) for q in questions for m in config.models if (q.id, m.id) not in done_keys
     ]
@@ -82,6 +106,8 @@ def collect(
             "question_id": q.id,
             "model_id": m.id,
             "model": m.model,
+            "provider": m.provider,
+            "panel_fingerprint": _panel_fingerprint(m),
             "task": q.task,
             "answer": text,
             "usage": usage,
