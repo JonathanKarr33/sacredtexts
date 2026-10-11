@@ -1,9 +1,33 @@
 id: '1'
 title: spec-1-seed-phase-1-benchmark-
 protocol: spir
-phase: plan
-plan_phases: []
-current_plan_phase: null
+phase: implement
+plan_phases:
+  - id: phase_1
+    title: Source catalogue, license gating, and gitignore reachability
+    status: in_progress
+  - id: phase_2
+    title: Converters for the English corpora (loop-critical)
+    status: pending
+  - id: phase_3
+    title: Converters for the Arabic and Talmud corpora
+    status: pending
+  - id: phase_4
+    title: Interchange exporter and round-trip guarantee
+    status: pending
+  - id: phase_5
+    title: Deterministic, version-gated, balanced generation with resume-guarded collection
+    status: pending
+  - id: phase_6
+    title: Per-task scoring contract and tradition-aware analysis
+    status: pending
+  - id: phase_7
+    title: Minimal local results view
+    status: pending
+  - id: phase_8
+    title: First benchmark run and TUTORIAL walkthrough
+    status: pending
+current_plan_phase: phase_1
 gates:
   spec-approval:
     status: approved
@@ -18,10 +42,10 @@ gates:
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-10T19:04:21.292Z'
-updated_at: '2026-10-11T00:31:41.935Z'
+updated_at: '2026-10-11T00:31:54.138Z'
 context_refreshes:
   - boundary: enter:plan
     at: '2026-10-10T22:49:50.661Z'
