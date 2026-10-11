@@ -102,3 +102,66 @@ def test_score_rejects_mixed_digests(tmp_path):
     with pytest.raises(ScoreError) as e:
         score_file(answers, tmp_path / "scores.jsonl")
     assert "mixes" in str(e.value)
+
+
+# --- single-candidate (anti-hedge) citation scoring --------------------------
+
+
+def test_cite_passage_single_candidate():
+    assert score_answer("cite_passage", "The citation is Jude 1:3.", {"citation": "Jude 1:3"})["correct"] == 1
+    # hedging multiple candidates scores 0
+    multi = score_answer("cite_passage", "It could be Jude 1:3, Jude 1:4, or Jude 1:5.", {"citation": "Jude 1:3"})
+    assert multi["correct"] == 0
+
+
+def test_identify_source_single_candidate():
+    ok = score_answer("identify_source", "From Jude, Jude 1:3.", {"work": "Jude", "citation": "Jude 1:3"})
+    assert ok["correct"] == 1
+    hedge = score_answer(
+        "identify_source", "From Jude — maybe Jude 1:3 or Jude 1:4.",
+        {"work": "Jude", "citation": "Jude 1:3"},
+    )
+    assert hedge["correct"] == 0 and hedge["work_found"] == 1  # work right, citation hedged
+
+
+# --- raw-count overall + tradition aggregation -------------------------------
+
+
+def _answer(qid, model, task, answer, expected, tradition, digest="d"):
+    return {
+        "question_id": qid, "model_id": model, "task": task, "answer": answer,
+        "question_set_digest": digest,
+        "question": {"expected": expected, "source": {"tradition": tradition}},
+    }
+
+
+def test_overall_is_raw_count(tmp_path):
+    answers = tmp_path / "answers.jsonl"
+    rows = [
+        _answer("cite_passage-0", "m1", "cite_passage", "X 1:1", {"citation": "X 1:1"}, ["A"]),
+        _answer("cite_passage-1", "m1", "cite_passage", "nope", {"citation": "X 1:2"}, ["A"]),
+        _answer("cite_passage-2", "m1", "cite_passage", "nope", {"citation": "X 1:3"}, ["A"]),
+        _answer("verify_source-0", "m1", "verify_source", "Yes", {"answer": "yes"}, ["A"]),
+    ]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    summary = score_file(answers, tmp_path / "scores.jsonl")
+    ov = summary["models"]["m1"]["_overall"]
+    assert ov["n"] == 4 and ov["accuracy"] == round(2 / 4, 4)  # 1 cite + 1 verify correct, raw
+
+
+def test_tradition_counts_once_per_listed_tradition(tmp_path):
+    answers = tmp_path / "answers.jsonl"
+    rows = [
+        _answer("cite_passage-0", "m1", "cite_passage", "X 1:1", {"citation": "X 1:1"}, ["Shared", "Xtrad"]),
+        _answer("cite_passage-1", "m1", "cite_passage", "Y 1:1", {"citation": "Y 1:1"}, ["Shared", "Ytrad"]),
+    ]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    summary = score_file(answers, tmp_path / "scores.jsonl")
+    assert summary["models"]["m1"]["_overall"]["n"] == 2  # overall counts each once
+    by = summary["by_tradition"]["m1"]
+    assert by["Shared"]["_overall"]["n"] == 2  # shared tradition sees both
+    assert by["Xtrad"]["_overall"]["n"] == 1 and by["Ytrad"]["_overall"]["n"] == 1
+    # per-tradition n sums above the overall count (the list-valued rule)
+    assert by["Shared"]["_overall"]["n"] + by["Xtrad"]["_overall"]["n"] + by["Ytrad"]["_overall"]["n"] == 4 > 2
+    md = summary_markdown(summary)
+    assert "By tradition" in md and "Shared" in md

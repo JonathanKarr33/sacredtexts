@@ -529,3 +529,16 @@ SPIR, strict mode (porch-driven).
 ### Phase 5 — iter 3: claude APPROVE; codex determinism items fixed. porch advanced phase_5 → phase_6.
 
 ## 2026-10-11 — Implement Phase 6 (scoring contract + tradition-aware analysis)
+- score.py: single-candidate anti-hedge for cite_passage/identify_source (>1
+  citation token -> correct=0; "could be A, B, or C" scores 0); _overall now from
+  RAW correct/n counts (not round(accuracy*n)); per-model x task x TRADITION
+  breakdown (each observation once per LISTED tradition, so per-tradition n can
+  exceed overall; overall counts once); markdown gains a "By tradition" section;
+  tradition from answer row's question.source.tradition (absent -> no breakdown).
+  English-only normalization kept (Arabic/Hebrew follow-on, stated).
+- cli score already echoes summary_markdown -> tradition breakdown shown; no code
+  change needed there.
+- Tests: multi-candidate->0, single->1 (cite_passage + identify_source), raw
+  _overall, tradition counts-once-per-listed + markdown section. 125 pass.
+  Real smoke: hedge scored 0, single 1 (50%); tradition table rendered.
+- Committing. Next: signal PHASE_COMPLETE, 2-way consult.
