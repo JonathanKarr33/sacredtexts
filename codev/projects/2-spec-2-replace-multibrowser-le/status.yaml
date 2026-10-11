@@ -25,13 +25,14 @@ gates:
     requested_at: '2026-10-11T12:09:38.642Z'
     approved_at: '2026-10-11T16:38:55.696Z'
   verify-approval:
-    status: pending
+    status: approved
     requested_at: '2026-10-11T16:40:26.007Z'
+    approved_at: '2026-10-11T20:57:28.077Z'
 iteration: 1
 build_complete: true
 history: []
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T20:57:26.033Z'
+updated_at: '2026-10-11T20:57:28.077Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
