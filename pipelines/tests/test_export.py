@@ -63,6 +63,15 @@ def test_same_first_citation_shards_order_deterministic():
     assert assemble([a, b]) == assemble([b, a])
 
 
+def test_identical_citation_shards_order_deterministic():
+    # identical citation sequences, differing only in metadata -> the tie-break must
+    # still be total (tradition/source_url), so the merge is input-independent
+    a = _doc("W", "V", "en", ["A"], [("1:1", "x")])
+    b = _doc("W", "V", "en", ["B"], [("1:1", "x")])
+    assert assemble([a, b]) == assemble([b, a])
+    assert assemble([a, b])[0].tradition == ["A", "B"]
+
+
 def test_distinct_versions_not_merged():
     a = _doc("The Bible", "KJV", "en", ["Protestant"], [("Genesis 1:1", "x")])
     b = _doc("The Bible", "KJV (LDS 2013 edition)", "en", ["LDS"], [("Genesis 1:1", "y")])
@@ -134,6 +143,21 @@ def test_roundtrip_ok_detects_lossy_assemble(monkeypatch):
 
     monkeypatch.setattr(exp, "assemble", tradition_mutator)
     assert roundtrip_ok([a]) is False
+
+
+def test_roundtrip_ok_detects_invention_with_duplicate_shards(monkeypatch):
+    """With duplicate input entries the count budget has slack, so the no-invention
+    check must compare the assembled entry SET, not just counts."""
+    a = _doc("W", "V", "en", ["A"], [("1:1", "x")])
+    b = _doc("W", "V", "en", ["A"], [("1:1", "x")])  # duplicate entry across shards
+
+    def invention_mutator(docs):
+        d = assemble(docs)[0]  # deduped to one real entry
+        d.entries.append(Entry(unit_type="verse", citation="9:9", text="invented"))
+        return [d]
+
+    monkeypatch.setattr(exp, "assemble", invention_mutator)
+    assert roundtrip_ok([a, b]) is False  # invented entry within the 2-entry count budget
 
 
 def test_interchange_filename():

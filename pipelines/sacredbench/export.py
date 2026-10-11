@@ -84,9 +84,13 @@ def assemble(docs: list[Document]) -> list[Document]:
 
     assembled: list[Document] = []
     for key in order:
-        # Total, input-independent order: compare the shards' full citation
-        # sequences (first citation, then the next, …), not just the first.
-        shards = sorted(groups[key], key=lambda d: [e.citation for e in d.entries])
+        # Total, input-independent order: the shards' full citation sequences, then
+        # their tradition lists and source_url, so even shards with identical
+        # citations (differing only in metadata) sort deterministically.
+        shards = sorted(
+            groups[key],
+            key=lambda d: ([e.citation for e in d.entries], list(d.tradition), d.source_url or ""),
+        )
         document_types = {d.document_type for d in shards}
         if len(document_types) != 1:
             raise ExportError(
@@ -129,42 +133,48 @@ def roundtrip_ok(docs: list[Document]) -> bool:
     assembled document. Returns ``False`` on a lossy or reordering assembler.
 
     Checks, per ``(work, version, language)`` group: ``document_type`` agrees, the
-    assembled ``tradition`` equals the **exact union** of the shards' traditions
-    (no invention), and every shard entry — compared on all of
-    ``(citation, text, unit_type)`` — appears in the assembled document at a
-    strictly increasing position (loss, reordering, or an altered field →
-    ``False``). Globally, the assembled set invents no entries (its total entry
-    count does not exceed the shards' total).
+    assembled ``tradition`` equals the **exact union** of the shards' traditions,
+    the assembled entry set equals the **exact deduplicated** shard entry set
+    (comparing all of ``(citation, text, unit_type)`` — so nothing is lost *or*
+    invented, even when the input has duplicate entries), and every shard entry
+    appears at a strictly increasing position (catching reordering).
     """
     assembled = assemble(docs)
     by_key = {(d.work, d.version, d.language): d for d in assembled}
-    if sum(len(d.entries) for d in assembled) > sum(len(d.entries) for d in docs):
-        return False  # entries invented
 
     shards_by_key: dict[tuple[str, str, str], list[Document]] = {}
     for d in docs:
         shards_by_key.setdefault((d.work, d.version, d.language), []).append(d)
+    if set(by_key) != set(shards_by_key):  # a key appeared or vanished
+        return False
 
     for key, shards in shards_by_key.items():
-        target = by_key.get(key)
-        if target is None:
-            return False
+        target = by_key[key]
         expected_tradition: set[str] = set()
+        expected_entries: set[tuple[str, str, str]] = set()
+        seen_ct: set[tuple[str, str]] = set()
         for s in shards:
-            expected_tradition |= set(s.tradition)
-        if set(target.tradition) != expected_tradition:  # exact union, no invention
-            return False
-        position = {
-            (e.citation, e.text, e.unit_type): i for i, e in enumerate(target.entries)
-        }
-        for shard in shards:
-            if shard.document_type != target.document_type:
+            if s.document_type != target.document_type:
                 return False
+            expected_tradition |= set(s.tradition)
+            for e in s.entries:
+                ct = (e.citation, e.text)
+                if ct in seen_ct:
+                    continue  # mirror assemble's (citation, text) dedup
+                seen_ct.add(ct)
+                expected_entries.add((e.citation, e.text, e.unit_type))
+        if set(target.tradition) != expected_tradition:
+            return False
+        target_entries = [(e.citation, e.text, e.unit_type) for e in target.entries]
+        if len(target_entries) != len(expected_entries) or set(target_entries) != expected_entries:
+            return False  # loss, invention, or a duplicate
+        position = {e: i for i, e in enumerate(target_entries)}
+        for shard in shards:
             last = -1
             for e in shard.entries:
                 p = position.get((e.citation, e.text, e.unit_type))
                 if p is None or p <= last:
-                    return False  # lost, reordered, or a field changed
+                    return False  # reordered
                 last = p
     return True
 

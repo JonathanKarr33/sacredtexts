@@ -443,3 +443,16 @@ SPIR, strict mode (porch-driven).
   EXACT union (was subset). Mutation tests: altered unit_type → False, invented
   tradition → False.
 - Committing + re-consulting (iter 3).
+
+### Phase 4 — iter 3 impl consult (codex REQUEST_CHANGES, claude APPROVE / HIGH)
+
+- claude APPROVE (round-trip non-vacuous, 4 mutation tests, full 221-shard corpus
+  → 220 interchange docs). codex: 2 more determinism/invention edge cases. Accepted.
+- Shard sort now total even for IDENTICAL citation sequences: key = (citations,
+  tradition, source_url). Permutation test with identical-citation/different-
+  tradition shards.
+- roundtrip_ok no-invention: was count-only (duplicate input entries gave slack);
+  now compares the assembled entry SET to the exact deduped shard set (no loss AND
+  no invention) + key-set equality. Mutation test: invention within count budget
+  via duplicate shards → False. 98 tests pass.
+- Committing + re-consulting (iter 4).
