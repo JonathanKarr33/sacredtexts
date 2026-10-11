@@ -1,7 +1,7 @@
 id: '2'
 title: spec-2-replace-multibrowser-le
 protocol: aspir
-phase: specify
+phase: plan
 plan_phases: []
 current_plan_phase: null
 gates:
@@ -10,7 +10,7 @@ gates:
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T09:22:58.803Z'
+updated_at: '2026-10-11T09:32:56.840Z'
