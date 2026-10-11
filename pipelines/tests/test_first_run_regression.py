@@ -36,9 +36,9 @@ def test_rescoring_committed_run_reproduces_scores(tmp_path):
         pytest.skip("first-run evidence not present")
     out = tmp_path / "scores.jsonl"
     score_file(answers, out)  # no roster/panel needed to reproduce per-answer scores
-    got = sorted(out.read_text(encoding="utf-8").splitlines())
-    want = sorted(committed.read_text(encoding="utf-8").splitlines())
-    assert got == want
+    # byte-for-byte, order included: score_file preserves input-row order, so this is
+    # strictly stronger than a sorted compare and still holds.
+    assert out.read_text(encoding="utf-8") == committed.read_text(encoding="utf-8")
 
 
 def test_first_run_question_set_digest_regenerates():

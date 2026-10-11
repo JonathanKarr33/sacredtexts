@@ -31,17 +31,20 @@ SHEVUOT_VOCALIZED = (
     / "Shevuot - he - William Davidson Edition - Vocalized Aramaic.json"
 )
 
-# code points that must NOT survive normalisation of Arabic/Hebrew text
-_MARK = re.compile(
-    "[ً-ٰٕـۖ-ۭ"
-    "֑-־ׇֿׁׂׅׄ]"
-)
-
-
 def _strip_combining(s: str) -> str:
-    """A naive 'unvocalised' form: drop every Arabic/Hebrew mark the fixture carries, so a
-    test can compare the real vocalised text against its bare-consonant spelling."""
-    return _MARK.sub("", s)
+    """An INDEPENDENT 'unvocalised' form (stdlib only, not the implementation's block
+    logic): NFKD then drop every category-Mn codepoint. Used to compare the real
+    vocalised text against its bare-consonant spelling without reusing the code under
+    test. The maqaf is mapped to a space to match the implementation's word-boundary
+    rule (fixtures contain none today, but this keeps the helper honest if one appears)."""
+    s = unicodedata.normalize("NFKD", s).replace("־", " ")
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+
+def _has_surviving_mark(s: str) -> bool:
+    """True if any combining mark or Arabic/Hebrew-block editorial code point remains."""
+    editorial = frozenset("ـ") | frozenset(chr(c) for c in range(0x06D6, 0x06EE))
+    return any(unicodedata.category(c).startswith("M") or c in editorial for c in s)
 
 
 # --- Arabic ------------------------------------------------------------------
@@ -64,15 +67,29 @@ def test_arabic_folds_alef_variants_and_tatweel():
 def test_real_qul_ayah_marks_removed_without_splitting(verse_key):
     data = json.loads(QUL.read_text(encoding="utf-8"))
     text = data[verse_key]["text"]
-    # the raw ayah really does carry annotation marks (guards the fixture)
-    assert any(_MARK.match(c) or unicodedata.category(c).startswith("M") for c in text)
+    assert _has_surviving_mark(text)  # the raw ayah really carries marks (guards the fixture)
     norm = normalize(text)
-    # no combining mark / tatweel / annotation code point survives
-    assert not _MARK.search(norm)
-    assert not any(unicodedata.category(c).startswith("M") for c in norm)
-    # a bare-consonant spelling of the same ayah is scored equal (not split into letters)
+    assert not _has_surviving_mark(norm)  # nothing mark-like survives
+    # the stripped form scores equal AND is not split into extra tokens (the real bug:
+    # a mark turned into a space would make the vocalised form gain word tokens)
     assert normalize(text) == normalize(_strip_combining(text))
     assert token_f1(text, _strip_combining(text)) == 1.0
+    assert len(normalize(text).split()) == len(normalize(_strip_combining(text)).split())
+
+
+@pytest.mark.parametrize(
+    "mark",
+    ["ؗ", "ؘ", "ؙ", "ؚ",  # Arabic small high marks (non-QUL Uthmani)
+     "ٖ", "ٗ", "٘", "ٟ",  # subscript alef etc. (U+0656–U+065F)
+     "ࣰ", "ࣱ", "ࣲ"],            # Arabic Extended-A open tanwin
+)
+def test_extended_arabic_marks_folded_not_split(mark):
+    # marks OUTSIDE the QUL set (a search-on answer may carry them) must still fold, not
+    # split the word mid-token — the generic Mn-in-block rule, verified per codepoint.
+    base = "الرحمن"
+    vocal = base[:3] + mark + base[3:]
+    assert normalize(vocal) == normalize(base)
+    assert len(normalize(vocal).split()) == 1
 
 
 # --- Hebrew ------------------------------------------------------------------

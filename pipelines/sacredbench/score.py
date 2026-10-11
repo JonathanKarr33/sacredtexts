@@ -5,7 +5,10 @@ Metrics emitted per answer:
 
 - ``exact``       raw string equality with the expected text (0/1)
 - ``normalized``  equality after normalisation: unicode quotes/dashes folded,
-                  case-folded, punctuation stripped, whitespace collapsed (0/1)
+                  Arabic/Hebrew combining marks + annotation symbols removed and
+                  alef/maqaf variants folded (so vocalised ↔ unvocalised scripture
+                  matches), case-folded, punctuation stripped, whitespace collapsed
+                  (0/1) — see ``strip_script_marks``
 - ``token_f1``    bag-of-words F1 between normalised answer and expected text
                   (0..1) — the v1 "semantic similarity" stand-in; embedding- or
                   judge-based semantic scoring is a later, pluggable metric
@@ -52,19 +55,22 @@ class ScoreError(Exception):
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
-# Arabic and Hebrew combining marks + script-specific editorial code points, deleted
-# so a vocalized and an unvocalized spelling of the same word normalise to the SAME
-# bare-consonantal string. Derived from the REAL data: the Arabic set spans every mark
-# present in the QUL Uthmani text — harakat/tanwin/shadda/sukun/madda/hamza
-# (U+064B–U+0655), superscript alef (U+0670), tatweel (U+0640), and the full Qur'anic
-# annotation block incl. the rub-el-hizb / sajdah symbols and small waw/yeh
-# (U+06D6–U+06ED); the Hebrew set is the points + cantillation marks. These are
-# DELETED (not turned into spaces) because they occur mid-word — the old `[^\w\s]`
-# pass turned each into a space and split every vocalised word into single letters.
-_SCRIPT_MARKS_RE = re.compile(
-    "[ً-ٰٕـۖ-ۭ"  # Arabic marks / annotation / tatweel
-    "֑-ׇֽֿׁׂׅׄ]"  # Hebrew points + cantillation
-)
+# Arabic/Hebrew Unicode blocks (base + extensions + presentation forms). Combining
+# marks (category Mn) ANYWHERE in these blocks are deleted — a strict superset of the
+# QUL mark set, so a search-on answer carrying marks from another Uthmani digitization
+# (e.g. U+0617–U+061A, U+0656–U+065F, Arabic Extended-A U+08D3–U+08FF) is still folded,
+# not split mid-word. The ranges are script-scoped, so Latin combining marks
+# (U+0300–U+036F) are untouched and Latin output is byte-for-byte unchanged.
+_SCRIPT_BLOCKS = ((0x0590, 0x08FF), (0xFB1D, 0xFB4F))
+# Editorial code points in those blocks that are NOT category Mn and so must be deleted
+# explicitly: the Arabic tatweel (Lm) and the Qur'anic annotation block U+06D6–U+06ED,
+# which mixes Mn marks with the rub-el-hizb / sajdah symbols (So) and small waw/yeh (Lm).
+_SCRIPT_EDITORIAL = frozenset("ـ") | frozenset(chr(c) for c in range(0x06D6, 0x06EE))
+
+
+def _in_script_blocks(ch: str) -> bool:
+    o = ord(ch)
+    return any(lo <= o <= hi for lo, hi in _SCRIPT_BLOCKS)
 
 
 def strip_script_marks(text: str) -> str:
@@ -77,7 +83,15 @@ def strip_script_marks(text: str) -> str:
     #                                           alef-madda/hamza fold via NFKD + marks)
     text = text.replace("־", " ")  # Hebrew maqaf -> word boundary (NOT deleted:
     #                                      it joins words, so it must stay a separator)
-    return _SCRIPT_MARKS_RE.sub("", text)
+    # delete combining marks (Mn) + the non-Mn editorial code points, but only within
+    # the Arabic/Hebrew blocks — so the mark/annotation stripping never reaches Latin.
+    return "".join(
+        ch for ch in text
+        if not (
+            _in_script_blocks(ch)
+            and (unicodedata.category(ch) == "Mn" or ch in _SCRIPT_EDITORIAL)
+        )
+    )
 
 # Similarity sub-metrics reported per task (the spec's per-task contract table).
 _SUBMETRICS = {
