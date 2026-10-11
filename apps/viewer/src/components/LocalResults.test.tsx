@@ -8,9 +8,16 @@ import {
   parseSummary,
   formatCell,
   type AnswerRow,
+  type QuestionRow,
   type ScoreRow,
 } from "../lib/localResults";
-import { sampleAnswersJsonl, sampleScoresJsonl, sampleSummary } from "../local/sample";
+import {
+  sampleAnswersJsonl,
+  sampleScoresJsonl,
+  sampleSummary,
+  sampleQuestionsJsonl,
+  sampleQuestionsWithMissingJsonl,
+} from "../local/sample";
 
 function fakeFetcher(files: Record<string, string>): typeof fetch {
   return (async (url: string) => {
@@ -25,15 +32,31 @@ function fakeFetcher(files: Record<string, string>): typeof fetch {
 }
 
 describe("localResults lib", () => {
-  it("joins scores with answers on (question_id, model_id)", () => {
+  it("joins scores with answers on (question_id, model_id), carrying per-metric scores", () => {
     const scores = parseJsonl<ScoreRow>(sampleScoresJsonl);
     const answers = parseJsonl<AnswerRow>(sampleAnswersJsonl);
     const rows = joinResults(scores, answers);
     expect(rows).toHaveLength(4);
     const haikuCorrect = rows.find((r) => r.model_id === "haiku" && r.question_id === "retrieve_quote-aaa");
     expect(haikuCorrect?.correct).toBe(true);
+    expect(haikuCorrect?.missing).toBe(false);
     expect(haikuCorrect?.prompt).toContain("Orchards 1:1");
     expect(haikuCorrect?.expected).toContain("twelve trees");
+    expect(haikuCorrect?.exact).toBe(1);
+    expect(haikuCorrect?.token_f1).toBe(1);
+  });
+
+  it("surfaces un-answered roster questions as missing cells (panel × roster)", () => {
+    const scores = parseJsonl<ScoreRow>(sampleScoresJsonl);
+    const answers = parseJsonl<AnswerRow>(sampleAnswersJsonl);
+    const roster = parseJsonl<QuestionRow>(sampleQuestionsWithMissingJsonl);
+    const rows = joinResults(scores, answers, { roster, models: ["haiku", "gemma-4"] });
+    expect(rows).toHaveLength(6); // 2 models × 3 roster questions
+    const missing = rows.filter((r) => r.missing);
+    expect(missing).toHaveLength(2); // the extra "ccc" question, for both models
+    expect(missing.every((r) => r.question_id === "retrieve_quote-ccc")).toBe(true);
+    expect(missing.every((r) => r.answer === "" && r.exact === null)).toBe(true);
+    expect(rows.filter((r) => !r.missing)).toHaveLength(4);
   });
 
   it("formats cells (accuracy/n, n/a, missing)", () => {
@@ -42,22 +65,52 @@ describe("localResults lib", () => {
     expect(formatCell(undefined)).toBe("—");
   });
 
-  it("loadRun fetches + parses a run from a base path", async () => {
+  it("loadRun fetches + parses all four artifacts from a base path", async () => {
     const base = "/runs/demo";
     const run = await loadRun(base, fakeFetcher({
       [`${base}/summary.json`]: JSON.stringify(sampleSummary),
       [`${base}/scores.jsonl`]: sampleScoresJsonl,
       [`${base}/answers.jsonl`]: sampleAnswersJsonl,
+      [`${base}/questions.jsonl`]: sampleQuestionsJsonl,
     }));
-    expect(run).not.toBeNull();
-    expect(run!.results).toHaveLength(4);
-    expect(Object.keys(run!.summary.models)).toContain("haiku");
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+    expect(run.results).toHaveLength(4); // 2 models × 2 roster questions, all answered
+    expect(Object.keys(run.summary.models)).toContain("haiku");
   });
 
-  it("loadRun returns null when an artifact 404s (page then falls back to the sample)", async () => {
+  it("loadRun reports a missing artifact (404) rather than returning data", async () => {
     const base = "/runs/missing";
-    const run = await loadRun(base, fakeFetcher({ [`${base}/summary.json`]: "{}" }));  // scores/answers 404
-    expect(run).toBeNull();
+    const run = await loadRun(base, fakeFetcher({ [`${base}/summary.json`]: "{}" })); // others 404
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.kind).toBe("missing");
+  });
+
+  it("loadRun treats a 200 HTML body (SPA fallback) as a missing artifact, not data", async () => {
+    const base = "/runs/htmlish";
+    const run = await loadRun(base, fakeFetcher({
+      [`${base}/summary.json`]: '<!doctype html><html><body><div id="root"></div></body></html>',
+      [`${base}/scores.jsonl`]: sampleScoresJsonl,
+      [`${base}/answers.jsonl`]: sampleAnswersJsonl,
+      [`${base}/questions.jsonl`]: sampleQuestionsJsonl,
+    }));
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.kind).toBe("missing");
+  });
+
+  it("loadRun reports malformed JSON as 'malformed'", async () => {
+    const base = "/runs/bad";
+    const run = await loadRun(base, fakeFetcher({
+      [`${base}/summary.json`]: "{ not json",
+      [`${base}/scores.jsonl`]: sampleScoresJsonl,
+      [`${base}/answers.jsonl`]: sampleAnswersJsonl,
+      [`${base}/questions.jsonl`]: sampleQuestionsJsonl,
+    }));
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.kind).toBe("malformed");
   });
 });
 

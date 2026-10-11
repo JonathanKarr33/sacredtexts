@@ -33,11 +33,11 @@ export function LocalResultsPage() {
     if (!base) return;
     let live = true;
     loadRun(base)
-      .then((run) => {
+      .then((res) => {
         if (!live) return;
-        setState(run
-          ? { status: "ready", data: run, source: base }
-          : { status: "ready", data: sampleRun(), source: `committed sample (no run at ${base})` });
+        setState(res.ok
+          ? { status: "ready", data: { summary: res.summary, results: res.results }, source: base }
+          : { status: "error", message: `${res.kind}: ${res.message}` });
       })
       .catch((e: unknown) => live && setState({ status: "error", message: (e as Error).message }));
     return () => { live = false; };

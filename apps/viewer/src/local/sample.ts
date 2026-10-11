@@ -55,3 +55,18 @@ export const sampleAnswersJsonl = [
     question: { prompt: "Please give me the KJV quote for Orchards 1:2.", expected: { text: "blessed is the traveller who shares bread with the stranger" }, source: _src },
   }),
 ].join("\n");
+
+// The question roster (questions.jsonl) matching the two sample questions — the
+// authoritative list of which questions exist, independent of which a model answered.
+export const sampleQuestionsJsonl = [
+  JSON.stringify({ id: "retrieve_quote-aaa", task: "retrieve_quote", prompt: "Please give me the KJV quote for Orchards 1:1.", expected: { text: "the keeper planted twelve trees upon the eastern slope" }, source: _src }),
+  JSON.stringify({ id: "retrieve_quote-bbb", task: "retrieve_quote", prompt: "Please give me the KJV quote for Orchards 1:2.", expected: { text: "blessed is the traveller who shares bread with the stranger" }, source: _src }),
+].join("\n");
+
+// A roster with an EXTRA question (ccc) that no model answered — exercises the
+// missing-cell path (the committed first run has missing: 0 everywhere, so the
+// per-question missing path can only be demonstrated with a fixture like this).
+export const sampleQuestionsWithMissingJsonl = [
+  sampleQuestionsJsonl,
+  JSON.stringify({ id: "retrieve_quote-ccc", task: "retrieve_quote", prompt: "Please give me the KJV quote for Orchards 1:3.", expected: { text: "the vine and the fig tree shall not fail the faithful" }, source: _src }),
+].join("\n");

@@ -24,16 +24,23 @@ function diskFetcher(base: string): typeof fetch {
 }
 
 describe.skipIf(!present)("committed first run renders through the viewer", () => {
-  it("loadRun parses summary + joins all cells", async () => {
+  it("loadRun parses summary + joins all cells with metrics, usage, and panel", async () => {
     const base = "/runs/first-run-2026-10-11";
     const run = await loadRun(base, diskFetcher(base));
-    expect(run).not.toBeNull();
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
     // 4-model panel across 2 serving providers; 100 questions each = 400 joined cells.
-    expect(Object.keys(run!.summary.models).sort()).toEqual(
+    expect(Object.keys(run.summary.models).sort()).toEqual(
       ["claude-haiku", "gemma-3-4b", "gpt-oss-20b", "llama-3.1-8b"],
     );
-    expect(run!.results).toHaveLength(400);
-    expect(run!.results.every((r) => r.prompt && r.task === "retrieve_quote")).toBe(true);
-    expect(run!.results.some((r) => r.correct)).toBe(true); // the run discriminates
+    expect(run.results).toHaveLength(400);
+    expect(run.results.every((r) => r.prompt && r.task === "retrieve_quote")).toBe(true);
+    expect(run.results.some((r) => r.correct)).toBe(true); // the run discriminates
+    expect(run.results.every((r) => !r.missing)).toBe(true); // committed run has missing: 0
+    // per-metric similarity scores are carried through now
+    expect(run.results.some((r) => typeof r.token_f1 === "number")).toBe(true);
+    // usage (token/call totals) and panel (provider) are parsed off summary.json
+    expect(run.summary.usage?.total.calls).toBe(400);
+    expect(run.summary.panel?.["claude-haiku"]?.provider).toBe("anthropic");
   });
 });
