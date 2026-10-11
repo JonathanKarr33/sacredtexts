@@ -5,24 +5,24 @@ phase: implement
 plan_phases:
   - id: phase_1
     title: Fair Arabic/Hebrew scoring normalisation
-    status: in_progress
+    status: complete
   - id: phase_2
     title: Web-search tool config, collection, and tools-aware identity
-    status: pending
+    status: in_progress
   - id: phase_3
     title: Committed KJV/Qur'an/Talmud tutorial run
     status: pending
   - id: phase_4
     title: Tutorial rework and viewer verification
     status: pending
-current_plan_phase: phase_1
+current_plan_phase: phase_2
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -37,4 +37,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-8/codev/projects/8-spec-3-tutorial-centered-on-kj/8-phase_1-iter1-claude.txt
 started_at: '2026-10-11T21:00:43.465Z'
-updated_at: '2026-10-11T21:59:25.715Z'
+updated_at: '2026-10-11T22:08:42.816Z'
+context_refreshes:
+  - boundary: plan-phase:phase_2
+    at: '2026-10-11T22:08:42.816Z'
