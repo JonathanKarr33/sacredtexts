@@ -24,6 +24,14 @@ export function ExplorerFilters({
 }) {
   const selectClass = "rounded border border-default-200 bg-background px-2 py-1 text-sm";
 
+  // Keep the active value selectable even when it is not in the derived options (e.g. a
+  // hand-edited URL, or a tradition with no matching question after other filters) so the
+  // controlled <select> never renders blank.
+  const withActive = (options: string[], active: string | undefined): string[] =>
+    active && !options.includes(active) ? [...options, active] : options;
+  const taskOptions = withActive(tasks, value.task);
+  const traditionOptions = withActive(traditions, value.tradition);
+
   return (
     <div className="flex flex-wrap items-end gap-4">
       <label className="flex flex-col gap-1 text-xs text-default-500">
@@ -35,7 +43,7 @@ export function ExplorerFilters({
           onChange={(e) => onChange({ ...value, task: toUndef(e.target.value) })}
         >
           <option value={ALL}>all</option>
-          {tasks.map((t) => (
+          {taskOptions.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
@@ -50,7 +58,7 @@ export function ExplorerFilters({
           onChange={(e) => onChange({ ...value, tradition: toUndef(e.target.value) })}
         >
           <option value={ALL}>all</option>
-          {traditions.map((t) => (
+          {traditionOptions.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>

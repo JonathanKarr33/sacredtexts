@@ -501,3 +501,28 @@ user-event still used — RunSelector/LeaderboardPage tests use it; correct arch
 stale "multibrowser seed" bullet).
 
 Next: run .codev/checks/test.sh, then `porch done 2` for the 3-way impl consult.
+
+## 2026-10-11 — IMPLEMENT phase_4 consult iter1 (codex APPROVE / claude COMMENT, both HIGH)
+
+2-way impl consult. codex APPROVE HIGH, no issues. claude COMMENT HIGH (non-blocking),
+verified the suite + types + real scores.jsonl (metrics pre-rounded → formatMetric String()
+fine) itself; all deliverables met. 4 non-blocking findings — folded in 1–4 while the
+explorer is fresh (cheap + in scope, no disputes):
+1. Filter UI untested (phase_3 set the userEvent.selectOptions precedent) → added an
+   ExplorerPage interaction test: drive the failure-mode <select> → onChange → navigate →
+   URL → re-filter narrows to the missing cell, and selecting "all" restores the full list
+   (closes the spec's "clearing filters restores the full list" scenario).
+2. Tradition round-trip asserted only as an href string, never parsed back → added a
+   page-level test rendering `?tradition=Protestant+Christian` (a value with a space) and
+   asserting it parses back (the leaderboard link's '+'↔space contract), plus a no-match →
+   "Showing 0 of 3".
+3. Unknown model id read as "empty run" → ExplorerPage now keeps the run's model list and
+   shows a distinct "Model not in this run" alert (not the "No questions match" empty-filter
+   phrasing). + a test.
+4. Cosmetic: a hand-edited ?task=/?tradition= value absent from the derived options left the
+   controlled <select> blank → ExplorerFilters now appends the active value as an option so
+   the select never renders blank.
+
+Verified: check-types clean; `pnpm build` green (CSS 421KB safelist); full suite 92 passed /
+0 skipped (was 89 — +3 for the folded tests). Committing fixes + both consult outputs,
+re-signalling.

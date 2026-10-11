@@ -26,7 +26,7 @@ import { loadRun, type QuestionResult } from "../lib/localResults";
 type RunState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; results: QuestionResult[] };
+  | { status: "ready"; results: QuestionResult[]; models: string[] };
 
 export function ExplorerPage() {
   const { runId, modelId } = useParams({ from: "/run/$runId/model/$modelId" });
@@ -42,7 +42,7 @@ export function ExplorerPage() {
       if (!live) return;
       setRunState(
         result.ok
-          ? { status: "ready", results: result.results }
+          ? { status: "ready", results: result.results, models: Object.keys(result.summary.models) }
           : { status: "error", message: `${result.kind}: ${result.message}` },
       );
     })();
@@ -85,7 +85,16 @@ export function ExplorerPage() {
         </div>
       )}
 
-      {runState.status === "ready" && (
+      {runState.status === "ready" && !runState.models.includes(modelId) && (
+        <div role="alert" className="mt-6 rounded border border-warning-200 p-4">
+          <p className="font-semibold text-warning-700">Model not in this run</p>
+          <p className="mt-1 text-sm text-default-500">
+            <code>{modelId}</code> is not one of this run's models ({runState.models.join(", ") || "none"}).
+          </p>
+        </div>
+      )}
+
+      {runState.status === "ready" && runState.models.includes(modelId) && (
         <>
           <p className="mt-3 text-sm text-default-600">
             {stats.total} question{stats.total === 1 ? "" : "s"} · {stats.correct} correct ·{" "}

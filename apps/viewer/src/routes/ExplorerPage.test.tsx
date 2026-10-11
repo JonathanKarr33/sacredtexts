@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -68,6 +69,45 @@ describe("ExplorerPage — missing-cell vs wrong-answer (fixture)", () => {
     expect(screen.getAllByText("exact").length).toBeGreaterThan(0);
     expect(screen.getAllByText("normalized").length).toBeGreaterThan(0);
     expect(screen.getAllByText("token-F1").length).toBeGreaterThan(0);
+  });
+
+  it("selecting a failure-mode filter narrows the list, and 'all' restores it (clearing)", async () => {
+    vi.stubGlobal("fetch", mapFetcher(missingFixtureFiles));
+    renderApp("/run/fix/model/haiku");
+    expect(await screen.findByText("Error explorer")).toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 3/)).toBeInTheDocument();
+
+    // drive the actual <select> → onChange → navigate(search) → URL → re-filter
+    await userEvent.selectOptions(screen.getByLabelText("Filter by failure mode"), "missing");
+    await waitFor(() => expect(screen.getByText(/Showing 1 of 3/)).toBeInTheDocument());
+    expect(screen.getByText("retrieve_quote-ccc")).toBeInTheDocument();
+    expect(screen.queryByText("retrieve_quote-bbb")).toBeNull();
+
+    // clearing back to "all" restores the full list
+    await userEvent.selectOptions(screen.getByLabelText("Filter by failure mode"), "all");
+    await waitFor(() => expect(screen.getByText(/Showing 3 of 3/)).toBeInTheDocument());
+    expect(screen.getByText("retrieve_quote-bbb")).toBeInTheDocument();
+  });
+
+  it("parses a tradition from the URL (the leaderboard link's '+'↔space round-trip)", async () => {
+    vi.stubGlobal("fetch", mapFetcher(missingFixtureFiles));
+    // The sample's questions are all tradition "Protestant Christian" (a value with a space);
+    // the leaderboard links it as tradition=Protestant+Christian, which must parse back.
+    renderApp("/run/fix/model/haiku?tradition=Protestant+Christian");
+    expect(await screen.findByText("Error explorer")).toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 3/)).toBeInTheDocument();
+    expect(screen.getByText("retrieve_quote-aaa")).toBeInTheDocument();
+    // a tradition that matches nothing yields the empty state
+    renderApp("/run/fix/model/haiku?tradition=Nonexistent");
+    await waitFor(() => expect(screen.getByText(/Showing 0 of 3/)).toBeInTheDocument());
+  });
+
+  it("flags a model that is not in the run rather than showing an empty run", async () => {
+    vi.stubGlobal("fetch", mapFetcher(missingFixtureFiles));
+    renderApp("/run/fix/model/does-not-exist");
+    expect(await screen.findByText(/Model not in this run/i)).toBeInTheDocument();
+    // not the "0 questions" / "No questions match" empty-run phrasing
+    expect(screen.queryByText(/No questions match/i)).toBeNull();
   });
 
   it("the back-to-leaderboard link targets /?run=<runId>", async () => {
