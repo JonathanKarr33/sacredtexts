@@ -1,7 +1,7 @@
 id: '8'
 title: spec-3-tutorial-centered-on-kj
 protocol: aspir
-phase: specify
+phase: plan
 plan_phases: []
 current_plan_phase: null
 gates:
@@ -10,7 +10,7 @@ gates:
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-11T21:00:43.465Z'
-updated_at: '2026-10-11T21:09:56.793Z'
+updated_at: '2026-10-11T21:28:59.055Z'
