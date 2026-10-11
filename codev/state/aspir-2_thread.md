@@ -725,3 +725,14 @@ VERIFIED: check-types clean; build green (CSS 421KB, JS 344KB); suite 121 passed
 115, +6). Committed fixes (incl. both consult outputs) + rebuttal + review-doc update. Signalling
 `porch done 2` for re-verification. The pr gate is HUMAN-approved — architect said human merge
 decision after. NEVER auto-approve.
+
+## 2026-10-11 — PR #6 MERGED + post-merge VERIFY
+
+Human approved the pr gate (relayed by architect). `porch approve 2 pr
+--a-human-explicitly-approved-this`; merged PR #6 as a regular merge commit (0157a4d, matching
+PR #3 precedent); `porch done 2 --merged 6`. Pulled origin/main into the worktree (merge efc348c)
+and re-verified the INTEGRATED tree: pnpm -C apps/viewer check-types clean; build green (CSS
+421KB, JS 344KB); full suite 121 passed / 0 skipped (16 files) — all four committed-run gates
+(realRun, LeaderboardPage, ExplorerPage, StandingsPage) ran, rendering runs/first-run-2026-10-11
+end-to-end. Signalling `porch done 2` → verify-approval gate (architect approves). Protocol
+essentially complete; architect will close issue #2 and clean up the worktree.
