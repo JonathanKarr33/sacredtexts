@@ -44,21 +44,17 @@ Run everything from the **repo root**:
 ```bash
 uv --project pipelines run python -m sacredbench --help
 
-# 1. Convert known source shapes into the standard flat format. Output goes under
-#    the standardized-path convention so `generate` can recover each doc's license:
+# 1. Convert catalogue targets into the standard flat format. This is
+#    catalogue-driven: every selected target is converted via its registered
+#    converter and written under the standardized-path convention
 #      texts/standardized/<source-id>/<target-slug>/
-#    A raw input that isn't in the catalogue, or a restricted one, is refused
-#    unless --include-restricted is passed (fail-closed).
-#    (Phase 2 makes `convert` fully catalogue-driven — one command over all
-#     selected targets; the explicit per-format form below is the seed interface.)
-uv --project pipelines run python -m sacredbench convert encyclicals \
-    "texts/raw/Roman Catholic/encyclicals/en" --tradition "Roman Catholic" \
-    --out "texts/standardized/Roman Catholic/papal-encyclicals-vatican-english-en"
-# Restricted example (requires the local held-back payload):
-uv --project pipelines run python -m sacredbench convert nabre \
-    "texts/raw/Roman Catholic/nabre.json" --tradition "Roman Catholic" \
-    --out "texts/standardized/Roman Catholic/the-bible-nabre-en/nabre.json" \
-    --include-restricted
+#    so `generate` can recover each document's license from its path. Restricted
+#    targets are excluded unless --include-restricted is passed.
+uv --project pipelines run python -m sacredbench convert                 # all selected targets
+uv --project pipelines run python -m sacredbench convert --converter bible_flat    # just one converter
+uv --project pipelines run python -m sacredbench convert --source "Protestant Christian"
+# Restricted targets (require the local held-back payloads, e.g. NABRE):
+uv --project pipelines run python -m sacredbench convert --include-restricted
 
 # 2. Mechanically validate any standard-format documents (license-agnostic)
 uv --project pipelines run python -m sacredbench validate texts/standardized

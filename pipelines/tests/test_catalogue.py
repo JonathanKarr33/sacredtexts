@@ -50,7 +50,13 @@ def _fixture_tree(root: Path) -> Path:
         "    license: public-domain\n"
         "    license_detail: public domain\n",
     )
-    _write(raw / "Protestant Christian" / "kjv.json", "[]")
+    _write(
+        raw / "Protestant Christian" / "kjv.json",
+        json.dumps([
+            {"book": "Genesis", "chapter": 1, "verse": 1, "text": "In the beginning."},
+            {"book": "Genesis", "chapter": 1, "verse": 2, "text": "And the earth was without form."},
+        ]),
+    )
     _write(
         raw / "Roman Catholic" / "source.yaml",
         PROV
@@ -240,27 +246,38 @@ def test_standardized_filter_drops_restricted_and_fails_closed(tmp_path):
 # --- CLI gate ----------------------------------------------------------------
 
 
-def test_cli_convert_refuses_restricted_by_default(tmp_path):
+def test_cli_convert_writes_standardized(tmp_path):
     raw = _fixture_tree(tmp_path)
+    std = tmp_path / "std"
     r = runner.invoke(
         app,
-        ["convert", "nabre", str(raw / "Roman Catholic" / "nabre.json"),
-         "--out", str(tmp_path / "o.json"), "--tradition", "Roman Catholic", "--raw-root", str(raw)],
+        ["convert", "--source", "Protestant Christian", "--raw-root", str(raw),
+         "--standardized-root", str(std)],
+    )
+    assert r.exit_code == 0, r.output
+    out = std / "Protestant Christian" / "the-bible-kjv-en" / "kjv.json"
+    assert out.exists()
+    # output lands under the standardized-path convention, so its license is recoverable
+    assert cat.license_for_standardized_path(out, cat.discover_catalogue(raw), std) == "public-domain"
+
+
+def test_cli_convert_excludes_restricted_by_default(tmp_path):
+    raw = _fixture_tree(tmp_path)
+    std = tmp_path / "std"
+    # nabre is restricted -> default selects nothing under --converter nabre
+    r = runner.invoke(
+        app,
+        ["convert", "--converter", "nabre", "--raw-root", str(raw), "--standardized-root", str(std)],
     )
     assert r.exit_code != 0
-    assert "refusing restricted" in r.output
-
-
-def test_cli_convert_restricted_opt_in_passes_guard(tmp_path):
-    raw = _fixture_tree(tmp_path)
-    r = runner.invoke(
+    assert "no targets selected" in r.output
+    # opt-in selects it (then fails on the fixture's empty payload — but it WAS selected)
+    r2 = runner.invoke(
         app,
-        ["convert", "nabre", str(raw / "Roman Catholic" / "nabre.json"),
-         "--out", str(tmp_path / "o.json"), "--tradition", "Roman Catholic",
-         "--raw-root", str(raw), "--include-restricted"],
+        ["convert", "--converter", "nabre", "--raw-root", str(raw), "--standardized-root", str(std),
+         "--include-restricted"],
     )
-    # guard passes; conversion then fails on the empty payload — but NOT a refusal
-    assert "refusing restricted" not in r.output
+    assert "no targets selected" not in r2.output
 
 
 def test_cli_generate_filters_restricted(tmp_path):
@@ -360,19 +377,6 @@ def _src(*targets: cat.Target) -> cat.Source:
         source_id=targets[0].source_id, yaml_path=Path("x/source.yaml"),
         targets=tuple(targets), provenance=cat.Provenance("a", "b", "c"),
     )
-
-
-def test_cli_convert_refuses_uncatalogued_path(tmp_path):
-    raw = _fixture_tree(tmp_path)
-    stray = raw / "Roman Catholic" / "nabre (1).json"  # exists, matched by no glob
-    stray.write_text("{}", encoding="utf-8")
-    r = runner.invoke(
-        app,
-        ["convert", "nabre", str(stray), "--out", str(tmp_path / "o.json"),
-         "--tradition", "Roman Catholic", "--raw-root", str(raw)],
-    )
-    assert r.exit_code != 0
-    assert "not in the source catalogue" in r.output
 
 
 def test_cli_generate_reports_missing_path_distinctly(tmp_path):

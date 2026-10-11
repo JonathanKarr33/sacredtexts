@@ -66,50 +66,52 @@ def catalogue(
 
 @app.command()
 def convert(
-    format: str = typer.Argument(help=f"source format: {', '.join(conv.CONVERTERS)}"),
-    inputs: list[Path] = typer.Argument(help="source file(s) or director(ies)"),
-    out: Path = typer.Option(..., help="output file (nabre: one doc) or directory (encyclicals)"),
-    tradition: list[str] = typer.Option(..., help="tradition(s) this corpus belongs to (repeatable)"),
-    version: str = typer.Option("NABRE", help="nabre only: translation/edition name"),
-    work: str = typer.Option("The Bible", help="nabre only: work title"),
-    language: str = typer.Option("en", help="nabre only: language code"),
-    source_url: str = typer.Option(None, help="nabre only: provenance URL"),
-    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (for the license gate)"),
+    source: str = typer.Option(None, help="limit to one source-id, e.g. 'Protestant Christian'"),
+    converter: str = typer.Option(None, help="limit to one converter, e.g. bible_flat"),
+    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root"),
+    standardized_root: Path = typer.Option(cat.STANDARDIZED_ROOT, help="output root"),
     include_restricted: bool = typer.Option(
-        False, help="allow converting restricted (copyrighted, held-back) sources"
+        False, help="include restricted targets (needs the local held-back payloads)"
     ),
 ) -> None:
-    """Convert known source JSON shapes into the standard flat format."""
-    if not include_restricted:
-        sources = _require_catalogue(raw_root)
-        index = cat.build_raw_license_index(sources, raw_root)
-        for path in cat.expand_json(list(inputs)):
-            lic = cat.license_for_raw_path(path, sources, raw_root, index=index)
-            if lic is None:
-                raise typer.BadParameter(
-                    f"{path} is not in the source catalogue — cannot verify its license "
-                    "(fail-closed; add it to a source.yaml, or pass --include-restricted)"
-                )
-            if lic == "restricted":
-                raise typer.BadParameter(
-                    f"refusing restricted source {path} (pass --include-restricted to convert it)"
-                )
-    if format == "nabre":
-        docs = conv.convert_nabre(
-            inputs, tradition=tradition, version=version, work=work,
-            language=language, source_url=source_url,
+    """Convert catalogue targets to standardized documents.
+
+    Catalogue-driven: each selected target is converted via its registered
+    converter and written under the standardized-path convention
+    (``texts/standardized/<source-id>/<target-slug>/``), so license is always
+    recoverable from the output path. Restricted targets are excluded unless
+    ``--include-restricted``.
+    """
+    sources = _require_catalogue(raw_root)
+    targets = cat.select_targets(sources, include_restricted=include_restricted)
+    if source is not None:
+        targets = [t for t in targets if t.source_id == source]
+    if converter is not None:
+        targets = [t for t in targets if t.converter == converter]
+    if not targets:
+        raise typer.BadParameter(
+            "no targets selected (check --source / --converter / --include-restricted)"
         )
-        schema.write_document(docs[0], out)
-        typer.echo(f"wrote {out} ({len(docs[0].entries)} entries)")
-    elif format == "encyclicals":
-        docs = conv.convert_encyclicals(inputs, tradition=tradition)
-        out.mkdir(parents=True, exist_ok=True)
-        for d in docs:
-            slug = "".join(c if c.isalnum() else "-" for c in d.work.lower()).strip("-")
-            schema.write_document(d, out / f"{slug}.json")
-        typer.echo(f"wrote {len(docs)} documents to {out}/")
-    else:
-        raise typer.BadParameter(f"unknown format {format!r} (known: {', '.join(conv.CONVERTERS)})")
+    total_docs = total_entries = 0
+    for t in targets:
+        paths = t.payload_paths(raw_root)
+        docs = conv.convert_target(paths, t)
+        out_dir = t.standardized_dir(standardized_root)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for i, d in enumerate(docs):
+            if len(docs) == len(paths):
+                stem = paths[i].stem  # one doc per payload file
+            elif len(docs) == 1:
+                stem = t.slug  # merged into one document
+            else:
+                stem = f"{t.slug}-{i:03d}"
+            schema.write_document(d, out_dir / f"{stem}.json")
+            total_entries += len(d.entries)
+        total_docs += len(docs)
+        typer.echo(f"  {t.source_id} :: {t.work} [{t.version}] -> {out_dir}/ ({len(docs)} doc(s))")
+    typer.echo(
+        f"converted {total_docs} document(s), {total_entries} entries from {len(targets)} target(s)"
+    )
 
 
 @app.command()

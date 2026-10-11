@@ -228,3 +228,43 @@ SPIR, strict mode (porch-driven).
   no live effect); (5) pre-existing: add GenerateError to main()'s handler tuple
   (Phase 5). Fold these in opportunistically where Phase 2/5 touch the code.
 - Advancing to Phase 2 (English-corpora converters). Will /compact first.
+
+## 2026-10-11 — Implement Phase 2 (English-corpora converters)
+
+- porch advanced to phase_2. (/compact is a user command I can't invoke; harness
+  auto-manages context — proceeding.)
+- Derived REAL shapes before coding (lessons-critical):
+  - bible_flat: `[{book,chapter,verse,text}]`, book = full name ("Genesis",
+    "1 Nephi"); citation "<book> c:v"; one doc per version file. KJV/ASV/WEB
+    = 31102/31102/31098 rows.
+  - lds_nested is NOT uniform across the 5 files:
+    * BoM/Pearl/OT/NT = 3-level {book:{chapter:{verse:text}}}; BoM has a per-book
+      "heading" (skip); Pearl has top-level "last_modified"/"version" metadata keys
+      (skip — value is a str, not a dict).
+    * D&C = 2-level {section:{verse:text}} (top key IS the section, value is
+      {verse:text}); no chapter level.
+    * Converter rule: skip top-level keys whose value isn't a dict (metadata);
+      within a book dict skip "heading"; if remaining values are all str → 2-level
+      (cite "<key>:<verse>"), if all dict → 3-level (cite "<book> <ch>:<verse>"),
+      else ConvertError. Pearl has em-dash book names (Joseph Smith—Matthew).
+- Plan: convert.py gets convert_target(paths,target) dispatch + bible_flat +
+  lds_nested; adapt encyclicals/nabre to (paths,target). Then make cli.convert
+  catalogue-driven writing to standardized_dir (closes claude's --out hole, and
+  Phase 8 needs it). Per-converter tests vs real committed data.
+- DONE (pre-consult): convert.py now has convert_target dispatch + bible_flat +
+  lds_nested; encyclicals/nabre adapted to (paths, target). cli.convert is
+  catalogue-driven (--source/--converter/--include-restricted), writes to
+  texts/standardized/<source-id>/<slug>/ — closes the --out hole (claude iter-2).
+  Unregistered converters (quran_qul/hadith_sunnah/sefaria_talmud/tlg) fail-fast
+  via convert_target (Phase 3 registers them).
+- Verified end-to-end on REAL data: KJV/ASV=31102, WEB=31098 (3 Bible versions);
+  BoM=6619 (3-level), D&C=3654 (2-level, cite "1:1"), Pearl=635 (metadata skipped),
+  LDS OT=23145 + NT=7957 = 31102 (= Protestant KJV total), both LDS-KJV targets
+  co-located in one slug dir with distinct filenames (Phase 4 merges). All 8 docs
+  pass `validate`.
+- Tests: rewrote test_schema_convert.py for the (paths,target) contract + real-data
+  bible_flat/lds_nested (incl. D&C 2-level + Pearl metadata-skip + mixed-shape
+  reject) + convert_target dispatch (unregistered/empty). Rewrote the CLI convert
+  tests in test_catalogue.py for catalogue-driven convert (writes standardized;
+  restricted excluded by default, included with flag). 60 passed. README convert
+  examples updated to the catalogue-driven form.
