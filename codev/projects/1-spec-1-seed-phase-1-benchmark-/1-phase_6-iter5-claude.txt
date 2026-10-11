@@ -1,0 +1,65 @@
+I'll start by reading the key files for phase_6 — the scoring module, its tests, and the prior iteration context.The builder worktree is at `.builders/spir-1/`. Let me read the phase_6 implementation there.Now the tests and earlier iteration context.Let me read the CLI score command and check the earlier phase_6 iterations' concerns.Let me probe the actual behavior from `/tmp` (read-only, no writes to the tree) and check generate.py's expected-answer shapes.The para fix landed, but I found a false-hedge in the opposite direction. Let me probe further and check the rest of the contract.Let me verify the test suite passes (read-only, from `/tmp`, caches disabled).Let me verify a concrete fix in `/tmp` (copying the file there — **not** modifying the tree).# Review — Phase 6: Per-task scoring contract and tradition-aware analysis
+
+I read `score.py`, `test_score.py`, the `score` CLI command, `generate.py`'s expected-answer shapes, the README, and all four prior iteration rebuttals. All probing was done by copying files to `/tmp`; **the worktree was not modified** (the only untracked files are builder session artifacts and the parallel codex reviewer's iter-5 output). 133 tests pass.
+
+## What's genuinely done
+
+- **Per-task contract matches the spec table.** `_SUBMETRICS` (score.py:42-46) gives the exact/normalized/token-F1 triple only to `retrieve_quote`/`complete_unit`, `exact`/`normalized` to `identify_version`, and the parse tasks return their own shapes. `complete_unit` scores the **remainder** (`generate.py:128` sets `expected["text"]` to the second half, `full_text` kept alongside) — correctly aligned with the spec's "normalized exact match of the remainder."
+- **Anti-hedge extraction is now solid in the direction it was built for.** I re-verified every case the four prior iterations converged on: same-book, cross-book, lowercase, num-shape, and the iter-4 para hedges all score 0; `Jude 1:3 (ASV 1901)` and `… Chapter 1` score 1; `Jude 1:30` vs `Jude 1:3` stays 0. The iter-4 `(?![Pp]ara)` fix landed with both-direction tests (`test_cite_passage_paragraph_shape`), closing the root cause (an uncovered branch).
+- **Raw-count `_overall`** at both granularities (249-260, 277-287) — no `round(accuracy*n)` reconstruction, asserted by `test_overall_is_raw_count`.
+- **List-valued tradition rule** implemented and tested as an inequality, not a restatement: per-tradition `n` (1+1+2=4) exceeds overall (2).
+- **Missing cells at both granularities**, `n==0` → `accuracy: null` / `n/a` rather than a misleading 0%, and the iter-3 tradition-aware roster surfaces a fully-failed model × tradition × task.
+
+## Issue 1 (blocking) — a *repeated* correct citation is misread as a hedge
+
+`_single_citation_correct` (score.py:115-121) counts candidates as a set of normalized spans **including their greedy prefix words**, so the same citation stated twice yields two distinct spans. Verified against the real code:
+
+| answer | expected | `n_candidates` | `correct` |
+|---|---|---|---|
+| `The citation is John 3:16 (John 3:16).` | `John 3:16` | 2 | **0** ❌ |
+| `This passage is Jude 1:3. Jude 1:3 warns believers.` | `Jude 1:3` | 2 | **0** ❌ |
+| `Rerum Novarum, para. 5. Yes, Rerum Novarum, para. 5.` | `Rerum Novarum, para. 5` | 2 | **0** ❌ |
+| `Sahih al-Bukhari 1. That is Sahih al-Bukhari 1.` | `Sahih al-Bukhari 1` | 2 | **0** ❌ |
+
+The candidate set is literally `{'this is jude 1 3', 'indeed jude 1 3'}` — one citation, two prefixes. All three shapes are affected.
+
+This is the inverse of the hole iter 4 fixed, and it violates this phase's own acceptance criterion ("a single correct citation scores 1") and the spec's contract wording: *"the **single** extracted citation equals ground truth; **multi-candidate** answers score 0."* A citation repeated is one candidate, not a hedge. The direction matters for the paper: it **understates** model accuracy on `cite_passage`/`identify_source`, which on a provenance-honesty benchmark overstates the problem the paper reports — the spec's own risk table rates "strict match unfairly punishes verbose models" High probability, and unlike `retrieve_quote` these tasks have no second tier to fall back on. The `_ANSWER_ONLY` prompt instruction reduces the rate but cannot be the defense: a prompt-compliant model wouldn't hedge either, yet the anti-hedge machinery exists anyway.
+
+**Verified fix** — collapse all spans that assert the expected citation into one candidate, in `_single_citation_correct`:
+
+```python
+cands = _citation_candidates(answer, expected_citation)
+# spans asserting the EXPECTED citation are ONE candidate however often the model
+# repeats it ("It is Jude 1:3. Jude 1:3 warns…") — repetition is not a hedge
+ne = normalize(expected_citation)
+bnd = re.compile(r"(?<!\w)" + re.escape(ne) + r"(?!\w)")
+matching = {c for c in cands if bnd.search(c)}
+others = cands - matching
+n = (1 if matching else 0) + len(others)
+if n > 1:
+    return 0, n
+return int(_bounded_equal(answer, expected_citation)), n
+```
+
+I applied this to a `/tmp` copy and ran **16 cases: 16/16** — all four repeats above → 1, every existing hedge/near-miss/incidental case unchanged (same-book hedge n=3→0, cross-book n=3→0, lowercase n=2→0, num n=2→0, both para hedges n=2→0, `Jude 1:30`→0, wrong citation→0). The full `test_score.py` (23 tests) passes against the patched copy with no edits to the tests. Please add both-direction regression tests (repeat-correct → 1 for colon/para/num, hedge → 0) so this branch doesn't regress the way the para branch did.
+
+## Comments (non-blocking)
+
+- **The module docstring is stale and now actively misleading** (score.py:14-22). It still documents containment semantics — `identify_version: "normalised expected version appears in answer"`, `cite_passage: "normalised citation appears in answer"`, `identify_source: "work AND citation both appear"` — which is precisely the behavior this phase *replaced*. The implementation is label-equality and single-candidate boundary-equality. Anyone maintaining the contract reads this block first. (Independently flagged by the parallel codex review; I confirmed it.) Worth folding into the Issue 1 commit.
+- **`ScoreError` is missing from `cli.main()`'s handled tuple** (cli.py:312-314). This phase added score's fail-fast guards (missing digest, mixed digests, no rows), but with `pretty_exceptions_enable=False` they surface as a raw traceback instead of the `error: …` / exit-2 treatment every sibling error class gets. One-token addition. (Also from codex; confirmed.)
+- **`parse_yes_no` takes the first yes/no anywhere in the answer** (score.py:69-71), so `"There is no doubt that yes, it is from John."` parses as **`no`** — a correct answer scored wrong. `"Yes, but no."` → `yes` with no hedge signal. Narrow (the prompt asks for Yes/No, so the leading token is usual), but a cheap hardening is to prefer a leading `^\s*(yes|no)\b` and fall back to search. Chance-level task, so mis-parses are hard to spot downstream.
+- **Dispositions I reviewed and am not re-raising**, since they're recorded deliberately and I agree: the `identify_source` `work_found` containment hedge (citation field is anti-hedged, `work_found` reported separately, work-name extraction isn't tractable the way citation shapes are), the `tradition` soft-degrade (scoring fields stay fail-fast via `score_answer`), and the `identify_version` short-vs-full-label gap.
+
+The aggregation work — raw counts, the list-valued tradition rule, the roster, no-data rendering, markdown — is correct, well tested, and properly documented in the README. The remaining gap is one localized asymmetry in candidate counting.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Tradition aggregation, raw-count overall, label metrics, the roster, and the anti-hedge direction are all correct and well tested — but candidate counting keys on prefix words, so a *repeated* correct citation counts as 2 candidates and scores 0, a systematic false negative on the headline metric for cite_passage/identify_source.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_single_citation_correct` (score.py:115-121) dedups candidate spans *including their greedy prefix*, so one citation stated twice is two candidates and scores `correct=0`. Verified: `"The citation is John 3:16 (John 3:16)."`, `"This passage is Jude 1:3. Jude 1:3 warns believers."`, the para equivalent, and the num equivalent all give `n_candidates=2, correct=0`. Violates this phase's "a single correct citation scores 1" criterion and the spec's "multi-candidate answers score 0" wording; understates accuracy, which on a provenance-honesty benchmark overstates the measured failure. Verified fix (collapse spans asserting the expected citation into one candidate) passes 16/16 cases and all 23 existing score tests unchanged — snippet in the review. Add both-direction regression tests.
+- Non-blocking: score.py's module docstring (lines 14-22) still documents the pre-phase-6 containment semantics for `identify_version`/`cite_passage`/`identify_source`, contradicting the implemented contract.
+- Non-blocking: `ScoreError` absent from `cli.main()`'s handled exceptions (cli.py:312-314), so this phase's own digest/empty-file guards emit a traceback instead of the standard `error: …` exit-2 message.
+- Non-blocking: `parse_yes_no` (score.py:69-71) matches the first `yes|no` anywhere, so `"There is no doubt that yes…"` parses as `no` and scores a correct answer wrong; prefer a leading-token parse with search as fallback.

@@ -11,15 +11,19 @@ Metrics emitted per answer:
                   judge-based semantic scoring is a later, pluggable metric
 - ``correct``     the per-task headline judgment (see below)
 
-Per-task headline rule:
+Per-task headline rule (the spec's contract — robust to evasive answers, so
+containment alone cannot game provenance honesty):
 
-- retrieve_quote / complete_unit : ``normalized`` match (strict reported alongside)
+- retrieve_quote / complete_unit : ``normalized`` match (exact + token-F1 alongside)
 - verify_source                  : parsed leading Yes/No equals expected
-- identify_version               : normalised expected version appears in answer
-- cite_passage                   : normalised citation appears in answer
-- identify_source                : work AND citation both appear (citation
-                                   matching is lenient on punctuation only —
-                                   "Jude 1:3" != "Jude 1:4" stays wrong)
+- identify_version               : the answer, normalised, EQUALS the version label
+                                   (exact + normalized reported) — an evasive
+                                   "KJV or WEB" or "not the KJV, the ASV" scores 0
+- cite_passage                   : the SINGLE extracted citation EQUALS ground truth
+                                   (boundary-aware, not containment); a multi-candidate
+                                   hedge scores 0, a repeated correct citation does not
+- identify_source                : work present AND a single citation equals ground
+                                   truth (same anti-hedge rule as cite_passage)
 """
 
 from __future__ import annotations
@@ -114,10 +118,19 @@ def _bounded_equal(answer: str, expected: str) -> bool:
 
 def _single_citation_correct(answer: str, expected_citation: str) -> tuple[int, int]:
     """Returns (correct, n_candidates). A multi-candidate answer scores 0; otherwise
-    the single candidate must EQUAL ground truth (boundary-aware, not containment)."""
-    n = len(_citation_candidates(answer, expected_citation))
+    the single candidate must EQUAL ground truth (boundary-aware, not containment).
+
+    Spans that all assert the EXPECTED citation count as ONE candidate however many
+    times the model repeats it ("It is Jude 1:3. Jude 1:3 warns…") — repetition is
+    not a hedge; only distinct OTHER citations are."""
+    cands = _citation_candidates(answer, expected_citation)
+    ne = normalize(expected_citation)
+    boundary = re.compile(r"(?<!\w)" + re.escape(ne) + r"(?!\w)")
+    matching = {c for c in cands if boundary.search(c)}
+    others = cands - matching
+    n = (1 if matching else 0) + len(others)
     if n > 1:
-        return 0, n  # offered more than one citation candidate -> hedge
+        return 0, n  # offered more than one DISTINCT citation candidate -> hedge
     return int(_bounded_equal(answer, expected_citation)), n
 
 

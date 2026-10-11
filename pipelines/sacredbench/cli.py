@@ -23,7 +23,7 @@ from sacredbench.collect import collect as run_collect
 from sacredbench.config import load_config
 from sacredbench.generate import generate as run_generate
 from sacredbench.generate import load_questions, write_questions
-from sacredbench.score import score_file, summary_markdown
+from sacredbench.score import ScoreError, score_file, summary_markdown
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
 
@@ -310,7 +310,7 @@ def main() -> None:
         app()
     except (
         schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError, CollectError,
-        gen.GenerateError,
+        gen.GenerateError, ScoreError,
     ) as e:
         typer.secho(f"error: {e}", fg="red", err=True)
         sys.exit(2)

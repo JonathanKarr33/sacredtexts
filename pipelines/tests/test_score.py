@@ -162,6 +162,16 @@ def test_hadith_citation_single_and_hedge():
     assert hedge["correct"] == 0 and hedge["n_candidates"] == 2
 
 
+def test_repeated_correct_citation_is_not_a_hedge():
+    # a correct citation stated more than once is ONE candidate, not a hedge
+    assert score_answer("cite_passage", "The citation is John 3:16 (John 3:16).", {"citation": "John 3:16"})["correct"] == 1
+    assert score_answer("cite_passage", "This is Jude 1:3. Jude 1:3 warns believers.", {"citation": "Jude 1:3"})["correct"] == 1
+    assert score_answer("cite_passage", "Rerum Novarum, para. 5. Yes, Rerum Novarum, para. 5.", {"citation": "Rerum Novarum, para. 5"})["correct"] == 1
+    assert score_answer("cite_passage", "Sahih al-Bukhari 1. That is Sahih al-Bukhari 1.", {"citation": "Sahih al-Bukhari 1"})["correct"] == 1
+    # but a repeat plus a DIFFERENT citation is still a hedge
+    assert score_answer("cite_passage", "John 3:16. Or maybe John 3:17.", {"citation": "John 3:16"})["correct"] == 0
+
+
 def test_identify_version_label_metrics():
     ok = score_answer("identify_version", "KJV", {"version": "KJV"})
     assert ok == {"exact": 1, "normalized": 1, "correct": 1}

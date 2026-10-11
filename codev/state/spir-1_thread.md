@@ -603,3 +603,9 @@ SPIR, strict mode (porch-driven).
   work-only hedge — accepted low-priority limitation (citation already anti-hedged,
   work_found auditable, not in first run).
 - Committing + re-consulting (iter 5).
+
+### Phase 6 — iter 5 (codex COMMENT, claude REQUEST_CHANGES): repeated-citation false-negative
+- porch had already advanced phase_6 -> phase_7 (global tests pass regardless). Fixed on-branch:
+  repeated correct citation collapses to ONE candidate (claude verified 16/16); stale
+  docstring rewritten; ScoreError added to main(). parse_yes_no hardening declined (no-op).
+  134 tests pass. These land as a post-advance branch improvement (pr-gate reviews it).
