@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core aggregation is correct, but citation hedges for hadith-style citations and genuinely failed cells remain silently unrepresented.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `score.py:81-108` does not extract hadith citations such as `Sahih al-Bukhari 1`. Consequently, `"Sahih al-Bukhari 1 or Sahih Muslim 2"` yields zero candidates and scores `correct=1` through `_bounded_equal`. Hadith is an implemented corpus; only Arabic text normalization—not its scoring contract—was deferred. The anti-hedge rule must support every generated citation shape.
+- `score_file` only receives successful answer rows, so it cannot detect a missing question/model cell or an entirely failed model. The new test covers only an absent task inferred from another model’s successful task; it does not cover the planned “missing/failed cell” scenario. Summary output can therefore report incomplete results without indicating missing cells, contrary to Phase 6’s explicit requirement. Pass the expected question/model roster or persist failed-cell records so missing counts are represented.

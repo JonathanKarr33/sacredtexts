@@ -131,6 +131,14 @@ def test_identify_source_single_candidate():
     assert hedge["correct"] == 0 and hedge["work_found"] == 1  # work right, citation hedged
 
 
+def test_hadith_citation_single_and_hedge():
+    # hadith citations have no colon ("Sahih al-Bukhari 1") — still anti-hedged
+    assert score_answer("cite_passage", "Sahih al-Bukhari 1", {"citation": "Sahih al-Bukhari 1"})["correct"] == 1
+    hedge = score_answer("cite_passage", "Sahih al-Bukhari 1 or Sahih Muslim 2",
+                         {"citation": "Sahih al-Bukhari 1"})
+    assert hedge["correct"] == 0 and hedge["n_candidates"] == 2
+
+
 def test_identify_version_label_metrics():
     ok = score_answer("identify_version", "KJV", {"version": "KJV"})
     assert ok == {"exact": 1, "normalized": 1, "correct": 1}
@@ -196,3 +204,18 @@ def test_missing_cell_rendered_as_dash(tmp_path):
     assert "retrieve_quote" not in summary["models"]["m2"]  # m2 has no retrieve_quote
     md = summary_markdown(summary)
     assert "—" in md  # the missing cell is represented, not dropped
+
+
+def test_missing_cells_with_roster(tmp_path):
+    # the expected roster surfaces partially- and fully-missing/failed cells
+    answers = tmp_path / "answers.jsonl"
+    answers.write_text(json.dumps(_answer("retrieve_quote-0", "m1", "retrieve_quote", "x", {"text": "x"}, ["A"])) + "\n")
+    expected = {("m1", "retrieve_quote"): 3, ("m1", "verify_source"): 2, ("m2", "retrieve_quote"): 3}
+    summary = score_file(answers, tmp_path / "scores.jsonl", expected)
+    m1 = summary["models"]["m1"]
+    assert m1["retrieve_quote"]["n"] == 1 and m1["retrieve_quote"]["missing"] == 2
+    assert m1["verify_source"]["n"] == 0 and m1["verify_source"]["missing"] == 2  # fully-missing task
+    assert "m2" in summary["models"]  # a model whose every cell failed still appears
+    assert summary["models"]["m2"]["retrieve_quote"]["missing"] == 3
+    assert summary["models"]["m2"]["_overall"]["missing"] == 3
+    assert "miss" in summary_markdown(summary)

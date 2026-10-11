@@ -82,11 +82,15 @@ def _contains(answer: str, needle: str) -> bool:
 # span-extracted — Arabic corpora are a follow-on; the first run is English.)
 _COLON_CITE = re.compile(r"(?:[A-Z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
 _PARA_CITE = re.compile(r"(?:[A-Z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
+# Number-only citation (hadith "Sahih al-Bukhari 1"): >=1 capitalized leading word
+# and a TERMINAL number — not a chapter:verse (guarded by the negative lookahead),
+# so it never double-counts a colon citation.
+_NUM_CITE = re.compile(r"(?:[A-Z][^\s,:]*\s+){1,8}\d+(?![\d:ab])")
 
 
 def _citation_candidates(answer: str) -> set[str]:
     spans: set[str] = set()
-    for rx in (_COLON_CITE, _PARA_CITE):
+    for rx in (_COLON_CITE, _PARA_CITE, _NUM_CITE):
         for m in rx.finditer(answer):
             spans.add(normalize(m.group(0)))
     return spans
@@ -142,15 +146,18 @@ def score_answer(task: str, answer: str, expected: dict) -> dict:
     raise ScoreError(f"unknown task {task!r}")
 
 
-def score_file(answers_path: Path, scores_path: Path) -> dict:
+def score_file(
+    answers_path: Path, scores_path: Path, expected: dict[tuple[str, str], int] | None = None
+) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
     Scoring sees only successful answer rows (``collect`` leaves failed cells
-    pending and exits non-zero). A model present with some answers shows its real
-    per-task ``n`` and renders ``—`` for tasks it has no answers for; a model whose
-    cells ALL failed is absent from the panel here and is surfaced instead by
-    ``collect``'s non-zero exit and failure list — score never silently reports it
-    as complete."""
+    pending and exits non-zero). Pass ``expected`` — a ``{(model_id, task): count}``
+    roster (the panel × question set) — to **represent missing/failed cells**: each
+    cell then reports ``expected_n`` and ``missing``, and a model whose cells ALL
+    failed still appears (``n=0``, everything missing) instead of vanishing. Without
+    it, the summary reflects only what is present (a model missing some tasks renders
+    ``—`` for them)."""
     if not answers_path.exists():
         raise ScoreError(f"{answers_path}: no answers file")
     rows = []
@@ -213,20 +220,34 @@ def score_file(answers_path: Path, scores_path: Path) -> dict:
                 tacc["n"] += 1
                 tacc["correct"] += metrics["correct"]
 
+    expected = expected or {}
     summary: dict = {"models": {}, "by_tradition": {}}
-    for (model_id, task), acc in sorted(per_cell.items()):
-        cell = {"n": acc["n"], "accuracy": round(acc["correct"] / acc["n"], 4)}
-        for sm in _SUBMETRICS.get(task, ()):
-            cell[sm] = round(acc[sm] / acc["n"], 4)
+    # every (model, task) that was answered OR was expected (so a fully-failed
+    # model/task is represented, not dropped)
+    all_cells = set(per_cell) | set(expected)
+    for (model_id, task) in sorted(all_cells):
+        acc = per_cell.get((model_id, task))
+        if acc:
+            cell = {"n": acc["n"], "accuracy": round(acc["correct"] / acc["n"], 4)}
+            for sm in _SUBMETRICS.get(task, ()):
+                cell[sm] = round(acc[sm] / acc["n"], 4)
+        else:
+            cell = {"n": 0, "accuracy": 0.0}
+        if (model_id, task) in expected:
+            cell["expected_n"] = expected[(model_id, task)]
+            cell["missing"] = max(expected[(model_id, task)] - cell["n"], 0)
         summary["models"].setdefault(model_id, {})[task] = cell
     # _overall from RAW counts (not a lossy round(accuracy*n) reconstruction)
     for model_id in summary["models"]:
         cells = [acc for (m, _), acc in per_cell.items() if m == model_id]
         total_n = sum(c["n"] for c in cells)
         total_correct = sum(c["correct"] for c in cells)
-        summary["models"][model_id]["_overall"] = {
-            "n": total_n, "accuracy": round(total_correct / total_n, 4)
-        }
+        ov = {"n": total_n, "accuracy": round(total_correct / total_n, 4) if total_n else 0.0}
+        exp_total = sum(v for (m, _), v in expected.items() if m == model_id)
+        if exp_total:
+            ov["expected_n"] = exp_total
+            ov["missing"] = max(exp_total - total_n, 0)
+        summary["models"][model_id]["_overall"] = ov
     # per-model x tradition x task (each observation counted once per listed
     # tradition, so a tradition's n can exceed the overall count); overall-once
     # lives in summary["models"].
@@ -242,19 +263,33 @@ def score_file(answers_path: Path, scores_path: Path) -> dict:
     return summary
 
 
+def _cell_str(c: dict | None) -> str:
+    """Render one table cell: '—' if absent, 'miss N' if expected-but-unanswered,
+    'acc% (n=N)' otherwise, with a '−missing' suffix when some cells are missing."""
+    if c is None:
+        return "—"
+    if c["n"] == 0:
+        return f"miss {c['missing']}" if c.get("missing") else "—"
+    s = f"{c['accuracy']:.0%} (n={c['n']})"
+    if c.get("missing"):
+        s += f" −{c['missing']}"
+    return s
+
+
 def summary_markdown(summary: dict) -> str:
-    """Render the summary: a models × tasks table, then a per-tradition breakdown
-    (missing model×task cells shown as '—', never dropped)."""
+    """Render the summary: a models × tasks table, then a per-tradition breakdown.
+    Missing model×task cells are shown ('—' / 'miss N'), never dropped."""
     models = summary["models"]
     tasks = sorted({t for m in models.values() for t in m if t != "_overall"})
     lines = ["| model | " + " | ".join(tasks) + " | overall |", "|" + "---|" * (len(tasks) + 2)]
     ranked = sorted(models.items(), key=lambda kv: -kv[1]["_overall"]["accuracy"])
     for model_id, cells in ranked:
-        row = [model_id]
-        for t in tasks:
-            c = cells.get(t)
-            row.append(f"{c['accuracy']:.0%} (n={c['n']})" if c else "—")
-        row.append(f"**{cells['_overall']['accuracy']:.0%}**")
+        row = [model_id] + [_cell_str(cells.get(t)) for t in tasks]
+        ov = cells["_overall"]
+        overall = f"**{ov['accuracy']:.0%}**"
+        if ov.get("missing"):
+            overall += f" −{ov['missing']}"
+        row.append(overall)
         lines.append("| " + " | ".join(row) + " |")
 
     by_trad = summary.get("by_tradition") or {}
@@ -264,10 +299,7 @@ def summary_markdown(summary: dict) -> str:
         for model_id in sorted(by_trad):
             for trad in sorted(by_trad[model_id]):
                 cells = by_trad[model_id][trad]
-                row = [model_id, trad]
-                for t in tasks:
-                    c = cells.get(t)
-                    row.append(f"{c['accuracy']:.0%} (n={c['n']})" if c else "—")
+                row = [model_id, trad] + [_cell_str(cells.get(t)) for t in tasks]
                 row.append(f"**{cells['_overall']['accuracy']:.0%}** (n={cells['_overall']['n']})")
                 lines.append("| " + " | ".join(row) + " |")
     return "\n".join(lines) + "\n"

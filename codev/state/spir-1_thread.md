@@ -558,3 +558,17 @@ SPIR, strict mode (porch-driven).
 - Minors: n_candidates in metrics (auditability); score --summary-md for Phase 8
   evidence. Noted limitation: citation word-order / number-only (follow-on).
 - Committing + re-consulting (iter 2).
+
+### Phase 6 — iter 2 impl consult (codex REQUEST_CHANGES, claude COMMENT / HIGH)
+
+- claude COMMENT (all 3 iter-1 blockers fixed; contract correct). codex 2 items.
+  Accepted both. 129 tests pass.
+- Hadith citation hedge now caught: added _NUM_CITE (number-only span, >=1 cap word
+  + terminal number, guarded vs chapter:verse). "Bukhari 1 or Muslim 2" -> 2 cands
+  -> 0 (codex #1).
+- Missing/failed cells: score_file(expected roster); CLI score --questions/--config
+  builds {(model,task):count}; cells report expected_n/missing; fully-failed model
+  appears (n=0, all missing); markdown shows "miss N". Tests (codex #2).
+- claude follow-ups (citation word-order, Arabic norm) = stated scope, outside
+  Phase 8's English retrieve_quote run.
+- Committing + re-consulting (iter 3).
