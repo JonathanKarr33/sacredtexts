@@ -8,7 +8,7 @@
 - **Scoring reports both tiers + similarity** (exact / normalized / token-F1) on every answer; the semantic metric is pluggable (open group question). Per-task headline `correct` rules live in `pipelines/sacredbench/score.py`.
 - **Copyright gate**: public-domain/open raw sources ARE committed under `texts/raw/` (with their `source.yaml`); only the `restricted` payloads (NABRE, Greek Orthodox TLG) and all of `texts/standardized/` are gitignored and rebuilt locally. Corpora derived from restricted translations are never committed.
 - `pipelines/` is a single uv project (`sacredbench`); run via `uv --project pipelines run python -m sacredbench …` from the repo root. Providers: anthropic / any OpenAI-compatible host (base_url+api_key_env) / gemini; keys from env only.
-- `apps/viewer/` is a **seed port of multibench's multibrowser** (client-side GitHub data layer, SHA-pinned) — not yet adapted to this domain; read `apps/viewer/README.md` before touching it.
+- `apps/viewer/` is the **benchmark viewer over local `runs/`** (leaderboard + error explorer + cross-run standings; no GitHub data layer — the multibrowser surface it was seeded from is removed). Routes: `/`, `/run/$runId/model/$modelId`, `/standings`; read `apps/viewer/README.md` before touching it.
 - **Copyright audit gate** (`pipelines/sacredbench/audit.py`, in `.codev/checks/test.sh`): no committed artifact may derive from a `restricted` source — origin always, plus a restricted-text content layer when the held-back payloads are present locally. Never commit a standardized doc or run artifact built from a restricted target.
 
 ## Map of arch.md (consult when…)

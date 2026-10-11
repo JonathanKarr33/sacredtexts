@@ -8,8 +8,9 @@ Seeded from Spec 1 (Phase 1 benchmark) — the first implementation round.
 - `pipelines/` — single `uv` project `sacredbench`; run `uv --project pipelines run
   python -m sacredbench …` from the repo root.
 - `apps/viewer/` — React 19 / Vite / TS / Tailwind 4 / HeroUI v3 (provider-less) /
-  TanStack; a seed port of multibench's multibrowser plus a self-contained local
-  results view.
+  TanStack; a benchmark viewer over local `runs/` (leaderboard + error explorer +
+  cross-run standings). Originally seeded from multibench's multibrowser; that surface and
+  its GitHub data layer have been removed (provenance in `README.multibrowser.md`).
 - `texts/` — the corpus (two tiers, below). `configs/` — model panels. `runs/` — run
   evidence (gitignored except the committed first run). `codev/` — SPIR artifacts.
 
@@ -71,23 +72,29 @@ round-trip that proves no invention/reordering.
 
 `apps/viewer/src/lib/localResults.ts` (`loadRun` fetches `summary.json` + `scores.jsonl`
 + `answers.jsonl` + `questions.jsonl` and joins panel × roster on `(question_id,
-model_id)`, surfacing un-answered roster questions as missing cells). As of the Spec 2
-purge the viewer is **local-only**: the multibrowser surface (`/t/...` traditions, the
-GitHub-data-layer `/results`/`/raw` explorers, the `/review*` flows, and their data
-layer/components) is gone. The route tree is `/` (the **leaderboard home** —
-`routes/LeaderboardPage.tsx` + `components/LeaderboardTable.tsx`, ranking derived by
-`lib/leaderboard.ts`) plus a 404; the error explorer and cross-run standings land in the
-remaining Spec 2 feature phases. The selected run lives in the URL as a **bare run id**,
-`/?run=<id>` (validated by a plain `validateSearch` fn — zod is pruned — and resolved to
-the fetch base `/runs/${encodeURIComponent(id)}`); the default is the most-recent run from
-the `/runs/_index` index, and a `?run=` that is not a known id (e.g. the old Spec-1
-`?run=/runs/<id>` base-path form) falls back to that default. `vite.config.ts`
-`serveRuns()` (logic in `vite/runsEndpoint.ts`) is a dev-only plugin serving the repo's
-gitignored `runs/` at `/runs/` with a `/runs/_index` run index (confined to the runs dir;
-symlink traversal rejected, so symlinked run dirs are omitted). The gate renders the
-committed run through `loadRun` (`realRun.test.ts`) and through the leaderboard
-(`LeaderboardPage.test.tsx`). Production is a static SPA host (`server/index.mjs`, hono +
-history fallback; no `/api` proxy).
+model_id)`, surfacing un-answered roster questions as missing cells; `loadSummary` reads
+just `summary.json` for the standings rollup). As of the Spec 2 purge the viewer is
+**local-only**: the multibrowser surface (`/t/...` traditions, the GitHub-data-layer
+`/results`/`/raw` explorers, the `/review*` flows, and their data layer/components) is
+gone. The route tree is `/` (the **leaderboard home** — `routes/LeaderboardPage.tsx` +
+`components/LeaderboardTable.tsx`, ranking by `lib/leaderboard.ts`),
+`/run/$runId/model/$modelId` (the **error explorer** — `routes/ExplorerPage.tsx` +
+`components/QuestionList.tsx`/`ExplorerFilters.tsx`, classification/filters in
+`lib/explorer.ts`), `/standings` (the **cross-run current standings** —
+`routes/StandingsPage.tsx`, rollup in `lib/aggregate.ts`, keyed on the panel's
+`(provider, model)` identity with the newest run per model winning), plus a 404. The
+selected run lives in the URL as a **bare run id**, `/?run=<id>` (validated by a plain
+`validateSearch` fn — zod is pruned — and resolved to the fetch base
+`/runs/${encodeURIComponent(id)}`); the default is the most-recent run from the
+`/runs/_index` index (fetched via `lib/runIndex.ts`, shared by the leaderboard and
+standings), and a `?run=` that is not a known id (e.g. the old Spec-1 `?run=/runs/<id>`
+base-path form) falls back to that default. `vite.config.ts` `serveRuns()` (logic in
+`vite/runsEndpoint.ts`) is a dev-only plugin serving the repo's gitignored `runs/` at
+`/runs/` with a `/runs/_index` run index (confined to the runs dir; symlink traversal
+rejected, so symlinked run dirs are omitted). The gate renders the committed run through
+`loadRun` (`realRun.test.ts`), the leaderboard (`LeaderboardPage.test.tsx`), the explorer
+(`ExplorerPage.test.tsx`), and the standings rollup (`StandingsPage.test.tsx`). Production
+is a static SPA host (`server/index.mjs`, hono + history fallback; no `/api` proxy).
 
 ## Run evidence layout
 

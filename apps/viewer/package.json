@@ -7,7 +7,7 @@
   "engines": {
     "node": "20.x"
   },
-  "description": "Browse & explore the Sacred Texts benchmark - a local-only SPA that reads run artifacts (summary/scores/answers/questions) and renders a leaderboard and error explorer.",
+  "description": "Browse & explore the Sacred Texts benchmark - a local-only SPA that reads run artifacts (summary/scores/answers/questions) and renders a leaderboard, error explorer, and cross-run standings.",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",

@@ -7,6 +7,7 @@ import {
 import { RootLayout } from "./routes/RootLayout";
 import { LeaderboardPage } from "./routes/LeaderboardPage";
 import { ExplorerPage } from "./routes/ExplorerPage";
+import { StandingsPage } from "./routes/StandingsPage";
 import { NotFound } from "./routes/NotFound";
 import { type ExplorerFilters } from "./lib/explorer";
 
@@ -14,8 +15,8 @@ import { type ExplorerFilters } from "./lib/explorer";
 // router-plugin codegen step, keeps the route tree explicit, and is fully unit-testable
 // with a memory history. The tree is `/` (the leaderboard home, selecting a run via the
 // `?run=<id>` search param), `/run/$runId/model/$modelId` (the error explorer, with its
-// `?task=&tradition=&correct=&mode=` filter state), plus a catch-all 404; the standings
-// route lands in the final Spec 2 feature phase.
+// `?task=&tradition=&correct=&mode=` filter state), `/standings` (the cross-run current
+// standings), plus a catch-all 404.
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -50,7 +51,14 @@ const explorerRoute = createRoute({
   }),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, explorerRoute]);
+// The cross-run current standings: `/standings`, no search state.
+const standingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/standings",
+  component: StandingsPage,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, explorerRoute, standingsRoute]);
 
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({

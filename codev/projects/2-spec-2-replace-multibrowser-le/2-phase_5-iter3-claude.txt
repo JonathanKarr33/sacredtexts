@@ -1,0 +1,32 @@
+I'll review phase 5 by reading the actual implementation files.Read the phase-5 implementation from disk and verified it running.
+
+## Phase 5 verification
+
+**Deliverable 1 — `/standings` cross-run rollup** (`src/lib/aggregate.ts`, `src/routes/StandingsPage.tsx`): present and correct. `aggregate` keys on `` `${provider}\u0000${model}` `` from the source run's `panel` (aggregate.ts:59), newest-mtime-wins with the equal-mtime tie broken by run id **ascending** (line 76) — the tiebreak codex blocked on in iter 1, now matching `fetchRunIndex`'s `mtime desc, id asc` ordering, so standings and the leaderboard default can't disagree about which tied run is newest. Verified in `aggregate.test.ts:108-115` (both input orders → `run-a`).
+
+**Deliverable 2 — renamed-id dedupe + panel-absent fallback**: both implemented and tested (`aggregate.test.ts:56-88`). Fallback keys on bare `model_id` with `provider/model` null; `StandingsPage` only renders the sub-label when both are present.
+
+**Previously-raised blockers — verified fixed in code, not just claimed:**
+- Failed-summary visibility: `loadAllRunSummaries` returns `failed: string[]` (StandingsPage.tsx:35,41) and the page renders a `role="status"` notice naming the omitted runs (lines 100-106), with `loaded.length === 0` escalating to the error state. Test at StandingsPage.test.tsx:83-97.
+- Root `README.md:25-26` now reads "the benchmark viewer over local `runs/` (leaderboard + error explorer + cross-run standings)" — the last stale "multibrowser seed" claim is gone. `arch.md`, `arch-critical.md`, `apps/viewer/README.md`, `TUTORIAL.md`, and `package.json` description are all swept consistently.
+
+**Shared-code extraction**: `fetchRunIndex` moved out of `LeaderboardPage` into `src/lib/runIndex.ts` with the HTML-200 guard in one place, plus a new `loadSummary` in `localResults.ts` reusing `fetchArtifact`'s shape sniff (so a prod static host's 200-HTML reads as `missing`, and that run is skipped rather than crashing standings). `runIndex.test.ts` now exercises the out-of-order sort, the tiebreak, HTML-200, non-200, non-array, and entry filtering — the coverage gap from iter 1.
+
+**Ran it myself**: `aggregate`, `runIndex`, `localResults`, `app`, `StandingsPage`, plus the adjacent `RunSelector`/`LeaderboardPage`/`ExplorerPage`/`realRun` suites → 58 passed, 0 failed; `tsc --noEmit` clean. Deps are pruned (no `zod`/`js-yaml`/react-query/markdown stack); `user-event`, `hono`, `@hono/node-server` all still have real consumers.
+
+**Single-run invariant check**: `aggregate`'s sort (`(b.overall?.accuracy ?? -1) - …`, id asc) is byte-for-byte the same semantics as `rankedModels` (localResults.ts:341-346), so "standings over the committed run == that run's leaderboard rows" genuinely holds — confirmed by the gate asserting `["claude-haiku","llama-3.1-8b","gemma-3-4b","gpt-oss-20b"]`.
+
+Non-blocking notes below; nothing I'd hold the phase for.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 5 cross-run standings is complete and correct — panel-keyed newest-wins rollup, index-consistent tiebreak, visible partial-load notice, nav/route wired, docs fully swept, and tests/typecheck green on my own run.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- (Nit, maintainability) The ranking comparator is duplicated: `aggregate` (aggregate.ts:87-90) re-implements `rankedModels`' exact semantics (`?? -1` null-last, id asc). They agree today, which is what makes "standings == leaderboard over one run" true — but a future change to one silently breaks that invariant with no test catching it. Extracting a shared `compareByOverall(a, b)` used by both would pin it.
+- (Nit, coverage) The documented panel-absent degradation — a panel-keyed row and a `model_id`-keyed row for the *same* model both showing when one run lacks `panel` — is asserted only for a single panel-less run. A two-run fixture (one with panel, one without) would pin the intended double-row behavior so a later "fix" doesn't change it unnoticed.
+- (Suggestion, out of requirement 6) The model-name link and the "from run" link both target `/?run=<id>`. Pointing the model name at `/run/$runId/model/$modelId` instead would make standings a one-click entry into the explorer; requirement 6 only asks for a link to the run, so the current behavior is as specified.
+- (Carry-forward, agreed) `expect(present).toBe(true)` inside `describe.skipIf(!present)` is unreachable — project-wide convention shared with `realRun.test.ts`/`LeaderboardPage.test.tsx`/`ExplorerPage.test.tsx`; correctly deferred to a cross-cutting MAINTAIN pass rather than changed for one gate.

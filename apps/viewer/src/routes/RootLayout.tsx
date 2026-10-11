@@ -16,6 +16,12 @@ export function RootLayout() {
           <Link to="/" className="text-lg font-semibold">
             Sacred Texts <span className="text-primary">Benchmark</span>
           </Link>
+          <nav className="flex items-center gap-4 text-sm">
+            {/* The brand (left) is the leaderboard home; this links to the cross-run view. */}
+            <Link to="/standings" className="text-default-600 [&.active]:font-semibold [&.active]:text-foreground">
+              Standings
+            </Link>
+          </nav>
         </div>
       </header>
       <main ref={mainRef} className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-y-auto px-4 py-6">

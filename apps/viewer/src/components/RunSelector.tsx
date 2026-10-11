@@ -1,6 +1,4 @@
-export interface RunRef {
-  id: string;
-}
+import { type RunRef } from "../lib/runIndex";
 
 // The run picker on the leaderboard home. Presentational: it lists the enumerated runs
 // and calls `onSelect` with the chosen id; the parent owns the URL (`?run=`) and the

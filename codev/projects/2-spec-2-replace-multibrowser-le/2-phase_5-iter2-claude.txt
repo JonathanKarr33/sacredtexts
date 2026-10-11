@@ -1,0 +1,53 @@
+I'll review the Phase 5 implementation by reading the actual files.Phase 5 work is uncommitted (expected per the builder's explanation). Let me read the core files.I've verified the implementation thoroughly. Let me do one final check on whether the standings view's claims hold against the real committed run end-to-end.## Review — Phase 5: Cross-run aggregate (current standings)
+
+### Verification performed
+Read from disk: `src/lib/aggregate.ts`, `src/lib/aggregate.test.ts`, `src/lib/runIndex.ts`, `src/lib/runIndex.test.ts`, `src/routes/StandingsPage.tsx`, `src/routes/StandingsPage.test.tsx`, the `localResults.ts`/`localResults.test.ts`/`router.tsx`/`RootLayout.tsx`/`LeaderboardPage.tsx`/`RunSelector.tsx`/`app.test.tsx` diffs, and all doc diffs. Ran `check-types` (clean), `pnpm test` (**115 passed / 16 files**), `pnpm build` (green), and a per-dependency usage audit. I also decoded `runs/first-run-2026-10-11/summary.json` to check the gate's asserted ordering.
+
+*(Disclosure: `pnpm build` writes `dist/` — gitignored and already produced by `deploy.test.ts`'s real build. No source file in the tree was modified.)*
+
+### What's right
+
+- **Requirement 6 is met correctly.** `aggregate()` keys on `${panel.provider}\0${panel.model}` (architect-binding), picks the greatest `mtimeMs` per key, falls back to bare `model_id` when the run has no panel entry for that model, and ranks identically to the leaderboard (`?? -1` catches both a missing cell *and* a `null` accuracy, so null-overall sorts last with an id-ascending tiebreak). `tasks` is the sorted union across selected rows, which is right for runs with differing task coverage.
+- **Both iteration-1 blockers are genuinely fixed, not papered over.**
+  - *C1 (tiebreak):* `aggregate.ts:76` now breaks an exact-mtime tie by `runId <` (ascending), which matches `runIndex.ts:50-52` (`mtime desc, id asc`) and therefore matches `LeaderboardPage`'s default (`runs[0]`, line ~58). The two can no longer disagree about which tied run is "newest". `aggregate.test.ts:108-115` asserts it from both input orders.
+  - *C2 (silent drops):* `loadAllRunSummaries` returns `failed: string[]`, and `StandingsPage.tsx:100-106` renders a `role="status"` notice naming the omitted ids with an explicit "standings may be out of date" warning, while still rendering partial standings. `StandingsPage.test.tsx:83-97` asserts the notice names the dropped run. This closes the stale-standings honesty hole.
+- **`runIndex.ts` extraction is the right call** — the HTML-200 prod-host guard now lives in one place for both consumers, and `runIndex.test.ts` exercises the previously-unexercised defensive sort with a genuinely out-of-order fixture plus the id tiebreak, non-200, non-array, non-JSON, and entry-filtering paths. `RunSelector`'s duplicate `RunRef` was collapsed into it.
+- **`loadSummary` is well-scoped** — one artifact per run instead of four, reusing `fetchArtifact`'s shape-sniff so a prod static host reads as `missing` (skipped) rather than crashing. Four typed tests cover ok/missing/HTML-200/malformed.
+- **Committed-run gate is real.** I confirmed the asserted order `claude-haiku (0.24) → llama-3.1-8b (0.01) → gemma-3-4b (0.0) → gpt-oss-20b (0.0)` against the actual `summary.json` — including that the two 0.0 models resolve by id ascending. The gate also asserts the panel label `anthropic / claude-haiku-5-5` and the `/?run=` back-link, so "standings == that run's leaderboard" is verified, not assumed.
+- **Dep-prune sweep is clean.** Every one of the 7 runtime deps and 13 devDeps is still imported by kept source — no dead entry remains.
+- **Docs sweep is thorough.** `arch-critical.md`'s stale "seed port … not yet adapted" bullet is corrected in place within the HOT-tier cap; `arch.md`'s viewer section now describes all three routes plus `runIndex`/`aggregate`/`loadSummary`; `TUTORIAL.md` and `apps/viewer/README.md` describe standings; `package.json` description updated.
+- I agree with the builder's carry-forward on the `describe.skipIf` + `expect(present).toBe(true)` convention — it is identical in `realRun.test.ts`, `LeaderboardPage.test.tsx`, and `ExplorerPage.test.tsx`, and changing only the standings gate would make the gates inconsistent. That belongs in a MAINTAIN pass.
+
+### The one gap
+
+**Repo-root `README.md:25-26` still misdescribes the viewer** — the only doc in the tree that does:
+
+```
+- `apps/viewer/` — results/corpus browser SPA, seeded from multibench's
+  multibrowser; not yet adapted (see `apps/viewer/README.md`).
+```
+
+This is the exact stale claim the plan told you to fix, and you *did* fix its twin in `arch-critical.md` for precisely the stated reason ("would leave future agents with stale guidance"). Phase 5's deliverable is "Final docs sweep: confirm `README.md`/`TUTORIAL.md`/`arch.md` describe the finished app" — the root README is named there, it is the repo's front door, it is not in this PR's file list (so it was never touched), and Phase 5 is the last phase, so nothing downstream will catch it. One-line fix, e.g.:
+
+```
+- `apps/viewer/` — the benchmark viewer over local `runs/` (leaderboard +
+  error explorer + cross-run standings; see `apps/viewer/README.md`).
+```
+
+While you're there, line 22 says `texts/` is "gitignored pending licensing", which contradicts `arch-critical.md`'s current two-tier rule (public-domain raw sources **are** committed; only `restricted` payloads and `texts/standardized/` are ignored). That one is out of Spec 2's scope — flagging it for the architect, not asking you to fix it here.
+
+### Non-blocking notes (no action needed this phase)
+
+1. `aggregate` would throw on `models: { m: null }` (`Object.entries(null)`), surfacing via ErrorBoundary rather than the localized "could not be read" path. `parseSummary` only validates that `models` exists, so this is a pre-existing depth-of-validation limit shared with the leaderboard — not a phase-5 regression.
+2. Standings omits token totals. Requirement 6 asks only for per-task scores + source run id/date + link, so this is correct as specified.
+3. Ranking rows sourced from runs with different task coverage is inherently apples-to-oranges; the spec's Open Questions already flag the staleness-surfacing question as cosmetic, and the per-row "from run" column gives the reader what they need.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 5 standings is correct and well-tested — both iter-1 blockers genuinely fixed, suite/typecheck/build green, deps clean — but the repo-root README still calls the viewer an unadapted multibrowser seed, which the phase's own final-docs-sweep deliverable covers.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Root `README.md:25-26` still describes `apps/viewer/` as "seeded from multibench's multibrowser; not yet adapted" — the same stale claim corrected in `arch-critical.md`. In scope for Phase 5's final docs sweep; one-line fix; last phase, so nothing else will catch it.
+- (Flagged for the architect, out of Spec 2 scope) root `README.md:22` claims `texts/` is wholly gitignored, contradicting the committed-raw-sources two-tier rule in `arch-critical.md`.

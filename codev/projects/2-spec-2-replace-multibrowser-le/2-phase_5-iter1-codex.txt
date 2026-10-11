@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Current standings is implemented well overall, but run recency is inconsistent and failed summaries can silently produce stale standings.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `aggregate.ts:71-74` breaks equal-mtime ties using run ID descending, while the established run-index ordering uses ID ascending (`runIndex.ts:50-52`, `runsEndpoint.ts:58`). Thus the default leaderboard and standings can disagree about which tied run is “most recent.” Use the same tiebreaker and update the test.
+- `StandingsPage.tsx:29-39` silently drops missing or malformed summaries whenever any other run loads. This can present an older result as current without warning. Preserve partial rendering if desired, but surface which runs failed so the standings remain honest.

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   joinResults,
   loadRun,
+  loadSummary,
   parseJsonl,
   formatCell,
   type AnswerRow,
@@ -168,5 +169,39 @@ describe("localResults lib", () => {
     expect(rows[0]?.exact).toBeNull();
     expect(rows[0]?.normalized).toBeNull();
     expect(rows[0]?.token_f1).toBeNull();
+  });
+});
+
+describe("loadSummary (standings reads only summary.json)", () => {
+  it("parses a single summary.json without needing the other three artifacts", async () => {
+    const base = "/runs/x";
+    const res = await loadSummary(base, fakeFetcher({ [`${base}/summary.json`]: JSON.stringify(sampleSummary) }));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(Object.keys(res.summary.models).sort()).toEqual(["gemma-4", "haiku"]);
+  });
+
+  it("reports a missing summary.json as 'missing'", async () => {
+    const res = await loadSummary("/runs/gone", fakeFetcher({})); // 404
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.kind).toBe("missing");
+  });
+
+  it("treats a 200 HTML body (prod static host) as a missing artifact, not a crash", async () => {
+    const base = "/runs/prod";
+    const res = await loadSummary(base, fakeFetcher({ [`${base}/summary.json`]: "<!doctype html><html></html>" }));
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.kind).toBe("missing");
+  });
+
+  it("reports malformed summary JSON as 'malformed', localized to the file", async () => {
+    const base = "/runs/bad";
+    const res = await loadSummary(base, fakeFetcher({ [`${base}/summary.json`]: "{ not json" }));
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.kind).toBe("malformed");
+    expect(res.message).toContain(`${base}/summary.json`);
   });
 });

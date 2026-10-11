@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { CenteredSpinner } from "../components/Loading";
 import { LeaderboardTable } from "../components/LeaderboardTable";
-import { RunSelector, type RunRef } from "../components/RunSelector";
+import { RunSelector } from "../components/RunSelector";
+import { fetchRunIndex, type RunRef } from "../lib/runIndex";
 import { loadRun, type Summary } from "../lib/localResults";
 
 // The `/` home: the benchmark leaderboard over a selectable run.
@@ -25,40 +26,6 @@ type IndexState =
   | { status: "empty" }
   | { status: "failed"; message: string }
   | { status: "ready"; runs: RunRef[] };
-
-/** Fetch the run index, distinguishing empty (no runs) from a genuine fetch/parse failure.
- * A 200 HTML body (a production static host with no /runs endpoint serving the SPA shell)
- * is treated as "no runs" — the empty state, never a crash. */
-async function fetchRunIndex(
-  fetcher: typeof fetch,
-): Promise<{ ok: true; runs: RunRef[] } | { ok: false; message: string }> {
-  let res: Response;
-  try {
-    res = await fetcher("/runs/_index");
-  } catch (e) {
-    return { ok: false, message: `/runs/_index: ${(e as Error).message}` };
-  }
-  if (!res.ok) return { ok: false, message: `/runs/_index: HTTP ${res.status}` };
-  let text: string;
-  try {
-    text = await res.text();
-  } catch (e) {
-    return { ok: false, message: `/runs/_index: ${(e as Error).message}` };
-  }
-  // Prod static host: /runs/_index falls through to index.html (200 HTML) → no runs.
-  if (text.trimStart().startsWith("<")) return { ok: true, runs: [] };
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return { ok: false, message: "/runs/_index: run index is not valid JSON" };
-  }
-  if (!Array.isArray(data)) return { ok: false, message: "/runs/_index: run index is not a list" };
-  return {
-    ok: true,
-    runs: data.filter((e): e is RunRef => !!e && typeof (e as RunRef).id === "string"),
-  };
-}
 
 type RunState =
   | { status: "loading" }

@@ -1,0 +1,24 @@
+I'll review the Phase 3 implementation. Let me start by reading the key files.Now let me read the components and lib files.I've read all the Phase 3 implementation files and verified the suite myself. Summary of my verification:
+
+**Fixes from iteration 2 are landed and correct.** `formatCell` (`lib/localResults.ts:328-337`) now guards on `accuracy === null` (not `n === 0`) and returns `"n/a"` or `"n/a (miss N)"`, so the realistic `score.py` shape `{n:0, accuracy:null, expected_n, missing}` renders the spec-required `n/a` on both `_overall` and task cells. The bare `"miss N"` path is gone. Coverage asserts the real shape in both `lib/localResults.test.ts:70-73` and `LeaderboardTable.test.tsx:66-91` (including a negative assertion that no bare `"miss 10"` renders). The bad-default-run test now proves recovery by selecting the good run (`LeaderboardPage.test.tsx:104-120`).
+
+**Verified independently (not just reported):**
+- `pnpm -C apps/viewer test` → **10 files, 62 tests passed, 0 skipped** — the committed-run gate (10 tests in `LeaderboardPage.test.tsx`) did run, and `deploy.test.ts` (6 tests, incl. the `#86` probe) is green.
+- `pnpm -C apps/viewer check-types` → clean.
+- `src/routes/` and `src/components/` contain only `LeaderboardPage`, `RootLayout`, `NotFound`, `app.test`, `LeaderboardTable`, `RunSelector`, `ErrorBoundary`, `Loading` — `InterimHome`, `LocalResultsPage`, `LocalResults` are all deleted as the plan required.
+
+**Plan alignment:** every Phase-3 file item is present — `LeaderboardPage.tsx` (index fetch + `?run=` resolution + `live` stale guard), `LeaderboardTable.tsx` (task columns, overall, tokens, by-tradition), `RunSelector.tsx` (error shown, selector stays enabled), `lib/leaderboard.ts` (pure derivation on the `localResults` seam), `router.tsx` (`validateSearch` plain validator, no zod). The `/?run=<id>` bare-id contract is consistently documented in `README.md`, `TUTORIAL.md:119-124`, and `arch.md:77-90`, and the client's "most recent = `runs[0]`" assumption matches `listRuns`' mtime-desc/id-asc sort (`vite/runsEndpoint.ts:58`).
+
+**Non-blocking observations** (no action needed this phase):
+- The committed-run gate uses `describe.skipIf(!present)`. It executes today (I confirmed 10 tests ran), but if the fixture path ever broke, the gate would silently skip rather than fail. A `expect(present).toBe(true)` sentinel would make that loud. Minor.
+- `formatCell`'s partial-missing annotation `"50% (n=2) −1"` (U+2212) is cryptic without a legend — purely cosmetic, and Phase 4's explorer is where missing cells get real surface area.
+- `RunRef` still carries only `id`; the "most recent" default rides the server's sort order. Both prior reviewers agreed this is correct today and belongs in Phase 5 (which needs run dates anyway). Not re-raising.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 3 is complete and correct — the iter-2 null-accuracy fix is properly generalized to the real `score.py` cell shape with assertions on that shape, and I verified 62 tests, types, and the committed-run gate green myself.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None (blocking). Minor, optional: the committed-run gate can silently skip via `skipIf`; the `−N` partial-missing annotation lacks a legend; `RunRef.mtimeMs` widening remains deferred to Phase 5 by agreement.

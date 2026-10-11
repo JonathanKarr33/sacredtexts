@@ -306,6 +306,27 @@ export async function loadRun(base: string, fetcher: typeof fetch = fetch): Prom
   }
 }
 
+export type SummaryResult =
+  | { ok: true; summary: Summary }
+  | { ok: false; kind: "missing" | "http" | "malformed"; message: string };
+
+/**
+ * Load just a run's `summary.json` from a base path. The cross-run standings view needs
+ * only the per-model/panel rollup, not the per-question join, so it reads one artifact per
+ * run instead of all four. Reuses the same `fetchArtifact` shape-sniff guard as `loadRun`,
+ * so a production static host's 200-HTML answer for an unknown path reads as a clean
+ * "missing" (that run is skipped) rather than crashing.
+ */
+export async function loadSummary(base: string, fetcher: typeof fetch = fetch): Promise<SummaryResult> {
+  const s = await fetchArtifact(fetcher, `${base}/summary.json`);
+  if (!s.ok) return s;
+  try {
+    return { ok: true, summary: parseSummary(JSON.parse(s.text)) };
+  } catch (e) {
+    return { ok: false, kind: "malformed", message: `${base}/summary.json: ${(e as Error).message}` };
+  }
+}
+
 /** Tasks present across the summary's models, sorted, excluding the "_overall" key. */
 export function summaryTasks(summary: Summary): string[] {
   const tasks = new Set<string>();

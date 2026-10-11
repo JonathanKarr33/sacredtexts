@@ -526,3 +526,161 @@ explorer is fresh (cheap + in scope, no disputes):
 Verified: check-types clean; `pnpm build` green (CSS 421KB safelist); full suite 92 passed /
 0 skipped (was 89 — +3 for the folded tests). Committing fixes + both consult outputs,
 re-signalling.
+
+## 2026-10-11 — IMPLEMENT phase_5 start (cross-run standings)
+
+Re-entered fresh at plan-phase:phase_5 (final implement phase). Read state + plan §Phase 5 +
+the full thread. Design settled before coding:
+- `src/lib/aggregate.ts` (pure): `aggregate(runs:{runId,mtimeMs,summary}[])` → one row per
+  model keyed on panel `(provider\u0000model)`, latest by mtime (runId desc tiebreak);
+  panel-absent run falls back to bare `model_id` keying (graceful, documented limitation).
+  Rows ranked like the leaderboard (overall acc desc, null last, modelId asc) so standings
+  over ONE run == that run's leaderboard rows (acceptance criterion). `tasks` = sorted union.
+- `loadSummary(base,fetcher)` added to localResults.ts — summary-only loader reusing the
+  private `fetchArtifact` (same HTML-200 shape-sniff guard as loadRun); standings needs only
+  the per-model/panel rollup, not the 4-artifact join.
+- Extract the run-index fetch to `src/lib/runIndex.ts` (RunRef widened `{id, mtimeMs?}`;
+  defensive client sort mtime-desc/id-asc — the reviewers' phase_3/4 carry-forward). Both
+  LeaderboardPage and StandingsPage consume it (no copy-paste of the security-relevant
+  HTML-sniff guard). RunSelector.tsx imports RunRef from the lib now (correct layering).
+- StandingsPage.tsx: route `/standings`; fetch index → loadSummary every run → aggregate →
+  table (one row per model, per-task + overall cells, provider/model identity, source run
+  id + ISO date, link into `/?run=<id>`). Nav link in RootLayout + route in router.tsx.
+- Doc sweep: README/TUTORIAL/arch.md "coming in remaining phases" → finished app; correct
+  arch-critical.md's stale "multibrowser seed … not yet adapted" bullet IN PLACE; dep sweep.
+
+## 2026-10-11 — IMPLEMENT phase_5 done (cross-run standings + final doc/dep sweep)
+
+The final feature. What landed:
+- lib/aggregate.ts (pure): `aggregate(RunSummary[])` → {tasks, rows}. One row per model keyed
+  on panel `(provider\u0000model)`; most-recent wins (mtime desc, runId desc tiebreak);
+  panel-absent run falls back to bare model_id keying (documented graceful degradation). Rows
+  ranked EXACTLY like the leaderboard (overall acc desc, null last, modelId asc) so standings
+  over one run == that run's leaderboard rows. tasks = sorted union across selected rows.
+- lib/localResults.ts: added `loadSummary(base,fetcher)` (+ SummaryResult type) — summary-only
+  loader reusing the private fetchArtifact (HTML-200 shape-sniff guard shared with loadRun);
+  standings reads one artifact/run, not four.
+- lib/runIndex.ts (NEW): extracted fetchRunIndex out of LeaderboardPage; RunRef widened to
+  `{id, mtimeMs?}` and moved here (RunSelector imports it from here now). Defensive client sort
+  mtime-desc/id-asc — the reviewers' phase_3/4 carry-forward (both pages rely on runs[0]=most
+  recent; the HTML-sniff guard now lives in ONE place, not copy-pasted into standings).
+  LeaderboardPage.tsx dropped its local fetchRunIndex copy → imports the shared one.
+- routes/StandingsPage.tsx (NEW): route `/standings`; fetch index → loadSummary EVERY run in
+  parallel (a run with a missing/malformed summary is skipped, not fatal) → aggregate → table
+  (model + provider/model identity, per-task + overall cells, source run id + ISO date, both
+  the model cell and the from-run cell link into `/?run=<id>`). loading/empty/failed states.
+- router.tsx: registered the `/standings` route. RootLayout.tsx: added a "Standings" header nav
+  link (plan asked for exactly this). Deliberately did NOT add a "Leaderboard" nav link — its
+  text collides with the page's `<h1>Leaderboard</h1>` and broke two LeaderboardPage tests; the
+  brand link ("Sacred Texts Benchmark" → `/`) is the leaderboard home affordance.
+- Tests: lib/aggregate.test.ts (most-recent-per-key, older-only kept, renamed-id-same-panel
+  dedupe→1 row, panel-absent fallback, leaderboard-identical ranking, task union, mtime-tie
+  determinism); routes/StandingsPage.test.tsx (empty/index-failed states, two-run rollup with
+  link targets, missing-summary skip, + committed-run gate with `expect(present).toBe(true)`
+  sentinel: standings over the committed run == leaderboard order, panel identity shown, links
+  back to /?run=first-run-2026-10-11); loadSummary unit tests folded into localResults.test.ts
+  (ok / missing / HTML-200→missing / malformed-localized).
+- Doc sweep: README.md + TUTORIAL.md rewritten (leaderboard + explorer + standings, no "coming
+  in remaining phases"); arch.md top bullet + "Viewer local results" section updated (full route
+  tree incl. standings/explorer, loadSummary, runIndex.ts); arch-critical.md's stale "seed port
+  … not yet adapted" HOT bullet corrected IN PLACE (within the cap — edited the one bullet).
+- Dep sweep: every runtime dep confirmed used (@heroui/react→Loading, @heroui/styles→styles.css,
+  hono+@hono/node-server→server/index.mjs, @tanstack/react-router everywhere,
+  @testing-library/user-event→3 test files — KEPT, load-bearing). No dead dep; phase_2's prune
+  (markdown/js-yaml/zod/react-query/tailwind-merge/lucide-react) holds.
+
+VERIFIED: check-types clean; `pnpm build` green (CSS 421KB safelist, JS 343KB); full suite
+**109 passed / 0 skipped** (was 92 — +17 for aggregate/standings/loadSummary coverage); the
+per-builder dispatcher `.codev/checks/test.sh` → apps/viewer vitest green; all FOUR committed-run
+gates (realRun loader, LeaderboardPage, ExplorerPage, StandingsPage) RAN, not skipped.
+
+This is the FINAL implement phase. After porch commits phase_5 (3-way consult), the next step is
+to open the single PR (all phase commits), record with `porch done 2 --pr <N> --branch
+builder/aspir-2`, and notify the architect; the `pr` gate is human-approved (never auto-approve).
+
+Next: `porch done 2` for the phase_5 3-way impl consult.
+
+## 2026-10-11 — IMPLEMENT phase_5 consult iter1 (codex RC / claude APPROVE, both HIGH) + fixes
+
+2-way impl consult. claude APPROVE HIGH (ran suite/types/build itself; confirmed the panel-keyed
+rollup, newest-wins, fallbacks, docs sweep; 8 non-blocking nits). codex REQUEST_CHANGES HIGH on 2
+real items. Folded ALL legitimate findings in one revision (no disputes):
+- **codex #1 (blocking): aggregate equal-mtime tiebreak was id-DESC, but the run index sorts
+  mtime-desc/id-ASC** (runIndex.ts, runsEndpoint.ts) → leaderboard-default and standings could
+  disagree on which tied run is "most recent". Fixed: tiebreak → id ASC (smaller id = newer,
+  matching the index). Updated the tie test (run-a wins now) + the doc comment.
+- **codex #2 + claude #6 (blocking/nit): StandingsPage silently dropped failed summaries** → a
+  dropped newer run could present an older result as "current". Fixed: loadAllRunSummaries now
+  returns `failed: string[]`; a non-fatal `role=status` notice names the omitted runs ("N runs
+  could not be read and are omitted — standings may be out of date: …"). Partial render kept.
+  Extended the missing-summary test to assert the notice names the dropped run.
+- claude #2: Standings nav link untested → added an app.test.tsx case (link present, href
+  `/standings`).
+- claude #3: the new defensive mtime sort in runIndex.ts was unexercised (all fixtures already
+  newest-first) → added `src/lib/runIndex.test.ts` feeding an OUT-OF-ORDER index (+ equal-mtime
+  id tiebreak, HTML-200→empty, non-200→fail, non-array→malformed, id/mtime filtering).
+- claude #4: `runDate` labeled dir mtime as the run's date → relabeled "indexed <date>" (and
+  "date unknown" when mtime is 0); dropped runDate's now-dead 0-guard (caller guards).
+- claude #5: package.json description omitted standings → updated.
+- claude #8: two imports from localResults in StandingsPage → merged.
+- NOT changed (carry-forwards): claude #1 (phase_5 uncommitted — porch commits the phase on
+  advance, expected); claude #7 (`expect(present).toBe(true)` inside `describe.skipIf(!present)`
+  is unreachable-when-skipped — same pattern in ALL committed-run gates incl. realRun/
+  LeaderboardPage/ExplorerPage; a cross-cutting MAINTAIN fix, not a phase_5 change).
+
+VERIFIED after fixes: check-types clean; `pnpm build` green; full suite **115 passed / 0 skipped**
+(16 files; was 109 — +5 runIndex.test.ts, +1 nav-link test; aggregate/standings tests updated not
+net-added). Committing fixes + both consult outputs + rebuttal, re-signalling for the iter2 re-check.
+
+## 2026-10-11 — IMPLEMENT phase_5 consult iter2 (codex APPROVE / claude RC, both HIGH) + fix
+
+2-way re-consult with the rebuttal as context. codex APPROVE HIGH, no issues — confirmed both
+iter-1 blockers genuinely fixed (tiebreak now id-asc matching the index; omitted-runs notice).
+claude REQUEST_CHANGES HIGH on ONE legitimate item I'd missed, plus agreement on everything else
+(verified the committed-run order against the real summary.json itself; dep sweep clean; accepted
+the skipIf carry-forward reasoning):
+- **BLOCKING (fixed): repo-root `README.md:25-26` still called `apps/viewer/` "seeded from
+  multibench's multibrowser; not yet adapted".** I'd fixed the apps/viewer/README + arch.md +
+  arch-critical.md twins but missed the REPO-ROOT README — and phase_5's deliverable explicitly
+  names README.md in the final docs sweep; it's the repo front door; last phase, nothing
+  downstream catches it. Fixed in place → "the benchmark viewer over local runs/ (leaderboard +
+  error explorer + cross-run standings)".
+- **FLAGGED FOR ARCHITECT, not fixed (claude agrees out of Spec 2 scope): root `README.md:22`**
+  says `texts/` is "gitignored pending licensing", which contradicts arch-critical.md's committed-
+  raw-sources two-tier rule (public-domain raw IS committed; only `restricted` + `texts/standardized/`
+  are ignored). Unrelated to the viewer → scope discipline says don't touch it in phase_5; raising
+  it with the architect instead.
+- claude non-blocking (no action, claude concurs): aggregate would throw on `models:{m:null}`
+  (pre-existing parseSummary validation-depth limit shared with the leaderboard, not a phase_5
+  regression); standings omits token totals (req 6 asks only per-task + source run + link);
+  cross-coverage ranking is inherently apples-to-oranges (per-row "from run" gives the reader context).
+
+VERIFIED after the one-line doc fix: suite still 115 passed / 0 skipped (docs-only change). Writing
+the iter2 rebuttal, re-signalling for the iter3 re-check.
+
+## 2026-10-11 — phase_5 APPROVED (codex + claude iter3, both HIGH)
+
+Both APPROVE HIGH, no blocking issues. codex: none. claude: verified 115 tests / types green on
+its own run; confirmed panel-keyed newest-wins rollup, index-consistent tiebreak, the partial-load
+notice, nav/route, and the corrected docs sweep (incl. the repo-root README fix). The iter2 blocker
+(root README) is resolved.
+
+Non-blocking carry-forwards (NOT changed post-approval — capture in the REVIEW doc / future MAINTAIN;
+I did not touch the approved tree):
+- claude nit (maintainability): `aggregate` re-implements `rankedModels`' comparator (`?? -1` null-
+  last, id asc). They agree today — the committed-run gate pins standings==leaderboard order for the
+  REAL run — but a shared `compareByOverall(a,b)` used by both would make the invariant structural
+  for all runs. Worth doing in the Review/MAINTAIN pass.
+- claude nit (coverage): panel-absent double-row degradation is asserted only for a single panel-less
+  run; a two-run fixture (one with panel, one without, same model) would pin the intended two-row
+  behavior.
+- claude suggestion (OUT of req 6): pointing the standings model-name link at the explorer
+  (`/run/$runId/model/$modelId`) instead of `/?run=<id>` would make it one-click into the explorer;
+  req 6 only asks for a link to the run, so current behavior is as specified.
+- claude carry-forward (agreed): the `expect(present).toBe(true)`-inside-`skipIf` convention — defer
+  to a cross-cutting MAINTAIN pass across ALL committed-run gates, not a one-gate change.
+
+Letting porch commit phase_5 and advance. phase_5 is the FINAL implement plan-phase → next is the
+single PR (all phase commits), `porch done 2 --pr <N> --branch builder/aspir-2`, notify architect;
+the `pr` gate is human-approved (NEVER auto-approve). Also flag the architect: root README.md:22
+`texts/` gitignore wording contradicts the two-tier rule (out of Spec 2 scope).

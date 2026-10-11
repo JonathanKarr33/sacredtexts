@@ -26,6 +26,13 @@ describe("app shell", () => {
     expect(screen.queryByRole("link", { name: /^Results$/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /^Review$/ })).toBeNull();
   });
+
+  it("exposes the Standings nav link to the cross-run view", async () => {
+    vi.stubGlobal("fetch", constFetcher("[]"));
+    renderApp("/");
+    const link = await screen.findByRole("link", { name: "Standings" });
+    expect(link.getAttribute("href")).toBe("/standings");
+  });
 });
 
 describe("ErrorBoundary", () => {

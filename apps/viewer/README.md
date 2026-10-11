@@ -1,9 +1,9 @@
 # Sacred Texts Benchmark viewer
 
-A local-only single-page app for exploring a benchmark run: a leaderboard of which models
-were tested and how they scored per task and per tradition, and (coming in the remaining
-Spec 2 feature phases) a drill-in error explorer and a cross-run standings view. It reads
-a run's artifacts directly — no GitHub data layer, no backend API.
+A local-only single-page app for exploring benchmark runs: a leaderboard of which models
+were tested and how they scored per task and per tradition, a drill-in error explorer for
+any model's per-question failures, and a cross-run "current standings" view. It reads a
+run's artifacts directly — no GitHub data layer, no backend API.
 
 ## What it reads
 
@@ -17,9 +17,10 @@ A run lives in `runs/<id>/` and the viewer loads four artifacts
 - `questions.jsonl` — the authoritative question roster, so a model's **un-answered**
   questions show as missing cells.
 
-`src/lib/localResults.ts` (`loadRun`) fetches and joins these; `src/lib/leaderboard.ts`
-derives the ranking/columns/token totals; `src/routes/LeaderboardPage.tsx` +
-`src/components/LeaderboardTable.tsx` render the leaderboard.
+`src/lib/localResults.ts` fetches and joins these (`loadRun` for a full run,
+`loadSummary` for just the per-model rollup the standings view needs); `src/lib/leaderboard.ts`
+derives the leaderboard ranking/columns/token totals, `src/lib/explorer.ts` the per-question
+classification and filters, and `src/lib/aggregate.ts` the cross-run standings rollup.
 
 ## Running it
 
@@ -34,6 +35,16 @@ pnpm -C apps/viewer dev          # then open the printed URL
   id (`/?run=<id>`), so a view is shareable and survives refresh. If `runs/` is empty you
   get an informative empty state; if a selected run can't be loaded you get a localized
   error while the selector and other runs stay usable.
+- Clicking a model (or a task / tradition cell) opens the **error explorer**
+  (`/run/$runId/model/$modelId`): every question for that model with pass / fail / missing
+  status, and for each one the prompt, the expected text, the model's answer, and the
+  per-metric scores (exact / normalized / token-F1) side by side. Filter by task, tradition,
+  correct/incorrect, and failure mode (missing cell vs wrong answer); the filters live in the
+  URL (`?task=&tradition=&correct=&mode=`).
+- **Standings** (`/standings`, linked in the header) is the cross-run view: one row per
+  model showing its **most recent** result across all runs, keyed on the run panel's
+  `(provider, model)` identity (so a model renamed between runs still dedupes to one row),
+  with the source run's id and date linking back into that run's leaderboard.
 - The dev server exposes the repo's (gitignored) `runs/` at `/runs/` via a dev-only Vite
   middleware (`serveRuns` in `vite.config.ts`, logic in `vite/runsEndpoint.ts`), including
   a `/runs/_index` run index. Symlinked run directories are intentionally omitted from the
@@ -44,17 +55,19 @@ pnpm -C apps/viewer dev          # then open the printed URL
   never crashes.
 
 The committed sample run `runs/first-run-2026-10-11/` renders out of the box when it is
-the only run present; `src/local/realRun.test.ts` pins it through `loadRun`, and
-`src/routes/LeaderboardPage.test.tsx` renders it through the leaderboard, in the test gate
-so the committed evidence can't drift out of the viewer's schema.
+the only run present; `src/local/realRun.test.ts` pins it through `loadRun`,
+`src/routes/LeaderboardPage.test.tsx` renders it through the leaderboard,
+`src/routes/ExplorerPage.test.tsx` drills into it, and
+`src/routes/StandingsPage.test.tsx` rolls it up as standings — all in the test gate, so the
+committed evidence can't drift out of the viewer's schema.
 
 ## Status
 
 The multibrowser surface this app was seeded from (`/t/...` traditions, the
 GitHub-data-layer `/results`/`/raw` views, the `/review*` flows, and their components and
-data layer) has been **removed**. The **leaderboard home + run selector** are in place; the
-**error explorer** (drill into a model's per-question failures) and the **cross-run
-standings** view land in the remaining Spec 2 feature phases.
+data layer) has been **removed**. The viewer is the three Spec 2 surfaces over local
+`runs/`: the **leaderboard home + run selector**, the **error explorer**, and the
+**cross-run standings** view.
 
 ## Provenance
 
