@@ -194,3 +194,40 @@ Verified: check-types clean; full suite 427 passed / 9 skipped. Committing fixes
   resolveRunFile containment is intentional unreachable backstop; parseSummary
   by_tradition→{} → P3 omit on emptiness.
 Verified: check-types clean; endpoint suite 10 tests; LocalResults 11; gate 1 — green.
+
+## 2026-10-11 — phase_1 APPROVED (codex+claude iter3), entering phase_2 (PURGE)
+
+phase_1 committed by porch. Both reviewers APPROVE on iter3. Context-refresh boundary at
+plan-phase:phase_2 — refreshing now.
+
+### State for a fresh context
+- Protocol: ASPIR strict, project 2. `porch next 2` drives. Plan: codev/plans/2-*.md
+  (5 phases, seam→purge→views). Spec: codev/specs/2-*.md.
+- DONE: phase_1 (run-data seam + run-index endpoint). Key files:
+  src/lib/localResults.ts (typed LoadResult, metrics/usage/panel/roster, shape-sniff),
+  vite/runsEndpoint.ts (+ test; listRuns/resolveRunFile/createRunsHandler, no-symlink),
+  src/local/sample.ts (sampleQuestionsJsonl + sampleQuestionsWithMissingJsonl).
+- NEXT: phase_2 = purge multibrowser to a clean shell. Plan has the exact delete/modify
+  list. Critical reminders from reviews:
+  * MUST edit src/main.tsx (rewrite → StrictMode>ErrorBoundary>RouterProvider; drops
+    PersistQueryClient/queryClient/RAW_PERSIST_EXCLUDED) + src/test/renderApp.tsx (strip
+    QueryClientProvider) or build breaks + react-query prune blocked.
+  * Add InterimHome.tsx that default-loads most-recent run via the Phase-1 /runs/_index
+    endpoint (NOT the sample) so `/` shows real content; LocalResultsPage shows sample
+    only on no-?run=.
+  * #86 CSS probe: add @source inline(...) safelist in styles.css covering the shim ramp
+    + pin probe to safelisted shades (probe self-seeds today from deploy.test.ts literals
+    — fragile). noInvisibleText.test.ts stays.
+  * deploy.test.ts: drop tradition-baking/raw-tier/api-proxy/`/t/` smoke; keep SPA
+    fallback + #86 probe; add static-host returns index.html/200 for /runs/_index; split
+    empty-state into (a) server-response check + (b) jsdom render-with-HTML-200 test.
+  * Delete Markdown + prune react-markdown/remark-gfm/remark-breaks/rehype-sanitize/
+    @tailwindcss/typography (no new view renders markdown); keep Loading. Prune js-yaml/
+    @types/js-yaml/zod/@tanstack/react-query(+2 persisters). Keep hono (rewrite
+    server/index.mjs static+SPA-fallback, drop /api proxy; delete bake-and-deploy.sh).
+    Regenerate pnpm-lock.yaml.
+  * README note: in-root symlinked run dirs are intentionally omitted from the index.
+  * zod stays pruned — explorer (phase_4) uses a plain validateSearch fn.
+- Dev env: node_modules installed in worktree (pnpm install done). Tests: pnpm -C
+  apps/viewer test / check-types; porch check runs .codev/checks/test.sh (diffs vs
+  origin/main — commit before it detects changes).
