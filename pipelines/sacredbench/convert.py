@@ -72,6 +72,20 @@ def _split_camel_book(name: str) -> str:
     return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name)
 
 
+def _require_unique_citations(entries: list[Entry], where: str) -> None:
+    """Every citation in a document must identify exactly one unit (benchmark
+    ground-truth needs this). Fail-fast on a duplicate, naming the file+citation."""
+    seen: set[str] = set()
+    for e in entries:
+        if e.citation in seen:
+            raise ConvertError(f"{where}: duplicate citation {e.citation!r} (citations must be unique)")
+        seen.add(e.citation)
+
+
+#: LDS files carry these scalar top-level keys alongside the scripture books.
+_LDS_METADATA_KEYS = {"last_modified", "version"}
+
+
 # --- Protestant flat-list Bibles (bible_flat) --------------------------------
 
 
@@ -94,6 +108,7 @@ def convert_bible_flat(paths: list[Path], target: "Target") -> list[Document]:
             entries.append(Entry(unit_type="verse", citation=f"{book} {chapter}:{verse}", text=text.strip()))
         if not entries:
             raise ConvertError(f"{path}: produced no entries")
+        _require_unique_citations(entries, str(path))
         docs.append(_doc(target, entries))
     return docs
 
@@ -101,24 +116,32 @@ def convert_bible_flat(paths: list[Path], target: "Target") -> list[Document]:
 # --- LDS nested scriptures (lds_nested) --------------------------------------
 
 
-def _lds_entries(data: dict, path: Path) -> list[Entry]:
+def _lds_entries(data: dict, target: "Target", path: Path) -> list[Entry]:
     entries: list[Entry] = []
     for book_name, book_val in data.items():
+        if book_name in _LDS_METADATA_KEYS:
+            continue  # known scalar metadata (last_modified, version)
         if not isinstance(book_val, dict):
-            continue  # top-level metadata (Pearl: last_modified, version)
+            raise ConvertError(f"{path}: unexpected non-object top-level key {book_name!r}")
+        # 'heading' is an editorial summary (book- AND chapter-level), never scripture.
         items = [(k, v) for k, v in book_val.items() if k != "heading"]
         if not items:
             continue
         if all(isinstance(v, str) for _, v in items):
-            # 2-level: this top key is itself a section -> {verse: text} (D&C)
+            # 2-level: this top key is itself a section -> {verse: text} (D&C). Prefix
+            # the work so the citation is self-identifying (e.g. not a bare "1:1").
             for verse, text in items:
                 if not text.strip():
                     continue
-                entries.append(Entry(unit_type="verse", citation=f"{book_name}:{verse}", text=text.strip()))
+                entries.append(
+                    Entry(unit_type="verse", citation=f"{target.work} {book_name}:{verse}", text=text.strip())
+                )
         elif all(isinstance(v, dict) for _, v in items):
             # 3-level: book -> chapter -> {verse: text}
             for chapter, verses in items:
                 for verse, text in verses.items():
+                    if verse == "heading":
+                        continue  # chapter-level editorial summary, not a verse
                     if not isinstance(text, str):
                         raise ConvertError(f"{path}: {book_name} {chapter}:{verse} is not text")
                     if not text.strip():
@@ -140,9 +163,10 @@ def convert_lds_nested(paths: list[Path], target: "Target") -> list[Document]:
         data = _load_json(path)
         if not isinstance(data, dict):
             raise ConvertError(f"{path}: expected a nested object (lds_nested)")
-        entries = _lds_entries(data, path)
+        entries = _lds_entries(data, target, path)
         if not entries:
             raise ConvertError(f"{path}: produced no entries")
+        _require_unique_citations(entries, str(path))
         docs.append(_doc(target, entries))
     return docs
 
@@ -158,22 +182,28 @@ def convert_encyclicals(paths: list[Path], target: "Target") -> list[Document]:
     docs: list[Document] = []
     for path in files:
         data = _load_json(path)
+        if not isinstance(data, dict):
+            raise ConvertError(f"{path}: top level must be an object (encyclicals format)")
         title, paragraphs = data.get("title"), data.get("paragraphs")
         if not isinstance(title, str) or not isinstance(paragraphs, list):
             raise ConvertError(f"{path}: expected {{title, paragraphs}} (encyclicals format)")
         pope, date = data.get("pope", ""), data.get("publicationDate", "")
         entries: list[Entry] = []
+        # The source `paragraph` field is unreliable — null in thousands of
+        # paragraphs and duplicated across others — so cite by stable 1-based
+        # position in the document, which is unique by construction.
         for i, para in enumerate(paragraphs, start=1):
+            if not isinstance(para, dict):
+                raise ConvertError(f"{path}: paragraphs[{i - 1}] is not an object")
             text = para.get("text")
             if not isinstance(text, str):
                 raise ConvertError(f"{path}: paragraphs[{i - 1}] has no text")
             if not text.strip():
                 continue
-            num = para.get("paragraph")
-            label = str(num) if num is not None else str(i)
-            entries.append(Entry(unit_type="paragraph", citation=f"{title}, para. {label}", text=text.strip()))
+            entries.append(Entry(unit_type="paragraph", citation=f"{title}, para. {i}", text=text.strip()))
         if not entries:
             raise ConvertError(f"{path}: encyclical has no non-empty paragraphs")
+        _require_unique_citations(entries, str(path))
         docs.append(
             Document(
                 tradition=list(target.tradition),
@@ -196,15 +226,21 @@ def convert_nabre(paths: list[Path], target: "Target") -> list[Document]:
     entries: list[Entry] = []
     for path in paths:
         data = _load_json(path)
+        if not isinstance(data, dict):
+            raise ConvertError(f"{path}: top level must be an object (nabre format)")
         book, chapters = data.get("book"), data.get("chapters")
         if not isinstance(book, str) or not isinstance(chapters, list):
             raise ConvertError(f"{path}: expected {{book, chapters}} (nabre format)")
         book_name = _split_camel_book(book)
         for ch in chapters:
+            if not isinstance(ch, dict):
+                raise ConvertError(f"{path}: {book} has a non-object chapter entry")
             ch_num, verses = ch.get("chapter"), ch.get("verses")
             if not isinstance(ch_num, int) or not isinstance(verses, list):
                 raise ConvertError(f"{path}: chapter entry missing 'chapter'/'verses'")
             for v in verses:
+                if not isinstance(v, dict):
+                    raise ConvertError(f"{path}: {book} {ch_num} has a non-object verse entry")
                 v_num, text = v.get("verse"), v.get("text")
                 if not isinstance(v_num, int) or not isinstance(text, str):
                     raise ConvertError(f"{path}: {book} {ch_num} has a malformed verse")
@@ -213,6 +249,7 @@ def convert_nabre(paths: list[Path], target: "Target") -> list[Document]:
                 entries.append(Entry(unit_type="verse", citation=f"{book_name} {ch_num}:{v_num}", text=text.strip()))
     if not entries:
         raise ConvertError("nabre conversion produced no entries")
+    _require_unique_citations(entries, str(paths[0]) if paths else "nabre")
     return [_doc(target, entries)]
 
 

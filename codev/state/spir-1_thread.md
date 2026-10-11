@@ -268,3 +268,32 @@ SPIR, strict mode (porch-driven).
   tests in test_catalogue.py for catalogue-driven convert (writes standardized;
   restricted excluded by default, included with flag). 60 passed. README convert
   examples updated to the catalogue-driven form.
+
+### Phase 2 — iter 1 impl consult (BOTH REQUEST_CHANGES / HIGH)
+
+- Both verified against the real corpora; convergent, genuine validity defects.
+  Accepted all. 69 tests pass after fixes.
+- **lds_nested emitted 15 editorial chapter headings as verses** (claude): BoM
+  chapters have a chapter-level "heading" key (editorial summary). I stripped only
+  book-level. Count was 6619 = canonical 6604 + 15. Fixed: skip "heading" in the
+  3-level branch; test asserts 6604 + no :heading citations.
+- **encyclicals duplicate citations** (both): 3023 null paragraph numbers + the
+  str(i) fallback collided; data check showed 50/201 files even have duplicate
+  NON-null numbers. Fixed: cite by stable 1-based document position (unique by
+  construction). Added the real-data encyclicals test the plan required (201 docs /
+  10925 entries, per-doc uniqueness, validate).
+- **D&C citation omitted the work** (claude): bare "1:1" → now
+  "Doctrine and Covenants 1:1" (self-identifying; generate uses citation verbatim).
+- **AttributeError instead of ConvertError** (codex, claude): added isinstance
+  guards (data/para/chapter/verse) to encyclicals+nabre; tests feed list/scalar
+  top-level and assert the file is named.
+- **_lds_entries silently dropped non-dict top-level** (codex): now skip only
+  {last_modified, version} (verified the only scalars across all 5 files); any
+  other non-object top-level key → ConvertError. Test covers it.
+- Added _require_unique_citations post-condition to ALL converters (claude's
+  suggestion; guards the Phase 3 Talmud daf hazard). Test covers a forced dup.
+- Deferred (claude minor, "not urgent"): cli.convert filename heuristic
+  len(docs)==len(paths) — a converters-return-(stem,doc) refactor is cleaner; defer
+  to avoid re-churning signatures. PRESERVE: LDS-KJV distinct version label (claude
+  re-verified 2168 diffs) — do not merge back.
+- Wrote 1-phase_2-iter1-rebuttals.md. Committing + re-consulting (iter 2).

@@ -104,19 +104,22 @@ def test_convert_encyclicals(tmp_path):
 # --- bible_flat (real committed data + malformed) ----------------------------
 
 
-def test_convert_bible_flat_real_kjv():
+@pytest.mark.parametrize("version, count", [("KJV", 31102), ("ASV (1901)", 31102), ("WEB", 31098)])
+def test_convert_bible_flat_real_three_versions(version, count):
+    """All three real Protestant Bibles convert to validate-passing docs of 'The Bible'."""
+    t = _real_target("Protestant Christian", version=version)
+    [doc] = convert_target(t.payload_paths(RAW), t)
+    assert doc.work == "The Bible" and doc.version == version and doc.document_type == "scripture"
+    assert len(doc.entries) == count
+    assert doc.entries[0].citation == "Genesis 1:1" and doc.entries[0].unit_type == "verse"
+    assert doc.entries[-1].citation == "Revelation 22:21"
+    parse_document(doc.to_json_dict())  # validate-passing
+
+
+def test_convert_bible_flat_real_kjv_exact_text():
     t = _real_target("Protestant Christian", version="KJV")
     [doc] = convert_target(t.payload_paths(RAW), t)
-    assert doc.work == "The Bible" and doc.version == "KJV" and doc.document_type == "scripture"
-    assert len(doc.entries) == 31102
-    assert doc.entries[0].citation == "Genesis 1:1"
-    assert doc.entries[0].unit_type == "verse"
     assert doc.entries[0].text == "In the beginning God created the heaven and the earth."
-    assert doc.entries[-1].citation == "Revelation 22:21"
-    # KJV/ASV/WEB are three distinct versions of one work
-    assert {_real_target("Protestant Christian", version=v).version for v in ("KJV", "ASV (1901)", "WEB")} == {
-        "KJV", "ASV (1901)", "WEB",
-    }
 
 
 def test_convert_bible_flat_rejects_wrong_shape(tmp_path):
@@ -126,22 +129,38 @@ def test_convert_bible_flat_rejects_wrong_shape(tmp_path):
         convert_bible_flat([p], _target(converter="bible_flat"))
 
 
+def test_convert_encyclicals_real():
+    """Phase 2 requires confirming encyclicals against the committed source."""
+    t = _real_target("Roman Catholic", converter="encyclicals")
+    docs = convert_target(t.payload_paths(RAW), t)
+    assert len(docs) == 201
+    assert sum(len(d.entries) for d in docs) == 10925
+    for d in docs:
+        assert all(e.unit_type == "paragraph" for e in d.entries)
+        cites = [e.citation for e in d.entries]
+        assert len(cites) == len(set(cites))  # unique within each document (no null/collision dups)
+        parse_document(d.to_json_dict())  # validate-passing
+
+
 # --- lds_nested (real committed data: 3-level, 2-level, metadata skip) --------
 
 
 def test_convert_lds_nested_three_level_book_of_mormon():
     t = _real_target("The Church of Jesus Christ of Latter-Day Saints", work="Book of Mormon")
     [doc] = convert_target(t.payload_paths(RAW), t)
-    assert len(doc.entries) == 6619
+    assert len(doc.entries) == 6604  # canonical verse count; editorial chapter headings excluded
     assert doc.entries[0].citation == "1 Nephi 1:1"  # book chapter:verse
     assert doc.entries[-1].citation == "Moroni 10:34"
+    # chapter-level 'heading' editorial summaries are NOT emitted as verses
+    assert not any(":heading" in e.citation or e.citation.endswith("heading") for e in doc.entries)
 
 
 def test_convert_lds_nested_two_level_doctrine_and_covenants():
     t = _real_target("The Church of Jesus Christ of Latter-Day Saints", work="Doctrine and Covenants")
     [doc] = convert_target(t.payload_paths(RAW), t)
     assert len(doc.entries) == 3654
-    assert doc.entries[0].citation == "1:1"  # section:verse (no chapter level)
+    # 2-level citation is self-identifying (includes the work), not a bare "1:1"
+    assert doc.entries[0].citation == "Doctrine and Covenants 1:1"
 
 
 def test_convert_lds_nested_skips_metadata_keys():
@@ -176,3 +195,44 @@ def test_convert_target_empty_paths_fails():
     with pytest.raises(ConvertError) as e:
         convert_target([], _target(converter="bible_flat"))
     assert "no payload files" in str(e.value)
+
+
+# --- fail-fast / post-conditions ---------------------------------------------
+
+
+def test_duplicate_citations_rejected(tmp_path):
+    # two flat records that would yield the same citation
+    p = tmp_path / "dup.json"
+    p.write_text(json.dumps([
+        {"book": "Genesis", "chapter": 1, "verse": 1, "text": "a"},
+        {"book": "Genesis", "chapter": 1, "verse": 1, "text": "b"},
+    ]))
+    with pytest.raises(ConvertError) as e:
+        convert_bible_flat([p], _target(converter="bible_flat"))
+    assert "duplicate citation" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "fn_name, payload",
+    [
+        ("encyclicals", ["a list, not an object"]),
+        ("nabre", ["a list, not an object"]),
+        ("lds_nested", "a string, not an object"),
+    ],
+)
+def test_converters_fail_fast_naming_file_on_bad_top_level(tmp_path, fn_name, payload):
+    """A wrong top-level JSON type raises ConvertError naming the file, not AttributeError."""
+    fn = {"encyclicals": convert_encyclicals, "nabre": convert_nabre, "lds_nested": convert_lds_nested}[fn_name]
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps(payload))
+    with pytest.raises(ConvertError) as e:
+        fn([p], _target(converter=fn_name))
+    assert "bad.json" in str(e.value)
+
+
+def test_lds_nested_rejects_unexpected_scalar_book(tmp_path):
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps({"Mystery": "scalar instead of a book object"}))
+    with pytest.raises(ConvertError) as e:
+        convert_lds_nested([p], _target(converter="lds_nested"))
+    assert "non-object top-level key" in str(e.value)

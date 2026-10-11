@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core English conversions work, but Phase 2’s fail-fast and real-source test requirements are incomplete.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `convert_encyclicals` and `convert_nabre` assume nested values are dictionaries before calling `.get()` (`convert.py:161–167`, `199–208`). Malformed top-level, paragraph, chapter, or verse values therefore raise `AttributeError` rather than the required file-naming `ConvertError`.
+- `_lds_entries` silently skips every non-dictionary top-level value (`convert.py:106–108`), rather than only the known `last_modified` and `version` metadata. A malformed or unexpectedly scalar book can be dropped while conversion still succeeds, contrary to the fail-fast requirement.
+- The encyclical test uses only a synthetic fixture (`test_schema_convert.py:94–101`). Phase 2 explicitly requires confirming this converter against the real committed encyclical source. Add a real-data assertion covering entry count/sample citation/exact text and standardized-format validation. The KJV test likewise does not actually convert ASV or WEB despite claiming all three versions are covered.
