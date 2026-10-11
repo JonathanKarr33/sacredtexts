@@ -4,9 +4,12 @@ import { formatMetric } from "../lib/explorer";
 // The per-question list for one model under the error explorer. Presentational: it takes
 // the (already filtered) QuestionResult[] and renders each question with its pass/fail
 // state. A missing cell (the model produced no answer) is marked distinctly from a wrong
-// answer; every answered question shows its prompt, expected text, the model's actual
-// answer, and the per-metric similarity scores (exact / normalized / token-F1) side by
-// side — "n/a" where the task emits no such metric.
+// answer, but every question — missing or answered — shows the four things the spec lists
+// side by side for each failing row: the prompt, the expected text, the model's actual
+// answer, and the per-metric similarity scores (exact / normalized / token-F1). A metric
+// reads "n/a" where the task emits none; a missing cell's metrics are all "n/a" (no answer
+// was scored), so the row keeps a uniform shape while the "missing" badge + "no answer
+// produced" marker make its nature unambiguous.
 
 function StatusBadge({ r }: { r: QuestionResult }) {
   if (r.correct) {
@@ -75,13 +78,14 @@ export function QuestionList({ results }: { results: QuestionResult[] }) {
             )}
           </dl>
 
-          {!r.missing && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Metric label="exact" value={r.exact} />
-              <Metric label="normalized" value={r.normalized} />
-              <Metric label="token-F1" value={r.token_f1} />
-            </div>
-          )}
+          {/* Per-metric scores show for every failing row (spec AC6). A missing cell has no
+              scored answer, so all three read "n/a" (formatMetric(null)); the badge and the
+              "no answer produced" marker above distinguish it from a low-scoring answer. */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Metric label="exact" value={r.exact} />
+            <Metric label="normalized" value={r.normalized} />
+            <Metric label="token-F1" value={r.token_f1} />
+          </div>
         </li>
       ))}
     </ul>

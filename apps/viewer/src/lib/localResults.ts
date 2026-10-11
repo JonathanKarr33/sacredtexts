@@ -93,13 +93,46 @@ export interface QuestionResult {
   token_f1: number | null;
 }
 
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
 export function parseSummary(obj: unknown): Summary {
-  if (!obj || typeof obj !== "object" || !("models" in obj)) {
+  if (!isRecord(obj) || !("models" in obj)) {
     throw new Error("summary.json: missing 'models'");
   }
-  const s = obj as Summary;
+  // Validate the nested shape the render path dereferences, so a structurally-malformed
+  // summary (e.g. {"models":{"m":null}}) returns a typed "malformed" LoadResult rather than
+  // throwing a TypeError deep in rankedModels/summaryTasks/leaderboardRows at render time.
+  const { models, by_tradition, usage, panel } = obj as Record<string, unknown>;
+  if (!isRecord(models)) {
+    throw new Error("summary.json: 'models' is not an object");
+  }
+  for (const [id, cells] of Object.entries(models)) {
+    if (!isRecord(cells)) throw new Error(`summary.json: models['${id}'] is not an object`);
+  }
+  if (by_tradition !== undefined && by_tradition !== null) {
+    if (!isRecord(by_tradition)) throw new Error("summary.json: 'by_tradition' is not an object");
+    for (const [id, perTrad] of Object.entries(by_tradition)) {
+      if (!isRecord(perTrad)) throw new Error(`summary.json: by_tradition['${id}'] is not an object`);
+      for (const [trad, cells] of Object.entries(perTrad)) {
+        if (!isRecord(cells)) {
+          throw new Error(`summary.json: by_tradition['${id}']['${trad}'] is not an object`);
+        }
+      }
+    }
+  }
+  if (usage !== undefined && usage !== null) {
+    if (!isRecord(usage) || !isRecord((usage as Record<string, unknown>).per_model)) {
+      throw new Error("summary.json: 'usage.per_model' is not an object");
+    }
+  }
+  if (panel !== undefined && panel !== null && !isRecord(panel)) {
+    throw new Error("summary.json: 'panel' is not an object");
+  }
+  const s = obj as unknown as Summary;
   return {
-    models: s.models ?? {},
+    models: s.models,
     by_tradition: s.by_tradition ?? {},
     usage: s.usage,
     panel: s.panel,

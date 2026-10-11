@@ -4,11 +4,13 @@ import {
   loadRun,
   loadSummary,
   parseJsonl,
+  parseSummary,
   formatCell,
   type AnswerRow,
   type QuestionRow,
   type ScoreRow,
 } from "./localResults";
+import { leaderboardRows } from "./leaderboard";
 import {
   sampleAnswersJsonl,
   sampleScoresJsonl,
@@ -203,5 +205,57 @@ describe("loadSummary (standings reads only summary.json)", () => {
     if (res.ok) return;
     expect(res.kind).toBe("malformed");
     expect(res.message).toContain(`${base}/summary.json`);
+  });
+
+  // parseSummary must reject a structurally-malformed-but-valid-JSON summary with the typed
+  // "malformed" result, rather than letting a TypeError surface in the render path
+  // (rankedModels/summaryTasks/leaderboardRows all dereference the nested shape).
+  it("reports a non-object model entry ({\"models\":{\"m\":null}}) as 'malformed', not a render crash", async () => {
+    const base = "/runs/nullmodel";
+    const res = await loadSummary(base, fakeFetcher({ [`${base}/summary.json`]: '{"models":{"m":null}}' }));
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.kind).toBe("malformed");
+    expect(res.message).toContain("models['m']");
+  });
+
+  it("reports a non-object 'models' as 'malformed'", async () => {
+    const base = "/runs/badmodels";
+    const res = await loadSummary(base, fakeFetcher({ [`${base}/summary.json`]: '{"models":"nope"}' }));
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.kind).toBe("malformed");
+  });
+
+  it("reports a 'usage' without a per_model object as 'malformed'", async () => {
+    const base = "/runs/badusage";
+    const res = await loadSummary(
+      base,
+      fakeFetcher({ [`${base}/summary.json`]: '{"models":{"m":{}},"usage":{"total":{"calls":1,"in":2,"out":3}}}' }),
+    );
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.kind).toBe("malformed");
+  });
+});
+
+describe("parseSummary nested-shape validation (render-path safety)", () => {
+  it("throws on {\"models\":{\"m\":null}} before the render path can TypeError", () => {
+    expect(() => parseSummary({ models: { m: null } })).toThrow(/models\['m'\]/);
+  });
+
+  it("rejects a non-object by_tradition entry", () => {
+    expect(() => parseSummary({ models: { m: {} }, by_tradition: { m: null } })).toThrow(/by_tradition\['m'\]/);
+  });
+
+  it("a validated summary never throws in leaderboardRows even with sparse usage", () => {
+    // usage present with a per_model that omits a ranked model → leaderboardRows must read
+    // null tokens, not throw (the per_model?.[modelId] guard + the parseSummary contract).
+    const summary = parseSummary({
+      models: { a: { _overall: { n: 1, accuracy: 0.5 } } },
+      usage: { per_model: {}, total: { calls: 0, in: 0, out: 0 } },
+    });
+    const { rows } = leaderboardRows(summary);
+    expect(rows[0]?.tokens).toBeNull();
   });
 });

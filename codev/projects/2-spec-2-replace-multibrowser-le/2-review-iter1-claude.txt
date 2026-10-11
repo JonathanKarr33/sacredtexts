@@ -1,0 +1,69 @@
+I'll start by reading the diff file and orienting myself in the repo.The provided diff file is empty (0 bytes), so I'll compute the diff myself and read the actual files from disk.Branch is up to date with `origin/main` (merge-base = origin/main tip). Now let me read the spec, plan, and review documents.Spec and review are thorough. Now let me read the actual implementation — starting with the security-sensitive endpoint and the core data seam.Clean pure functions. Let me check the test setup and package.json before deciding what's safe to run.The suite runs a real `pnpm build` (writes gitignored `dist/`). Let me confirm that's gitignored, then run the suite in the background while I read the pages.Both are gitignored, so running the suite touches no tracked files. Launching tests and type-check in the background.The test suite **failed** (exit code 1). Let me look at the output.False alarm — the background shell started in a different cwd, not a real test failure. Re-running with absolute paths.Confirmed: **115 passed / 0 skipped across 16 files**, `check-types` exit 0 — matches the PR claim exactly. Now let me verify the purge and cleanliness claims.All remaining "multibrowser"/"GitHub" strings are comments/assertions documenting the purge — no leftover code, no TODOs, no debug code. Let me examine the committed-run gates and the page containers.Let me read the remaining containers and the dev-server wiring.24 `[Spec 2]` commits plus porch state commits. Let me verify the documentation sweep claims.Shell cwd is `apps/viewer`. Using absolute paths.Security tests are genuinely non-vacuous (real temp dirs, real symlinks). Let me check the last core module.I did not modify anything in the tree. Everything I ran was read-only with respect to tracked files (the test suite writes only gitignored `dist/`); `git status` is unchanged apart from pre-existing untracked builder files.
+
+## Review of PR #6 — Spec 2 viewer replacement
+
+**Note on the inputs:** the supplied diff file was empty (0 bytes), so I computed the diff myself (`main...HEAD`) and read the actual files from disk.
+
+### Verification of the PR's claims
+
+Every quantitative claim checks out:
+
+| Claim | Result |
+|---|---|
+| 115 passed / 0 skipped, 16 files | ✅ exact match |
+| `check-types` clean | ✅ exit 0 |
+| Four committed-run gates ran, not skipped | ✅ all 4 present, 0 skipped reported |
+| Branch up to date with base | ✅ merge-base == `origin/main` tip, 0 behind |
+| Deps pruned, nothing imports them | ✅ only external imports are `@heroui/react`, `@tanstack/react-router`, `react*` |
+| Multibrowser purged | ✅ remaining strings are comments/purge assertions only |
+| Docs sweep | ✅ zero `/local-results` refs; routes `/`, `/run/$runId/model/$modelId`, `/standings` consistent across README, TUTORIAL, arch-critical |
+
+**Cleanliness:** no `TODO`/`FIXME`/`debugger`/`console.log`/`.only` anywhere in `src`. 24 commits carry the `[Spec 2][Phase: …]` prefix; the rest are porch state commits.
+
+### Code quality
+
+The security-sensitive `vite/runsEndpoint.ts` is the strongest part. Confinement is per-component `lstat` symlink rejection + `..` rejection + a containment backstop + try/caught decode. I checked the tests for vacuity by reading rather than mutating: each guard has an assertion that genuinely fails without it (drop the `..` check → `../outside/secret.json` resolves; drop the `lstat` → `escape/secret.json` resolves; drop the try/catch → `%E0%A4%A` throws instead of 400). Real temp dirs and real symlinks, not fixtures.
+
+The pure/container split is clean — `leaderboard.ts`, `aggregate.ts`, `explorer.ts`, `runIndex.ts` are side-effect-free and unit-tested; pages handle fetching with proper `live`-flag stale-request guards and exhaustive discriminated-union state modeling (`loading`/`empty`/`failed`/`ready`). Error states use `role="alert"`/`role="status"`. The `aggregate` equal-mtime tiebreak (id ASC) genuinely matches `fetchRunIndex`'s ordering, so standings and the leaderboard default cannot disagree — that was the right fix for the codex blocker.
+
+### Points I verified rather than took on faith
+
+- **The `models: {m: null}` rebuttal is accurate.** I confirmed `summaryTasks` does `Object.keys(m)`, which throws identically on the leaderboard path — so this is a genuinely shared pre-existing `parseSummary` validation-depth limit, not a standings regression. It degrades to the root ErrorBoundary. Correctly deferred.
+- **Follow-up #1 is real:** `aggregate` duplicates `rankedModels`' sort rather than sharing it. Correctly identified as a MAINTAIN item.
+- **`serveStatic({ root: DIST })` with an absolute path works here** — the deploy smoke's JS-content-type assertion is precisely what would catch it if it didn't, and it passes.
+
+### Minor items (non-blocking)
+
+1. **One uncommitted protocol artifact:** `codev/projects/2-spec-2-replace-multibrowser-le/2-review-iter1-codex.txt` is untracked while every prior phase's consult outputs are committed. This is the in-flight review consult, so it should land with the gate commit.
+2. **Symlink tests use `if (!symlinked) return;`** — silently vacuous on platforms without symlink support (they do run on macOS/Linux). Same class as the already-flagged follow-up #3 about `describe.skipIf` gates.
+3. Diff is large (+7,355 / −15,913) but ~2:1 deletion-dominated and that deletion *is* the spec's primary requirement. Commits are atomic per phase.
+
+The review document is unusually honest — it records two plan deviations with rationale, distinguishes Addressed from Rebutted/N-A concerns, and flags five follow-ups including one out-of-scope issue escalated to the architect rather than quietly touched.
+
+---
+VERDICT: APPROVE
+SUMMARY: All spec criteria met and every PR claim independently verified (115/0 tests, clean types, purge complete, docs consistent); only a stray uncommitted consult artifact remains.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- Minor: untracked `codev/projects/2-spec-2-replace-multibrowser-le/2-review-iter1-codex.txt` should be committed with the review gate.
+- Minor: symlink confinement tests silently no-op on platforms lacking symlink support (`if (!symlinked) return;`) — same vacuity class as the already-recorded follow-up #3.
+
+PR_SUMMARY: |
+  ## Summary
+  Replaces the inherited multibench "multibrowser" SPA with a viewer specific to this benchmark, served entirely from the local `runs/` directory. The viewer now answers the benchmark's actual questions on first load — which model is best, where each one fails, and what the current standings are across runs — with the dead product's code removed rather than hidden.
+
+  ## Key Changes
+  - **Leaderboard home (`/`)** — one row per model ranked by overall accuracy, per-task + overall columns, per-tradition breakdown, per-model token totals, with a run selector defaulting to the most recent run (`?run=<id>`).
+  - **Error explorer (`/run/$runId/model/$modelId`)** — every roster question with pass/fail, including unanswered cells reconstructed from `questions.jsonl` × the run panel; per failure the prompt / expected / actual / per-metric scores side by side; composing filters by task, tradition, correctness, and failure mode (missing vs wrong).
+  - **Cross-run standings (`/standings`)** — one row per model from the most recent run including it, keyed on `panel.provider` + `panel.model` so a renamed `model_id` does not split a model's history; unreadable runs are surfaced, not silently dropped.
+  - **Purge** — ~75 multibrowser files removed (all `/t`, `/results`, `/raw`, `/review*` routes, the GitHub data layer, bake-and-deploy), plus the dependencies only that surface used; `server/index.mjs` rewritten as a plain static + SPA-fallback host.
+  - **Hardened dev run endpoint** (`vite/runsEndpoint.ts`) — realpath confinement, per-component symlink rejection, and safe URL decoding, replacing the old lexical `startsWith` check.
+
+  ## Test Plan
+  - `pnpm -C apps/viewer test` → 115 passed / 0 skipped across 16 files; `pnpm -C apps/viewer check-types` → clean.
+  - Four committed-run gates render `runs/first-run-2026-10-11` end-to-end through the leaderboard, explorer, and standings (verified running, not skipped).
+  - `deploy.test.ts` runs a real `pnpm build` and a real static host: asserts SPA fallback, that hashed JS is served with a JS content-type, that `/runs/_index` degrades to HTML-200 (the empty state), and the `#86` numbered-shade built-CSS probe against a `@source inline(...)` safelist.
+  - `vite/runsEndpoint.test.ts` exercises path traversal, escaping and in-root symlinks, and malformed percent-encoding against real temp directories.

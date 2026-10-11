@@ -34,7 +34,7 @@ export function leaderboardRows(summary: Summary): { tasks: string[]; rows: Lead
       modelId,
       overall: m._overall,
       byTask,
-      tokens: summary.usage?.per_model[modelId] ?? null,
+      tokens: summary.usage?.per_model?.[modelId] ?? null,
     };
   });
   return { tasks, rows };

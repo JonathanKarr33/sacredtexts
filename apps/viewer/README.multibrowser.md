@@ -151,7 +151,9 @@ pnpm preview        # serve the built bundle locally
 | `VITE_MULTIBENCH_REF` | `main` | Branch/ref to read. |
 | `VITE_SHA_POLL_MS` | `300000` | SHA poll interval (ms). Conservative for the unauthenticated rate limit. |
 
-See `.env.example`. There is no runtime/server config and **no token**.
+(This historical config was documented in a `.env.example` that was removed when the
+multibrowser surface was purged — none of it applies to the current local-only viewer.)
+There was no runtime/server config and **no token**.
 
 ## Deploy on Railway (static site)
 
