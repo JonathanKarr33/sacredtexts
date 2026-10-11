@@ -1,0 +1,16 @@
+id: '2'
+title: spec-2-replace-multibrowser-le
+protocol: aspir
+phase: specify
+plan_phases: []
+current_plan_phase: null
+gates:
+  pr:
+    status: pending
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: false
+history: []
+started_at: '2026-10-11T09:19:07.638Z'
+updated_at: '2026-10-11T09:19:07.639Z'
