@@ -25,15 +25,19 @@ from sacredbench.score import score_file, summary_markdown
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
 
 
-def _catalogue_or_empty(raw_root: Path) -> list[cat.Source]:
-    """Discover the catalogue, or return [] if none exists (so the license gate is
-    a no-op outside a catalogue, e.g. ad-hoc inputs). Malformed catalogues still fail."""
+def _require_catalogue(raw_root: Path) -> list[cat.Source]:
+    """Discover the catalogue for the license gate, failing LOUDLY if it is absent.
+
+    The gate must never silently no-op: a missing catalogue is a usage error
+    (wrong working directory, or a bad ``--raw-root``), not a reason to skip the
+    restricted-source check."""
     try:
         return cat.discover_catalogue(raw_root)
-    except cat.CatalogueError as e:
-        if "no source.yaml" in str(e) or "not found" in str(e):
-            return []
-        raise
+    except cat.CatalogueMissing as e:
+        raise typer.BadParameter(
+            f"{e} — the license gate needs the source catalogue. Run from the repo "
+            f"root or pass --raw-root pointing at texts/raw."
+        ) from e
 
 
 @app.command()
@@ -77,9 +81,10 @@ def convert(
 ) -> None:
     """Convert known source JSON shapes into the standard flat format."""
     if not include_restricted:
-        sources = _catalogue_or_empty(raw_root)
+        sources = _require_catalogue(raw_root)
+        index = cat.build_raw_license_index(sources, raw_root)
         for path in cat.expand_json(list(inputs)):
-            if cat.license_for_raw_path(path, sources, raw_root) == "restricted":
+            if cat.license_for_raw_path(path, sources, raw_root, index=index) == "restricted":
                 raise typer.BadParameter(
                     f"refusing restricted source {path} (pass --include-restricted to convert it)"
                 )
@@ -126,7 +131,7 @@ def generate(
     ),
 ) -> None:
     """Generate benchmark questions from the six working-group templates."""
-    sources = _catalogue_or_empty(raw_root)
+    sources = _require_catalogue(raw_root)
     kept = cat.filter_standardized_paths(
         list(inputs), sources, include_restricted=include_restricted,
         standardized_root=standardized_root,

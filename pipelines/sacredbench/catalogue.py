@@ -60,14 +60,32 @@ _TARGET_REQUIRED = (
     "license",
 )
 _TARGET_STR_FIELDS = ("payload", "converter", "work", "version", "language", "document_type")
+_PROVENANCE_REQUIRED = ("retrieved_from", "fetch_method", "fetch_date")
 
 
 class CatalogueError(Exception):
     """A ``source.yaml`` does not conform to the catalogue format."""
 
 
+class CatalogueMissing(CatalogueError):
+    """No catalogue could be discovered (absent root, or no ``source.yaml``).
+
+    A distinct type so callers can fail loudly instead of silently running with
+    the license gate disabled — never swallowed by substring-matching a message.
+    """
+
+
 def _slugify(text: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """Where a payload came from, how, and when (spec requires this on every source)."""
+
+    retrieved_from: str  # URL / repo (optionally @commit)
+    fetch_method: str
+    fetch_date: str  # YYYY-MM-DD, or "unknown" when the upstream drop recorded none
 
 
 @dataclass(frozen=True)
@@ -83,6 +101,7 @@ class Target:
     document_type: str
     tradition: tuple[str, ...]
     license: str
+    provenance: Provenance
     license_detail: str | None = None
 
     @property
@@ -105,8 +124,22 @@ class Source:
     source_id: str
     yaml_path: Path
     targets: tuple[Target, ...]
+    provenance: Provenance
     source_url: str | None = None
     notes: str | None = None
+
+
+def _parse_provenance(raw: object, where: str) -> Provenance:
+    if not isinstance(raw, dict):
+        raise CatalogueError(f"{where}: 'provenance' must be a mapping with {_PROVENANCE_REQUIRED}")
+    for key in _PROVENANCE_REQUIRED:
+        if not isinstance(raw.get(key), str) or not raw[key].strip():
+            raise CatalogueError(f"{where}: provenance.{key} must be a non-empty string")
+    return Provenance(
+        retrieved_from=raw["retrieved_from"],
+        fetch_method=raw["fetch_method"],
+        fetch_date=raw["fetch_date"],
+    )
 
 
 def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
@@ -120,6 +153,9 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
         source_id = yaml_path.parent.resolve().relative_to(Path(raw_root).resolve()).as_posix()
     except ValueError as e:
         raise CatalogueError(f"{where}: not located under raw root {raw_root}") from e
+    if "provenance" not in data:
+        raise CatalogueError(f"{where}: missing required 'provenance' block")
+    source_provenance = _parse_provenance(data["provenance"], where)
     targets_raw = data.get("targets")
     if not isinstance(targets_raw, list) or not targets_raw:
         raise CatalogueError(f"{where}: 'targets' must be a non-empty list")
@@ -148,6 +184,11 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
         detail = t.get("license_detail")
         if detail is not None and not isinstance(detail, str):
             raise CatalogueError(f"{where}: targets[{i}].license_detail must be a string")
+        provenance = (
+            _parse_provenance(t["provenance"], f"{where}: targets[{i}]")
+            if "provenance" in t
+            else source_provenance
+        )
         targets.append(
             Target(
                 source_id=source_id,
@@ -159,6 +200,7 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
                 document_type=t["document_type"],
                 tradition=tuple(tradition),
                 license=license_,
+                provenance=provenance,
                 license_detail=detail,
             )
         )
@@ -166,18 +208,23 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
         source_id=source_id,
         yaml_path=yaml_path,
         targets=tuple(targets),
+        provenance=source_provenance,
         source_url=data.get("source_url"),
         notes=data.get("notes"),
     )
 
 
 def discover_catalogue(raw_root: Path = RAW_ROOT) -> list[Source]:
-    """Load every ``texts/raw/**/source.yaml``. Fail-fast if the root or files are absent."""
+    """Load every ``texts/raw/**/source.yaml``.
+
+    Raises ``CatalogueMissing`` (a ``CatalogueError``) if the root or the manifests
+    are absent — callers must handle that loudly, never by disabling the gate.
+    """
     if not Path(raw_root).exists():
-        raise CatalogueError(f"{raw_root}: raw texts root not found")
+        raise CatalogueMissing(f"{raw_root}: raw texts root not found")
     yamls = sorted(Path(raw_root).glob("**/source.yaml"))
     if not yamls:
-        raise CatalogueError(f"{raw_root}: no source.yaml found under the raw root")
+        raise CatalogueMissing(f"{raw_root}: no source.yaml found under the raw root")
     return [load_source(y, raw_root) for y in yamls]
 
 
@@ -190,22 +237,36 @@ def select_targets(sources: list[Source], include_restricted: bool = False) -> l
     return [t for t in all_targets(sources) if include_restricted or t.license != "restricted"]
 
 
-def license_for_raw_path(path: Path, sources: list[Source], raw_root: Path = RAW_ROOT) -> str | None:
+def build_raw_license_index(sources: list[Source], raw_root: Path = RAW_ROOT) -> dict[Path, str]:
+    """Resolve every target's payload glob ONCE: ``{resolved raw file -> license}``.
+
+    If several targets claim the same file the most conservative (``restricted``)
+    license wins. Hoisting this out of the per-file lookup avoids re-globbing the
+    whole catalogue for each input (e.g. the 201-file encyclicals run).
+    """
+    index: dict[Path, str] = {}
+    for t in all_targets(sources):
+        for f in t.payload_paths(raw_root):
+            key = f.resolve()
+            if index.get(key) != "restricted":
+                index[key] = t.license
+    return index
+
+
+def license_for_raw_path(
+    path: Path,
+    sources: list[Source],
+    raw_root: Path = RAW_ROOT,
+    index: dict[Path, str] | None = None,
+) -> str | None:
     """License of a raw payload file via the target whose payload glob matches it.
 
     Returns ``None`` if no target matches (the path is outside the catalogue).
-    If several targets match, the most conservative (``restricted``) wins.
+    Pass a prebuilt ``index`` (``build_raw_license_index``) to avoid re-globbing.
     """
-    resolved = Path(path).resolve()
-    matched: list[str] = []
-    for t in all_targets(sources):
-        for f in t.payload_paths(raw_root):
-            if f.resolve() == resolved:
-                matched.append(t.license)
-                break
-    if not matched:
-        return None
-    return "restricted" if "restricted" in matched else matched[0]
+    if index is None:
+        index = build_raw_license_index(sources, raw_root)
+    return index.get(Path(path).resolve())
 
 
 def license_for_standardized_path(
@@ -245,14 +306,23 @@ def filter_standardized_paths(
     include_restricted: bool = False,
     standardized_root: Path = STANDARDIZED_ROOT,
 ) -> list[Path]:
-    """Drop standardized files that map to a ``restricted`` target (unless opted in).
+    """Keep standardized files to generate from, dropping ``restricted`` ones.
 
-    Files outside every target directory have no recoverable license and are kept
-    (the hard copyright backstop is the committed-artifact audit, not this filter).
+    **Fail-closed**: a file whose license cannot be recovered from its path raises
+    ``CatalogueError`` rather than being silently included. A standardized document
+    must live under its target's ``standardized_dir`` (the path convention) so its
+    provenance — hence its license — is always known; an unmapped file is a bug or
+    a stray artifact, not a pass-through.
     """
     kept: list[Path] = []
     for f in expand_json(paths):
         license_ = license_for_standardized_path(f, sources, standardized_root)
+        if license_ is None:
+            raise CatalogueError(
+                f"{f}: not under any catalogue target's standardized directory "
+                f"({standardized_root}/<source-id>/<target-slug>/) — cannot verify its "
+                "license, refusing (fail-closed)"
+            )
         if license_ == "restricted" and not include_restricted:
             continue
         kept.append(f)

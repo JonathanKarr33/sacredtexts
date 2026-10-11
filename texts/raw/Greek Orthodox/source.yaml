@@ -4,6 +4,10 @@
 # is NOT committed to this public repo. This source.yaml IS committed so the
 # catalogue, licensing, and provenance stay complete and auditable; the payload
 # glob resolves to nothing until a user supplies it locally.
+provenance:
+  retrieved_from: Thesaurus Linguae Graecae (TLG); Rahlfs Septuagint / Nestle-Aland editions
+  fetch_method: licensed corpus extract — payload held back from this public repo
+  fetch_date: unknown
 notes: >-
   Payload absent from the public repo. Converter and metadata are recorded for
   provenance; the target is excluded from convert/generate by default.

@@ -6,6 +6,10 @@
 # The encyclicals target's work/version here are nominal: the encyclicals
 # converter emits one document per file with the work set to the encyclical's
 # title and the version to its Vatican edition.
+provenance:
+  retrieved_from: github.com/Religion-at-Notre-Dame/catholic_text_json (encyclicals)
+  fetch_method: generated JSON export (index.json generatedAt)
+  fetch_date: "2026-09-03"
 notes: >-
   Encyclicals: Vatican-published English texts. NABRE: restricted, excluded by
   default (opt in with --include-restricted, requires the local payload).
@@ -27,6 +31,10 @@ targets:
     document_type: scripture
     tradition: [Roman Catholic]
     license: restricted
+    provenance:
+      retrieved_from: USCCB / Confraternity of Christian Doctrine (NABRE)
+      fetch_method: licensed text — payload held back from this public repo
+      fetch_date: unknown
     license_detail: >-
       New American Bible Revised Edition — (c) Confraternity of Christian
       Doctrine / USCCB; payload held back from this public repo

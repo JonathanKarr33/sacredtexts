@@ -2,6 +2,10 @@
 # The Qur'an (Uthmani script, dict keyed "surah:ayah") plus nine classical hadith
 # collections (Arabic only, from sunnah.com). Converters: quran_qul, hadith_sunnah
 # (Phase 3). All Arabic.
+provenance:
+  retrieved_from: Quranic Universal Library (qul.tarteel.ai); sunnah.com (hadith, Arabic)
+  fetch_method: downloaded JSON
+  fetch_date: unknown
 notes: >-
   Qur'an: KFGQPC Uthmani script via the Quranic Universal Library (QUL).
   Hadith: classical Arabic text mirrored from sunnah.com (Arabic only).

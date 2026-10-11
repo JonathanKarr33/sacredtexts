@@ -55,8 +55,11 @@ uv --project pipelines run python -m sacredbench convert encyclicals <files|dir>
 uv --project pipelines run python -m sacredbench validate texts/
 
 # 3. Generate questions (six working-group templates; deterministic; incl.
-#    false-premise negatives when the corpus has >=2 works)
-uv --project pipelines run python -m sacredbench generate texts/ --per-task 10
+#    false-premise negatives when the corpus has >=2 works). Inputs are
+#    standardized docs under texts/standardized; restricted docs are excluded
+#    (opt in with --include-restricted), and a doc whose license can't be
+#    recovered from its path is refused (fail-closed).
+uv --project pipelines run python -m sacredbench generate texts/standardized --per-task 10
 
 # 4. Collect answers from the model panel (resumable; non-zero exit on failures)
 cp configs/models.example.yaml configs/models.yaml   # then edit; keys via env

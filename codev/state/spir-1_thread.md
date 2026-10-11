@@ -166,3 +166,30 @@ SPIR, strict mode (porch-driven).
   Orthodox restricted). The plan deliverable says "7 landed traditions" — on-disk
   there are 6 tradition dirs (NABRE is a restricted TARGET inside Roman Catholic,
   not its own dir). Flagging the count to the architect.
+
+### Phase 1 — 2-way impl consult (codex REQUEST_CHANGES/HIGH, claude COMMENT/HIGH)
+
+- Converged on the headline defect + a spec gap. Accepted essentially all;
+  revised and re-tested (47 passed, was 39).
+- **Gate failed open** (both): `_catalogue_or_empty` returned [] on a
+  missing/unfound catalogue → convert/generate ran with the restricted gate
+  silently off (claude reproduced: restricted payload converted w/o the flag).
+  Fixed: `CatalogueMissing(CatalogueError)`; `_require_catalogue` fails LOUD.
+- **Unmapped standardized paths failed open** (codex): `filter_standardized_paths`
+  kept unverifiable files → now fail-CLOSED (raises, names the file).
+- **Missing provenance** (codex, spec-backed — spec L72-75 + criterion L218-219):
+  schema only had source_url/notes. Added required `provenance`
+  {retrieved_from, fetch_method, fetch_date}, source-level + per-target override
+  (NABRE). Populated from upstream artifacts (Protestant README 2026-08-20,
+  encyclicals index 2026-09-03) + honest "unknown" where the drop had none.
+- **No CLI tests** (both): added CliRunner tests (convert refusal/opt-in,
+  generate filter/fail-closed/missing-catalogue).
+- **Judaism `language: mul`** (claude): split into talmud-en + talmud-he (35+35
+  = all 70 shards, incl. the Davidson English subdir). Catalogue now 6 src / 23
+  targets.
+- Minor: `build_raw_license_index` (no per-file re-glob); texts/README.md stale
+  note fixed. Deferred w/ reasons: converter-registry cross-check (Phase 2, per
+  claude); `tlg` converter (restricted+absent, no committed data — flagged to
+  architect). claude VERIFIED the LDS-KJV correction (309 differing verses) and
+  agreed with the 6-vs-7 reading.
+- Wrote 1-phase_1-iter1-rebuttals.md. Committing revisions + artifacts.
