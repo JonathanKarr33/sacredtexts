@@ -59,6 +59,12 @@ uv --project pipelines run python -m sacredbench convert --include-restricted
 # 2. Mechanically validate any standard-format documents (license-agnostic)
 uv --project pipelines run python -m sacredbench validate texts/standardized
 
+# 2b. (Optional) Assemble the working group's interchange document per
+#     (work, version, language): merges shards (e.g. the LDS KJV OT+NT), dedupes
+#     by (citation, text), unions traditions, and checks the inverse-grouping
+#     round-trip before writing texts/interchange/ (rebuildable, gitignored).
+uv --project pipelines run python -m sacredbench export texts/standardized
+
 # 3. Generate questions (six working-group templates; deterministic; incl.
 #    false-premise negatives when the corpus has >=2 works). Inputs are
 #    standardized docs under texts/standardized; restricted docs are excluded
@@ -79,7 +85,8 @@ synthetic TEXT — no copyrighted translation is committed).
 
 Module map: `catalogue.py` `source.yaml` targets manifest + discovery + license
 gating · `schema.py` standard format + validation · `convert.py` source-format
-converters (registry) · `generate.py` templates → questions · `config.py` model
+converters (registry) · `export.py` assemble shards → interchange + round-trip ·
+`generate.py` templates → questions · `config.py` model
 panel YAML · `providers.py` anthropic/openai-compatible/gemini seam ·
 `collect.py` resumable fan-out · `score.py` metrics + summary · `cli.py` Typer app.
 

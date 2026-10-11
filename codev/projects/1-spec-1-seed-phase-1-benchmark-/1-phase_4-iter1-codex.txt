@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Export assembly works for the tested LDS split, but the required non-vacuous round-trip and deterministic canonical ordering are not implemented.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `roundtrip_equal()` (`export.py:106-109`) only verifies that `assemble()` is idempotent. This is effectively guaranteed after successful assembly and cannot detect information lost during assembly. For example, `source_url` values from all but the first shard are silently discarded. The plan explicitly requires inverse grouping and comparison of source metadata plus ordered entries.
+- Ordering is not fully deterministic or demonstrably native-unit order. Shards are sorted only by their first citation (`export.py:76`); equal first citations retain caller order, changing tradition order, selected `source_url`, and potentially entry order. Output group order also follows first input occurrence. Tests cover only distinct first citations and miss these ties.
+- `interchange_filename()` is not injective: distinct triples such as punctuation variants can slugify to the same filename, and the CLI silently overwrites the earlier document (`cli.py:145-147`). This violates the one-file-per-`(work, version, language)` deliverable; collisions should be detected or filenames made unambiguous.

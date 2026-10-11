@@ -16,10 +16,21 @@ into one document:
 - ``document_type`` must agree across shards (else ``ExportError``);
   ``source_url`` is the first shard that declares one.
 
-The **round-trip** is semantic: an assembled document carries no shard-boundary
-metadata, so the guarantee is that assembling the assembled set reproduces it
-exactly (``assemble`` is idempotent and lossless on source metadata + ordered
-entries), and that each document survives ``write_document``/``load_document``.
+Shards within a group are ordered **deterministically by their first citation**,
+with each shard's native unit order preserved. This is not a general "canonical
+unit order" (citations sort lexicographically), but it is deterministic, and for
+the one real multi-shard work — the LDS KJV Bible — it places the Old Testament
+before the New (``Genesis 1:1`` < ``Matthew 1:1``). Single-shard works (the vast
+majority) keep their converter's native order exactly. ``source_url`` is a
+best-effort single value (the first shard that declares one), since one
+interchange document cannot carry a per-shard URL.
+
+The **round-trip** is semantic (an assembled document carries no shard-boundary
+metadata): ``roundtrip_ok`` regroups by key and verifies each input shard is
+reproduced in its assembled document — every shard entry present at a strictly
+increasing position (catching loss *and* reordering), no entries invented, and
+metadata/tradition preserved. It is designed to return ``False`` on a lossy or
+reordering assembler, not merely on a corrupt one.
 """
 
 from __future__ import annotations
@@ -88,6 +99,13 @@ def assemble(docs: list[Document]) -> list[Document]:
                     continue
                 seen.add(ek)
                 entries.append(e)
+        citations = [e.citation for e in entries]
+        if len(citations) != len(set(citations)):
+            dupes = sorted({c for c in citations if citations.count(c) > 1})
+            raise ExportError(
+                f"{key}: assembled document has duplicate citation(s) {dupes[:3]} — shards "
+                "disagree on the text of a citation (ground truth must be unique)"
+            )
         source_url = next((d.source_url for d in shards if d.source_url), None)
         assembled.append(
             Document(
@@ -100,10 +118,49 @@ def assemble(docs: list[Document]) -> list[Document]:
                 entries=entries,
             )
         )
-    return assembled
+    # deterministic output order independent of input order
+    return sorted(assembled, key=lambda d: (d.work, d.version, d.language))
 
 
-def roundtrip_equal(docs: list[Document]) -> bool:
-    """Semantic round-trip: re-assembling the assembled set reproduces it exactly."""
-    once = assemble(docs)
-    return assemble(once) == once
+def roundtrip_ok(docs: list[Document]) -> bool:
+    """Inverse-grouping round-trip: every input shard is reproduced in its
+    assembled document. Returns ``False`` on a lossy or reordering assembler.
+
+    Checks, per shard (located in the assembled set by ``(work, version,
+    language)``): metadata agrees, the shard's traditions are a subset of the
+    assembled union, and every shard entry ``(citation, text)`` appears in the
+    assembled document at a strictly increasing position (loss or reordering →
+    ``False``). Globally, the assembled set invents no entries (its total entry
+    count does not exceed the shards' total).
+    """
+    assembled = assemble(docs)
+    by_key = {(d.work, d.version, d.language): d for d in assembled}
+    if sum(len(d.entries) for d in assembled) > sum(len(d.entries) for d in docs):
+        return False  # entries invented
+    for shard in docs:
+        target = by_key.get((shard.work, shard.version, shard.language))
+        if target is None or target.document_type != shard.document_type:
+            return False
+        if not set(shard.tradition) <= set(target.tradition):
+            return False
+        position = {(e.citation, e.text): i for i, e in enumerate(target.entries)}
+        last = -1
+        for e in shard.entries:
+            p = position.get((e.citation, e.text))
+            if p is None or p <= last:
+                return False  # lost, or out of order
+            last = p
+    return True
+
+
+def check_filename_collisions(docs: list[Document]) -> None:
+    """Fail-fast if two distinct documents slugify to the same interchange filename."""
+    by_name: dict[str, tuple[str, str, str]] = {}
+    for d in docs:
+        name = interchange_filename(d)
+        key = (d.work, d.version, d.language)
+        if name in by_name and by_name[name] != key:
+            raise ExportError(
+                f"interchange filename collision {name!r}: {by_name[name]} and {key}"
+            )
+        by_name[name] = key

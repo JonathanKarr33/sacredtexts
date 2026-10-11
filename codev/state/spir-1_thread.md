@@ -412,3 +412,23 @@ SPIR, strict mode (porch-driven).
   (synthetic merge/order/dedup/distinct-version/doctype-disagree/roundtrip +
   real LDS OT+NT merge).
 - Committing. Next: signal PHASE_COMPLETE, 2-way consult.
+
+### Phase 4 — iter 1 impl consult (BOTH REQUEST_CHANGES / HIGH)
+
+- Both: my roundtrip_equal (assemble idempotent) is TAUTOLOGICAL — claude proved
+  it returns True even with a lossy assemble. Plan required inverse-grouping
+  ("assemble-then-regroup reproduces metadata + ordered entries"). Accepted all.
+- Fixed: roundtrip_ok(docs) = regroup by key; per shard assert metadata agree +
+  tradition ⊆ union + every shard entry at STRICTLY INCREASING position (catches
+  loss + reorder) + no invention. CLI now fails (exit 2) on False (was dead code).
+  Mutation test: lossy/reordering assemble → roundtrip_ok False (non-vacuous).
+- assemble: fail-fast ExportError on duplicate citation across shards (restores
+  the converters' _require_unique_citations invariant; latent, not live).
+- assemble returns sorted-by-key (deterministic multi-key output order).
+- check_filename_collisions (fail-fast on slug collision; latent).
+- Docstring honesty: shards ordered deterministically by first citation (not a
+  general native order; OT<NT for the Bible by Genesis<Matthew); source_url
+  best-effort first-shard (one doc can't hold per-shard URLs).
+- Added export section + module-map entry to pipelines/README.md.
+- Verified: 8 shards → 7 interchange docs, LDS OT+NT merge 31102, round-trip ok.
+  95 tests pass. Committing + re-consulting (iter 2).

@@ -142,16 +142,18 @@ def export(
         )
     docs = schema.load_documents(kept)
     assembled = exp.assemble(docs)
+    exp.check_filename_collisions(assembled)
+    ok = exp.roundtrip_ok(docs)
+    if not ok:
+        typer.secho("round-trip FAILED: an assembled document does not reproduce its shards", fg="red", err=True)
+        raise typer.Exit(1)
     out.mkdir(parents=True, exist_ok=True)
     for d in assembled:
         schema.write_document(d, out / exp.interchange_filename(d))
-    ok = exp.roundtrip_equal(docs)
     typer.echo(
         f"assembled {len(assembled)} interchange document(s) from {len(docs)} shard(s) "
-        f"-> {out}/ (round-trip {'ok' if ok else 'FAILED'})"
+        f"-> {out}/ (round-trip ok)"
     )
-    if not ok:
-        raise typer.Exit(1)
 
 
 @app.command()
