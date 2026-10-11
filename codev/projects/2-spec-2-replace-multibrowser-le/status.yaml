@@ -5,10 +5,10 @@ phase: implement
 plan_phases:
   - id: phase_1
     title: Run-data seam + hardened run-index endpoint
-    status: in_progress
+    status: complete
   - id: phase_2
     title: Purge multibrowser surface to a clean shell
-    status: pending
+    status: in_progress
   - id: phase_3
     title: Leaderboard home + run selector
     status: pending
@@ -18,14 +18,14 @@ plan_phases:
   - id: phase_5
     title: Cross-run aggregate (current standings)
     status: pending
-current_plan_phase: phase_1
+current_plan_phase: phase_2
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     build_output: ''
@@ -63,4 +63,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_1-iter2-claude.txt
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T10:10:15.980Z'
+updated_at: '2026-10-11T10:13:25.171Z'
+context_refreshes:
+  - boundary: plan-phase:phase_2
+    at: '2026-10-11T10:13:25.171Z'
