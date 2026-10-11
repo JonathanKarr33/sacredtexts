@@ -1,0 +1,98 @@
+# Source catalogue for the Sunni Islam corpus.
+# The Qur'an (Uthmani script, dict keyed "surah:ayah") plus nine classical hadith
+# collections (Arabic only, from sunnah.com). Converters: quran_qul, hadith_sunnah
+# (Phase 3). All Arabic.
+notes: >-
+  Qur'an: KFGQPC Uthmani script via the Quranic Universal Library (QUL).
+  Hadith: classical Arabic text mirrored from sunnah.com (Arabic only).
+targets:
+  - payload: quran_uthmani_from_qul.json.json
+    converter: quran_qul
+    work: The Qur'an
+    version: Uthmani (QUL)
+    language: ar
+    document_type: scripture
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: KFGQPC Uthmani script via the Quranic Universal Library (QUL)
+  - payload: hadith_from_sunnah.com_arabic_only/bukhari.json
+    converter: hadith_sunnah
+    work: Sahih al-Bukhari
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/muslim.json
+    converter: hadith_sunnah
+    work: Sahih Muslim
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/abudawud.json
+    converter: hadith_sunnah
+    work: Sunan Abi Dawud
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/tirmidhi.json
+    converter: hadith_sunnah
+    work: Jami` at-Tirmidhi
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/nasai.json
+    converter: hadith_sunnah
+    work: Sunan an-Nasa'i
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/ibnmajah.json
+    converter: hadith_sunnah
+    work: Sunan Ibn Majah
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/malik.json
+    converter: hadith_sunnah
+    work: Muwatta Malik
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/ahmed.json
+    converter: hadith_sunnah
+    work: Musnad Ahmad
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com
+  - payload: hadith_from_sunnah.com_arabic_only/darimi.json
+    converter: hadith_sunnah
+    work: Sunan al-Darimi
+    version: sunnah.com Arabic
+    language: ar
+    document_type: hadith_collection
+    tradition: [Sunni Islam]
+    license: public-domain
+    license_detail: Classical Arabic text via sunnah.com

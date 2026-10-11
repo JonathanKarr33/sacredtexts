@@ -1,0 +1,21 @@
+# Source catalogue for the Judaism corpus.
+# The Babylonian Talmud (Sefaria William Davidson Edition), dozens of tractate
+# shards in both English (en) and Aramaic (he) under "Talmud Bavli/" (some English
+# tractates live in the "Talmud - English Translation (Davidson)/" subdirectory,
+# hence the recursive glob). Converter: sefaria_talmud (Phase 3) — it derives the
+# per-document language, strips HTML markup, applies the 2a daf offset, and skips
+# the empty leading sections.
+source_url: https://www.sefaria.org/
+notes: >-
+  William Davidson Edition (Koren Noe / Steinsaltz). Internal license CC-BY-NC,
+  recorded in license_detail and mapped to the "open" enum.
+targets:
+  - payload: Talmud Bavli/**/*.json
+    converter: sefaria_talmud
+    work: Talmud Bavli
+    version: William Davidson Edition
+    language: mul
+    document_type: talmud
+    tradition: [Judaism]
+    license: open
+    license_detail: CC-BY-NC — Sefaria, William Davidson Edition (Koren Noe / Steinsaltz)

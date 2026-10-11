@@ -119,3 +119,50 @@ SPIR, strict mode (porch-driven).
 - Committed revised plan + consult artifacts + rebuttal.
 - Next: porch done → plan-approval gate (human-only). The spec amendment delta
   rides along for review. Notify architect, wait. Do NOT self-approve.
+
+## 2026-10-11 — Plan approved; Implement Phase 1
+
+- Human approved the plan (architect main, 00:31Z). Ran `porch approve 1
+  plan-approval --a-human-explicitly-approved-this` — push clean (no divergence
+  this time). `porch done` advanced to implement/phase_1.
+- Architect data-fact CORRECTION folded in: LDS KJV is NOT byte-identical to
+  Protestant KJV (104/2900 verses differ across first 3 NT books — editorial/
+  orthographic: LORD vs Lord, ligatures, enquired/inquired). They are two
+  EDITIONS. So: distinct version labels (Protestant "KJV" vs LDS
+  "KJV (LDS 2013 edition)"); Phase 4 dedup only on truly byte-equal entries;
+  identify_version shared-wording exclusion guards the near-dup hazard. Applied
+  the version labels in the LDS source.yaml now; Phase 4/5 wording adjusts during
+  impl, no re-gate (architect confirmed mechanism unchanged).
+- Phase 1 scope split confirmed by re-reading the plan: Phase 1 = catalogue +
+  license gate + gitignore reachability + source.yaml files; converter BODIES are
+  Phase 2/3 (the plan's convert_target rewrite stays in Phase 2). So Phase 1's
+  cli change is the restricted-SELECTION gate, not a catalogue-driven convert.
+- Inspected the REAL tree: 5 committed tradition dirs (Protestant, Sunni, LDS,
+  Judaism/Talmud, Roman Catholic) + Greek Orthodox (restricted, absent). Talmud
+  gotcha confirmed: Berakhot-en and Shevuot-en live in a
+  "Talmud - English Translation (Davidson)/" SUBDIR while their -he siblings are
+  in the parent → payload glob must be `Talmud Bavli/**/*.json`. Quran file is
+  `quran_uthmani_from_qul.json.json` (double ext, real). Talmud internal license
+  CC-BY-NC → mapped to `open` + verbatim in license_detail. NABRE + Greek Orthodox
+  absent locally (restricted).
+- Built: `catalogue.py` (Target/Source dataclasses, fail-fast loader naming
+  file+target, `discover_catalogue` globbing `texts/raw/**/source.yaml`,
+  `select_targets` restricted gate, `license_for_raw_path`/
+  `license_for_standardized_path` + `filter_standardized_paths`, slug +
+  standardized-dir convention). 6 source.yaml (22 targets: 3+10+5+1+2+1); default
+  selects 20, excludes 2 restricted (NABRE, Greek Orthodox).
+- `.gitignore`: changed `Greek Orthodox/` wholesale-ignore → `Greek Orthodox/*` +
+  `!Greek Orthodox/source.yaml` so every source.yaml commits while payloads +
+  standardized stay ignored. Verified with `git check-ignore`.
+- cli.py: new `catalogue` command (validate + list selected, honors
+  --include-restricted); `convert` refuses restricted inputs unless
+  --include-restricted; `generate` filters restricted standardized docs by path;
+  CatalogueError caught in main().
+- Tests: `test_catalogue.py` (14 tests) — load valid/invalid/unknown-license
+  (names file+target), discovery, selection default-exclude vs include, raw +
+  standardized path→license, filter, slug/dir, and a git check-ignore regression
+  guard over the REAL repo paths. Full suite 39 passed.
+- NOTE for Phase 1 consult: 6 source.yaml created (5 committed dirs + Greek
+  Orthodox restricted). The plan deliverable says "7 landed traditions" — on-disk
+  there are 6 tradition dirs (NABRE is a restricted TARGET inside Roman Catholic,
+  not its own dir). Flagging the count to the architect.

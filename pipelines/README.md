@@ -10,12 +10,42 @@ source JSON ──convert──▶ standard docs ──generate──▶ questio
 questions.jsonl × model panel ──collect──▶ answers.jsonl ──score──▶ scores.jsonl + summary
 ```
 
+## Source catalogue (`texts/raw/**/source.yaml`)
+
+`texts/raw` is grouped **one directory per tradition**, each holding many works,
+versions, and source shapes. Every tradition directory carries one committed
+`source.yaml` — a *targets manifest*: shared provenance plus a `targets:` list,
+where each target is one `(work, version, language)` unit with its `payload`
+glob, `converter`, `tradition[]`, and `license`. See
+`pipelines/sacredbench/catalogue.py` for the schema; loading is fail-fast.
+
+- **`license`** is a three-value gate: `public-domain` / `open` / `restricted`
+  (the real upstream string, e.g. the Talmud's `CC-BY-NC`, is kept verbatim in
+  `license_detail`). `restricted` targets are copyrighted translations whose
+  **payloads are git-ignored and local-only** (NABRE, the Greek Orthodox TLG
+  extracts); their `source.yaml` is still committed so the catalogue stays
+  complete and auditable.
+- `convert` and `generate` **exclude `restricted` targets by default**; pass
+  `--include-restricted` to opt in (and supply the local payload). `validate` is
+  unaffected by license.
+- **Standardized-path convention:** a target's converted output lives under
+  `texts/standardized/<source-id>/<target-slug>/` mirroring
+  `texts/raw/<source-id>`, so `generate` recovers a document's license from its
+  path. The interchange `Document` format is unchanged (it carries no `license`).
+
+```bash
+# Validate the whole catalogue and list the selected (non-restricted) targets
+uv --project pipelines run python -m sacredbench catalogue
+uv --project pipelines run python -m sacredbench catalogue --include-restricted
+```
+
 Run everything from the **repo root**:
 
 ```bash
 uv --project pipelines run python -m sacredbench --help
 
 # 1. Convert known source shapes into the standard flat format
+#    (restricted sources are refused unless --include-restricted is passed)
 uv --project pipelines run python -m sacredbench convert nabre <books...|dir> \
     --out texts/bible-nabre.json --tradition Christianity --tradition Catholic
 uv --project pipelines run python -m sacredbench convert encyclicals <files|dir> \
@@ -39,7 +69,8 @@ uv --project pipelines run python -m sacredbench score runs/answers.jsonl
 Tests: `uv --project pipelines run pytest pipelines` (fixtures are real-SHAPE but
 synthetic TEXT — no copyrighted translation is committed).
 
-Module map: `schema.py` standard format + validation · `convert.py` source-format
+Module map: `catalogue.py` `source.yaml` targets manifest + discovery + license
+gating · `schema.py` standard format + validation · `convert.py` source-format
 converters (registry) · `generate.py` templates → questions · `config.py` model
 panel YAML · `providers.py` anthropic/openai-compatible/gemini seam ·
 `collect.py` resumable fan-out · `score.py` metrics + summary · `cli.py` Typer app.

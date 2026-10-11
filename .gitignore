@@ -7,13 +7,17 @@ codev/.update-hashes.json
 codev/state/*.md
 !codev/state/*_thread.md
 
-# Raw sources held back pending licensing (public repo — see texts/README.md)
+# Raw sources held back pending licensing (public repo — see texts/README.md).
+# The restricted PAYLOADS are git-ignored and local-only, but each source.yaml IS
+# committed so the catalogue stays complete and auditable (see pipelines/sacredbench/catalogue.py).
 # NABRE: copyrighted translation (Confraternity of Christian Doctrine / USCCB)
 texts/raw/Roman Catholic/nabre.json
-# TLG corpus extracts (licensed TLG corpus; Rahlfs/NA editions copyrighted)
-texts/raw/Greek Orthodox/
+# TLG corpus extracts (licensed TLG corpus; Rahlfs/NA editions copyrighted):
+# ignore every payload under Greek Orthodox but keep its committed source.yaml.
+texts/raw/Greek Orthodox/*
+!texts/raw/Greek Orthodox/source.yaml
 
-# Standardized corpora derived from copyrighted sources are rebuilt locally
+# Standardized corpora are rebuilt locally from texts/raw (never committed)
 texts/standardized/
 
 # Legacy pre-two-tier converted corpora (superseded by texts/raw + texts/standardized)
