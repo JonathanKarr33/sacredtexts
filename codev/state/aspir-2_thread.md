@@ -684,3 +684,19 @@ Letting porch commit phase_5 and advance. phase_5 is the FINAL implement plan-ph
 single PR (all phase commits), `porch done 2 --pr <N> --branch builder/aspir-2`, notify architect;
 the `pr` gate is human-approved (NEVER auto-approve). Also flag the architect: root README.md:22
 `texts/` gitignore wording contradicts the two-tier rule (out of Spec 2 scope).
+
+## 2026-10-11 — REVIEW phase (re-entered after context refresh)
+
+All 5 implement phases committed + approved; suite re-verified green this session (16 files,
+115 passed / 0 skipped via `.codev/checks/test.sh`). Wrote the retrospective
+`codev/reviews/2-spec-2-replace-multibrowser-le.md` following the porch REVIEW template
+(Summary / Spec Compliance 12/12 met / Deviations / Consultation Feedback per phase+round+model
+with dispositions / Lessons / Architecture Updates / Lessons Learned Updates / Flaky Tests (none) /
+Follow-up Items). Governance routed by tier: arch-critical.md viewer bullet already corrected
+in place in phase_5 (hot, no net growth); arch.md "Viewer local results" expanded (cold); no new
+lessons-critical entries (project lessons applied, not newly discovered). Five follow-ups captured
+for MAINTAIN (shared comparator, two-run fixture, skipIf sentinel, standings→explorer link, and the
+root-README texts/ gitignore contradiction flagged to the architect).
+
+Next: open the SINGLE PR (base main, Closes #2), `porch done 2 --pr <N> --branch builder/aspir-2`,
+`afx send architect "PR #N ready for review"`. The `pr` gate is HUMAN-approved — never auto-approve.
