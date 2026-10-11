@@ -113,7 +113,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-2/codev/projects/2-spec-2-replace-multibrowser-le/2-phase_5-iter2-claude.txt
 started_at: '2026-10-11T09:19:07.638Z'
-updated_at: '2026-10-11T16:38:55.696Z'
+updated_at: '2026-10-11T16:39:30.656Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T10:13:25.171Z'
@@ -135,4 +135,6 @@ pr_history:
     pr_number: 6
     branch: builder/aspir-2
     created_at: '2026-10-11T11:57:02.199Z'
+    merged: true
+    merged_at: '2026-10-11T16:39:30.655Z'
 pr_ready_for_human: false
