@@ -214,3 +214,17 @@ SPIR, strict mode (porch-driven).
   doubled hyphens (before Phase 2 writes dirs). Phase-2 notes: catalogue-driven
   convert closes the raw hole structurally; keep skipping encyclicals/index.json.
 - Wrote 1-phase_1-iter2-rebuttals.md. Committing + re-consulting (iter 3).
+
+### Phase 1 — iter 3 impl consult: BOTH APPROVE / HIGH
+
+- codex APPROVE (no remaining issues); claude APPROVE (verified live from the
+  CLI: 23 targets resolve, Talmud 35+35 exact, gitignore holds, 53 tests green).
+- Phase 1 DONE. claude's minor leftovers carried to Phase 2 (all non-blocking):
+  (1) a `validate` license-agnostic CliRunner test; (2) `convert --out`
+  unconstrained — closed structurally by Phase 2's catalogue-driven convert_target
+  (resolve inputs+outputs from the catalogue); (3) `fetch_date` docstring vs
+  free-string — soften or enforce YYYY-MM-DD/unknown; (4) Greek Orthodox payload
+  glob `*.json` → `**/*.json` (README says drop whole folder; restricted+absent,
+  no live effect); (5) pre-existing: add GenerateError to main()'s handler tuple
+  (Phase 5). Fold these in opportunistically where Phase 2/5 touch the code.
+- Advancing to Phase 2 (English-corpora converters). Will /compact first.
