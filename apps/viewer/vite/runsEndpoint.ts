@@ -39,47 +39,52 @@ export function listRuns(runsDir: string): RunIndexEntry[] {
   }
   const out: RunIndexEntry[] = [];
   for (const e of entries) {
-    if (!e.isDirectory()) continue;
+    // Do not serve symlinked entries at all (the binding requirement rejects symlink
+    // traversal, not only escaping ones); a symlinked run dir is intentionally skipped.
+    if (e.isSymbolicLink() || !e.isDirectory()) continue;
     const dir = path.join(root, e.name);
+    const summary = path.join(dir, "summary.json");
     try {
-      const real = fs.realpathSync(dir);
-      if (real !== root && !real.startsWith(root + path.sep)) continue; // symlink escape
-      const summary = path.join(real, "summary.json");
-      if (fs.existsSync(summary) && fs.statSync(summary).isFile()) {
-        out.push({ id: e.name, mtimeMs: fs.statSync(real).mtimeMs });
-      }
+      if (!fs.statSync(summary).isFile()) continue;
+      fs.accessSync(summary, fs.constants.R_OK); // require it to be readable, not just present
+      out.push({ id: e.name, mtimeMs: fs.statSync(dir).mtimeMs });
     } catch {
-      /* unreadable entry — skip */
+      /* missing / unreadable summary.json — skip */
     }
   }
   out.sort((a, b) => b.mtimeMs - a.mtimeMs || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }
 
-/** Resolve a (already-decoded) relative path within `runsDir` to a canonical file path,
- * or null if it does not resolve to a regular file confined within the run root (after
- * following symlinks). */
+/** Resolve a (already-decoded) relative path within `runsDir` to a confined regular file,
+ * or null. Rejects parent traversal AND any path component that is a symlink (so a symlink
+ * is never followed, in-root or escaping), then confirms containment and that the target
+ * is a regular file. */
 export function resolveRunFile(runsDir: string, rel: string): string | null {
   let root: string;
   try {
-    root = fs.realpathSync(runsDir);
+    root = fs.realpathSync(runsDir); // root itself is canonical (no symlink components)
   } catch {
     return null;
   }
-  const candidate = path.join(root, rel);
-  let real: string;
+  const parts = rel.split(/[/\\]+/).filter((p) => p.length > 0 && p !== ".");
+  let cur = root;
+  for (const part of parts) {
+    if (part === "..") return null; // no parent traversal
+    cur = path.join(cur, part);
+    try {
+      if (fs.lstatSync(cur).isSymbolicLink()) return null; // reject any symlink component
+    } catch {
+      return null; // component does not exist
+    }
+  }
+  if (cur !== root && !cur.startsWith(root + path.sep)) return null; // containment backstop
   try {
-    real = fs.realpathSync(candidate);
+    if (!fs.statSync(cur).isFile()) return null;
   } catch {
     return null;
   }
-  if (real !== root && !real.startsWith(root + path.sep)) return null; // traversal / symlink escape
-  try {
-    if (!fs.statSync(real).isFile()) return null;
-  } catch {
-    return null;
-  }
-  return real;
+  return cur;
 }
 
 type ReqLike = Pick<IncomingMessage, "url">;
@@ -115,7 +120,15 @@ export function createRunsHandler(runsDir: string) {
       res.end("not found");
       return;
     }
+    let body: Buffer;
+    try {
+      body = fs.readFileSync(file);
+    } catch {
+      res.statusCode = 500; // confined + a regular file, but reading still failed
+      res.end("read error");
+      return;
+    }
     res.setHeader("Content-Type", file.endsWith(".json") ? "application/json" : "text/plain");
-    res.end(fs.readFileSync(file));
+    res.end(body);
   };
 }

@@ -42,5 +42,8 @@ describe.skipIf(!present)("committed first run renders through the viewer", () =
     // usage (token/call totals) and panel (provider) are parsed off summary.json
     expect(run.summary.usage?.total.calls).toBe(400);
     expect(run.summary.panel?.["claude-haiku"]?.provider).toBe("anthropic");
+    // served_by is nullable in the real data: anthropic-hosted → null, openrouter → array
+    expect(run.summary.panel?.["claude-haiku"]?.served_by).toBeNull();
+    expect(Array.isArray(run.summary.panel?.["gpt-oss-20b"]?.served_by)).toBe(true);
   });
 });

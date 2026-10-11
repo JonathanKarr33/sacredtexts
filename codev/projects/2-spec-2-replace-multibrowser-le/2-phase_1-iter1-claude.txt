@@ -1,0 +1,47 @@
+I'll start by reading the implementation files.I've read all the phase-1 implementation files, verified types and tests, and checked the parsed shapes against the real committed run data.
+
+## What I verified
+
+- `pnpm exec tsc --noEmit` — clean.
+- `vitest run vite/runsEndpoint.test.ts src/components/LocalResults.test.tsx src/local/realRun.test.ts` — 17/17 pass (I deliberately did not run `deploy.test.ts`, which does a real build and writes `dist/` in the builder's live tree).
+- The `Usage` / `PanelEntry` / `Cell` types against `runs/first-run-2026-10-11/summary.json`: `served_by: string[] | null` is exactly right (`claude-haiku` → `null`, openrouter models → arrays), `usage.total.calls === 400`, per-task cells carry `exact/normalized/token_f1/expected_n/missing` while `_overall` does not. Derived from real data, per the project lesson.
+
+## Assessment
+
+Phase-1 deliverables are all present and correct:
+
+| Deliverable | Status |
+|---|---|
+| Typed `LoadResult` (missing/http/malformed), all four artifacts required | ✅ |
+| Shape-sniff guard (leading `<` → missing, not parsed) | ✅ and tested with an `index.html` body |
+| Metrics as `number \| null`, `usage`, `panel` (nullable `served_by`), roster | ✅ |
+| `joinResults` panel × roster with `missing: boolean`; scores-only back-compat | ✅ both paths tested |
+| `vite/runsEndpoint.ts` outside `src/`, factory + `listRuns`, realpath + symlink reject + safe decode, `[]` on nonexistent root | ✅ |
+| `LocalResultsPage` adapted; `LocalResults.test.tsx:57` 404 case reworked to typed failure | ✅ |
+| `missing > 0` fixture exercised | ✅ |
+| No new routes/nav | ✅ (only the one adapter edit) |
+
+Two judgment calls the builder got right and worth noting: (a) the plan's text was self-contradictory about whether a JSON parse failure means "absent" or "malformed" — the implementation treats only a leading `<` as absent and parse failures as `malformed`, which is what the spec's test scenarios actually require; (b) the roster model list comes from `Object.keys(summary.models)` rather than `summary.panel`, which is more robust since `panel` can be absent.
+
+Behavior parity with the old inline `serveRuns` is preserved (I diffed `HEAD~2`), and the confinement is a genuine upgrade over the lexical `startsWith`.
+
+## Minor findings (non-blocking)
+
+1. **Stale doc comment in `LocalResultsPage.tsx:9-13`** — still says "or if the fetch 404s — it renders the committed sample". That is no longer true; a 404 now surfaces a localized error. The comment contradicts the code in a file this phase changed.
+2. **Malformed `summary.json` error is not localized.** `loadRun` line 280 does a bare `JSON.parse(s.text)`, so the `malformed` message is just `Unexpected token …` with no file/run. The JSONL path (`parseJsonl(…, "${base}/scores.jsonl")`) *is* localized with file + line. The spec's error scenario asks for "which run, which line"; one try/catch prefixing `${base}/summary.json` closes the gap.
+3. **Test vacuity in `listRuns`' symlink assertion.** `expect(ids).not.toContain("escape")` passes because `Dirent.isDirectory()` is already false for a symlink — the `real !== root && !real.startsWith(root + sep)` branch at `runsEndpoint.ts:46` is unreachable for symlinked entries and has no covering test. Deleting that branch would break nothing. (The equivalent check in `resolveRunFile` **is** genuinely covered — `escape/secret.json` resolves through the symlink and is rejected by the containment check, so that one is real.) Side effect worth knowing: a legitimately symlinked run directory under `runs/` is silently skipped from the index.
+4. **Roster path silently drops answers not in the roster.** In `joinResults`' roster branch, an `(question_id, model_id)` present in `answers.jsonl` but absent from `questions.jsonl` disappears from the output, and counts would then disagree with `summary` `n`. Fine while the roster is authoritative and co-produced, but there's no test or diagnostic for the stale-roster case.
+5. **`parseSummary` normalizes absent `by_tradition` to `{}`** (pre-existing). The spec's edge case "run with `by_tradition` absent → section omitted gracefully" means Phase 3 must test emptiness, not truthiness. Flagging so it isn't a surprise later.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase-1 data seam and hardened run-index endpoint are complete, type-clean, well-tested, and faithful to the plan; only cosmetic/locality nits remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `LocalResultsPage.tsx:9-13` comment still claims a 404 falls back to the sample — no longer true under the typed loader.
+- Malformed `summary.json` yields an unlocalized `malformed` message (bare `JSON.parse` at `localResults.ts:280`); the JSONL path is localized with file+line.
+- The `listRuns` symlink test is satisfied by the `isDirectory()` filter, leaving the realpath-containment branch at `runsEndpoint.ts:46` uncovered/unreachable; `resolveRunFile`'s equivalent check is genuinely covered.
+- Roster-path `joinResults` silently drops answer rows absent from `questions.jsonl` (no test or diagnostic for a stale roster).
+- `parseSummary` turns an absent `by_tradition` into `{}` — Phase 3 must check emptiness, not presence, to omit the section gracefully.

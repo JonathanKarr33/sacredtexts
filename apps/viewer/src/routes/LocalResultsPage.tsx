@@ -6,11 +6,12 @@ import {
 } from "../lib/localResults";
 import { sampleAnswersJsonl, sampleScoresJsonl, sampleSummary } from "../local/sample";
 
-// Local-only results view (Spec 1, Phase 7). With ?run=<base> (e.g. the dev-served
-// /runs/<id>, see vite.config.ts) it fetches that run's summary.json +
-// scores.jsonl + answers.jsonl; otherwise — or if the fetch 404s — it renders the
-// committed sample so `pnpm dev` -> /local-results works out of the box. No GitHub
-// data layer, no deploy, no domain adaptation (that is Spec 2).
+// Local-only results view (Spec 1, Phase 7; superseded by the Spec 2 leaderboard).
+// With ?run=<base> (e.g. the dev-served /runs/<id>, see vite.config.ts) it fetches that
+// run's four artifacts via loadRun and renders them, or shows a localized error if the
+// run can't be loaded (missing artifact / HTTP failure / malformed data). Without ?run=
+// it renders the committed sample so `pnpm dev` -> /local-results works out of the box.
+// No GitHub data layer.
 
 function sampleRun(): { summary: Summary; results: QuestionResult[] } {
   return {

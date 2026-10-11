@@ -20,6 +20,9 @@ beforeAll(() => {
   fs.writeFileSync(path.join(outside, "secret.json"), '{"secret":true}');
   try {
     fs.symlinkSync(outside, path.join(tmp, "escape"), "dir");
+    // an IN-root symlink (points at a real run inside the root) — still rejected, since the
+    // requirement is to never traverse a symlink, not only escaping ones.
+    fs.symlinkSync(path.join(tmp, "run-a"), path.join(tmp, "inlink"), "dir");
     symlinked = true;
   } catch {
     symlinked = false; // symlinks may be unavailable on some platforms
@@ -75,6 +78,12 @@ describe("runsEndpoint resolveRunFile confinement", () => {
   it("rejects a symlink under runs/ that resolves outside the root", () => {
     if (!symlinked) return; // skip where symlinks are unavailable
     expect(resolveRunFile(tmp, "escape/secret.json")).toBeNull();
+  });
+
+  it("rejects an in-root symlink component (no symlink is ever traversed)", () => {
+    if (!symlinked) return;
+    // "inlink" points at run-a inside the root, yet is still rejected.
+    expect(resolveRunFile(tmp, "inlink/summary.json")).toBeNull();
   });
 });
 

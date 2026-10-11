@@ -100,7 +100,7 @@ describe("localResults lib", () => {
     expect(run.kind).toBe("missing");
   });
 
-  it("loadRun reports malformed JSON as 'malformed'", async () => {
+  it("loadRun reports malformed summary JSON as 'malformed', localized to the file", async () => {
     const base = "/runs/bad";
     const run = await loadRun(base, fakeFetcher({
       [`${base}/summary.json`]: "{ not json",
@@ -111,6 +111,55 @@ describe("localResults lib", () => {
     expect(run.ok).toBe(false);
     if (run.ok) return;
     expect(run.kind).toBe("malformed");
+    expect(run.message).toContain("summary.json");
+  });
+
+  it("loadRun reports a malformed JSONL line with file + line context", async () => {
+    const base = "/runs/badjsonl";
+    const run = await loadRun(base, fakeFetcher({
+      [`${base}/summary.json`]: JSON.stringify(sampleSummary),
+      [`${base}/scores.jsonl`]: '{"question_id":"q","model_id":"m","task":"t","metrics":{"correct":1}}\nnot-json',
+      [`${base}/answers.jsonl`]: sampleAnswersJsonl,
+      [`${base}/questions.jsonl`]: sampleQuestionsJsonl,
+    }));
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.kind).toBe("malformed");
+    expect(run.message).toContain("scores.jsonl:2");
+  });
+
+  it("loadRun reports a non-404 HTTP failure as 'http'", async () => {
+    const base = "/runs/boom";
+    const fetcher = (async (url: string) => {
+      if (url.endsWith("summary.json")) return { ok: false, status: 500 } as Response;
+      const body = url.endsWith("questions.jsonl")
+        ? sampleQuestionsJsonl
+        : url.endsWith("scores.jsonl")
+          ? sampleScoresJsonl
+          : sampleAnswersJsonl;
+      return { ok: true, status: 200, text: async () => body } as Response;
+    }) as unknown as typeof fetch;
+    const run = await loadRun(base, fetcher);
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.kind).toBe("http");
+  });
+
+  it("joinResults leaves per-metric scores null for a task that emits none", () => {
+    const scores = parseJsonl<ScoreRow>(
+      '{"question_id":"q1","model_id":"m","task":"verify_source","metrics":{"correct":1}}',
+    );
+    const answers = parseJsonl<AnswerRow>(
+      JSON.stringify({
+        question_id: "q1", model_id: "m", task: "verify_source", answer: "yes",
+        question: { prompt: "p", expected: { answer: "yes" }, source: { tradition: ["X"] } },
+      }),
+    );
+    const rows = joinResults(scores, answers);
+    expect(rows[0]?.correct).toBe(true);
+    expect(rows[0]?.exact).toBeNull();
+    expect(rows[0]?.normalized).toBeNull();
+    expect(rows[0]?.token_f1).toBeNull();
   });
 });
 

@@ -192,6 +192,10 @@ export function joinResults(
   for (const s of scores) scoreByKey.set(`${s.question_id}\u0000${s.model_id}`, s);
 
   if (opts?.roster && opts?.models) {
+    // The roster is authoritative (score.py binds answers to the question-set digest), so
+    // we iterate models × roster: an answer row whose question_id is absent from the
+    // roster is intentionally not emitted (a stale/mismatched roster would show as a count
+    // gap against summary `n`).
     const out: QuestionResult[] = [];
     for (const model_id of opts.models) {
       for (const q of opts.roster) {
@@ -276,8 +280,15 @@ export async function loadRun(base: string, fetcher: typeof fetch = fetch): Prom
   if (!sc.ok) return sc;
   if (!an.ok) return an;
   if (!qs.ok) return qs;
+  // Localize the summary parse (bare JSON.parse has no file context); the JSONL parses
+  // are already localized to file:line by parseJsonl.
+  let summary: Summary;
   try {
-    const summary = parseSummary(JSON.parse(s.text));
+    summary = parseSummary(JSON.parse(s.text));
+  } catch (e) {
+    return { ok: false, kind: "malformed", message: `${base}/summary.json: ${(e as Error).message}` };
+  }
+  try {
     const scores = parseJsonl<ScoreRow>(sc.text, `${base}/scores.jsonl`);
     const answers = parseJsonl<AnswerRow>(an.text, `${base}/answers.jsonl`);
     const roster = parseJsonl<QuestionRow>(qs.text, `${base}/questions.jsonl`);

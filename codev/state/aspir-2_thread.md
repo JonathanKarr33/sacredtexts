@@ -161,3 +161,23 @@ Implemented the data foundation, no page redesign yet:
 Verified: check-types clean; full viewer suite 423 passed / 9 skipped (pre-existing
 skips); realRun gate ran (not skipped); runsEndpoint 8/8. Multibrowser tests still green
 (removed in phase_2).
+
+## 2026-10-11 — IMPLEMENT phase_1 consult (codex REQUEST_CHANGES / claude APPROVE) + fixes
+
+Per-phase impl consult. claude APPROVE (nits), codex REQUEST_CHANGES (3 real items).
+Applied all legitimate fixes (no disputes):
+- runsEndpoint resolveRunFile: now rejects ANY symlink component (per-component lstat) +
+  `..`, containment as backstop; listRuns skips symlink entries + accessSync(R_OK)
+  readability; handler readFileSync wrapped → 500 on read error. (codex 1,2; claude 3)
+- loadRun: localized malformed summary.json message (`${base}/summary.json: ...`);
+  JSONL already localized. (codex 3; claude 2)
+- Tests added: HTTP 500→http; malformed JSONL→malformed w/ scores.jsonl:2 context;
+  verify_source metrics→null; realRun served_by null (claude-haiku) + array (gpt-oss);
+  in-root symlink rejection (inlink→run-a). (codex 3)
+- LocalResultsPage stale comment fixed. (claude 1)
+- joinResults roster branch: comment documenting authoritative-roster invariant (non-
+  roster answers intentionally dropped; stale roster = count gap vs summary n). (claude 4)
+- NOTE for phase_3: parseSummary normalizes absent by_tradition → {}, so the leaderboard
+  must omit the by-tradition section on EMPTINESS, not truthiness. (claude 5)
+
+Verified: check-types clean; full suite 427 passed / 9 skipped. Committing fixes, re-signal.
