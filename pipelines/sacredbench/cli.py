@@ -277,17 +277,22 @@ def score(
     config: Path = typer.Option(None, help="run config YAML (the model panel) for the expected-cell roster"),
 ) -> None:
     """Score all answers (strict + normalized + token-F1) and write the per-model summary."""
-    expected = None
     if questions is not None or config is not None:
         if questions is None or config is None:
             raise typer.BadParameter("--questions and --config must be given together (missing-cell roster)")
         qs = load_questions(questions)
         cfg = load_config(config)
         expected = {}
+        expected_tradition: dict[tuple[str, str, str], int] = {}
         for m in cfg.models:
             for q in qs:
                 expected[(m.id, q.task)] = expected.get((m.id, q.task), 0) + 1
-    summary = score_file(answers, scores_out, expected)
+                for trad in q.source.get("tradition", []) or []:
+                    k = (m.id, trad, q.task)
+                    expected_tradition[k] = expected_tradition.get(k, 0) + 1
+        summary = score_file(answers, scores_out, expected, expected_tradition)
+    else:
+        summary = score_file(answers, scores_out)
     summary_out.parent.mkdir(parents=True, exist_ok=True)
     with open(summary_out, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)

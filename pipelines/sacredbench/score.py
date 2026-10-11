@@ -80,20 +80,27 @@ def _contains(answer: str, needle: str) -> bool:
 # so a cross-book hedge ("John 1:1, Genesis 1:1, or Micah 1:1") is three distinct
 # candidates, not one. (Number-only citations, e.g. a bare hadith number, are not
 # span-extracted — Arabic corpora are a follow-on; the first run is English.)
-_COLON_CITE = re.compile(r"(?:[A-Z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
-_PARA_CITE = re.compile(r"(?:[A-Z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
-# Number-only citation (hadith "Sahih al-Bukhari 1"): >=1 capitalized leading word
-# and a TERMINAL number — not a chapter:verse (guarded by the negative lookahead),
-# so it never double-counts a colon citation.
-_NUM_CITE = re.compile(r"(?:[A-Z][^\s,:]*\s+){1,8}\d+(?![\d:ab])")
+# Citation span extractors (prefix is case-insensitive so lowercase answers are
+# still extracted and lowercase hedges are still counted). The extractor is chosen
+# by the SHAPE of the ground-truth citation — a colon citation only counts colon
+# spans, so an incidental "ASV 1901" or "Chapter 1" is not a spurious candidate.
+_COLON_CITE = re.compile(r"(?:[A-Za-z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
+_PARA_CITE = re.compile(r"(?:[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
+# number-only (hadith "Sahih al-Bukhari 1"): >=1 leading word + a TERMINAL number
+_NUM_CITE = re.compile(r"(?:[A-Za-z][^\s,:]*\s+){1,8}\d+(?![\d:ab])")
 
 
-def _citation_candidates(answer: str) -> set[str]:
-    spans: set[str] = set()
-    for rx in (_COLON_CITE, _PARA_CITE, _NUM_CITE):
-        for m in rx.finditer(answer):
-            spans.add(normalize(m.group(0)))
-    return spans
+def _shape_rx(expected_citation: str) -> "re.Pattern[str]":
+    if re.search(r"\d\s*:\s*\d", expected_citation):
+        return _COLON_CITE
+    if re.search(r"[Pp]ara", expected_citation):
+        return _PARA_CITE
+    return _NUM_CITE
+
+
+def _citation_candidates(answer: str, expected_citation: str) -> set[str]:
+    rx = _shape_rx(expected_citation)
+    return {normalize(m.group(0)) for m in rx.finditer(answer)}
 
 
 def _bounded_equal(answer: str, expected: str) -> bool:
@@ -106,7 +113,7 @@ def _bounded_equal(answer: str, expected: str) -> bool:
 def _single_citation_correct(answer: str, expected_citation: str) -> tuple[int, int]:
     """Returns (correct, n_candidates). A multi-candidate answer scores 0; otherwise
     the single candidate must EQUAL ground truth (boundary-aware, not containment)."""
-    n = len(_citation_candidates(answer))
+    n = len(_citation_candidates(answer, expected_citation))
     if n > 1:
         return 0, n  # offered more than one citation candidate -> hedge
     return int(_bounded_equal(answer, expected_citation)), n
@@ -147,7 +154,8 @@ def score_answer(task: str, answer: str, expected: dict) -> dict:
 
 
 def score_file(
-    answers_path: Path, scores_path: Path, expected: dict[tuple[str, str], int] | None = None
+    answers_path: Path, scores_path: Path, expected: dict[tuple[str, str], int] | None = None,
+    expected_tradition: dict[tuple[str, str, str], int] | None = None,
 ) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
@@ -232,7 +240,7 @@ def score_file(
             for sm in _SUBMETRICS.get(task, ()):
                 cell[sm] = round(acc[sm] / acc["n"], 4)
         else:
-            cell = {"n": 0, "accuracy": 0.0}
+            cell = {"n": 0, "accuracy": None}  # no data (not a 0% score)
         if (model_id, task) in expected:
             cell["expected_n"] = expected[(model_id, task)]
             cell["missing"] = max(expected[(model_id, task)] - cell["n"], 0)
@@ -242,7 +250,7 @@ def score_file(
         cells = [acc for (m, _), acc in per_cell.items() if m == model_id]
         total_n = sum(c["n"] for c in cells)
         total_correct = sum(c["correct"] for c in cells)
-        ov = {"n": total_n, "accuracy": round(total_correct / total_n, 4) if total_n else 0.0}
+        ov = {"n": total_n, "accuracy": round(total_correct / total_n, 4) if total_n else None}
         exp_total = sum(v for (m, _), v in expected.items() if m == model_id)
         if exp_total:
             ov["expected_n"] = exp_total
@@ -250,16 +258,31 @@ def score_file(
         summary["models"][model_id]["_overall"] = ov
     # per-model x tradition x task (each observation counted once per listed
     # tradition, so a tradition's n can exceed the overall count); overall-once
-    # lives in summary["models"].
-    for (model_id, trad, task), tacc in sorted(per_trad.items()):
-        cell = {"n": tacc["n"], "accuracy": round(tacc["correct"] / tacc["n"], 4)}
+    # lives in summary["models"]. A tradition-aware roster surfaces missing/failed
+    # cells here too (a fully-failed model x tradition x task is not dropped).
+    expected_tradition = expected_tradition or {}
+    all_trad_cells = set(per_trad) | set(expected_tradition)
+    for (model_id, trad, task) in sorted(all_trad_cells):
+        tacc = per_trad.get((model_id, trad, task))
+        if tacc:
+            cell = {"n": tacc["n"], "accuracy": round(tacc["correct"] / tacc["n"], 4)}
+        else:
+            cell = {"n": 0, "accuracy": None}
+        if (model_id, trad, task) in expected_tradition:
+            cell["expected_n"] = expected_tradition[(model_id, trad, task)]
+            cell["missing"] = max(expected_tradition[(model_id, trad, task)] - cell["n"], 0)
         summary["by_tradition"].setdefault(model_id, {}).setdefault(trad, {})[task] = cell
     for model_id, trads in summary["by_tradition"].items():
         for trad, tasks in trads.items():
-            raw = [per_trad[(model_id, trad, t)] for t in tasks]  # raw counts, not rounded
+            raw = [per_trad.get((model_id, trad, t), {"n": 0, "correct": 0}) for t in tasks]
             tn = sum(c["n"] for c in raw)
             tc = sum(c["correct"] for c in raw)
-            tasks["_overall"] = {"n": tn, "accuracy": round(tc / tn, 4)}
+            ov = {"n": tn, "accuracy": round(tc / tn, 4) if tn else None}
+            exp_total = sum(v for (m, tr, _), v in expected_tradition.items() if m == model_id and tr == trad)
+            if exp_total:
+                ov["expected_n"] = exp_total
+                ov["missing"] = max(exp_total - tn, 0)
+            tasks["_overall"] = ov
     return summary
 
 
@@ -282,11 +305,14 @@ def summary_markdown(summary: dict) -> str:
     models = summary["models"]
     tasks = sorted({t for m in models.values() for t in m if t != "_overall"})
     lines = ["| model | " + " | ".join(tasks) + " | overall |", "|" + "---|" * (len(tasks) + 2)]
-    ranked = sorted(models.items(), key=lambda kv: -kv[1]["_overall"]["accuracy"])
+    ranked = sorted(
+        models.items(),
+        key=lambda kv: -kv[1]["_overall"]["accuracy"] if kv[1]["_overall"]["accuracy"] is not None else 1,
+    )
     for model_id, cells in ranked:
         row = [model_id] + [_cell_str(cells.get(t)) for t in tasks]
         ov = cells["_overall"]
-        overall = f"**{ov['accuracy']:.0%}**"
+        overall = "**n/a**" if ov["accuracy"] is None else f"**{ov['accuracy']:.0%}**"
         if ov.get("missing"):
             overall += f" −{ov['missing']}"
         row.append(overall)
@@ -300,6 +326,8 @@ def summary_markdown(summary: dict) -> str:
             for trad in sorted(by_trad[model_id]):
                 cells = by_trad[model_id][trad]
                 row = [model_id, trad] + [_cell_str(cells.get(t)) for t in tasks]
-                row.append(f"**{cells['_overall']['accuracy']:.0%}** (n={cells['_overall']['n']})")
+                ov = cells["_overall"]
+                acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
+                row.append(f"**{acc}** (n={ov['n']})")
                 lines.append("| " + " | ".join(row) + " |")
     return "\n".join(lines) + "\n"

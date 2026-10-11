@@ -121,6 +121,19 @@ def test_cite_passage_single_candidate():
     assert score_answer("cite_passage", "Jude 1:30", {"citation": "Jude 1:3"})["correct"] == 0
 
 
+def test_cite_passage_incidental_numbers_not_false_hedge():
+    # the extractor keys on the ground-truth SHAPE (colon), so an incidental version
+    # year or "Chapter 1" is not a spurious second candidate for a correct answer
+    assert score_answer("cite_passage", "The citation is Jude 1:3 (ASV 1901).", {"citation": "Jude 1:3"})["correct"] == 1
+    assert score_answer("cite_passage", "The quote is from Jude 1:3. It appears in Chapter 1.", {"citation": "Jude 1:3"})["correct"] == 1
+
+
+def test_cite_passage_lowercase_hedge_caught():
+    # lowercase hedges must still be multi-candidate (case-insensitive extraction)
+    assert score_answer("cite_passage", "it could be john 1:1 or genesis 1:1", {"citation": "John 1:1"})["correct"] == 0
+    assert score_answer("cite_passage", "perhaps sahih al-bukhari 1, or sahih muslim 2", {"citation": "Sahih al-Bukhari 1"})["correct"] == 0
+
+
 def test_identify_source_single_candidate():
     ok = score_answer("identify_source", "From Jude, Jude 1:3.", {"work": "Jude", "citation": "Jude 1:3"})
     assert ok["correct"] == 1
@@ -219,3 +232,17 @@ def test_missing_cells_with_roster(tmp_path):
     assert summary["models"]["m2"]["retrieve_quote"]["missing"] == 3
     assert summary["models"]["m2"]["_overall"]["missing"] == 3
     assert "miss" in summary_markdown(summary)
+
+
+def test_missing_tradition_cell_represented(tmp_path):
+    # a tradition-aware roster surfaces a model x tradition x task cell that failed
+    # entirely (dropped from by_tradition without the roster)
+    answers = tmp_path / "answers.jsonl"
+    answers.write_text(json.dumps(_answer("rq-0", "m1", "retrieve_quote", "x", {"text": "x"}, ["A"])) + "\n")
+    expected = {("m1", "retrieve_quote"): 2}
+    expected_trad = {("m1", "A", "retrieve_quote"): 2, ("m1", "B", "retrieve_quote"): 2}
+    summary = score_file(answers, tmp_path / "scores.jsonl", expected, expected_trad)
+    by = summary["by_tradition"]["m1"]
+    assert by["A"]["retrieve_quote"]["missing"] == 1  # 1 of 2 answered
+    assert "B" in by and by["B"]["retrieve_quote"]["n"] == 0  # tradition B fully failed, still shown
+    assert by["B"]["retrieve_quote"]["missing"] == 2

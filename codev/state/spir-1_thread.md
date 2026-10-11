@@ -572,3 +572,20 @@ SPIR, strict mode (porch-driven).
 - claude follow-ups (citation word-order, Arabic norm) = stated scope, outside
   Phase 8's English retrieve_quote run.
 - Committing + re-consulting (iter 3).
+
+### Phase 6 — iter 3 impl consult (BOTH REQUEST_CHANGES / HIGH)
+
+- claude: my iter-2 _NUM_CITE REGRESSED correct single citations (counted "ASV 1901"
+  / "Chapter 1" as 2nd candidates -> correct=0) + lowercase hedge still live (I'd
+  dropped that iter-2 comment w/o disposition). codex: same lowercase + tradition
+  breakdown missing cells. Accepted all. 132 tests pass.
+- Fix (claude's, verified): choose extractor by GROUND-TRUTH shape (colon/para/num),
+  case-INSENSITIVE prefix. Jude 1:3 (ASV 1901) -> 1; lowercase hedges -> 0. 3
+  regression tests.
+- Tradition-aware roster (expected_tradition) built by CLI from questions x panel x
+  listed-traditions -> missing/failed cells shown in by_tradition too. Test + CLI
+  smoke (m2 fully-failed -> "miss"/"n/a" in both tables).
+- Non-blocking dispositioned explicitly (process note): fully-missing -> n/a (fixed);
+  identify_version short-label strictness (accepted limitation, not in first run);
+  tradition .get tolerance (kept intentional).
+- Committing + re-consulting (iter 4).
