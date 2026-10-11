@@ -14,10 +14,10 @@ plan_phases:
     status: complete
   - id: phase_4
     title: Interchange exporter and round-trip guarantee
-    status: in_progress
+    status: complete
   - id: phase_5
     title: Deterministic, version-gated, balanced generation with resume-guarded collection
-    status: pending
+    status: in_progress
   - id: phase_6
     title: Per-task scoring contract and tradition-aware analysis
     status: pending
@@ -27,7 +27,7 @@ plan_phases:
   - id: phase_8
     title: First benchmark run and TUTORIAL walkthrough
     status: pending
-current_plan_phase: phase_4
+current_plan_phase: phase_5
 gates:
   spec-approval:
     status: approved
@@ -41,8 +41,8 @@ gates:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -153,7 +153,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/spir-1/codev/projects/1-spec-1-seed-phase-1-benchmark-/1-phase_4-iter3-claude.txt
 started_at: '2026-10-10T19:04:21.292Z'
-updated_at: '2026-10-11T02:45:30.425Z'
+updated_at: '2026-10-11T02:45:32.373Z'
 context_refreshes:
   - boundary: enter:plan
     at: '2026-10-10T22:49:50.661Z'
@@ -167,6 +167,8 @@ context_refreshes:
   - boundary: plan-phase:phase_4
     at: '2026-10-11T02:18:03.503Z'
     acknowledged_at: '2026-10-11T02:18:09.553Z'
+  - boundary: plan-phase:phase_5
+    at: '2026-10-11T02:45:32.373Z'
 force_advanced:
   phase: phase_4
   iteration: 3
