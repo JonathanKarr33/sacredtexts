@@ -772,3 +772,29 @@ SPIR, strict mode (porch-driven).
   (human-only, relayed by architect). Open decisions for the human: (a) merge approval;
   (b) Vatican encyclicals license:open vs restricted (©LEV) sign-off. On approval:
   porch approve 1 pr (relayed) → merge → porch done 1 --merged 3 → verify.
+
+## PR #3 MERGED → verify phase (2026-10-11)
+- Human approved at the PR gate (relayed by architect). Folded in the two requested
+  items first (commit d9fd8b0, pushed): (a) pipelines/README.md note — with TLG
+  payloads local, whole-corpus `convert --include-restricted` fail-fasts on the
+  unregistered `tlg` converter, use `--source "Roman Catholic"` for NABRE until it
+  lands (+ architect's numbers: 35,091 NABRE verses, audit content layer clean at
+  32,070 fp); (b) review doc — recorded the human decision to KEEP Vatican encyclicals
+  as `license: open` for now, group sign-off before the preprint (item 8 + Follow-up).
+- `porch approve 1 pr --a-human-explicitly-approved-this` → all 4 checks green, gate approved.
+- Merged PR #3 with a regular merge commit (NOT squash, per verify task + rebuttal):
+  merge commit 64d20b6 on origin/main, merged by waleedkadous.
+- `porch done 1 --merged 3` → recorded.
+- Post-merge verification (origin/main): merge commit present; committed evidence
+  intact (digest ef837474ed7b22ec, 400 answer rows); copyright-clean — only the
+  Greek Orthodox `source.yaml` manifest tracked, no NABRE/TLG payloads.
+- `porch done 1` → `porch gate 1` → verify-approval gate SURFACED, WAITING FOR HUMAN
+  APPROVAL (architect approves). I will NOT run `porch approve 1 verify-approval`.
+
+## PROTOCOL COMPLETE (2026-10-11)
+- Human approved verify-approval (relayed by architect) → `porch approve 1
+  verify-approval --a-human-explicitly-approved-this` → 🎉 PROTOCOL COMPLETE.
+- `porch done 1` → "already verified — nothing to do." Project 1 is done end to end.
+- Architect's independent post-merge check matched mine (64d20b6 on origin/main,
+  only Greek Orthodox source.yaml under held-back paths, digest ef837474 intact,
+  suites green). Signalled architect; worktree cleanup is the architect's to do.
