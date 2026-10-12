@@ -1,7 +1,7 @@
 id: '11'
 title: standings-marked-panel-model-o
 protocol: aspir
-phase: implement
+phase: review
 plan_phases:
   - id: phase_1
     title: Pipeline emits panel.tools (raw model, no api_model)
@@ -11,15 +11,15 @@ plan_phases:
     status: complete
   - id: phase_3
     title: Correct falsified marker docs
-    status: in_progress
-current_plan_phase: phase_3
+    status: complete
+current_plan_phase: null
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_3
@@ -46,7 +46,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-11/codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter2-claude.txt
 started_at: '2026-10-12T16:17:27.504Z'
-updated_at: '2026-10-12T17:36:19.270Z'
+updated_at: '2026-10-12T17:40:27.988Z'
 context_refreshes:
   - boundary: enter:implement
     at: '2026-10-12T16:47:09.278Z'
@@ -57,3 +57,5 @@ context_refreshes:
   - boundary: plan-phase:phase_3
     at: '2026-10-12T17:14:36.032Z'
     acknowledged_at: '2026-10-12T17:16:11.357Z'
+  - boundary: enter:review
+    at: '2026-10-12T17:40:27.988Z'
