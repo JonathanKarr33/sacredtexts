@@ -208,28 +208,34 @@ def _single_citation_correct(answer: str, expected_citation: str) -> tuple[int, 
     return int(_bounded_equal(answer, expected_citation)), n
 
 
-def score_answer(task: str, answer: str, expected: dict) -> dict:
-    """Score one model answer. Returns the metrics dict described in the module docstring."""
+def score_answer(task: str, answer: str, expected: dict, graders: "list | None" = None) -> dict:
+    """Score one model answer. Returns the metrics dict described in the module docstring.
+
+    For the text-retrieval tasks the reported submetric fields and the headline are determined by
+    the selected ``graders`` (a list of ``graders.Grader``; ``None`` ⇒ the default deterministic
+    set): each grader contributes its ``metric_keys`` and the headline ``correct`` is the OR of the
+    selected graders' verdicts. ``token_f1`` is an always-on diagnostic. The default set
+    ``{strict, containment}`` emits ``exact``/``normalized``/``token_f1``/``contains_reference`` with
+    ``correct = normalized OR contains_reference`` — identical to the frozen phase-1 contract."""
     if task in ("retrieve_quote", "complete_unit"):
+        from .graders import resolve_evaluators, submetrics_for
+
+        graders = graders if graders is not None else resolve_evaluators(None)
         target = expected["text"]
-        exact = int(answer.strip() == target.strip())
-        norm = int(normalize(answer) == normalize(target))
-        f1 = token_f1(answer, target)
-        # contains_reference: the normalised reference appears, word-bounded, inside the
-        # normalised answer — a correct-but-wrapped retrieval (bracketed quote + a citation
-        # or caveat) that strict ``normalized`` scores 0. Reuses ``_bounded_equal`` (which IS
-        # word-bounded normalised containment); the ``bool(normalize(target))`` guard stops an
-        # empty reference (whose escaped regex matches everywhere) from scoring 1. Scoped to
-        # these two text-retrieval tasks ONLY — the provenance tasks below never see it, so
-        # containment cannot game provenance honesty (the Spec 1/8 anti-evasion contract).
-        contains_reference = int(bool(normalize(target)) and _bounded_equal(answer, target))
-        return {
-            "exact": exact,
-            "normalized": norm,
-            "token_f1": round(f1, 4),
-            "contains_reference": contains_reference,
-            "correct": int(norm or contains_reference),
+        # all primitives are computed; only the selected graders' fields (+ always-on token_f1)
+        # are emitted. contains_reference reuses _bounded_equal (word-bounded normalised
+        # containment); the bool(normalize(target)) guard stops an empty reference (whose escaped
+        # regex matches everywhere) from scoring 1. Containment is confined to these two
+        # text-retrieval tasks — the provenance branches below never see it.
+        computed = {
+            "exact": int(answer.strip() == target.strip()),
+            "normalized": int(normalize(answer) == normalize(target)),
+            "token_f1": round(token_f1(answer, target), 4),
+            "contains_reference": int(bool(normalize(target)) and _bounded_equal(answer, target)),
         }
+        metrics = {k: computed[k] for k in submetrics_for(graders)}  # canonical order
+        metrics["correct"] = int(any(g.verdict(computed) for g in graders))
+        return metrics
     if task == "verify_source":
         parsed = parse_yes_no(answer)
         correct = int(parsed == expected["answer"])
@@ -261,6 +267,7 @@ def score_file(
     expected_tradition: dict[tuple[str, str, str], int] | None = None,
     panel: dict[str, dict] | None = None,
     expected_digest: str | None = None,
+    evaluators: "list[str] | None" = None,
 ) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
@@ -310,13 +317,25 @@ def score_file(
                 "question set than they were collected for; point --questions at the matching set"
             )
 
+    # resolve the grader selection ONCE (default = deterministic set); it drives both the emitted
+    # text-retrieval submetric fields and which submetrics the summary aggregates.
+    from .graders import resolve_evaluators, submetrics_for
+
+    graders = resolve_evaluators(evaluators)
+    text_submetrics = submetrics_for(graders)  # canonical-ordered keys for retrieve_quote/complete_unit
+
+    def _task_submetrics(task: str) -> tuple[str, ...]:
+        if task in ("retrieve_quote", "complete_unit"):
+            return text_submetrics
+        return _SUBMETRICS.get(task, ())  # fixed for identify_version; () for the others
+
     scores_path.parent.mkdir(parents=True, exist_ok=True)
     per_cell: dict[tuple[str, str], dict] = {}  # (model_id, task) -> accumulators
     per_trad: dict[tuple[str, str, str], dict] = {}  # (model_id, tradition, task) -> {n, correct}
     usage: dict[str, dict] = {}  # model_id -> {calls, in, out, model, served_by{host:count}}
     with open(scores_path, "w", encoding="utf-8") as out:
         for d in rows:
-            metrics = score_answer(d["task"], d["answer"], d["question"]["expected"])
+            metrics = score_answer(d["task"], d["answer"], d["question"]["expected"], graders)
             out.write(
                 json.dumps(
                     {
@@ -329,19 +348,18 @@ def score_file(
                 )
                 + "\n"
             )
+            # accumulator seeded from THIS task's selected submetrics (canonical order), so a
+            # subset selection never leaves a stale key (e.g. `--evaluator strict` must not emit a
+            # spurious contains_reference:0.0 into the summary) and the summary loop reads acc[sm].
+            sm_keys = _task_submetrics(d["task"])
             acc = per_cell.setdefault(
                 (d["model_id"], d["task"]),
-                {"n": 0, "correct": 0, "exact": 0, "normalized": 0, "token_f1": 0.0,
-                 "contains_reference": 0},
+                {"n": 0, "correct": 0, **{k: 0 for k in sm_keys}},
             )
             acc["n"] += 1
             acc["correct"] += metrics["correct"]
-            acc["exact"] += metrics.get("exact", 0)
-            acc["normalized"] += metrics.get("normalized", 0)
-            acc["token_f1"] += metrics.get("token_f1", 0.0)
-            # new submetric: present only for the text-retrieval tasks (see _SUBMETRICS);
-            # the explicit += mirrors the keys above — the summary loop reads acc[sm].
-            acc["contains_reference"] += metrics.get("contains_reference", 0)
+            for sm in sm_keys:
+                acc[sm] += metrics.get(sm, 0)
             # token usage for cost accounting (recorded per answer row by collect)
             u = d.get("usage") or {}
             um = usage.setdefault(
@@ -368,7 +386,7 @@ def score_file(
         acc = per_cell.get((model_id, task))
         if acc:
             cell = {"n": acc["n"], "accuracy": round(acc["correct"] / acc["n"], 4)}
-            for sm in _SUBMETRICS.get(task, ()):
+            for sm in _task_submetrics(task):
                 cell[sm] = round(acc[sm] / acc["n"], 4)
         else:
             cell = {"n": 0, "accuracy": None}  # no data (not a 0% score)

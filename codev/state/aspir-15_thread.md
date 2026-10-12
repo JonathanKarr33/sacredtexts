@@ -297,4 +297,28 @@ above in the review doc. Both honored.
 - refused_rate=refused/n; accuracy null if all refused.
 Responses recorded in 15-plan-rescope-rebuttals.md.
 
-Next: commit spec+plan+rescope consult artifacts+rebuttal+thread → drive porch through replayed iters → implement p2.
+Committed re-scope (spec+plan+rescope artifacts+rebuttal). Drove porch through replayed iters → implement.
+Context-refresh task slipped at implement-entry boundary (scrolled past porch's exact --boundary cmd; skill
+forbids guessing; non-blocking; state on disk). Will take porch's refresh at p1→p2 boundary next time.
+phase_1 (DONE) re-signalled PHASE_COMPLETE → porch advanced to phase_2.
+
+## 2026-10-12 — Implement phase_2 (Named-grader registry + score --evaluator, PROVABLE NO-OP) — DONE (pre-consult)
+- NEW pipelines/sacredbench/graders.py: pure-metadata registry (no score import → no cycle). Grader(name,
+  metric_keys, verdict, default, inline). GRADERS={strict:(exact,normalized)/verdict normalized==1,
+  containment:(contains_reference)/verdict contains_reference==1}. token_f1=ALWAYS_ON diagnostic. Canonical
+  order (exact,normalized,token_f1,contains_reference). resolve_evaluators (comma-sep/repeat/dedupe; None→
+  default; unknown/empty/non-inline → GraderError fail-fast). submetrics_for(). Non-inline/paid seam =
+  verdict=None,inline=False,no callable (jev example in a comment + exercised by a test).
+- score.py: score_answer(task,answer,expected,graders=None) computes all 4 primitives, emits only selected
+  graders' keys (canonical order) + correct=OR of selected verdicts. score_file(...,evaluators=None) resolves
+  once, threads to score_answer, derives per-task submetric set (_task_submetrics) for accumulator seed +
+  summary loop (kills the static-_SUBMETRICS + pre-seeded-accumulator bug → no spurious contains_reference:0.0
+  under --evaluator strict). _SUBMETRICS kept only for identify_version (fixed).
+- cli.py: score --evaluator (list, comma-sep/repeat; fail-fast via typer.BadParameter; default set; paid never default).
+- Tests: test_graders.py (9 new: default set, resolution, fail-fast, canonical/scoped submetrics, OR-verdict
+  subsets, no-spurious-contains_reference summary, separate-pass fixture+merge-path). test_score.py +no-op dict test.
+- VERIFIED NO-OP: phase-1 run byte-guards (test_first_run_regression, test_tutorial_run) + oracle pass UNCHANGED
+  (default re-score reproduces committed scores.jsonl byte-for-byte over 800 cells). --evaluator strict omits
+  contains_reference + correct==normalized; containment-only omits exact/normalized. Pipeline suite 310 passed/1
+  skip; dispatcher exit 0. NO rebaseline (committed runs untouched). Only pipelines/ changed.
+Next: commit phase_2 → porch done → per-phase impl consult (codex+claude) → address → phase_3.

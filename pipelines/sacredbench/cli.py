@@ -298,8 +298,20 @@ def score(
     summary_md: Path = typer.Option(None, help="also write the markdown summary (incl. tradition breakdown) here"),
     questions: Path = typer.Option(None, help="questions.jsonl — with --config, report missing/failed cells"),
     config: Path = typer.Option(None, help="run config YAML (the model panel) for the expected-cell roster"),
+    evaluator: list[str] = typer.Option(
+        None, "--evaluator",
+        help="grader(s) for text-retrieval, comma-separated and/or repeatable "
+             "(default: the deterministic set strict,containment; unknown names fail fast; "
+             "paid/separate-pass graders are never default and cannot run here).",
+    ),
 ) -> None:
-    """Score all answers (strict + normalized + token-F1) and write the per-model summary."""
+    """Score all answers and write the per-model summary. Graders are selectable via --evaluator."""
+    from .graders import GraderError, resolve_evaluators
+
+    try:
+        resolve_evaluators(evaluator or None)  # fail fast on an unknown/empty/non-inline selection
+    except GraderError as e:
+        raise typer.BadParameter(str(e))
     if questions is not None or config is not None:
         if questions is None or config is None:
             raise typer.BadParameter("--questions and --config must be given together (missing-cell roster)")
@@ -350,9 +362,9 @@ def score(
             panel[m.id] = {"provider": m.provider, "model": marked, "api_model": m.model,
                            "endpoint": endpoint, "price_in": m.price_in, "price_out": m.price_out}
         summary = score_file(answers, scores_out, expected, expected_tradition, panel,
-                             expected_digest=gen.question_set_digest(qs))
+                             expected_digest=gen.question_set_digest(qs), evaluators=evaluator or None)
     else:
-        summary = score_file(answers, scores_out)
+        summary = score_file(answers, scores_out, evaluators=evaluator or None)
     summary_out.parent.mkdir(parents=True, exist_ok=True)
     with open(summary_out, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)

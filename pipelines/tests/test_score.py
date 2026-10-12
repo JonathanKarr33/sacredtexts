@@ -50,6 +50,19 @@ def test_retrieve_quote_tiers():
     assert wrong["correct"] == 0 and wrong["token_f1"] == 0.0
 
 
+def test_default_graders_are_a_noop_vs_phase1_dict():
+    # the phase-2 refactor must emit the exact phase-1 metrics dict (keys, order, values) for the
+    # default grader set — the no-op property the run byte-guards prove over 800 real cells.
+    exp = {"text": "The keeper planted twelve trees."}
+    ans = "﴾The keeper planted twelve trees.﴿ (from a web page)"
+    import json
+    from sacredbench.graders import resolve_evaluators
+    default_implicit = score_answer("retrieve_quote", ans, exp)
+    default_explicit = score_answer("retrieve_quote", ans, exp, resolve_evaluators(None))
+    assert json.dumps(default_implicit) == json.dumps(default_explicit)
+    assert list(default_implicit) == ["exact", "normalized", "token_f1", "contains_reference", "correct"]
+
+
 def test_contains_reference_wrapped_exact_flips_headline():
     # Spec 15: a verbatim quote wrapped in brackets + an English caveat scores normalized=0
     # (it is NOT "the quote and nothing else") but contains_reference=1 → correct=1.
