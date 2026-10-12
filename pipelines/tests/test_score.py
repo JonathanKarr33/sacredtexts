@@ -155,6 +155,21 @@ def test_verify_source_decline_is_refused():
     assert score_answer("verify_source", "No.", {"answer": "yes"})["outcome"] == "incorrect"
 
 
+def test_hedged_but_correct_provenance_is_not_refused():
+    # the provenance guard (_with_outcome gates refusal on `not correct`): a leading decline that
+    # STILL delivers the correct answer stays correct — provenance tasks have no containment half in
+    # classify_refusal, so without the gate a hedged-but-correct citation would be wrongly refused.
+    cite = score_answer("cite_passage", "I can't be fully certain, but it is Jude 1:3.", {"citation": "Jude 1:3"})
+    assert cite["correct"] == 1 and cite["outcome"] == "correct"
+    src = score_answer("identify_source", "I can't verify, but it is from Jude, Jude 1:3.",
+                       {"work": "Jude", "citation": "Jude 1:3"})
+    assert src["correct"] == 1 and src["outcome"] == "correct"
+    yes = score_answer("verify_source", "I can't be sure, but yes.", {"answer": "yes"})
+    assert yes["correct"] == 1 and yes["outcome"] == "correct"
+    # a declined provenance answer that does NOT deliver is still refused
+    assert score_answer("cite_passage", "I can't provide the citation.", {"citation": "Jude 1:3"})["outcome"] == "refused"
+
+
 def test_summary_accuracy_excludes_refused_with_coverage(tmp_path):
     answers = tmp_path / "answers.jsonl"
     exp = {"text": "alpha beta gamma"}
@@ -172,6 +187,9 @@ def test_summary_accuracy_excludes_refused_with_coverage(tmp_path):
     assert cell["refused_rate"] == 0.5
     # submetric average is over graded cells only (2), not n (4)
     assert cell["contains_reference"] == 0.5
+    # the three-outcome counts are rendered in summary.md too (spec: summary.json AND summary.md)
+    md = summary_markdown(score_file(answers, tmp_path / "s3.jsonl"))
+    assert "c/i/r 1/1/2" in md and "refused_rate" in md
 
 
 def test_all_refused_accuracy_is_null(tmp_path):

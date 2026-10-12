@@ -1,0 +1,17 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 3’s core rebaseline is sound, but Markdown reporting and provenance-task refusal classification do not fully meet the contract.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `summary_markdown()` (`score.py:563-612`) renders only accuracy, coverage, and `n`; the committed `summary.md` files never explicitly report correct/incorrect/refused counts or `refused_rate`. The specification requires the three-outcome breakdown in both `summary.json` and `summary.md`. Add this reporting and a regression assertion.
+- `classify_refusal()` (`outcomes.py:94-111`) applies the reference-delivery guard only to retrieval and `verify_source`; all other provenance tasks are refused solely on a leading cue. Consequently, a valid answer such as “I can't verify it, but Jude 1:3” is scored `refused` even though the unchanged `cite_passage` grader finds the correct single citation. This violates the decline-AND-reference-not-contained rule and the requirement that provenance scoring remain intact. Add task-appropriate commitment guards and tests for `cite_passage`, `identify_source`, and `identify_version`.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the codex review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-15_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

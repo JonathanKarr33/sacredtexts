@@ -357,3 +357,43 @@ Dispatcher maps runs/→pipelines lane, so phase_3 gate green while viewer fixtu
 
 ### Architect note (18:55, main) — RECORDED for phase_5 docs: round out two loose panel summaries to mention
 panel tools+served_by fields: pipelines/README.md:101 and apps/viewer/README.md:14 (two one-line edits).
+
+### phase_3 impl DONE (commit 69082e3) — build-complete ✓, 2-way consult RUNNING (codex+claude)
+Implemented: outcomes.py (classify_refusal = leading decline-cue[<60 norm chars] AND not-contained;
+verify_source decline→refused), score._with_outcome (stamps outcome; refused keeps submetrics, forces
+correct=0), 3-outcome summary (_outcome_cell: accuracy=correct/(correct+incorrect), coverage, refused_rate;
+submetric avgs over graded only), evaluators stamp, summary.md coverage. 2nd rebaseline: scores.jsonl +outcome
+ONLY (800 cells byte-identical otherwise); phase-1 oracle sha UNCHANGED, flips 1/20 unchanged. Tests: refused
+set MATCHES frozen 266 exactly; test_outcomes.py (14) + test_score outcome block + rebaseline refused-set/
+coverage pins + outcome-exclusivity. Pipeline 335 pass/1 skip.
+
+**DEVIATION (flagged to architect): viewer committed-run fixtures updated IN phase_3, not phase_4.**
+Reason: `.codev/checks/test.sh` diffs the WHOLE branch vs main; phase-1 touched apps/viewer, so the viewer
+vitest lane runs on EVERY `porch done`. The 2nd rebaseline moved tutorial ranking (opus 100% now tops
+opus-search 97%) + first-run LDS/overall %, breaking 3 pinned fixtures (tutorialRun, LeaderboardPage,
+StandingsPage committed-run gates). Per the phase-1 lesson (rebaseline+fixtures are one commit), I updated
+those 3 fixtures to the rebaselined numbers in the SAME commit. Viewer FEATURE work (coverage column,
+4-category explorer, refused filter, contrast affordance) REMAINS phase_4. Viewer 125/125 green.
+
+### phase_3 consult (codex+claude, both REQUEST_CHANGES HIGH) — folded, NO 3rd rebaseline
+Both converged on ONE real bug + codex's summary.md gap; claude independently verified the rebaseline
+byte-clean (800 rows added={'outcome'} only) and the refused set non-circular (token_f1 signature:
+refused 265/266 < 0.3; 3-way attack; LEADING_WINDOW 60 not load-bearing, ±1 cell over {30..∞}).
+1. **Provenance bug (both, MUST-FIX, spec line 215 "provenance untouched")**: `_with_outcome` ran
+   classify_refusal UNCONDITIONALLY; provenance tasks (cite/identify_source/identify_version) have no
+   containment half → a hedged-but-CORRECT provenance answer ("I can't verify, but Jude 1:3") flipped
+   to refused, correct 1→0. FIX = gate on `not metrics["correct"]` (one line). PROVABLY no-op on
+   committed evidence (text-retrieval refused cells already have correct=0; verified scores.jsonl +
+   summary.json byte-identical after fix, only generated_at moved). Added hedged-but-correct unit tests.
+2. **summary.md three-outcome breakdown (codex, spec lines 79-81 "in summary.json AND summary.md")**:
+   summary.md showed only acc/cov/n. Added c/i/r counts per cell + overall + a legend documenting
+   refused_rate. Regenerated both summary.md (scores.jsonl + summary.json unchanged except timestamp).
+3. Nit (claude): lru_cache on _normalized_cues (hot path) — applied.
+**DEFERRALS recorded:**
+- phase_5 README: tutorial `haiku-search/retrieve_quote-e2d74279aaf0` is the ONLY refused cell above
+  token_f1 0.5 (0.68) — a from-memory attempt refused under the frozen rule; excluding it buys
+  haiku-search ~1pt (80% vs 78.8%). Document beside the 1/21 hedge caveat so the exclusion isn't
+  overstated as clean.
+- phase_4: localResults.ts:388 formatCell renders a null-accuracy (all-refused) cell as bare "n/a",
+  dropping n (e.g. tutorial all-refused Judaism rows lose n). Fix with the coverage-column work.
+Pipeline suite green after fixes; both consult outputs committed with the phase work.

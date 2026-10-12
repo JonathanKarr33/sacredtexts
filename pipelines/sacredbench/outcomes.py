@@ -37,6 +37,8 @@ live in ``score.py`` and are imported lazily so there is no import cycle (``scor
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 # The leading segment (in normalized characters) a decline cue must fall within to count as a
 # refusal. Round and robust: it clears the genuine preambles (longest observed ≈ 39) while excluding
 # the deliver-then-caveat cells (earliest trailing caveat observed ≈ 71).
@@ -77,7 +79,9 @@ _DECLINE_CUES_RAW: tuple[str, ...] = (
 _TEXT_RETRIEVAL = ("retrieve_quote", "complete_unit")
 
 
+@lru_cache(maxsize=1)
 def _normalized_cues() -> frozenset[str]:
+    # cues are a fixed constant; normalize them once (hot path — called per answer)
     from .score import normalize
 
     return frozenset(normalize(c) for c in _DECLINE_CUES_RAW)

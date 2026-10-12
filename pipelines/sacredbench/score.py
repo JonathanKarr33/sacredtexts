@@ -281,8 +281,13 @@ def _with_outcome(metrics: dict, task: str, answer: str, expected: dict) -> dict
     non-refused cell the outcome is simply correct-vs-incorrect per the headline verdict."""
     from .outcomes import classify_refusal
 
-    if classify_refusal(answer, task, expected):
-        metrics["correct"] = 0  # headline verdict skipped for a declined cell
+    # Refusal short-circuits the headline, but ONLY for a cell that is not already correct: a
+    # decline-prefixed answer that still delivers the right result (e.g. a hedged-but-correct
+    # provenance citation — "I can't verify, but it's Jude 1:3") is an ANSWER, not a refusal. For
+    # text-retrieval `correct` is already 0 whenever classify_refusal holds (the matcher's
+    # not-contained half), so the `not correct` gate is a no-op there; it is the provenance guard
+    # (cite_passage/identify_source/identify_version have no containment half in classify_refusal).
+    if not metrics["correct"] and classify_refusal(answer, task, expected):
         metrics["outcome"] = "refused"
     else:
         metrics["outcome"] = "correct" if metrics["correct"] else "incorrect"
@@ -562,15 +567,22 @@ def score_file(
 
 def _cell_str(c: dict | None) -> str:
     """Render one table cell: '—' if absent, 'miss N' if expected-but-unanswered, otherwise
-    'acc% cov cov% (n=N)' — accuracy is right-when-it-answers (n/a if all refused) and coverage
-    sits beside it (how often it answered). A '−missing' suffix flags unanswered roster cells."""
+    'acc% cov cov% (n=N; c/i/r C/I/R)' — accuracy is right-when-it-answers (n/a if all refused),
+    coverage sits beside it, and the correct/incorrect/refused counts are shown so the three-outcome
+    split (and refused_rate = R/N) is readable from summary.md itself. '−missing' flags unanswered
+    roster cells (distinct from refused)."""
     if c is None:
         return "—"
     if c["n"] == 0:
         return f"miss {c['missing']}" if c.get("missing") else "—"
     acc = "n/a" if c.get("accuracy") is None else f"{c['accuracy']:.0%}"
-    cov = "" if c.get("coverage") is None else f" cov {c['coverage']:.0%}"
-    s = f"{acc}{cov} (n={c['n']})"
+    s = acc
+    if c.get("coverage") is not None:
+        s += f" cov {c['coverage']:.0%}"
+    if "correct" in c:  # scored cell: spec requires correct/incorrect/refused in summary.md
+        s += f" (n={c['n']}; c/i/r {c['correct']}/{c['incorrect']}/{c['refused']})"
+    else:
+        s += f" (n={c['n']})"
     if c.get("missing"):
         s += f" −{c['missing']}"
     return s
@@ -592,10 +604,18 @@ def summary_markdown(summary: dict) -> str:
         overall = "**n/a**" if ov["accuracy"] is None else f"**{ov['accuracy']:.0%}**"
         if ov.get("coverage") is not None:
             overall += f" cov {ov['coverage']:.0%}"
+        if "correct" in ov:
+            overall += f" (c/i/r {ov['correct']}/{ov['incorrect']}/{ov['refused']})"
         if ov.get("missing"):
             overall += f" −{ov['missing']}"
         row.append(overall)
         lines.append("| " + " | ".join(row) + " |")
+    lines += [
+        "",
+        "_Cells: accuracy cov coverage (n answered; c/i/r = correct/incorrect/refused). "
+        "accuracy = correct/(correct+incorrect) — refusals excluded; coverage = (correct+incorrect)/n; "
+        "refused_rate = refused/n. `−N` = roster cells that produced no answer (distinct from refused)._",
+    ]
 
     by_trad = summary.get("by_tradition") or {}
     if by_trad:
@@ -608,7 +628,8 @@ def summary_markdown(summary: dict) -> str:
                 ov = cells["_overall"]
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
                 cov = "" if ov.get("coverage") is None else f" cov {ov['coverage']:.0%}"
-                row.append(f"**{acc}**{cov} (n={ov['n']})")
+                cir = f"; c/i/r {ov['correct']}/{ov['incorrect']}/{ov['refused']}" if "correct" in ov else ""
+                row.append(f"**{acc}**{cov} (n={ov['n']}{cir})")
                 lines.append("| " + " | ".join(row) + " |")
 
     panel = summary.get("panel") or {}
