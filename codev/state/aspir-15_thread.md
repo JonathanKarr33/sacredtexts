@@ -525,3 +525,19 @@ cov 0%, NOT "high-but-low-coverage" which is opus-search's shape); first-run REA
 TUTORIAL Track B — that's the tutorial run now; it's the earlier English ef837474 run); score.py
 docstring dropped stale "group's open question". DISPUTED (verified false positive): explorer.ts:40
 IS the filterQuestions def line (claude said 39). dispatcher 346/1. iter3 rebuttal written.
+
+## 2026-10-12 — Review phase (all 5 impl phases DONE)
+Review doc written + committed (908fff8): codev/reviews/15-scoring-contract-contains-exac.md (Spec
+Compliance/ACs, Deviations, Consultation dispositions, Lessons, ## Architecture Updates, ## Lessons
+Learned Updates, Flaky, Follow-ups incl #21/#23). All 5 plan phases ✓; porch now in REVIEW phase.
+
+### BLOCKED on architect decision — Co-Authored-By strip needs a FORCE-PUSH (branch already pushed)
+Standing order: strip the 9 early Co-Authored-By commits (spec/plan/phase_1: 57e4a05, ceb8751,
+f820066, 7fcc4d3, 9bcd42e, 88a6eed, 36ebf07, 2e17d84, 142fc5c) via one filter-branch pass, backup
+branch first. Backup `backup/pre-trailer-strip` CREATED at 908fff8. BUT the branch is already on the
+remote (origin/builder/aspir-15 @ 99c5221, no PR yet) — so the strip rewrites published history and
+needs a force-push. The standing order said "just before the PR" (implying pre-push); the pushed-branch
+wrinkle wasn't covered, and force-pushing published history + opening the PR (a human gate) are both
+architect calls. HELD for direction: (A) force-push the stripped history then open the PR, or (B) open
+the PR from current history (9 cosmetic trailers on early commits), strip skipped. NOT force-pushing or
+opening the PR unilaterally.
