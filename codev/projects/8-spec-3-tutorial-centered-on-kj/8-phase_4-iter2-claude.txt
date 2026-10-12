@@ -1,0 +1,42 @@
+I'll start by locating the worktree and reading the Phase 4 deliverables.I've completed my verification. Let me do a final check on the one claim I haven't independently tested — that the viewer source is untouched.# Phase 4 Review — Iteration 2
+
+I read `TUTORIAL.md`, `tutorialRun.test.ts`, the three doc files, the committed run's `README.md`/`summary.*`, and re-ran the gates. I also independently reproduced the tutorial's own commands rather than trusting the builder's report. **I made no changes to the tree.**
+
+## Iteration-1 concerns: both resolved
+
+**codex #1 — viewer surfaces only exercised indirectly.** `tutorialRun.test.ts` now has four blocks, two of them new: `leaderboardRows()` over the committed run (ranking `[opus, opus-search, haiku, haiku-search]`, non-increasing accuracy, `tokens.calls === 100` per row, `hasTraditionData` + all three traditions) and `modelQuestions()/questionStats()/filterQuestions()` for `haiku-search` (100 roster questions, 40 correct, 0 missing, `Sunni Islam` filter → 33). These are the exact pure functions `LeaderboardPage`/`ExplorerPage` consume, run against the real artifacts, in a test-only file. I consider codex's point satisfied: a React render would only re-test the component layer that `LeaderboardPage.test.tsx`/`ExplorerPage.test.tsx` already gate with fixtures.
+
+**codex #2 — fair-use lesson missing from docs.** Now in `codev/resources/lessons-learned.md` § Evidence & copyright as binding policy: committed as collected, no clearance/redaction pass, incidental copyrighted text accepted as fair use, `audit` remains the enforcement line, "don't reintroduce one." Correct tier and correct framing.
+
+**`lessons-critical.md` left unchanged — I checked, and the builder's justification holds.** The hot tier is at exactly 10 bullets with no placeholder slot remaining (the `<Add your project's…>` line was consumed in an earlier phase), and the two load-bearing facts went to `arch-critical.md`. Displacement discipline, not an omission. Not re-raising.
+
+## Independent verification (not taken on trust)
+
+| Claim | How I checked | Result |
+|---|---|---|
+| Track B `generate` reproduces the committed question set | Ran the TUTORIAL command verbatim → `/tmp/revrun` | `diff` **byte-identical**; digest `37eb58400fdf4ea9`, corpus `ed3f05dcf703e2e3` ✓ |
+| Track A re-score reproduces committed scores | Ran the TUTORIAL `score` + `diff <(sort …)` | `REPRODUCED-OK` ✓ |
+| Headline numbers (66/66/47/40; per-tradition 0/100/100, 3/100/97, 0/85/58, 0/85/36) | `summary.json` + `summary.md` | all match ✓ |
+| contains-exact claims (opus 66→74, haiku 47→52; Talmud opus-search 8/34 vs opus 0/34) | Recomputed from `questions.jsonl`/`answers.jsonl` with the new `normalize()` | **exactly reproduced** ✓ |
+| Cost callout (~4.24M in / ~249K out, 226 search requests) | `usage.total` = 4,243,173 / 248,525; summed `web_search_requests` = 226 (opus-search 131/34 cells, haiku-search 95/59) | ✓ |
+| "221 documents across 7 converters" | `find texts/standardized` = 221; `CONVERTERS` = 7 | ✓ (pre-existing line, still true) |
+| `audit` passes on both a fresh question-only dir and the committed run | Ran both | exit 0, "origin only" ✓ |
+| Viewer source untouched | `git diff <base>...HEAD -- apps/viewer` | only `src/local/tutorialRun.test.ts`; no untracked viewer files ✓ |
+| Gates green | `pnpm -C apps/viewer test`; `uv --project pipelines run pytest pipelines` | **125/125** (incl. `realRun.test.ts` + `#86` in `deploy.test.ts`) and **195/195** ✓ |
+
+Docs: `arch.md` is accurate on the fingerprint/tools identity, script-aware `normalize()` ordering, `generated_at`, `audit._norm`, the standings-key mechanism as a zero-viewer-change property, and the new gitignore negation. `arch-critical.md` adds exactly the two load-bearing facts. `configs/models.example.yaml` matches the committed panel's four ids.
+
+## Non-blocking suggestions
+
+1. **The mtime hedge could be replaced with determinism.** I confirmed `runsEndpoint.ts:58` sorts `mtime desc, id asc`, so a fresh-clone tie resolves to `first-run-2026-10-11` — the hedging prose in Track A/C is accurate. But the viewer already accepts `/?run=<id>`, so Track A's "then view it" and the Track C leaderboard bullet could just say *open `http://localhost:<port>/?run=tutorial-2026-10-11`* and drop the hedge entirely. Deterministic for every reader, no viewer change, strictly less prose. Issue #7's `generated_at` is now in `summary.json`, so a later viewer change can close this properly.
+2. **`describe.skipIf(!present)` makes the new gate silently vacuous if the run dir is absent.** Same pattern as `realRun.test.ts`, and the run is gitignore-negated so it is present in any clone or CI — so this is consistent rather than wrong. Worth remembering only if someone ever un-negates a run.
+3. `README.md`'s Qur'an bullet says haiku-search's headline "falls to 12" — that reads as a percentage against the 36% in `summary.md`. It's 12/33 ≈ 36%, so it's the count, but the sentence puts a count where the surrounding text uses percentages. One word ("to 12 of 33") would remove the stumble. Phase 3 artifact, cosmetic.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 4 is complete and independently verified — the tutorial's own commands reproduce the committed question set and scores exactly, every quoted number recomputes, both iteration-1 findings are genuinely fixed, and the viewer has zero source changes with 125/125 + 195/195 green.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None (blocking). Optional polish: replace the mtime "typically" hedge with a deterministic `/?run=tutorial-2026-10-11` link; clarify the "falls to 12" count-vs-percent phrasing in the run README.

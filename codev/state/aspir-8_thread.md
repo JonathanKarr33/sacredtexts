@@ -334,6 +334,22 @@ phases = commits on builder/aspir-8), porch done 8 --pr <N> --branch builder/asp
 architect "PR ready", architect approval gate → porch approve, merge, porch done 8 --merged <N>,
 verify phase. REVIEW-DOC carry-forward (encoding-variance) goes in codev/reviews/8-*.md at review phase.
 
+## Phase: REVIEW (re-entered after context refresh, 2026-10-11)
+All 4 plan phases APPROVED; porch in review iter 1. Verified gate GREEN at review entry
+(pipelines 195/195 + viewer vitest passed; audit clean). Git clean except untracked
+.builder-* + phase_4 consult artifacts.
+- ✅ Wrote `codev/reviews/8-spec-3-tutorial-centered-on-kj.md` (template order): 18 ACs all met;
+  deviations (per-task 30→100, clearance dropped=fair-use, invisible-char revert+moot,
+  generated_at included); Consultation Feedback per phase/round (codex+claude; gemini excluded
+  per config); lessons; arch/lessons routing recap (hot=tool-use identity + normalize clause,
+  cold=the rest; lessons-critical at cap=unchanged); no flaky; follow-ups = ⭐ encoding-variance
+  gap + wrapper-vs-retrieval contains-exact + non-anthropic stop_reason guard + invisible-char scan.
+- NEXT: commit review + thread + phase_4 consult artifacts → open ONE PR (Closes #8) →
+  porch done 8 --pr <N> --branch builder/aspir-8 → afx send architect "PR ready" →
+  <signal>REVIEW_COMPLETE</signal> + <signal>PR_READY</signal> (porch runs 3-way consult) →
+  wait for human `pr` gate approval (NEVER auto-approve) → porch approve → merge →
+  porch done 8 --merged <N> → verify phase.
+
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,
 then architect approval gate → `porch approve`, merge, `porch done 8 --merged <N>`, verify phase.
