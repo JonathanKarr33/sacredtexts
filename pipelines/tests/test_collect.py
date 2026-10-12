@@ -91,7 +91,8 @@ def test_resume_under_changed_panel_identity_refused(tmp_path, monkeypatch):
         collect(qs, changed, answers)
     # the recorded row carries the fingerprint + provider
     row = _rows(answers)[0]
-    assert row["provider"] == "anthropic" and row["panel_fingerprint"] == "anthropic|m-m|"
+    # fingerprint is provider|model|base_url|tools (tools empty here -> trailing "|")
+    assert row["provider"] == "anthropic" and row["panel_fingerprint"] == "anthropic|m-m||"
 
 
 def test_legacy_answers_without_digest_refused(tmp_path, monkeypatch):

@@ -1,0 +1,49 @@
+id: '8'
+title: spec-3-tutorial-centered-on-kj
+protocol: aspir
+phase: review
+plan_phases:
+  - id: phase_1
+    title: Fair Arabic/Hebrew scoring normalisation
+    status: complete
+  - id: phase_2
+    title: Web-search tool config, collection, and tools-aware identity
+    status: complete
+  - id: phase_3
+    title: Committed KJV/Qur'an/Talmud tutorial run
+    status: complete
+  - id: phase_4
+    title: Tutorial rework and viewer verification
+    status: complete
+current_plan_phase: null
+gates:
+  pr:
+    status: approved
+    requested_at: '2026-10-12T02:35:32.512Z'
+    approved_at: '2026-10-12T16:00:27.764Z'
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: false
+history: []
+started_at: '2026-10-11T21:00:43.465Z'
+updated_at: '2026-10-12T16:00:27.764Z'
+context_refreshes:
+  - boundary: plan-phase:phase_2
+    at: '2026-10-11T22:08:42.816Z'
+    acknowledged_at: '2026-10-11T22:08:55.460Z'
+  - boundary: plan-phase:phase_3
+    at: '2026-10-11T22:31:54.769Z'
+    acknowledged_at: '2026-10-11T22:32:12.145Z'
+  - boundary: plan-phase:phase_4
+    at: '2026-10-12T01:50:39.805Z'
+    acknowledged_at: '2026-10-12T01:53:20.079Z'
+  - boundary: enter:review
+    at: '2026-10-12T02:23:26.724Z'
+    acknowledged_at: '2026-10-12T02:25:32.974Z'
+pr_history:
+  - phase: review
+    pr_number: 9
+    branch: builder/aspir-8
+    created_at: '2026-10-12T02:29:42.496Z'
+pr_ready_for_human: false

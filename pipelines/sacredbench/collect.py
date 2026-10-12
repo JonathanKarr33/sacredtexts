@@ -31,21 +31,28 @@ class CollectError(Exception):
 
 def _panel_fingerprint(m) -> str:
     """A model cell's panel identity — so a model id can't be silently re-pointed at a
-    different provider/model/host between resumes."""
-    return f"{m.provider}|{m.model}|{m.base_url or ''}"
+    different provider/model/host/tools between resumes. The tools setting is part of the
+    identity (Spec 8): a web-search-on cell must never be resumed as web-search-off."""
+    return f"{m.provider}|{m.model}|{m.base_url or ''}|{','.join(m.tools)}"
 
 
 def _existing(
     answers_path: Path,
-) -> tuple[set[tuple[str, str]], set[str], int, dict[str, set[str]]]:
+) -> tuple[set[tuple[str, str]], set[str], int, dict[str, set[str]], set[str]]:
     """Return ((question_id, model_id) keys, digests present, rows missing a digest,
-    {model_id: panel fingerprints seen})."""
+    {model_id: panel fingerprints seen}, {model_id with >=1 row carrying NO fingerprint}).
+
+    The last set is the evidence-integrity guard: a row with no ``panel_fingerprint``
+    (e.g. a pre-Spec-3 answers file — first-run's rows carry a digest but no fingerprint)
+    contributes nothing to the identity-mismatch check below, so without tracking it a
+    legacy file could be silently resumed/scored under a *different* tools identity."""
     keys: set[tuple[str, str]] = set()
     digests: set[str] = set()
     missing = 0
     fps: dict[str, set[str]] = {}
+    fp_missing: set[str] = set()
     if not answers_path.exists():
-        return keys, digests, missing, fps
+        return keys, digests, missing, fps, fp_missing
     with open(answers_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
@@ -58,7 +65,9 @@ def _existing(
                 fp = d.get("panel_fingerprint")
                 if fp:
                     fps.setdefault(d["model_id"], set()).add(fp)
-    return keys, digests, missing, fps
+                else:
+                    fp_missing.add(d["model_id"])
+    return keys, digests, missing, fps, fp_missing
 
 
 def collect(
@@ -73,7 +82,7 @@ def collect(
     ``answers.jsonl`` built for a different question set is refused (``CollectError``)
     so a stale or mixed run can never be silently appended to or scored."""
     digest = question_set_digest(questions)
-    done_keys, existing_digests, missing, existing_fps = _existing(answers_path)
+    done_keys, existing_digests, missing, existing_fps, existing_fp_missing = _existing(answers_path)
     if (existing_digests - {digest}) or missing:
         raise CollectError(
             f"{answers_path} was not built for this question set (current digest {digest}; "
@@ -84,6 +93,16 @@ def collect(
     # not be resumed under a different one (its old answers would hide under new metadata)
     for m in config.models:
         current = _panel_fingerprint(m)
+        # A legacy row with NO fingerprint (first-run shape: digest but no panel_fingerprint)
+        # bypasses the mismatch check below, so a partial pre-Spec-3 file could resume under a
+        # tools-bearing identity and silently mix web-search-on and -off answers. Refuse it.
+        if m.id in existing_fp_missing:
+            raise CollectError(
+                f"{answers_path}: model id {m.id!r} has answer row(s) with no panel fingerprint "
+                "(a pre-Spec-3 answers file); refusing to resume — such rows cannot be identity-"
+                "checked and could silently mix web-search-on and -off answers under one id. "
+                "Point --out at a fresh file (or re-collect)."
+            )
         mismatched = existing_fps.get(m.id, set()) - {current}
         if mismatched:
             raise CollectError(

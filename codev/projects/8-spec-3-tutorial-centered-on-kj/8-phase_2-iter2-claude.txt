@@ -1,0 +1,52 @@
+I'll start by reading the implementation files for phase 2.I've verified the implementation against the installed SDK, the viewer source, and the full test suite. Let me do a final check on the one remaining forward risk.# Phase 2 Review — Iteration 2
+
+## Verification performed (not just read — checked against real sources)
+
+**The iteration-1 blocking issue is genuinely fixed.** `providers.py:41` defines `_TERMINAL_STOP = frozenset({"end_turn", "stop_sequence"})`; lines 100–106 raise `ProviderError` on anything else, *before* text extraction. I confirmed against the installed SDK (not training data):
+
+```
+anthropic 1.13.0
+StopReason = Literal['end_turn','max_tokens','stop_sequence','tool_use','pause_turn','refusal','model_context_window_exceeded']
+```
+
+So the allowlist covers the complete real enum, and the builder's reasoning for excluding `tool_use` is sound — no client-side tools are ever passed, so `tool_use` is not a terminal success here. `complete()`'s `except ProviderError: raise` means no retry, so no re-billing. Tested at `test_phase2_tools.py:151–166` (parametrised over all four non-terminal reasons + both terminal ones).
+
+**Tool param pinned correctly.** `WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}` matches `WebSearchTool20250305Param.__annotations__` exactly (`name: Literal['web_search']`, `type: Literal['web_search_20250305']`, `max_uses: Optional[int]`).
+
+**Viewer compatibility re-verified from source, not assumed.** `localResults.ts :: parseSummary` destructures only `{models, by_tradition, usage, panel}` and returns a hand-built object — it is *permissive* to extra fields, so the new `summary.generated_at` and `panel[...].api_model` cannot break run loading. `aggregate.ts` keys standings on `` `${p.provider}\u0000${p.model}` ``, which the marked `panel.model` splits correctly. Both-variants-marked (`[web_search]` / `[no-tools]`) is the right call — `test_phase2_tools.py:202` asserts non-collision with first-run's bare `anthropic\u0000claude-haiku-5-5`, so first-run's standings row isn't silently replaced.
+
+**Fingerprint format change is contained.** `_panel_fingerprint` went from 3 to 4 fields. I grepped: only `collect.py` consumes `panel_fingerprint` — the viewer does not. The committed first-run answers carry the old 3-field form, so a resume over committed evidence now raises `CollectError`, which is the *desired* behavior per the project's "never re-run collect over committed evidence" lesson.
+
+**Tests: `190 passed in 19.09s`.** All plan Phase-2 deliverables and acceptance criteria are present and verified. `_SUBMETRICS` and the `retrieve_quote` headline are untouched.
+
+**Config edge cases I probed by reading `_parse_tools`:** `tools: false` → `ConfigError` (not a list); `tools: [{a:1}]` → `ConfigError` (tuple membership uses `==`, no hashing, so no `TypeError`); `tools: []` → `()` → correctly treated as off; duplicates deduped via `sorted(set(...))`. Provider validation (line 100) runs *before* `_parse_tools` (line 112), so the Anthropic-only check never sees an unvalidated provider.
+
+## Non-blocking comments
+
+1. **`pause_turn` is a Phase-3 gate, not a resolved question.** The fail-loud choice is correct for *evidence integrity* — it was the fix I asked for — but it does not make collect convergent. If Anthropic returns `pause_turn` for these turns, every `collect` re-run re-bills the web search and the cell never completes. The plan's ordering (`smoke → collect`) is what protects the budget, so treat the smoke's result as a hard gate: if `pause_turn` appears even once, implement continuation before the full paid collect rather than retrying into it. The error message already names continuation, which is good operator guidance.
+
+2. **The truncation guard is Anthropic-only.** `_openai` never inspects `finish_reason == "length"` and `_gemini` never inspects `MAX_TOKENS` — both will silently commit a truncated partial answer, the exact hazard Phase 2 just closed for Anthropic. Pre-existing and genuinely out of scope (the tutorial panel is all-Anthropic), but the asymmetry is now a latent trap for any future mixed panel. Worth a line in the review/lessons doc.
+
+3. **One narrow re-bill path remains.** An `end_turn` response whose content holds only tool blocks and no text falls into the generic `RuntimeError("empty response")` retry (up to 3 attempts), re-billing search each time. Very unlikely in practice; noting for completeness, not asking for a change.
+
+4. **Cosmetic:** `cli.py:328` joins tools with `+` while `collect.py:36` joins with `,`. Both are tools-general so neither can collapse two tool sets, and they serve different purposes (display identity vs. fingerprint) — but a one-line comment noting the deliberate divergence would save a future reader the double-take.
+
+I did not edit anything in the worktree.
+
+---
+VERDICT: APPROVE
+SUMMARY: The iteration-1 blocking issue is properly fixed with a verified-complete stop_reason allowlist; all Phase-2 criteria met, 190 tests pass, SDK and viewer claims verified against real source.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- (Forward risk, Phase 3) `pause_turn` now fails loud but collect is non-convergent if it occurs; the budgeted smoke must be treated as a hard gate before the full paid collect.
+- (Out of scope, note in review doc) `_openai`/`_gemini` still lack the truncation guard now enforced for Anthropic — latent trap for a future mixed panel.
+- (Trivial) `+` vs `,` tool-join separator divergence between `cli.py:328` and `collect.py:36` is harmless but undocumented.That was my leftover filesystem search for the SDK param file. It confirms what I already verified directly via introspection (`anthropic 1.13.0`, `WebSearchTool20250305Param` with `name`/`type`/`max_uses`) — nothing contradicts the review.
+
+My review stands as delivered:
+
+**APPROVE** — the iteration-1 blocking issue is genuinely fixed. `providers.py:41` allowlists `{end_turn, stop_sequence}` and raises `ProviderError` on everything else before text extraction, which I confirmed covers the complete real `StopReason` enum in the installed SDK (including `pause_turn`, `refusal`, `model_context_window_exceeded`). All Phase-2 deliverables and acceptance criteria are present, 190 tests pass, the pinned tool param matches the SDK's TypedDict exactly, and the viewer-compatibility claims check out against `parseSummary` (permissive to the new `generated_at`/`api_model` fields) and `aggregate.ts` (the marked `panel.model` yields distinct standings rows without colliding with first-run's key).
+
+Four non-blocking notes carried forward, the most important being that `pause_turn` now fails loud but does not make collect convergent — so Phase 3's budgeted smoke should be treated as a hard gate before the full paid collect, not a formality.

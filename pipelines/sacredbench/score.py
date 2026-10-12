@@ -5,7 +5,10 @@ Metrics emitted per answer:
 
 - ``exact``       raw string equality with the expected text (0/1)
 - ``normalized``  equality after normalisation: unicode quotes/dashes folded,
-                  case-folded, punctuation stripped, whitespace collapsed (0/1)
+                  Arabic/Hebrew combining marks + annotation symbols removed and
+                  alef/maqaf variants folded (so vocalised ↔ unvocalised scripture
+                  matches), case-folded, punctuation stripped, whitespace collapsed
+                  (0/1) — see ``strip_script_marks``
 - ``token_f1``    bag-of-words F1 between normalised answer and expected text
                   (0..1) — the v1 "semantic similarity" stand-in; embedding- or
                   judge-based semantic scoring is a later, pluggable metric
@@ -42,6 +45,7 @@ import json
 import re
 import unicodedata
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -51,6 +55,54 @@ class ScoreError(Exception):
 
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
+
+# The RTL Unicode blocks (U+0590–U+08FF is Hebrew + Arabic + their extensions — and also
+# Syriac/Thaana/N'Ko/Samaritan/Mandaic, whose marks we strip too; harmless for this
+# benchmark's Arabic/Hebrew corpora; plus U+FB1D–U+FB4F Hebrew/Arabic presentation forms).
+# Combining marks (category Mn) ANYWHERE in these blocks are deleted — a strict superset
+# of the QUL mark set, so a search-on answer carrying marks from another Uthmani
+# digitization (U+0617–U+061A, U+0656–U+065F, Arabic Extended-A U+08D3–U+08FF) is still
+# folded, not split mid-word. The ranges are script-scoped, so Latin combining marks
+# (U+0300–U+036F) are untouched and Latin output is byte-for-byte unchanged.
+#
+# NOT handled here (deliberately): invisible bidi/joiner/BOM formatting from the General
+# Punctuation block (U+200C–U+200F, U+FEFF, U+00AD) that can ride along in web-fetched RTL
+# answers. Deleting them globally would change the Latin path (soft hyphen currently folds
+# to a space, which the committed first-run relies on), breaking the Latin-invariance
+# contract — the re-score regression guard enforces this. They are a Phase-3 answer-review
+# watch item (a split answer is visible there), not a Phase-1 concern (no committed corpus
+# text carries them).
+_SCRIPT_BLOCKS = ((0x0590, 0x08FF), (0xFB1D, 0xFB4F))
+# Editorial code points in those blocks that are NOT category Mn and so must be deleted
+# explicitly: the Arabic tatweel (Lm) and the Qur'anic annotation block U+06D6–U+06ED,
+# which mixes Mn marks with the rub-el-hizb / sajdah symbols (So) and small waw/yeh (Lm).
+_SCRIPT_EDITORIAL = frozenset("ـ") | frozenset(chr(c) for c in range(0x06D6, 0x06EE))
+
+
+def _in_script_blocks(ch: str) -> bool:
+    o = ord(ch)
+    return any(lo <= o <= hi for lo, hi in _SCRIPT_BLOCKS)
+
+
+def strip_script_marks(text: str) -> str:
+    """Fold Arabic/Hebrew letter variants and remove their combining marks so quote
+    scoring compares bare consonantal text. Latin (and every other script) is
+    untouched. Applied to BOTH the answer and the expected text, so the direction of
+    vocalisation does not matter (a vocalised model answer vs. an unvocalised expected
+    scores the same as the reverse)."""
+    text = text.replace("ٱ", "ا")  # Arabic alef-wasla -> bare alef (atomic;
+    #                                           alef-madda/hamza fold via NFKD + marks)
+    text = text.replace("־", " ")  # Hebrew maqaf -> word boundary (NOT deleted:
+    #                                      it joins words, so it must stay a separator)
+    # delete combining marks (Mn) + the non-Mn editorial code points, but only within
+    # the RTL blocks — so the mark/annotation stripping never reaches Latin.
+    return "".join(
+        ch for ch in text
+        if not (
+            _in_script_blocks(ch)
+            and (unicodedata.category(ch) == "Mn" or ch in _SCRIPT_EDITORIAL)
+        )
+    )
 
 # Similarity sub-metrics reported per task (the spec's per-task contract table).
 _SUBMETRICS = {
@@ -65,6 +117,8 @@ def normalize(text: str) -> str:
     text = text.replace("‘", "'").replace("’", "'")
     text = text.replace("“", '"').replace("”", '"')
     text = text.replace("–", "-").replace("—", "-")
+    text = strip_script_marks(text)  # Arabic/Hebrew marks BEFORE the punctuation pass,
+    #                                  so they are removed, not turned into word splits
     text = _PUNCT_RE.sub(" ", text.casefold())
     return _WS_RE.sub(" ", text).strip()
 
@@ -370,9 +424,15 @@ def score_file(
             summary["panel"][model_id] = {
                 "provider": p.get("provider"),
                 "model": p.get("model") or um.get("model"),
+                # raw API model string (viewer-ignored); keeps the proof truthful when
+                # `model` carries a tools marker (Spec 8).
+                "api_model": p.get("api_model") or p.get("model") or um.get("model"),
                 "endpoint": p.get("endpoint"),
                 "served_by": sorted(um.get("served_by", {})) or None,
             }
+    # Additive run timestamp (Issue #7 pipeline half): a committed, mtime-independent
+    # recency signal. The current viewer ignores it; it never affects scoring.
+    summary["generated_at"] = datetime.now(timezone.utc).isoformat()
     return summary
 
 
@@ -423,7 +483,7 @@ def summary_markdown(summary: dict) -> str:
 
     panel = summary.get("panel") or {}
     if panel:
-        lines += ["", "### Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)"]
+        lines += ["", "### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)"]
         lines += ["| model_id | provider | model | endpoint | served_by |", "|" + "---|" * 5]
         for mid in sorted(panel):
             p = panel[mid]

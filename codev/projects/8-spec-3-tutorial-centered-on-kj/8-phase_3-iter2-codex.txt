@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 3 artifacts are complete, reproducible, audit-clean, secret-free, and correctly identity-marked, but one README claim still mischaracterizes the Qur’an results.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `runs/tutorial-2026-10-11/README.md` says, “Exactly one search-on Qur'an miss is a genuine text/orthographic difference; the rest are wrappers.” For `haiku-search`, there are 21 Qur’an headline misses: 12 contain the normalized reference and are wrappers, while 9 do not contain it. The “one” figure applies only to the narrower 11-question off-correct/on-wrong regression subset identified in the prior review. Qualify the statement accordingly or report the aggregate split as 12 wrappers and 9 text mismatches/other misses.
+- Everything else reviewed satisfies Phase 3: 100 deterministic questions with digest `37eb58400fdf4ea9`; 400 complete answer/score cells; four distinct, unpriced, secret-free panel identities; 226 recorded web-search requests; three traditions/scripts; valid attribution and fair-use notice; and a clean origin audit.

@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Tutorial rework is strong, but two Phase 4 verification/documentation requirements remain incomplete.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `tutorialRun.test.ts` validates `loadRun()` and `aggregate()` only; it does not render the tutorial run through the selector, leaderboard, or explorer. Existing component gates still target `first-run`. Add tutorial-run UI coverage or document complete manual verification of those views.
+- The planned web-search copyright/fair-use lesson is absent from `arch*.md` and `lessons*.md`. Record the binding policy: answers are committed as collected without manual clearance/redaction, incidental retrieved text is accepted as fair use, and the automated audit remains the gate.

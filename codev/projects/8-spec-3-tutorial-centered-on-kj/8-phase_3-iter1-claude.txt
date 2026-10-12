@@ -1,0 +1,50 @@
+I'll review Phase 3 — the committed tutorial run. Let me start by reading the actual artifacts.Now let me verify the run artifacts against the acceptance criteria.All 195 tests pass and the audit is clean. Let me verify the README's analytical claims against the actual score data, since those are load-bearing for "the contrast is observable."Standardized corpora are present locally, so I can verify the committed question-set digest is genuinely reproducible. I'll generate to `/tmp` (never into the tree under review).The question set is byte-reproducible. Now let me verify the README's analytical claims, which are load-bearing for the "contrast is observable" criterion.Important finding — let me verify this flip precisely. The Arabic looks identical with an appended disclaimer.This is a significant finding. Let me check whether the README's *orthographic variance* explanation for the Qur'an regressions is accurate, or whether those are also wrapper-prose penalties.Let me verify the README's Talmud claim too, so my feedback is complete.I have a complete picture. Let me summarize my review.
+
+## Review: Phase 3 — Committed KJV/Qur'an/Talmud tutorial run
+
+**Verification performed** (read-only; the one command that writes went to `/tmp`, never the tree under review):
+
+### What is solid — the artifacts themselves
+
+| Acceptance criterion | Result |
+|---|---|
+| `audit runs/tutorial-2026-10-11` passes | ✅ `copyright audit OK — 1 path(s), origin only` |
+| Four panel entries, distinct standings identities | ✅ `claude-{opus,haiku}-5-5 [web_search]` / `[no-tools]` |
+| No collision with first-run's `anthropic\0claude-haiku-5-5` | ✅ both variants marked, as the plan required |
+| Panel secret-free, carries `api_model`, unpriced | ✅ keys ⊆ `{provider,model,api_model,endpoint,served_by}`, no `cost_usd` |
+| `generated_at` present (Issue #7 half) | ✅ ISO-parseable |
+| Arabic + Hebrew + Latin expected text, 3 traditions | ✅ 34 Judaism / 33 Sunni Islam / 33 Protestant Christian |
+| `.gitignore` negation, four-file set + README | ✅ |
+| `.codev/checks/test.sh` green | ✅ 195 passed |
+
+**The run is demonstrably real and deterministic.** I regenerated the question set from the canonical commands into `/tmp`: digest `37eb58400fdf4ea9` and corpus hash `ed3f05dcf703e2e3` match, and `questions.jsonl` is **byte-identical**. Answers show `attempts: 1`, zero empties, real `web_search_requests` provenance (226 requests over 93 cells — matching the README's per-model breakdown exactly). Nothing fabricated.
+
+`test_tutorial_run.py` is well-targeted — the standings-key test mirrors `aggregate.ts:59` exactly, and the secret scan correctly distinguishes key *material* from legitimate env-var mentions. I also confirmed the viewer suite can't break: `realRun.test.ts` is pinned to `runs/first-run-2026-10-11` and `runIndex.test.ts` stubs `/runs/_index`, so neither enumerates real `runs/` (Phase 4 verifies properly).
+
+### The one substantive problem: the README misreports the central finding
+
+The run `README.md` is a Phase 3 deliverable whose job is making the contrast readable. Its causal analysis is contradicted by its own committed data.
+
+The README concludes **"web search did not improve strict-reference accuracy, and slightly reduced it"** and attributes the Qur'an drop to *orthographic variance* ("retrieve the Arabic text in a slightly different vocalisation... normalisation deliberately does not rewrite letter choices"). I tested that claim by checking whether each regressed answer *contains* the normalize-equal reference text:
+
+- **haiku-search Qur'an regressions: 10 of 11 contain the exact reference text.** Only 1 is a genuine text difference. These scored 0 for appended prose, **not** orthography.
+- **The opus right→wrong flip** (`retrieve_quote-642fbf516c7a`): the quoted line is `normalize`-equal to the expected text — the only raw deltas are harakat ordering, which Phase 1 correctly folds. It scored 0 solely because of a trailing English disclaimer. The README calls this "ordinary sampling variation"; it's a wrapper penalty on a perfect retrieval.
+- **Most important — the Talmud claim is inverted.** The README says "all four entries score ~0%... web search does not lift this." In fact **opus-search contains the exact Aramaic reference in 8 of 34 cells (~24%) vs. 0 of 34 for opus-off**, and produced substantially-Hebrew answers in 11 of 34 vs. 0. Web search lifted Talmud retrieval from nothing to ~24%; the headline hid it because the model wrapped the quote (plausibly citing Sefaria — *because* it searched).
+
+Across the run, **20 of 400 cells score 0 while containing the exact reference text**, concentrated in the search-on entries. That asymmetry *is* the result.
+
+This is exactly the hazard the spec mandated be surfaced — "a search-on answer that appends an attribution/citation can score *lower* on the headline while retrieving better; `token_f1`/`exact` are named as the discriminating numbers." The README names it generically under "Reading the scores," but the section a reader actually trusts asserts the opposite mechanism. For a public benchmark whose stated motivation is credibility, shipping an interpretation its own data refutes is the wrong thing to commit.
+
+**This is a documentation fix only — no re-collection, no re-scoring, no code change, and no spend.** The numbers above are recomputable from the committed artifacts. Do **not** alter `_SUBMETRICS` or the headline rule (spec requirement 4 forbids it) — the headline is working as designed; it's the prose that needs to match it. Two optional strengtheners worth considering: report a "contains exact reference" count alongside accuracy, and note that `token_f1` understates these cases (median 0.54 on the Qur'an regressions, because a short Arabic quote plus an English caveat dilutes the token overlap — so "low headline + high `token_f1`" doesn't reliably surface wrappers).
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Run artifacts are reproducible, audit-clean, secret-free and correctly identity-marked, but the run README's analysis misattributes the search-on degradation to orthographic variance and wrongly reports no Talmud lift, when 20/400 zero-scored cells contain the exact reference text and opus-search retrieved the Aramaic in ~24% vs 0% for search-off.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `runs/tutorial-2026-10-11/README.md` attributes the Qur'an search-on regressions to orthographic variance, but 10 of 11 haiku-search regressions contain the `normalize`-equal reference text — they are appended-prose (wrapper) penalties, not spelling differences.
+- The README states "web search does not lift" Talmud recall and reports opus-search Judaism at 3%; opus-search actually contains the exact Aramaic reference in 8/34 (~24%) vs. 0/34 for opus-off. The headline conclusion ("web search did not improve... and slightly reduced it") inverts the actual retrieval finding.
+- The documented opus right→wrong flip is characterized as "ordinary sampling variation"; it is a verbatim-correct quote penalized for a trailing English disclaimer (normalize-equal to expected, confirmed char-level).
+- Fix is doc-only (no re-collect/re-score/no code change, no spend); do not change `_SUBMETRICS` or the `retrieve_quote` headline rule — spec requirement 4 forbids it. Optionally add a "contains exact reference" count, and note `token_f1` understates short-quote-plus-prose cases (median 0.54 on those regressions).

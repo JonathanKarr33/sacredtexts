@@ -1,0 +1,44 @@
+I'll start by locating the actual files so I can verify the plan against the real code.The worktree is there. Let me read the core files the plan targets.Now the collect/provider/cli seams the plan modifies.Now let me verify the viewer claims — the standings key and panel parsing, which the whole "zero viewer changes" approach depends on.Let me check whether the viewer's panel parser would reject the new `api_model` field.Let me empirically verify the normalization failure mode the plan is built on, and check the generate/cli seams.Note: there's no `test_providers.py`. The plan's Phase 2 says "as existing provider tests do" — let me verify that premise.The plan's claim about "existing provider tests" is wrong — all mocks are at the `collect.complete` seam. Let me check if the Anthropic SDK is even installed, plus the remaining seams.Two things to verify: the actual web-search tool spec in SDK 1.13.0, and whether `generate` can even *select* three specific corpora.Let me check the committed first-run's panel — if the tutorial reuses the same model string, standings dedupe could silently absorb first-run's row.Let me verify the Phase 3 premise that the `ar`/`he` raw data is actually present and convertible.Let me check whether the Davidson Aramaic data actually contains niqqud — Phase 1 proposes deriving the Hebrew mark set from it.Important finding. Let me confirm the vocalized variant on disk (an ideal fixture the plan overlooks) and validate the Arabic mark derivation.Final checks: the test gate, existing score tests, and the tutorial's generate step.I've verified the plan against the actual code and data. The phase structure is sound and Approach A is confirmed viable, but I found several concrete defects — most importantly that Phase 1's Hebrew derivation instruction is literally unfollowable.
+
+## What I verified as correct
+
+- **Approach A works.** `aggregate.ts` keys standings on `` `${p.provider}\u0000${p.model}` `` exactly as claimed, and `parseSummary` validates only that `panel` is a record — it does **not** validate per-entry fields. So a marked `panel.model` plus an extra `api_model` passes through and is ignored. Zero viewer changes is genuinely achievable.
+- **The Arabic mark set is correct and complete.** Enumerating the real QUL file gives `U+0640` (Lm, 6736), `U+064B–U+0654`, `U+0670`, and the full `U+06D6–U+06ED` span including `U+06DE`/`U+06E9` (So) and `U+06E5`/`U+06E6` (Lm). The plan's ranges are a correct superset.
+- **The diagnosis is real.** Confirmed `normalize("بِسْمِ ٱللّٰهِ")` → `'ب س م ٱلل ه'`. Combining marks are not `\w` (become spaces); tatweel *is* `\w` (survives). Matches the spec exactly.
+- **No `generate` code change needed** — it takes `inputs: list[Path]`, so three-corpus selection is path arguments. The plan correctly doesn't plan one.
+- `.codev/checks/test.sh` maps `runs/**` into the pipelines lane, so Phase 3's committed run does get audited. `anthropic` 1.13.0 is installed.
+
+## Defects
+
+**1. Phase 1's Hebrew derivation yields an empty set (significant).** The deliverable says re-derive marks from "the Davidson `he` data." The catalogued canonical Aramaic files contain **zero** codepoints in `U+0591–U+05C7` (checked Taanit: 0 marks in 150KB). Followed literally, Hebrew handling ships as a no-op, and the plan's own acceptance test ("vocalized vs. unvocalized Talmud line") cannot be written from catalogued data. The real fixture source is on disk: `Shevuot - he - William Davidson Edition - Vocalized Aramaic.json` (106,389 marks — `0x5BC`, `0x5B8`, `0x5B0`, `0x5B7`, `0x5C1`…), deliberately *excluded* from the catalogue. Name it as the fixture source, and warn it must not enter the corpus.
+
+**2. The Hebrew risk is asymmetric (significant).** Expected text is unvocalized; the *answer* may be vocalized — especially search-on, fetching Sefaria/Chabad. Un-normalized, that splits the answer into letters → `token_f1`≈0 → **the search-on entry scores artificially lower**, inverting the precise contrast the spec exists to display. Acceptance criteria should assert the asymmetric direction, not just symmetric equality.
+
+**3. "as existing provider tests do" is false (moderate).** There are no provider-seam tests; every mock is at `collect_mod.complete`. `_anthropic` lazily does `import anthropic` *inside* the function, so capturing the `tools` kwarg needs a named technique (`monkeypatch.setitem(sys.modules, "anthropic", …)` or patching `anthropic.Anthropic`).
+
+**4. Tool version is under-determined (moderate).** The SDK exposes **three**: `WebSearchTool20250305Param`, `WebSearchTool20260209Param`, `WebSearchTool20260318Param`. Pick one, record it in the run README (it's part of what the run proves), and set `max_uses` for cost control.
+
+**5. `max_tokens` truncation unaddressed (moderate).** `complete()` raises on empty text and **retries** — each retry is another billed search. At `max_tokens: 1024`, search/citation blocks share the output budget; truncation yields a partial quote scoring 0 on whole-answer equality, again confounding the contrast. Add headroom and a loud `stop_reason == "max_tokens"` check.
+
+**6. Standings collision with first-run (moderate).** first-run's panel is `anthropic\u0000claude-haiku-5-5`. If search-OFF emits an unmarked `claude-haiku-5-5`, it yields the identical key and — being more recent — **replaces** first-run's haiku row. Phase 2's criterion only tests on-vs-off distinctness, which passes anyway. Mark *both* variants; assert non-collision with the committed key.
+
+**7. A stronger Latin regression is free (recommend).** Re-score `runs/first-run-2026-10-11/answers.jsonl` to a **tmp path** and assert equality with the committed `scores.jsonl`. That proves invariance over ~400 real answers vs. a few fixtures — and is safe, never writing over the evidence.
+
+**8. Approach E (`generated_at`) silently vanished (minor).** The spec recommends including it and the human explicitly flagged #7; the plan's settled list skips E and no phase mentions it. Include or explicitly defer.
+
+I made no changes to the worktree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase structure and the zero-viewer-change approach are verified sound, but Phase 1's Hebrew mark derivation is unfollowable against the real data and several Phase 2 premises are factually wrong.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Phase 1 says derive the Hebrew mark set from the Davidson `he` data, but the catalogued Aramaic files contain ZERO marks in U+0591–U+05C7; the instruction yields a Hebrew no-op. Use the on-disk (uncatalogued) `Shevuot … Vocalized Aramaic.json` as the fixture source.
+- The Hebrew scoring risk is asymmetric (unvocalized expected vs. possibly-vocalized answer) and would depress search-on scores, inverting the spec's headline contrast; criteria test only symmetric equality.
+- Phase 2's "as existing provider tests do" is false — no provider-seam tests exist; all mocks are at `collect.complete`, and `_anthropic` imports the SDK lazily inside the function, so the mocking technique must be named.
+- Installed SDK exposes three web-search tool versions (20250305 / 20260209 / 20260318); "pin against the SDK" is under-determined, and `max_uses` is unset for cost control.
+- `max_tokens` headroom/truncation for search-on is unaddressed; `complete()` retries on empty text, re-billing each search, and truncated answers score 0 on whole-answer equality.
+- Standings collision unflagged: an unmarked search-OFF entry shares `anthropic\u0000claude-haiku-5-5` with the committed first-run and would replace its row; mark both variants and assert non-collision.
+- Approach E (`generated_at`, Issue #7) is dropped from every phase without being declared deferred.
+- Recommended: assert Latin invariance by re-scoring first-run's answers to a tmp path and diffing against committed scores (far stronger than fixtures, and safe).

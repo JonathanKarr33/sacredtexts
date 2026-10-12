@@ -30,6 +30,7 @@ texts/encyclicals/
 # whose copyright-audited evidence is the loop-closure deliverable (Spec 1 Phase 8).
 runs/*
 !runs/first-run-2026-10-11/
+!runs/tutorial-2026-10-11/
 
 # Live model panel (keys come from env, panel is per-user)
 configs/models.yaml

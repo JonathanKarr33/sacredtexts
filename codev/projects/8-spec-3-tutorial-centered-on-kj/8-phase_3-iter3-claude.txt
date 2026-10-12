@@ -1,0 +1,49 @@
+I'll start by locating the worktree and reading the Phase 3 artifacts.Let me independently recompute the README's numbers from the committed artifacts.Every README number checks out against the committed data. Now let me verify the remaining acceptance criteria.All three are genuine Uthmani-vs-imlā'ī orthographic variants (defective alef, alef-madda) — the README's claim holds; my cruder folding was the artifact. Now the test gate and digest reproducibility.I verified everything independently, writing only to `/tmp` (the regenerated question set went to `/tmp/rev8`, not the tree).
+
+## Phase 3 Review — committed KJV/Qur'an/Talmud tutorial run
+
+### Artifact invariants — all verified green
+
+| Check | Result |
+|---|---|
+| `audit runs/tutorial-2026-10-11` | `OK — 1 path(s), origin only` (exit 0) |
+| Determinism | Regenerated from the real standardized corpora → **byte-identical `questions.jsonl`**, digest `37eb58400fdf4ea9`, corpus `ed3f05dcf703e2e3` both match the committed manifest |
+| Cell completeness | 400 rows, 100/model, 100 unique qids, 0 empty, 0 errors, `attempts` max 1, single digest |
+| Panel identity | 4 entries; standings keys `anthropic\0claude-{opus,haiku}-5-5 [web_search]`/`[no-tools]` — 4 distinct, none equal first-run's bare `anthropic\0claude-haiku-5-5` |
+| Fingerprints | `anthropic\|claude-X\|\|web_search` vs `anthropic\|claude-X\|\|` — tools-aware, 4 distinct |
+| Unpriced / secret-free | panel keys = provider/model/api_model/endpoint/served_by only; no `cost_usd`; no `sk-`/bearer material anywhere in the run dir |
+| Provenance | `web_search_requests` recorded per answer row; `generated_at` ISO present |
+| Scripts/traditions | 34 Judaism (he) / 33 Sunni Islam (ar) / 33 Protestant Christian (en) |
+| Tool pinning | `providers.py:33` = `web_search_20250305`, `max_uses: 5` — exactly what the README claims |
+| Test gate | `195 passed` |
+
+### The iteration-1/2 blocking findings are genuinely fixed
+
+I recomputed every number in the README's analysis from `answers.jsonl` + `scores.jsonl` using the repo's own `normalize`. **All of them are correct:**
+
+- headline 66/66/47/40; contains-exact 66/**74**/47/**52** ✓
+- 20 cells score 0 while containing the exact reference, **all 20 search-on** (opus-search 8, haiku-search 12) ✓
+- Talmud: opus-search contains the Aramaic in **8/34 (~24%) vs 0/34** for opus-off ✓; opus-search Judaism headline 1/34 = 3% ✓
+- Qur'an: haiku-search contains **24/33** vs haiku-off **19/33**; headline 12 → **21 misses = 12 wrappers + 9 encoding variants** ✓
+- `token_f1` over the 20 wrapped cells: median **0.453**, range **0.16–0.99** ✓ (README says ~0.45, 0.16–0.99)
+- web search: 93 cells invoked, 226 requests (opus-search 34/131, haiku-search 59/95) ✓
+
+I also stress-tested the two claims most likely to be overclaims. The "none are wrong scripture" claim for haiku-search's 9 non-containing misses holds — all 9 are the same āyah under aggressive mark-folding. The claim "**all 14** of haiku-off's own Qur'an misses are the same non-exact encoding variants" initially looked like 11/14 under my cruder folding, but inspecting the 3 outliers showed they are also pure orthographic variants — Uthmani defective spelling vs. modern imlā'ī (`بايتنا`/`باياتنا`, `تشبه`/`تشابه`) and alef-madda decomposition (`ءال`/`آل`, `ءامن`/`آمن`). My folding was the artifact; the README is right. The regression-subset figure is now correctly scoped (lines 75–77).
+
+### One non-blocking issue to fix before Phase 4
+
+`codev/plans/8-spec-3-tutorial-centered-on-kj.md:39` — the Executive Summary's **"Committed run params (canonical; defined here, reproduced by the Phase-4 tutorial)"** still reads `--per-task 30`, while the Phase-3 canonical block (line 223) and the actual committed run are `--per-task 100`. Your own thread (line 179) flagged this exact propagation; the Phase-3 block got updated and line 39 was missed. Phase 4 is instructed to match the canonical commands *verbatim*, and a tutorial pinned at 30 would not reproduce digest `37eb58400fdf4ea9` — so this is a live trap for the next phase, not just cosmetics. One-word fix.
+
+Minor cosmetics, take or leave: `summary.md`'s panel table shows only the marked `model` string (raw `api_model` is recoverable from `summary.json`, so the proof is intact), and the README has an awkward mid-sentence line break at lines 98–99.
+
+Deliverables complete, artifacts sound, analysis now matches the data, and the honest-but-unexpected result (web search retrieves *more* scripture; the strict headline penalises the citation wrapper) is documented better than the issue's original hypothesis.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 3 artifacts verify green on every invariant — byte-identical regenerated question set, audit-clean, secret-free, unpriced, tools-aware identities, 195 tests — and every README number recomputes correctly, including the two previously-blocking analyses.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Non-blocking (Phase-4 trap): `codev/plans/8-spec-3-tutorial-centered-on-kj.md:39` still pins the "canonical committed run params" at `--per-task 30` while the committed run and the Phase-3 canonical block (line 223) are `--per-task 100`; Phase 4 must reproduce 100 to match digest `37eb58400fdf4ea9`.
+- Cosmetic: `summary.md` panel table omits `api_model` (present in `summary.json`); README lines 98–99 have a mid-sentence line break.

@@ -1,0 +1,7 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core normalization is sound, but the Arabic combining-mark range is incomplete against the specification.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `score.py:64-67` strips only U+064B–U+0655, while the specification explicitly requires U+064B–U+065F. U+0656–U+065F currently become spaces and split words; for example, `token_f1("ب\u0656سم", "بسم")` is `0.0`. The test helper repeats the incomplete range, so this is uncovered. Extend the implementation and tests through U+065F; this also fixes `audit._norm`, which shares the helper.

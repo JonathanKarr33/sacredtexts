@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 from sacredbench import catalogue as cat
+from sacredbench.score import strip_script_marks
 
 # origin is the always-on gate; when a restricted PAYLOAD is present locally (never
 # in CI / a fresh clone), the audit ALSO scans committed text for restricted units,
@@ -34,7 +36,14 @@ class AuditError(Exception):
 
 
 def _norm(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+    # NFKD + Arabic/Hebrew mark-stripping (shared with score.normalize) so the content
+    # layer fingerprints non-Latin restricted text instead of collapsing it to ''; the
+    # final class keeps Unicode letters/digits (Arabic, Hebrew, Greek, …), where the
+    # old ASCII-only `[^a-z0-9]` dropped every non-Latin character. Applied identically
+    # to both the fingerprint source and the scanned blob, so matching is consistent.
+    s = unicodedata.normalize("NFKD", (s or "").lower())
+    s = strip_script_marks(s)
+    return re.sub(r"[^\w]+", " ", s).strip()
 
 
 def restricted_text_fingerprints(

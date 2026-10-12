@@ -20,7 +20,7 @@ from sacredbench import convert as conv
 from sacredbench import export as exp
 from sacredbench import generate as gen
 from sacredbench import schema
-from sacredbench.collect import CollectError
+from sacredbench.collect import CollectError, _existing, _panel_fingerprint
 from sacredbench.collect import collect as run_collect
 from sacredbench.config import ConfigError, load_config
 from sacredbench.generate import generate as run_generate
@@ -305,6 +305,27 @@ def score(
             raise typer.BadParameter("--questions and --config must be given together (missing-cell roster)")
         qs = load_questions(questions)
         cfg = load_config(config)
+        # Evidence-integrity: the committed panel must describe the identity the answers were
+        # ACTUALLY collected under. The panel below is built purely from --config, so flipping a
+        # model's tools (or provider/model/host) between collect and score would mislabel the
+        # experimental arm in summary.json/standings with no error. Cross-check each configured
+        # model's fingerprint against the fingerprints stamped in answers.jsonl before emitting it.
+        _, _, _, ans_fps, ans_fp_missing = _existing(answers)
+        for m in cfg.models:
+            current = _panel_fingerprint(m)
+            mismatched = ans_fps.get(m.id, set()) - {current}
+            if mismatched:
+                raise ScoreError(
+                    f"{answers}: model id {m.id!r} was collected under panel identity "
+                    f"{sorted(mismatched)} but --config now maps it to {current!r}; the committed "
+                    "panel would mislabel the experimental arm — re-run collect or fix the config"
+                )
+            if m.id in ans_fp_missing:
+                raise ScoreError(
+                    f"{answers}: model id {m.id!r} has answer row(s) with no panel fingerprint, so "
+                    "the committed panel cannot be verified against what was collected (a pre-Spec-3 "
+                    "answers file); re-collect to a fresh file before scoring with --config"
+                )
         expected = {}
         expected_tradition: dict[tuple[str, str, str], int] = {}
         for m in cfg.models:
@@ -319,8 +340,15 @@ def score(
         panel = {}
         for m in cfg.models:
             endpoint = urlparse(m.base_url).netloc if m.base_url else default_host.get(m.provider)
-            panel[m.id] = {"provider": m.provider, "model": m.model, "endpoint": endpoint,
-                           "price_in": m.price_in, "price_out": m.price_out}
+            # Mark BOTH variants so the panel's (provider, model) — the key the viewer's
+            # standings view rolls up on — distinguishes web-search-on from -off AND never
+            # collides with a plain (unmarked) model id from another run. api_model keeps
+            # the true API model string recoverable (the viewer ignores it).
+            # mark with the full tool set (kept general so it stays consistent with the
+            # tools-general collect fingerprint if a second tool is ever added)
+            marked = f"{m.model} [{'+'.join(m.tools)}]" if m.tools else f"{m.model} [no-tools]"
+            panel[m.id] = {"provider": m.provider, "model": marked, "api_model": m.model,
+                           "endpoint": endpoint, "price_in": m.price_in, "price_out": m.price_out}
         summary = score_file(answers, scores_out, expected, expected_tradition, panel,
                              expected_digest=gen.question_set_digest(qs))
     else:

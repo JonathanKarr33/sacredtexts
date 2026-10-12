@@ -1,0 +1,23 @@
+---
+VERDICT: APPROVE
+SUMMARY: Implementation is complete, internally consistent, well-tested, and ready to merge.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- None
+
+PR_SUMMARY: |
+  ## Summary
+  Reworks the tutorial around KJV, Arabic Qur’an, and Hebrew/Aramaic Talmud sources while demonstrating parametric recall versus web-assisted retrieval. It also adds script-aware normalization, validated Anthropic web-search configuration, tools-aware panel identity, and a committed four-entry benchmark run.
+
+  ## Key Changes
+  - Adds fair Arabic/Hebrew normalization without changing Latin scoring behavior.
+  - Adds validated per-model web-search support and resume-safe tool identity.
+  - Commits an audited 100-question, 400-answer tutorial run.
+  - Updates tutorial, governance documentation, and viewer integration coverage.
+
+  ## Test Plan
+  - Run `bash .codev/checks/test.sh`.
+  - Verify pipeline pytest and viewer Vitest suites pass.
+  - Open `/?run=tutorial-2026-10-11` and verify four leaderboard and standings entries.
+  - Confirm the committed run re-scores identically and passes the copyright audit.

@@ -25,12 +25,13 @@ base="origin/main"
 git rev-parse --verify --quiet "$base" >/dev/null || base="main"
 
 changed=$(git diff --name-only "${base}...HEAD" 2>/dev/null)
-# runs/** (committed evidence) and texts/** (corpus) map to the pipelines lane, whose
-# pytest includes the committed-artifact copyright audit — so a PR touching only those
-# paths is still tested and audited, not silently skipped.
+# runs/** (committed evidence), texts/** (corpus), and configs/** (the example panel that
+# test_phase2_tools.py loads and asserts on) map to the pipelines lane, whose pytest includes
+# the committed-artifact copyright audit — so a PR touching only those paths is still tested
+# and audited, not silently skipped.
 touched=$(printf '%s\n' "$changed" \
-  | grep -oE '^(apps/[^/]+|pipelines|runs|texts)' \
-  | sed -E 's#^(runs|texts)$#pipelines#' | sort -u)
+  | grep -oE '^(apps/[^/]+|pipelines|runs|texts|configs)' \
+  | sed -E 's#^(runs|texts|configs)$#pipelines#' | sort -u)
 
 if [ -z "${touched//[$'\n']/}" ]; then
   echo "test-dispatcher: no app/pipeline changed vs ${base} — nothing to test."

@@ -1,0 +1,42 @@
+I'll review phase_4 — the tutorial rework and viewer verification. Let me start by reading the key files.I've completed my review of phase_4. I read every changed phase_4 file from disk and independently verified the load-bearing factual claims rather than taking them on trust.
+
+## What I verified (not just read)
+
+**Doc numbers are real.** I recomputed the "contains exact reference" analysis from the committed `answers.jsonl`/`scores.jsonl` using the pipeline's own `normalize()`. Every number in `TUTORIAL.md` and the run `README.md` matches exactly:
+
+| | headline | contains-exact | 0-but-contains |
+|---|---|---|---|
+| opus | 66 | 66 | 0 |
+| opus-search | 66 | **74** | 8 |
+| haiku | 47 | 47 | 0 |
+| haiku-search | 40 | **52** | 12 |
+
+Per-tradition too: opus-search Talmud 8/34 contains vs opus 0/34 (~24% lift, as claimed); haiku Qur'an 19/33 → haiku-search 24/33. The "20 of 400, every one a search-on cell" claim holds (8+12).
+
+**E2E property holds.** I ran the Track-B `generate` command verbatim to a scratch path: digest `37eb58400fdf4ea9`, corpus `ed3f05dcf703e2e3`, and the 100 question lines are **byte-identical** to the committed set. All three target-slug dirs in the tutorial exist as written, and `write_questions` mkdir's parents, so `RUN=runs/my-run` works from a clean tree. Track A's re-score-to-`/tmp` command reproduces `scores.jsonl` **bit-for-bit** ("REPRODUCED").
+
+**Viewer: zero behavioural change, tests green.** The only `apps/viewer/` change in the whole PR is the new test-only `tutorialRun.test.ts` (+102 lines). `pnpm -C apps/viewer test` → **123/123 passing across 17 files**, including `realRun.test.ts` (first-run gate) and the `#86` probe in `deploy.test.ts`. `uv --project pipelines run pytest pipelines` → **195 passed**. Both gate lanes green.
+
+The new test's assertions are correct against real data: tutorial panel models are `claude-{haiku,opus}-5-5 [no-tools]/[web_search]`, first-run's panel key is the bare `anthropic\0claude-haiku-5-5` (confirmed from its `summary.json`), and 4 tutorial + 4 first-run keys = the asserted 8 standings rows.
+
+**Doc accuracy spot-checks all passed:** 221 standardized documents (counted); `configs/models.example.yaml` is exactly the panel the tutorial describes with `ANTHROPIC_API_KEY`; the run is unpriced (no `cost_usd`), `api_model` present, `generated_at` present; `.gitignore` carries both negations; arch.md's claims about `audit._norm` (keeps Greek via `[^\w]`), `WEB_SEARCH_TOOL` (`web_search_20250305`, `max_uses: 5`), the `stop_reason` allowlist, and `web_search_requests` all check out against the source.
+
+## Feedback (non-blocking)
+
+1. **Track B has no cost magnitude.** The tutorial says `collect` "costs money" but a reader copy-pasting it verbatim runs 400 cells, 200 of them with server-side web search — the committed run burned **4.24M input / 249K output tokens + 226 search requests**, which at list opus pricing is on the order of **tens of dollars**, not pennies. The previous tutorial's panel was far cheaper, so this is a new hazard for the front door. Two lines would fix it: quote the committed run's token/search totals as the expected magnitude, and offer a cheap trial (`--per-task 5`), noting that changing `--per-task` changes the question set and digest so it no longer reproduces the committed run.
+
+2. **"the most-recent run … which is this tutorial run" is mtime-dependent.** `runsEndpoint`/`runIndex` sort mtime desc with **id ascending** as the tiebreak, so on an exact mtime tie `first-run-2026-10-11` wins the default. A fresh clone will normally give the tutorial run (checkout order), but it isn't guaranteed — this is precisely issue #7's fragility, and the newly added `generated_at` can't be consumed without a (disallowed) viewer change. A half-clause ("…if not, select it in the run selector") makes the claim robust.
+
+3. **`lessons-critical.md` was named in the plan's Documentation Updates but left unchanged.** The thread documents the reasoning (hot tier at cap; the two load-bearing facts went to `arch-critical.md`, the four new lessons to the cold `lessons-learned.md`). I agree with the call — noting it only so the deviation is visible rather than silent.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 4 is complete and independently verified — tutorial numbers recompute exactly, the Track-B generate reproduces the committed question set byte-for-byte, and the viewer is unchanged with 123/123 + 195/195 tests green; only docs polish suggestions remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- (Comment) Track B omits a cost magnitude for the 400-cell / 200-search-cell run (~4.24M input tokens + 226 search requests on the committed run); suggest stating expected spend and a cheap `--per-task` trial with a note that the digest then differs.
+- (Comment) "the most-recent run … is this tutorial run" depends on directory mtime (tie → `first-run` wins by id-asc tiebreak); suggest hedging and pointing at the run selector.
+- (Comment) `lessons-critical.md` named in the plan's doc-updates list but intentionally left unchanged (hot tier at cap); reasoning is recorded in the builder thread — deliberate, not an omission.

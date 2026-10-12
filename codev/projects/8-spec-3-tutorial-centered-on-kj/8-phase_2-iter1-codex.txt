@@ -1,0 +1,7 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 2 is largely complete, but Anthropic web-search pause responses can be persisted as successful partial answers.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `providers.py:86-98` handles only `stop_reason == "max_tokens"`. Anthropic web search may return `pause_turn`; the current code either saves any partial text as a completed cell or retries the entire paid request when text is empty. Handle `pause_turn` using the required continuation protocol and aggregate usage, or fail loudly without accepting partial text. Add a provider-seam test for this response. See [Anthropic’s web-search documentation](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool).

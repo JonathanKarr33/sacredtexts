@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The specification is strong overall, but its chosen normalization algorithm does not cover marks present in the actual QUL corpus.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- **Approach D is incomplete for the shipped Qur’an data.** The real QUL source contains combining marks outside the proposed U+064B–U+065F/U+0670 ranges, including U+06D6, U+06DA, U+06DF, U+06E2, and U+06ED. Some occur inside words—for example `أُو۟لَـٰٓئِكَ`—so the punctuation pass would replace them with spaces and still split words. Expand the Arabic mark-removal contract to cover the Qur’anic annotation marks actually present in QUL, and add at least one full real ayah fixture containing these characters.
+- **Unsupported tool configurations need defined behavior.** Since `ModelSpec` also supports OpenAI and Gemini, specify that enabling Anthropic web search for a non-Anthropic provider, or supplying an invalid tools value, fails during config loading rather than being silently ignored.
+- **License compliance is underspecified.** The Davidson text is CC-BY-NC; passing the repository’s coarse `open` audit does not itself satisfy attribution requirements. Require the committed run README or artifact metadata to preserve source, attribution, license, and noncommercial-use information.

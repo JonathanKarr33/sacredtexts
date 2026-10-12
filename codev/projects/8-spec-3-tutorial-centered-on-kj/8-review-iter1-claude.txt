@@ -1,0 +1,88 @@
+I'll start by locating the repository and reading the key source changes.The worktree is clean. Let me read the core source changes and the spec/plan.Now let me independently verify the run's headline numbers and the README's "contains exact reference" claims, using a self-contained normalizer (no imports from the tree, no writes).The "contains exact reference" counts (47/52/66/74) match the README exactly. Let me fix my headline extraction and check the score row shape.I have what I need. I verified every quantitative claim in the committed run's README independently (recomputing normalization from scratch rather than importing the code under test), and read all source changes from disk.
+
+## Review
+
+### What I verified independently
+
+I re-implemented `normalize()` from the spec in a throwaway stdlib script (no imports from the tree, no writes) and recomputed the run's numbers from `answers.jsonl`/`scores.jsonl`:
+
+| claim in run README | my recomputation |
+|---|---|
+| headline 66 / 66 / 47 / 40 | ✅ matches `summary.json` exactly |
+| contains-exact 66 / **74** / 47 / **52** | ✅ exact match |
+| 20 zero-but-contains, all search-on (8 opus-search, 12 haiku-search) | ✅ exact match |
+| Talmud opus-search 8/34 vs opus-off 0/34 | ✅ exact match |
+| Qur'an haiku-search 24/33 vs haiku-off 19/33 | ✅ exact match |
+| 226 web-search requests over 93 cells (34 opus-search / 59 haiku-search) | ✅ exact match |
+| panel secret-free, unpriced, `api_model` present, `generated_at` ISO | ✅ scanned all 7 run files; no `sk-`/bearer material, no `cost` key |
+
+Manifest `inputs`/`per_task: 100`/`seed: 20261011`/digest `37eb58400fdf4ea9` match the TUTORIAL Track-B commands verbatim, so the reproduction claim is real. Both real-script test fixtures (QUL JSON, vocalized Shevuot) are git-tracked, so the non-Latin tests can't silently vanish in a fresh clone.
+
+### Code quality
+
+- `strip_script_marks` is correctly script-scoped (Mn-in-RTL-blocks + explicit non-Mn editorial set), placed **before** the `[^\w\s]` pass so marks are deleted rather than converted to word-splitting spaces — the actual bug. Latin invariance is protected by a byte-level fixture *and* by the strong re-score guard over ~400 real first-run answers.
+- The config fail-fast (`_parse_tools`) covers non-list, unknown tool, and anthropic-only-tool-on-wrong-provider — all three tested, all `ConfigError` at load time.
+- `complete()` re-raises `ProviderError` without retrying, so the comment's "retrying would re-bill the web search" claim actually holds. I checked the control flow rather than taking the comment's word.
+- Tests are non-vacuous: the fingerprint test asserts on/off differ *and* pins both suffixes; the panel-identity test asserts non-collision with first-run's bare key; the provider tests fake the SDK at the lazy import site with `monkeypatch.setitem(sys.modules, …)`, which is the only way that seam is reachable.
+- No debug code, no stray TODOs, 25 well-formed `[Spec 8]` commits, review doc present and unusually honest (it leads with "the human's expectation was not confirmed by the headline" rather than burying it).
+
+### Non-blocking notes
+
+1. **The stop_reason allowlist is a global Anthropic behavior change**, not just a search-on one. `pause_turn` is Anthropic's documented *continue-the-turn* signal for long server-tool turns; treating it as fatal means such a turn can never complete, only fail the cell. Likewise a `max_tokens` truncation that previously recorded a scorable (wrong) answer now hard-fails. Deliberate, fail-fast-aligned, and both reviewers signed off — but a continuation loop for `pause_turn` is the real fix, and `_openai`/`_gemini` still have no guard (already in your Follow-ups).
+2. **Marking both variants changes cross-run standings semantics.** A re-scored pre-Spec-8 run's key moves from `claude-haiku-5-5` → `claude-haiku-5-5 [no-tools]`, so the same no-tools config won't aggregate across the boundary. Documented and intentional (Approach B deferred); worth keeping in view if standings ever becomes a longitudinal view.
+3. **AC10's generation-side half is conditional.** `test_first_run_question_set_digest_regenerates` skips when `texts/standardized/` is absent — i.e. always in a fresh clone/CI. Only the (strong) re-score guard runs unconditionally. Read the AC10 checkmark with that caveat.
+4. **No CI on this repo** (`gh pr checks 9` → "no checks reported"), so 195/195 + 125/125 is a local-only claim. I did not re-run the suite — this review is read-only by design, so treat the test counts as builder-reported, not independently confirmed.
+5. Cosmetic: the code comment above `if panel:` in `score.py` still says "≥3-model / ≥2-provider bar" though you softened the rendered markdown header. And `test_tutorial_run.py`'s `"cost" not in json.dumps(summary).lower()` would false-positive on a model id containing "cost".
+
+Branch is `MERGEABLE` / `CLEAN` against `main`.
+
+---
+VERDICT: APPROVE
+SUMMARY: Spec fully satisfied with unusually strong evidence — I independently recomputed every number in the run README and all matched exactly; remaining items are non-blocking follow-ups.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- None blocking. Non-blocking: (a) the `_TERMINAL_STOP` allowlist makes `pause_turn` fatal for all Anthropic calls, so a long server-tool turn can never continue — a continuation loop is the real fix; (b) marking both panel variants means a re-scored pre-Spec-8 run no longer shares a standings key with its no-tools successor; (c) the generation-side digest guard skips whenever `texts/standardized/` is absent, so that half of AC10 is a no-op in CI; (d) repo has no CI, so the 195/125 test counts are builder-reported and unverified by me; (e) stale "≥3-model/≥2-provider" code comment in `score.py` and a brittle `"cost" not in summary` assertion.
+
+PR_SUMMARY: |
+  ## Summary
+  Reworks the benchmark's front-door `TUTORIAL.md` around three canonical sources in their
+  original languages — KJV (`en`), Qur'an Uthmani QUL (`ar`), Talmud Bavli Davidson Aramaic
+  (`he`) — and demonstrates the benchmark's central contrast, parametric recall vs.
+  tool-assisted retrieval, via a 2-model × web-search-{on,off} panel (4 entries). The merged
+  viewer renders the committed run with zero behavioural source changes. Closes #8; also
+  closes the pipeline half of #7.
+
+  ## Key Changes
+  - **Fair non-Latin scoring**: `normalize()` deletes Arabic/Hebrew combining marks, the full
+    QUL annotation block (U+06D6–U+06ED, incl. mid-word) and tatweel, folds alef variants and
+    maps the Hebrew maqaf to a space — before the punctuation pass, so marks are removed
+    rather than turned into word splits. Latin output is byte-for-byte unchanged; `_SUBMETRICS`
+    and the `retrieve_quote` headline are frozen. `audit._norm` extended the same way.
+  - **Web-search tool as identity-bearing config**: `ModelSpec.tools` with fail-fast
+    `ConfigError` (non-list / unknown tool / `web_search` on a non-anthropic provider); the
+    pinned `web_search_20250305` (`max_uses: 5`) passed iff enabled; a loud stop_reason
+    allowlist so no partial turn is ever committed as an answer; tools folded into
+    `_panel_fingerprint` (flipped-tools resume → `CollectError`) and into the emitted
+    `panel.model` (`[web_search]`/`[no-tools]`), with `api_model` preserving the raw string.
+  - **Committed tutorial run** `runs/tutorial-2026-10-11/` — 100 questions across three
+    traditions/scripts, 400 cells, unpriced, origin-clean, secret-free, with a README that
+    documents the honest result rather than the expected one.
+  - **TUTORIAL rework + viewer verification** via a test-only `tutorialRun.test.ts`.
+
+  ## Observed result
+  Web search retrieves *more* correct scripture (contains-exact: opus 66→74, haiku 47→52;
+  Talmud opus-search 8/34 vs 0/34 off), but the strict headline (`correct = normalized`,
+  whole-answer equality) does not reflect it: 20/400 cells score 0 while containing the exact
+  reference, every one search-on, where the quote is wrapped in citation prose. Documented in
+  the run README; a `contains-exact` discriminator is a named follow-up, not shipped
+  (requirement 4 freezes `_SUBMETRICS`).
+
+  ## Test Plan
+  - `.codev/checks/test.sh` (pipelines pytest + viewer vitest + copyright audit).
+  - Non-Latin normalisation locked by real QUL ayah / Davidson line fixtures, both git-tracked.
+  - Latin invariance guarded two ways: a byte-level fixture and a re-score of the committed
+    first-run answers to tmp, diffed byte-for-byte against committed `scores.jsonl`.
+  - E2E: Track-B `generate` reproduces the committed digest `37eb58400fdf4ea9`.
+  - Reviewer-recomputed from the committed artifacts: headline, contains-exact,
+    zero-but-contains, per-tradition cuts, and web-search request counts all match the README.

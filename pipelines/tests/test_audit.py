@@ -62,6 +62,32 @@ def test_content_layer_catches_restricted_text_under_a_public_label(tmp_path):
     assert len(v) == 1 and "restricted text" in v[0]
 
 
+def test_norm_handles_nonlatin_content_layer(tmp_path):
+    # the old `_norm` was ASCII-only (`[^a-z0-9]`), so Arabic/Hebrew/Greek collapsed to ''
+    # and the restricted-text content layer was a silent no-op on non-Latin text. It now
+    # strips marks and keeps Unicode letters, so a non-Latin restricted unit mislabeled
+    # with a public source is caught — and vocalised vs. plain fingerprint identically.
+    import re as _re
+    vocal = (
+        "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ وَٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ "
+        "ٱلرَّحْمَٰنِ ٱلرَّحِيمِ مَٰلِكِ يَوْمِ ٱلدِّينِ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ"
+    )
+    # a programmatically mark-stripped copy (no hand-typed spelling) must fingerprint the same
+    plain = _re.sub("[ً-ٰٕـۖ-ۭ]", "", vocal).replace("ٱ", "ا")
+    assert _norm(vocal)  # not collapsed to '' (the old Latin-only bug)
+    assert _norm(vocal) == _norm(plain)
+    sources = cat.discover_catalogue(RAW)
+    fp = _norm(vocal)
+    assert len(fp) >= 60  # long enough to be a real fingerprint
+    row = _question_row("The Bible", "KJV")  # public ORIGIN
+    row["expected"]["text"] = vocal           # ...but (stand-in) restricted non-Latin TEXT
+    p = tmp_path / "questions.jsonl"
+    p.write_text(json.dumps(row, ensure_ascii=False) + "\n")  # as collect writes real text
+    assert audit_paths([p], sources) == []            # origin public -> clean without fps
+    v = audit_paths([p], sources, {fp})               # with the fingerprint -> caught
+    assert len(v) == 1 and "restricted text" in v[0]
+
+
 def test_clean_evidence_passes(tmp_path):
     sources = cat.discover_catalogue(RAW)
     p = tmp_path / "questions.jsonl"

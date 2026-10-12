@@ -1,0 +1,69 @@
+I'll review the phase_2 implementation. Let me start by reading the changed files.I've read all the phase_2 files, verified the claims against the installed SDK and the actual viewer source, and run the suite (186 passed).
+
+## What's right
+
+**Approach A is correctly implemented and I verified it against real viewer source, not assumption:**
+- `apps/viewer/src/lib/aggregate.ts:59` keys standings on `` `${p.provider}\u0000${p.model}` `` — the `cli.py:326` marked model (`"{model} [web_search]"` / `"[no-tools]"`) does produce distinct rows.
+- `parseSummary` (`localResults.ts:133-139`) destructures only `models/by_tradition/usage/panel` and validates with `isRecord` — it ignores `api_model` and `generated_at`. Zero viewer changes genuinely required. ✓
+- Marking **both** variants is right and the non-collision test is grounded in reality: the committed first-run panel key really is `anthropic\u0000claude-haiku-5-5` (I checked `runs/first-run-2026-10-11/summary.json`).
+
+**SDK pin verified:** `pipelines/.venv/.../anthropic/types/web_search_tool_20250305_param.py` requires exactly `{name: "web_search", type: "web_search_20250305"}` with optional `max_uses` — `providers.WEB_SEARCH_TOOL` matches the TypedDict exactly. SDK is 1.13.0 as the plan says.
+
+**Fingerprint back-compat is a non-issue:** first-run's `answers.jsonl` rows carry **no** `panel_fingerprint` at all, so the `|<tools>` format change can't produce a spurious refusal on existing evidence.
+
+Config fail-fast, the `max_tokens` guard, text-block-only extraction, `web_search_requests` provenance, unpriced example panel, `generated_at` — all present, all tested, contract untouched.
+
+## Blocking issue: `stop_reason` guard covers only `max_tokens`
+
+`providers.py:90` raises on `stop_reason == "max_tokens"`. The installed SDK's `StopReason` literal is:
+
+```
+"end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal", "model_context_window_exceeded"
+```
+
+**`pause_turn` is Anthropic's documented stop reason for a long-running turn with a *server-side tool* — i.e. exactly the web-search path this phase adds.** On `pause_turn`, `refusal`, or `model_context_window_exceeded`, the turn is incomplete, and the current code silently accepts whatever text blocks happen to be present:
+
+- partial text present → committed as if it were the model's real answer. It scores 0 on whole-answer equality and is **indistinguishable in `answers.jsonl` from a search-on model that simply got the quote wrong** — which corrupts the one contrast this whole spec exists to display, inside a run that Phase 3 commits to a public repo.
+- no text present → falls into the generic `RuntimeError("empty response")` path at line 63, which **retries twice, re-billing the web search each time** — the precise cost failure the `max_tokens` comment at line 87-89 was written to avoid.
+
+I settled this by reading rather than mutating: the only `stop_reason` branch in `_anthropic` is the `max_tokens` equality check, and `complete()`'s `except Exception` wrapper is the sole other path, so there is no second guard anywhere. Test coverage matches — `test_max_tokens_truncation_fails_loud` is the only `stop_reason` test; nothing exercises `pause_turn`.
+
+The fix is one line, consistent with the project's fail-fast rule and the plan's own "validate the response shape and fail loud on mismatch": allowlist the terminal-success reasons and raise `ProviderError` otherwise, e.g.
+
+```python
+_OK_STOP = {"end_turn", "stop_sequence", "tool_use"}
+if (sr := getattr(resp, "stop_reason", None)) not in _OK_STOP:
+    raise ProviderError(f"{model.id}: incomplete turn (stop_reason={sr!r}) — ...")
+```
+
+plus a test case asserting `pause_turn` raises. Worth doing **before** Phase 3 spends money and commits evidence, not after.
+
+## Non-blocking
+
+1. **Marker is hardcoded, fingerprint is general** — `collect.py:36` uses `','.join(m.tools)` (tools-general), but `cli.py:326` hardcodes `[web_search]`. If a second tool is ever added, two distinct tool sets collapse into one standings identity — silently breaking the invariant this phase establishes. `f"[{'+'.join(m.tools)}]" if m.tools else "[no-tools]"` keeps the two layers consistent for free.
+2. **`config.py` still has no unknown-key validation** — `tools: web_search` (string) is caught, but a typo like `tool: [web_search]` silently no-ops, which is the same silent-drop hazard the spec's risk table named. The spec's criterion is satisfied as written; mentioning it since "never a silent no-op" is the stated goal.
+3. **Phase-3 heads-up, not a defect:** the no-tools entries carry `max_tokens: 1024`. Hebrew/Aramaic tokenizes expensively; a long Davidson line could now hit the (correctly loud) truncation guard and leave cells pending, forcing a config bump mid-run. Consider 4096 across all four entries — the run is unpriced and output volume is modest either way.
+4. `summary_markdown:486` still heads the panel table "proof of the ≥3-model / ≥2-provider bar", which will be inaccurate in the committed 2-model all-Anthropic `summary.md` (the spec lists this as nice-to-know).
+5. `test_phase2_tools.py:113-118` — the `_Client` class is dead code; the fake uses `client_obj` instead.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Tools config, fingerprint, and both-marked panel identity are correct and verified against real viewer/SDK source; the provider seam guards only `max_tokens`, leaving `pause_turn` — Anthropic's server-tool stop reason — to silently commit partial web-search answers.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `providers.py:90` guards only `stop_reason == "max_tokens"`; SDK 1.13.0's `StopReason` also includes `pause_turn` (documented for server-side tools, i.e. the web-search path added here), `refusal`, and `model_context_window_exceeded`. A `pause_turn` with partial text is silently accepted as the answer and committed; with no text it hits the generic retry at line 63, re-billing the web search — the exact hazard the `max_tokens` guard was added to prevent. Allowlist `{end_turn, stop_sequence, tool_use}` and raise otherwise, with a `pause_turn` test.
+- Minor: `cli.py:326` hardcodes the `[web_search]` marker while `collect.py:36` fingerprints `','.join(m.tools)` — inconsistent layers; a future second tool would collapse distinct tool sets into one standings identity.
+- Minor: no unknown-key validation in `config.py`, so a misspelled key (`tool:`) is still a silent no-op.
+- Minor (Phase-3 risk): `max_tokens: 1024` on the no-tools entries may trip the new truncation guard on long Hebrew/Aramaic quotes.That background search was just the SDK-location lookup I'd already answered directly from `pipelines/.venv` — it confirms nothing new and changes nothing in my review. (Note it also shows the `web_search_tool_20250305_param.py` file present in a fresh-clone venv under `scratchpad/freshclone`, consistent with the pin resolving in a clean checkout too.)
+
+My review stands as given:
+
+**Verdict: REQUEST_CHANGES** — one blocking issue, everything else in phase_2 is correct and verified against real source rather than assumption.
+
+**The blocker:** `providers.py:90` guards only `stop_reason == "max_tokens"`. The installed SDK's `StopReason` literal also includes `pause_turn` — Anthropic's documented stop reason for a long-running turn with a *server-side* tool, which is precisely the web-search path this phase adds — plus `refusal` and `model_context_window_exceeded`. On any of those the turn is incomplete, and the code silently accepts whatever text blocks are present: a partial answer gets committed and is indistinguishable from a genuinely wrong one (corrupting the search-on/off contrast the spec exists to display), or an empty one falls into the generic retry at line 63 and re-bills the web search — the exact cost hazard the `max_tokens` comment was written to avoid. One-line fix (allowlist `{end_turn, stop_sequence, tool_use}`) plus a `pause_turn` test, worth doing before Phase 3 spends money and commits public evidence.
+
+**Verified as correct:** the both-marked panel identity really does yield distinct standings rows (`aggregate.ts:59` keys on `provider\u0000model`) and really does avoid collision with first-run's committed `anthropic\u0000claude-haiku-5-5`; `parseSummary` ignores `api_model`/`generated_at`, so zero viewer changes are genuinely needed; `WEB_SEARCH_TOOL` matches the SDK 1.13.0 TypedDict exactly; and the fingerprint format change is harmless because first-run rows carry no `panel_fingerprint` at all. 186 tests pass.
+
+**Non-blocking:** hardcoded `[web_search]` marker in `cli.py:326` vs. the tools-general join in `collect.py:36`; still no unknown-key validation in `config.py`; `max_tokens: 1024` on the no-tools entries may trip the new guard on long Hebrew/Aramaic quotes in Phase 3; stale "≥3-model / ≥2-provider" panel header; dead `_Client` class in the test helper.

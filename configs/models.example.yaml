@@ -1,35 +1,47 @@
-# Example model panel for `sacredbench collect`.
-# Copy to configs/models.yaml (gitignored) and adjust. Keys come from the
-# environment — never from a file in this public repo. This is the exact shape of
-# the panel that produced runs/first-run-2026-10-11 (≥3 models / ≥2 serving
-# providers: Anthropic direct + OpenRouter). Swap in whatever models you have funded.
-concurrency: 8
+# Example model panel for `sacredbench collect` — the Spec 3 tutorial panel.
+# Copy to configs/models.yaml (gitignored) and adjust. Keys come from the environment
+# — never from a file in this public repo (ANTHROPIC_API_KEY here).
+#
+# This is a 2-MODEL panel (one opus-class, one haiku-class) run BOTH WAYS — with the
+# Anthropic server-side web-search tool enabled and disabled — i.e. 2 models x
+# search-{on,off} = 4 entries. The contrast the benchmark exists to show is parametric
+# recall (tools off) vs. tool-assisted retrieval (tools on): the search-on entries are
+# expected to quote scripture more accurately. The viewer shows all four side by side,
+# and the tools setting is part of each entry's panel identity, so on/off never collapse
+# into one row.
+#
+# UNPRICED by design: with web search billed per request (not captured in in/out
+# tokens), setting price_in/price_out would understate the true cost — so `score` reports
+# token totals only, no cost figure. (Prices are never invented.)
+concurrency: 4
 models:
-  - id: claude-haiku
-    provider: anthropic            # direct Anthropic API (ANTHROPIC_API_KEY)
+  - id: opus-search
+    provider: anthropic          # web_search is an Anthropic server-side tool
+    model: claude-opus-5-5
+    max_tokens: 4096             # headroom: search + citation blocks share the budget
+    tools: [web_search]          # tool-assisted retrieval
+  - id: opus
+    provider: anthropic
+    model: claude-opus-5-5
+    max_tokens: 4096             # parametric recall (no tools); headroom so a long
+    #                              Hebrew/Aramaic quote does not trip the truncation guard
+  - id: haiku-search
+    provider: anthropic
     model: claude-haiku-5-5
-    max_tokens: 1024
-    # Optional: set BOTH price_in and price_out (USD per 1M tokens) to have `score`
-    # report a per-model and total cost. Omit them (as the run did) for token-only
-    # totals — prices are never invented.
-    # price_in: 1.0
-    # price_out: 5.0
-  # Any OpenAI-chat-compatible host (OpenRouter here) via base_url + api_key_env:
-  - id: gpt-oss-20b
-    provider: openai
-    base_url: https://openrouter.ai/api/v1
-    api_key_env: OPENROUTER_API_KEY
-    model: openai/gpt-oss-20b
-    max_tokens: 4096               # reasoning model: needs headroom to emit content
-  - id: gemma-3-4b
-    provider: openai
-    base_url: https://openrouter.ai/api/v1
-    api_key_env: OPENROUTER_API_KEY
-    model: google/gemma-3-4b-it
-    max_tokens: 1024
-  - id: llama-3.1-8b
-    provider: openai
-    base_url: https://openrouter.ai/api/v1
-    api_key_env: OPENROUTER_API_KEY
-    model: meta-llama/llama-3.1-8b-instruct
-    max_tokens: 1024
+    max_tokens: 4096
+    tools: [web_search]
+  - id: haiku
+    provider: anthropic
+    model: claude-haiku-5-5
+    max_tokens: 4096
+  # Multi-provider is still supported — this tutorial panel is all-Anthropic only because
+  # web_search is an Anthropic server-side tool. Any OpenAI-compatible host (e.g. OpenRouter)
+  # works via provider: openai + base_url + api_key_env; keys come from the environment.
+  # Uncomment and adjust to add a non-Anthropic entry (tools: must stay absent there —
+  # web_search on a non-anthropic provider is a load-time ConfigError):
+  # - id: openrouter-example
+  #   provider: openai
+  #   model: anthropic/claude-haiku-5-5        # a slug the host recognises
+  #   base_url: https://openrouter.ai/api/v1
+  #   api_key_env: OPENROUTER_API_KEY
+  #   max_tokens: 4096

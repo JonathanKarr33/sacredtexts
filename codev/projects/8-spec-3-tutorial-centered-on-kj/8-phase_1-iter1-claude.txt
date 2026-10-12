@@ -1,0 +1,47 @@
+I'll start by reading the implementation files for phase_1.I've read the implementation and verified its behavior against the real corpora (read-only; I did not modify anything in the tree).
+
+## What I verified empirically
+
+**`score.py :: strip_script_marks` / `normalize()`** — the deleted set matches the plan exactly: `U+064B–U+0655`, `U+0670`, `U+0640`, `U+06D6–U+06ED`, Hebrew `U+0591–U+05BD`, `U+05BF`, `U+05C1–U+05C2`, `U+05C4–U+05C5`, `U+05C7`; maqaf `U+05BE` → space. Notably it correctly *excludes* `U+05C0`/`U+05C3`/`U+05C6` (paseq / sof pasuq / nun hafukha), which stay word separators via the punctuation pass. Good judgment, not accidental.
+
+Corpus-wide checks (not just fixtures):
+- All **6,236 QUL ayat**: nothing but letters and spaces survives `normalize()`; **zero** word-count changes (no splitting); `normalize(vocalized) == normalize(mark-stripped)` for **every** ayah.
+- Catalogued Davidson Aramaic corpus (78,406 entries): no surviving non-alnum; the 6 token-count growths are pre-existing gershayim behavior, **identical old vs. new**.
+- **Latin invariance**: I diffed old (`f07726b^`) vs. new `normalize()` over 224,339 English standardized entries + the entire first-run answers/questions. The only differences are strings containing actual Hebrew (9 hallucinated Hebrew model answers, plus WEB `Psalms 90:1`, which embeds `אֱלֹהִ֑ים`). No pure-Latin string moved. The claim holds.
+- `pytest` (existing venv, no writes): **165 passed**, including both new regression tests actually running (not skipped). The vocalized Shevuot fixture is tracked by git and correctly excluded from `source.yaml`.
+
+`audit._norm` reuse is clean (no circular import), and the new non-Latin content-layer test is a genuine improvement over the old ASCII-only no-op.
+
+## Blocking issue: the mark set covers the *expected* side but not the *answer* side
+
+The set was derived from QUL — which is right for expected text — but the answer side is **uncontrolled** (that's the whole point of the search-on arm). Arabic combining marks outside the QUL set still split words mid-word, which is the exact failure mode the spec names. Verified:
+
+```
+U+0617 SMALL HIGH ZAIN   الر‹mark›حمن → 'الر حمن'  (plain: 'الرحمن')  equal: False
+U+0618/0619/061A SMALL FATHA/DAMMA/KASRA → same split
+U+0656 SUBSCRIPT ALEF, U+0657, U+0658, U+065F → same split
+U+08F0/08F1/08F2 OPEN FATHATAN/DAMMATAN/KASRATAN → same split
+```
+
+`U+0617–U+061A` in particular appear in other Uthmani digitizations alongside the `U+06D6–U+06ED` block you already handle. Because the headline is `correct = normalized` (**whole-string** equality), one such mark anywhere in a retrieved ayah zeroes the item — silently depressing the search-on arm in Phase 3, the single paid phase, in a committed public artifact meant to demonstrate the benchmark's thesis. The spec criterion reads "removes the Arabic- and Hebrew-range combining marks **and** the Qur'anic annotation marks … actually present in QUL" — the first conjunct isn't fully met.
+
+Fix is one line and provably Latin-safe: keep the explicit list (you still need it for the non-`Mn` members `U+0640` Lm, `U+06DE`/`U+06E9` So, `U+06E5`/`U+06E6` Lm) and additionally delete any `category == "Mn"` codepoint in the Arabic/Hebrew blocks (`U+0590–U+08FF`, plus `U+FB1D–U+FB4F`). That is a strict superset of today's behavior, scoped to those blocks, so the Latin regression fixture and the 224k-entry invariance still hold. Add a parametrised test over the handful of codepoints above.
+
+## Non-blocking comments
+
+1. **Test helper `_MARK` diverges from the implementation** (`test_normalize_nonlatin.py:35`). It spans `U+064B–U+0670` (sweeping in Arabic-Indic digits `U+0660–U+0669`) and `U+0591–U+05BE` — i.e. it **deletes** the maqaf while the implementation maps it to a space. It passes only because neither fixture contains a maqaf (I checked: 0 of 1,555 Shevuot lines, 0 QUL ayat). If the selected line ever changes, `normalize(line) == normalize(_strip_combining(line))` fails spuriously for a reason that isn't a real defect. Either reuse `score._SCRIPT_MARKS_RE` for the stripper and handle maqaf→space explicitly, or add a comment pinning why the divergence is safe.
+2. **Module docstring is now stale.** `score.py:7-8` still describes `normalized` as "unicode quotes/dashes folded, case-folded, punctuation stripped, whitespace collapsed". Script-mark folding is part of the documented metric contract now and should appear there (the inline comments are good, but the docstring is the contract surface).
+3. `test_rescoring_committed_run_reproduces_scores` compares **sorted** lines while the docstring says "byte-for-byte". `score_file` preserves input order, so an unsorted compare would be strictly stronger and still pass — or soften the docstring.
+4. **Phase 3 heads-up (not a Phase 1 defect):** deleting `U+0670` is right for QUL↔bare-consonant, but a model spelling `الرحمان` (explicit alef) rather than `الرحمٰن` still mismatches, as do alef-maksura/ya and ta-marbuta/ha variants. Those are orthographic-variant issues beyond this phase's scope — just worth expecting in the Phase 3 numbers rather than reading them as a normalisation bug.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Normalisation is well-engineered and empirically verified corpus-wide (QUL 6236/6236 symmetric, zero word-splitting, Latin invariant over 224k entries, 165 tests green), but the mark set is QUL-derived only and still splits words on Arabic combining marks a search-on answer can plausibly carry (U+0617–U+061A, U+0656–U+065F, U+08D3–U+08FF) — a one-line, Latin-safe superset fix that should land before the paid Phase 3.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_SCRIPT_MARKS_RE` omits Arabic-range combining marks outside QUL (verified: U+0617–U+061A, U+0656–U+065F, U+08F0–U+08F2 each split a word mid-token), so an uncontrolled search-on answer using another Uthmani digitization scores `normalized = 0`; add generic `Mn`-in-Arabic/Hebrew-block deletion alongside the existing explicit non-Mn list, plus a codepoint-parametrised test.
+- Test helper `_MARK` (test_normalize_nonlatin.py:35) deletes the maqaf while the implementation maps it to a space, and over-spans into Arabic-Indic digits; passes only because no fixture contains a maqaf — latent spurious failure.
+- `score.py` module docstring still describes the pre-change `normalized` contract (no mention of Arabic/Hebrew mark folding).
+- Minor: re-score regression test compares sorted lines but claims byte-for-byte.
