@@ -7,7 +7,7 @@ import { aggregate, type RunSummary } from "../lib/aggregate";
 
 // The `/standings` view: cross-run "current standings" (Spec 2 requirement 6). For each
 // model it shows its MOST RECENT result across every run under `runs/` — one row per model,
-// keyed on the panel `(provider, model)` identity, taken from the latest run that
+// keyed on the panel `(provider, model, tools)` identity, taken from the latest run that
 // benchmarked it, with the source run's id/date and a link into that run's leaderboard
 // (`/?run=<id>`). Unlike the leaderboard (one selected run), this loads EVERY run's
 // `summary.json` and rolls them up via the pure `aggregate` helper.
@@ -95,7 +95,8 @@ export function StandingsPage() {
       <p className="mt-1 text-sm text-default-500">
         Each model's most recent result across all {state.runs.length} run
         {state.runs.length === 1 ? "" : "s"} under <code>runs/</code>, keyed on the panel's
-        provider + model. When a model was benchmarked in several runs, the newest wins.
+        provider, model, and tools setting. When a model was benchmarked in several runs,
+        the newest wins.
       </p>
       {state.failed.length > 0 && (
         <p role="status" className="mt-2 text-sm text-warning">
@@ -129,6 +130,7 @@ export function StandingsPage() {
                   {row.provider && row.model && (
                     <div className="text-xs text-default-400">
                       {row.provider} / {row.model}
+                      {row.tools.length > 0 && ` [${row.tools.join(", ")}]`}
                     </div>
                   )}
                 </td>

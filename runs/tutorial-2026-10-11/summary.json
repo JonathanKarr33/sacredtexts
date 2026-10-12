@@ -279,32 +279,36 @@
  "panel": {
   "haiku": {
    "provider": "anthropic",
-   "model": "claude-haiku-5-5 [no-tools]",
-   "api_model": "claude-haiku-5-5",
+   "model": "claude-haiku-5-5",
+   "tools": [],
    "endpoint": "api.anthropic.com",
    "served_by": null
   },
   "haiku-search": {
    "provider": "anthropic",
-   "model": "claude-haiku-5-5 [web_search]",
-   "api_model": "claude-haiku-5-5",
+   "model": "claude-haiku-5-5",
+   "tools": [
+    "web_search"
+   ],
    "endpoint": "api.anthropic.com",
    "served_by": null
   },
   "opus": {
    "provider": "anthropic",
-   "model": "claude-opus-5-5 [no-tools]",
-   "api_model": "claude-opus-5-5",
+   "model": "claude-opus-5-5",
+   "tools": [],
    "endpoint": "api.anthropic.com",
    "served_by": null
   },
   "opus-search": {
    "provider": "anthropic",
-   "model": "claude-opus-5-5 [web_search]",
-   "api_model": "claude-opus-5-5",
+   "model": "claude-opus-5-5",
+   "tools": [
+    "web_search"
+   ],
    "endpoint": "api.anthropic.com",
    "served_by": null
   }
  },
- "generated_at": "2026-10-12T01:20:16.523576+00:00"
+ "generated_at": "2026-10-12T17:01:53.119165+00:00"
 }

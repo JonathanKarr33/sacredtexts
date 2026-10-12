@@ -13,9 +13,11 @@ accuracy table, the panel composition, and token totals.
 - **Panel — 2 models run both ways (web search on / off) = 4 entries:**
   `claude-opus-5-5` and `claude-haiku-5-5`, each with the Anthropic server-side web
   search tool **enabled** (`-search`) and **disabled**. Tool version
-  `web_search_20250305`, `max_uses: 5` per turn. The tools setting is encoded into each
-  entry's panel identity (`[web_search]` / `[no-tools]`) so on/off never collapse into
-  one standings row and never collide with the earlier first-run `claude-haiku-5-5` row.
+  `web_search_20250305`, `max_uses: 5` per turn. The tools setting is a real
+  `panel.tools` field (raw `model` carries no marker), and the viewer keys standings on
+  `(provider, model, tools)` so on/off never collapse into one standings row — while a
+  no-tools entry keys identically to a bare run of the same model, so the earlier
+  first-run `claude-haiku-5-5` row is supersedable rather than orphaned.
 - **Web-search activity:** the tool was *available* on all 200 search-on cells and the
   model *chose* to invoke it on 93 — opus-search searched on 34 cells (131 requests),
   haiku-search on 59 cells (95 requests); 226 web-search requests in all. Token totals

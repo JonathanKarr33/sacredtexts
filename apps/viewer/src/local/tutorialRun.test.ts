@@ -1,11 +1,13 @@
-// Verifies the viewer's own loadRun() + aggregate() render the COMMITTED Spec-3 tutorial
-// run (runs/tutorial-2026-10-11) end-to-end — the artifacts `score` actually wrote, not a
-// fixture — with ZERO app source changes (this is a test-only file). It pins two things the
-// Spec-3 acceptance requires of the merged viewer:
-//   1. the run loads as a 4-entry panel (2 models x web-search on/off) over 400 joined cells;
-//   2. standings keeps the four search-on/off entries as FOUR DISTINCT rows and does not
-//      collide with the earlier first-run's `claude-haiku-5-5` row (the tools setting is part
-//      of each entry's panel identity: `[web_search]` / `[no-tools]`).
+// Verifies the viewer's own loadRun() + aggregate() render the COMMITTED tutorial run
+// (runs/tutorial-2026-10-11) end-to-end — the artifacts `score` actually wrote, not a
+// fixture. It pins two things the merged viewer requires under Approach B (Spec 11):
+//   1. the run loads as a 4-entry panel (2 models x web-search on/off) over 400 joined
+//      cells, each entry carrying the RAW `panel.model` (no marker) + a real `panel.tools`
+//      field;
+//   2. standings keeps the four search-on/off entries as FOUR DISTINCT rows (the standings
+//      key now incorporates tools), while the tutorial's no-tools haiku entry COLLIDES with
+//      the earlier first-run's bare `claude-haiku-5-5` row — so that stale row is now
+//      supersedable (dedupe), not orphaned as it was under the Spec-8 marker.
 // Mirrors realRun.test.ts; skips cleanly when the (gitignore-negated) run is absent.
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
@@ -51,18 +53,22 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(run.results.every((r) => !r.missing)).toBe(true); // committed run has missing: 0
     expect(run.results.some((r) => typeof r.token_f1 === "number")).toBe(true);
     expect(run.summary.usage?.total.calls).toBe(400);
-    // The tools setting is encoded into each entry's panel `model` identity so on/off are
-    // distinguishable to the viewer with no code change.
-    expect(run.summary.panel?.["haiku"]?.model).toBe("claude-haiku-5-5 [no-tools]");
-    expect(run.summary.panel?.["haiku-search"]?.model).toBe("claude-haiku-5-5 [web_search]");
-    expect(run.summary.panel?.["opus"]?.model).toBe("claude-opus-5-5 [no-tools]");
-    expect(run.summary.panel?.["opus-search"]?.model).toBe("claude-opus-5-5 [web_search]");
+    // Approach B: `panel.model` is the RAW API id (no marker) and the tools setting lives in
+    // a real `panel.tools` field, so the two arms share a model id but differ by tools.
+    expect(run.summary.panel?.["haiku"]?.model).toBe("claude-haiku-5-5");
+    expect(run.summary.panel?.["haiku-search"]?.model).toBe("claude-haiku-5-5");
+    expect(run.summary.panel?.["opus"]?.model).toBe("claude-opus-5-5");
+    expect(run.summary.panel?.["opus-search"]?.model).toBe("claude-opus-5-5");
+    expect(run.summary.panel?.["haiku"]?.tools ?? []).toEqual([]);
+    expect(run.summary.panel?.["haiku-search"]?.tools).toEqual(["web_search"]);
+    expect(run.summary.panel?.["opus"]?.tools ?? []).toEqual([]);
+    expect(run.summary.panel?.["opus-search"]?.tools).toEqual(["web_search"]);
     expect(
       Object.values(run.summary.panel ?? {}).every((p) => p.provider === "anthropic"),
     ).toBe(true);
   });
 
-  it("standings keeps four distinct rows and does not collide with first-run's claude-haiku", async () => {
+  it("standings keeps four distinct tool-arm rows and dedupes the no-tools haiku against first-run", async () => {
     const tBase = "/runs/tutorial-2026-10-11";
     const fBase = "/runs/first-run-2026-10-11";
     const tutorial = await loadRun(tBase, diskFetcher(tutorialDir, tBase));
@@ -70,8 +76,7 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(tutorial.ok && firstRun.ok).toBe(true);
     if (!tutorial.ok || !firstRun.ok) return;
 
-    // Aggregate both runs exactly as StandingsPage would. mtimes only decide "most recent
-    // wins" WITHIN a key; the distinct keys here never contend, so both runs' rows survive.
+    // Aggregate both runs exactly as StandingsPage would.
     const runs: RunSummary[] = [
       { runId: "first-run-2026-10-11", mtimeMs: 1, summary: firstRun.summary },
       { runId: "tutorial-2026-10-11", mtimeMs: 2, summary: tutorial.summary },
@@ -79,27 +84,40 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     const { rows } = aggregate(runs);
     const keys = new Set(rows.map((r) => r.key));
 
-    // The four tutorial entries are four DISTINCT standings keys (search-on/off not collapsed).
+    // The four tutorial entries are four DISTINCT standings keys: the model id is shared
+    // across each on/off pair, but the sorted-tools segment of the key keeps them apart.
+    const haikuNoTools = "anthropic\u0000claude-haiku-5-5\u0000";
     const tutorialKeys = [
-      "anthropic\u0000claude-haiku-5-5 [no-tools]",
-      "anthropic\u0000claude-haiku-5-5 [web_search]",
-      "anthropic\u0000claude-opus-5-5 [no-tools]",
-      "anthropic\u0000claude-opus-5-5 [web_search]",
+      haikuNoTools,
+      "anthropic\u0000claude-haiku-5-5\u0000web_search",
+      "anthropic\u0000claude-opus-5-5\u0000",
+      "anthropic\u0000claude-opus-5-5\u0000web_search",
     ];
+    expect(new Set(tutorialKeys).size).toBe(4);
     for (const k of tutorialKeys) expect(keys.has(k)).toBe(true);
 
-    // first-run's bare `claude-haiku-5-5` row is a DIFFERENT key — the no-tools tutorial
-    // entry did not replace it.
-    const firstRunHaikuKey = "anthropic\u0000claude-haiku-5-5";
-    expect(firstRunHaikuKey).not.toBe(tutorialKeys[0]);
-    expect(keys.has(firstRunHaikuKey)).toBe(true);
+    // Approach B inverts the Spec-8 property: first-run's bare `claude-haiku-5-5` (no tools
+    // field ⇒ []) now keys IDENTICALLY to the tutorial's no-tools haiku entry, so the two
+    // dedupe into a single standings row rather than orphaning the stale first-run row.
+    expect(haikuNoTools).toBe("anthropic\u0000claude-haiku-5-5\u0000"); // == first-run's key
 
-    // first-run's claude-haiku row still points at first-run, not the tutorial run.
-    const haikuRow = rows.find((r) => r.key === firstRunHaikuKey);
-    expect(haikuRow?.runId).toBe("first-run-2026-10-11");
+    // Only ONE row carries that shared key (collision proven), and — because tools off and
+    // on are distinct keys — there are exactly two haiku-5-5 rows in all.
+    const haikuRows = rows.filter((r) => r.model === "claude-haiku-5-5");
+    expect(haikuRows).toHaveLength(2);
+    expect(haikuRows.filter((r) => r.key === haikuNoTools)).toHaveLength(1);
 
-    // Total rows: 4 anthropic (tutorial) + 1 anthropic + 3 openai (first-run) = 8.
-    expect(rows).toHaveLength(8);
+    // Directional supersession is now POSSIBLE (it was not under the marker): with the
+    // tutorial injected as the newer run, the surviving no-tools haiku row is sourced from
+    // the tutorial, not first-run. (In a real clone git ties the dir mtimes and the id-asc
+    // tiebreak would pick first-run; mtime-independent recency is Issue #7, out of scope.
+    // The collision + 7-row count below is the real guarantee; this asserts possibility.)
+    const sharedRow = rows.find((r) => r.key === haikuNoTools);
+    expect(sharedRow?.runId).toBe("tutorial-2026-10-11");
+
+    // Total rows: 4 tutorial arms + first-run's {llama, gemma, gpt-oss} = 7 (first-run's
+    // claude-haiku folded into the tutorial no-tools row). Was 8 under the Spec-8 marker.
+    expect(rows).toHaveLength(7);
   });
 
   it("the leaderboard ranks the four entries and carries per-tradition + token columns", async () => {
@@ -115,8 +133,8 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(rows.map((r) => r.modelId)).toEqual(["opus", "opus-search", "haiku", "haiku-search"]);
     const acc = rows.map((r) => r.overall?.accuracy ?? -1);
     expect(acc).toEqual([...acc].sort((a, b) => b - a)); // non-increasing
-    expect(rows[0].overall?.accuracy).toBeCloseTo(0.66, 5);
-    expect(rows[3].overall?.accuracy).toBeCloseTo(0.4, 5);
+    expect(rows[0]!.overall?.accuracy).toBeCloseTo(0.66, 5);
+    expect(rows[3]!.overall?.accuracy).toBeCloseTo(0.4, 5);
     // Each row carries its per-model token totals (the leaderboard's token column).
     expect(rows.every((r) => r.tokens && r.tokens.calls === 100)).toBe(true);
 

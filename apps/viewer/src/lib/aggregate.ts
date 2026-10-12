@@ -15,14 +15,17 @@ export interface RunSummary {
 
 /** One model's current standing: its result from the most recent run that includes it. */
 export interface StandingRow {
-  /** Identity key: `${provider}\u0000${model}` from the source run's `panel`, or the bare
-   * `model_id` when that run has no panel entry (graceful fallback — see `aggregate`). */
+  /** Identity key: `${provider}\u0000${model}\u0000${sortedTools}` from the source run's
+   * `panel` (tools missing ⇒ `[]`), or the bare `model_id` when that run has no panel
+   * entry (graceful fallback — see `aggregate`). */
   key: string;
   /** The model's display id (the `summary.models` key) in the source run. */
   modelId: string;
   /** Panel identity, or null when this row is keyed on `model_id` only (panel absent). */
   provider: string | null;
   model: string | null;
+  /** The panel entry's tools setting (`[]` when absent), part of the standings identity. */
+  tools: string[];
   /** The run this standing is taken from, and its mtime. */
   runId: string;
   mtimeMs: number;
@@ -33,8 +36,12 @@ export interface StandingRow {
 
 /**
  * Roll every run up into current standings: one row per model, keyed on the panel
- * `(provider, model)` identity (architect-binding requirement 6 — so a model renamed in
- * its `summary.models` key across runs still dedupes to one row). For each key the row is
+ * `(provider, model, tools)` identity (architect-binding requirement 6 — so a model
+ * renamed in its `summary.models` key across runs still dedupes to one row, while the same
+ * model run with vs. without tools stays two rows). Tools are sorted into the key (and a
+ * missing `tools` field defaults to `[]`), so a hand-written summary can't produce an
+ * order-dependent key and a bare pre-Approach-B run dedupes against an explicit no-tools
+ * run of the same model. For each key the row is
  * taken from the run with the greatest `mtimeMs`; an exact mtime tie is broken by run id
  * ascending — the SAME ordering the run index uses (`listRuns`/`fetchRunIndex` sort mtime
  * desc, id asc), so standings and the leaderboard's "most recent run" default never
@@ -56,7 +63,8 @@ export function aggregate(runs: RunSummary[]): { tasks: string[]; rows: Standing
     const panel = summary.panel ?? {};
     for (const [modelId, cells] of Object.entries(summary.models)) {
       const p = panel[modelId];
-      const key = p ? `${p.provider}\u0000${p.model}` : modelId;
+      const tools = [...(p?.tools ?? [])].sort();
+      const key = p ? `${p.provider}\u0000${p.model}\u0000${tools.join(",")}` : modelId;
       const byTask: Record<string, Cell | undefined> = {};
       for (const [t, c] of Object.entries(cells)) if (t !== "_overall") byTask[t] = c;
       const candidate: StandingRow = {
@@ -64,6 +72,7 @@ export function aggregate(runs: RunSummary[]): { tasks: string[]; rows: Standing
         modelId,
         provider: p?.provider ?? null,
         model: p?.model ?? null,
+        tools,
         runId,
         mtimeMs,
         overall: cells._overall,
