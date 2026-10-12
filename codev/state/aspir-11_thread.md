@@ -128,8 +128,16 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
 - [x] Specify — done (both consults addressed, rebuttal, advanced).
 - [x] Plan — written; iter-1 consult (codex APPROVE / claude COMMENT); plan revised for all 6
       corrections; rebuttal written. Advanced.
-- [x] Implement Phase 1 — committed `9a0555d`, gate green; `porch done 11` next (triggers
-      codex+claude per-phase consult).
+- [x] Implement Phase 1 — DONE + consult-passed. `porch done` → build-complete `f3ccca8`.
+      Per-phase consult: codex COMMENT / claude APPROVE (both NON-BLOCKING, HIGH). Verdicts at
+      `codev/projects/11-.../11-phase_1-iter1-{codex,claude}.txt`. Folded in the 4 valid comments
+      (commit `36f5fef`): CLI test asserts exact written key-set =={provider,model,tools,endpoint,
+      served_by} for both arms (the CLI path is the only one carrying price_in/price_out → proves
+      score.py strips them); added synthesised-entry test (usage-only model ⇒ tools []); tightened
+      md tools-column assertion to the exact 4th cell; comments mention tools. SKIPPED (justified):
+      defensive tools-sort in score.py (config.py already sorts; plan puts defensive sort in the
+      VIEWER key — Phase 2); transiently-false marker prose (intended, fixed Phase 2/3). Gate green
+      291 passed/1 skipped. porch advanced to **phase_2**; refreshing context at the boundary.
 - [ ] Implement Phase 2 — viewer key (provider,model,tools) + display + migrate tutorial run +
       invert both committed-run tests + check-types. ATOMIC. Not started.
 - [ ] Implement Phase 3 — prose docs (arch-critical/arch via update-arch-docs, CODE_WALKTHROUGH,
