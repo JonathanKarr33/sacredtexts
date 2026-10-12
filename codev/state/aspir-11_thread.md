@@ -138,7 +138,23 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       defensive tools-sort in score.py (config.py already sorts; plan puts defensive sort in the
       VIEWER key — Phase 2); transiently-false marker prose (intended, fixed Phase 2/3). Gate green
       291 passed/1 skipped. porch advanced to **phase_2**; refreshing context at the boundary.
-- [ ] Implement Phase 2 — viewer key (provider,model,tools) + display + migrate tutorial run +
-      invert both committed-run tests + check-types. ATOMIC. Not started.
+- [x] Implement Phase 2 — DONE. Commit `c7e388e` `[Spec 11][Phase: implement]`.
+      Viewer: localResults.ts `PanelEntry.tools?`; aggregate.ts key now
+      `${provider}\u0000${model}\u0000${[...tools].sort().join(",")}` (missing⇒[]), `StandingRow.tools`
+      populated, doc comments corrected; StandingsPage.tsx renders `[tools]` subtext + header/blurb
+      text fixed. Migrated `runs/tutorial-2026-10-11` via temp-dir re-score (scores.jsonl
+      BYTE-IDENTICAL; models/by_tradition/usage identical; only panel+generated_at changed) — raw
+      model, real `panel.tools`, no api_model, md tools column; README prose → Approach B.
+      Inverted both committed-run tests: tutorialRun.test.ts (4 distinct arm keys, no-tools haiku
+      DEDUPES w/ first-run bare row, 7 rows, directional-supersession-possible w/ injected mtimes
+      labelled as possibility-only) + test_tutorial_run.py (`_standings_key` gains tools segment,
+      `FIRST_RUN_KEY` now `…\u0000`, `not in`→`in`, panel test renamed → exact key-set
+      =={provider,model,tools,endpoint,served_by} + tools-by-arm, NEW summary.md tools-column skew
+      guard). aggregate.test.ts +3 edge cases (tools-distinct / missing⇒[] dedupe / sort-stable).
+      Gate GREEN: viewer 128 passed, pipelines 292 passed/1 skipped (pre-existing unrelated skip in
+      test_first_run_regression.py). `pnpm -C apps/viewer check-types` GREEN (fixed 2 pre-existing
+      latent TS2532 in tutorialRun.test.ts leaderboard block: `rows[0]`→`rows[0]!`, matching the
+      `!` convention in sibling tests — surfaced only now the viewer lane type-checks). audit OK.
+      first-run-2026-10-11 UNTOUCHED. Signalling porch done.
 - [ ] Implement Phase 3 — prose docs (arch-critical/arch via update-arch-docs, CODE_WALKTHROUGH,
       TUTORIAL). Not started.
