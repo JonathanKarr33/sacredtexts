@@ -62,4 +62,23 @@ Architect ack sent (held, main busy). Signalled SPEC_DRAFTED; porch ran 2-way co
 - Docs to update: CODE_WALKTHROUGH §4/§5 + line 256, runs/tutorial README. Added to refs + criteria.
 
 Headline recommendation (adopt) is the architect's "contract change surfaced to human at PR" — spec
-routes final confirm to PR gate, pre-analyses the revert as a bounded 2nd rebaseline. Next: porch next.
+routes final confirm to PR gate, pre-analyses the revert as a bounded 2nd rebaseline.
+
+Spec phase done — rebuttal accepted, porch advanced to PLAN.
+
+## 2026-10-12 — Plan phase
+
+Drafted plan. **2 phases** (deliberately, not 3):
+- **Phase 1: Contains-exact scoring contract + one-shot rebaseline** (ONE atomic green commit). Scorer
+  change (contains_reference submetric + accumulator + headline `correct = normalized OR
+  contains_reference` + empty-guard, word-bounded) + test_score.py updates/new cases + regenerate BOTH
+  committed runs' scores.jsonl/summary.{json,md} + green all 4 guards. Rationale: the metrics-dict change
+  makes committed scores.jsonl non-reproducible → byte guards go red until evidence regenerated, so code
+  + evidence + guards are intrinsically one unit. Splitting diagnostic-from-headline would force TWO
+  rebaselines (spec/reviewers forbade). Pre-registered deltas +20 tutorial / +1 first-run.
+- **Phase 2: Documentation sync** — CODE_WALKTHROUGH §4/§5 + line 246/256 (_SUBMETRICS + accumulator
+  note), runs/tutorial README. Keep test_code_walkthrough.py anchors green.
+
+Key impl risks flagged: summary.json regen must preserve panel/usage (only accuracy + generated_at move);
+_SUBMETRICS-without-accumulator KeyError; test_code_walkthrough line anchors.
+Checks pass (plan_exists, has_phases_json, min_two_phases=2). Next: signal PLAN_DRAFTED → porch consult.
