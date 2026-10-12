@@ -250,4 +250,14 @@ for run in ["first-run-2026-10-11", "tutorial-2026-10-11"]:
 NOTE for p3's 2nd rebaseline: this same script re-runs cleanly once the outcome/refused layer lands
 (score_file will then also emit the outcome field); re-capture a fresh pre-change oracle hash before it.
 
-Next: porch rollback 15 plan → re-spec (in place, scope frozen) → re-plan p1-p5 → re-consult → re-advance.
+### Re-plan executed (2026-10-12 ~17:20):
+- Architect confirmed plan shape + "clean Co-Authored-By from branch history before PR" (I'll do it in ONE
+  non-interactive pass just before the PR, not mid-flight — interleaved chore(porch) commits + p2-p5 coming).
+- Refusal=OUTCOME correction folded: p2 = grader seam (graders ONLY: strict, containment, future jev;
+  pure refactor, NO rebaseline); p3 = refused OUTCOME layer (short-circuits graders, adds `outcome`, 3-outcome
+  summary, accuracy excludes refused = 2nd rebaseline).
+- `porch rollback 15 plan` done (implement→plan). Rewrote spec IN PLACE (scope frozen, 6 decisions binding,
+  headline now DECIDED not open-question, + refused/grader-seam/CLI/viewer-contrast/#21-seam). Rewrote plan
+  p1-p5. Checks pass (5 phases; spec sections OK).
+
+Next: signal PLAN_DRAFTED → porch done → re-consult (codex+claude) → address → re-advance to implement.
