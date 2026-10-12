@@ -5,25 +5,27 @@ phase: implement
 plan_phases:
   - id: phase_1
     title: Pipeline emits panel.tools (raw model, no api_model)
-    status: in_progress
+    status: complete
   - id: phase_2
     title: Viewer keys standings on tools; migrate committed run
-    status: pending
+    status: in_progress
   - id: phase_3
     title: Correct falsified marker docs
     status: pending
-current_plan_phase: phase_1
+current_plan_phase: phase_2
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-12T16:17:27.504Z'
-updated_at: '2026-10-12T16:53:53.363Z'
+updated_at: '2026-10-12T16:58:04.890Z'
 context_refreshes:
   - boundary: enter:implement
     at: '2026-10-12T16:47:09.278Z'
     acknowledged_at: '2026-10-12T16:48:30.542Z'
+  - boundary: plan-phase:phase_2
+    at: '2026-10-12T16:58:04.890Z'
