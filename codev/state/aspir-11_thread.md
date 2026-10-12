@@ -95,7 +95,42 @@ assertion (real md-skew guard); (4) add `pnpm -C apps/viewer check-types` (not i
 (5) move aggregate.ts/StandingsPage.tsx text + run README to P2 (self-consistency); (6) scope
 P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 artifacts).
 
+## Phase 1 implement (2026-10-12) — DONE, signalling porch done
+- Commit `9a0555d` `[Spec 11][Phase: implement]`. Touches ONLY cli.py, score.py,
+  test_phase2_tools.py (explicit `git add`; `.builder-*`/`.claude/hooks` left untracked).
+- cli.py panel build: `{provider, model(RAW), tools:list(m.tools), endpoint, price_in, price_out}`
+  — marker + api_model gone. score.py written snapshot: `{provider, model, tools (p.get or []),
+  endpoint, served_by}`; synthesised entries default tools=[]. summary_markdown panel table gained
+  a `tools` column (header/sep/row; `", ".join(tools) or "—"`).
+- Tests: rewrote the old marker test → `test_panel_tools_field_distinguishes_arms_and_dedupes_bare_model`
+  (score_file: raw model, tools list, api_model gone, key-set == {provider,model,tools,endpoint,
+  served_by}, no-tools arm keys == first_run bare key, md tools-column assertion scoped to the
+  Panel-composition section — NOT the token-usage table, which shares the first cell). Added
+  `test_cli_score_panel_emits_tools_field_and_raw_model` (CliRunner over collect-written
+  fingerprinted answers — the ONLY way to reach cli.py's inline panel build).
+- Gate `.codev/checks/test.sh` GREEN: 290 passed / 1 skipped; pipelines lane ran incl.
+  test_tutorial_run.py (committed run UNTOUCHED, still old shape — Phase 1 touches no artifact).
+  viewer lane correctly not triggered. grep: no api_model, no [no-tools]/[web_search] in
+  cli.py/score.py.
+
+## Overlap w/ aspir-15 (resolved 2026-10-12, via architect:main relay)
+- My Phase 1 CHANGES panel emission shape (raw model + tools list, api_model dropped). aspir-15's
+  first-run rebaseline copies the panel VERBATIM (byte-for-byte) from committed summary.json via
+  score_file(panel=...), NEVER re-emits through cli.py/YAML → NO collision on first-run. Confirmed
+  by architect from aspir-15's own plan text.
+- Still-open overlap for Phase 2: aspir-15 also edits apps/viewer TEST FIXTURES (tutorialRun,
+  ExplorerPage, LeaderboardPage, maybe StandingsPage/realRun) + score.py/cli.py. My Phase 2 edits
+  viewer (localResults/aggregate/StandingsPage + tutorialRun.test.ts) AND migrates
+  runs/tutorial-2026-10-11. SECOND MERGER REBASES (architect standing order). Watch for fixture
+  conflicts in tutorialRun/StandingsPage.
+
 ## Status
 - [x] Specify — done (both consults addressed, rebuttal, advanced).
 - [x] Plan — written; iter-1 consult (codex APPROVE / claude COMMENT); plan revised for all 6
-      corrections; rebuttal written. Advancing to re-verify.
+      corrections; rebuttal written. Advanced.
+- [x] Implement Phase 1 — committed `9a0555d`, gate green; `porch done 11` next (triggers
+      codex+claude per-phase consult).
+- [ ] Implement Phase 2 — viewer key (provider,model,tools) + display + migrate tutorial run +
+      invert both committed-run tests + check-types. ATOMIC. Not started.
+- [ ] Implement Phase 3 — prose docs (arch-critical/arch via update-arch-docs, CODE_WALKTHROUGH,
+      TUTORIAL). Not started.
