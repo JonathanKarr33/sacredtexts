@@ -1,7 +1,7 @@
 id: '19'
 title: rework-tutorial-md-and-code-wa
 protocol: air
-phase: implement
+phase: pr
 plan_phases: []
 current_plan_phase: null
 gates:
@@ -11,7 +11,7 @@ iteration: 1
 build_complete: false
 history: []
 started_at: '2026-10-12T16:41:28.251Z'
-updated_at: '2026-10-12T16:47:39.095Z'
+updated_at: '2026-10-12T16:47:45.416Z'
 pr_history:
   - phase: implement
     pr_number: 20
