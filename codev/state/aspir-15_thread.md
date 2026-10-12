@@ -502,3 +502,12 @@ Docs-only (one score.py docstring/comment change — no behavior, byte guards un
 - score.py module docstring: +outcome metric, +grader-selected headline note, verify_source gap → #23.
 Dispatcher 345 pass/1 skip, both lanes. REMAINING: review doc codev/reviews/15-*.md (ASPIR review phase),
 Co-Authored-By history strip (backup branch first), PR. Next: commit → porch done → phase_5 consult.
+
+### phase_5 consult iter1 (codex + claude both REQUEST_CHANGES) — all doc fixes folded, NO code change
+Factual: tutorial README "74 correct Talmud"→8; "265/266 below 0.3"→267/268 (VERIFIED 268 refused,
+267<0.3, 1 above = e2d74279aaf0@0.68); TUTORIAL "a point"→~3 points; first-run mean token_f1
+0.13-0.24→~0.15 gemma/~0.21 llama (measured). Stale wording: TUTORIAL grader sentence (separate-pass
+NOT via --evaluator, merges via own pass); dropped "every answer gets both tiers" from
+CODE_WALKTHROUGH:241 + score.py docstring (kept 2 lines → pointers unshifted); root README +
+TUTORIAL:158 one-liners; arch.md scoring bullet rewritten to Spec-15 contract (had lagged
+arch-critical). dispatcher 345/1, test_code_walkthrough 100. iter1 rebuttal written.

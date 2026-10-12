@@ -92,16 +92,17 @@ diff <(sort /tmp/scores.jsonl) <(sort runs/tutorial-2026-10-11/scores.jsonl) && 
 ```
 
 `score` runs the default deterministic graders (**strict** + **containment**); name a subset with
-`--evaluator strict` or `--evaluator containment` to see one tier alone (a paid or separate-pass
-grader, once it exists, is selected the same way). Refusal is an outcome, not a grader — a declined
-answer is `refused` regardless of which graders run.
+`--evaluator strict` or `--evaluator containment` to see one tier alone. `--evaluator` accepts only
+**inline** graders — a paid / separate-pass grader (the future Jev judge, issue #21) is *not*
+selectable here; it merges its verdict through its own resumable pass. Refusal is an outcome, not a
+grader — a declined answer is `refused` regardless of which graders run.
 
 **What the run shows (accuracy *with* coverage).** Under the adopted contract a text-retrieval
 answer is correct when it *contains* the exact reference (a verbatim quote wrapped in a citation
 counts), and a model that declines — "I can't reliably reproduce that line" — is scored `refused`
 rather than wrong. So each model has two headline numbers: **accuracy = how often it's right when
 it answers; coverage = how often it answers.** Read together they tell the search story the strict
-rule hid. Web search lifts haiku's accuracy **71% → 80%**; for opus it trades a point of accuracy
+rule hid. Web search lifts haiku's accuracy **71% → 80%**; for opus it trades ~3 points of accuracy
 (**100% → 97%**) for far more coverage (**66% → 76%**) — it answers more often instead of declining.
 That opus answers only 66% of the time yet scores 100% is exactly why coverage sits beside accuracy:
 "100%" alone would outrank opus-search's 97% while hiding that opus stayed silent on a third of the
@@ -155,7 +156,8 @@ cp -n configs/models.example.yaml configs/models.yaml   # the panel as-is; keys 
 uv --project pipelines run python -m sacredbench collect \
   "$RUN/questions.jsonl" configs/models.yaml --out "$RUN/answers.jsonl"
 
-# 6. score (strict + normalized + token-F1; per-task contract; tradition breakdown;
+# 6. score (default graders strict+containment → accuracy with coverage + the refused outcome;
+#    exact/normalized/token-F1/contains_reference per answer; per-task contract; tradition breakdown;
 #    --questions/--config add the missing-cell roster + the panel snapshot + usage).
 #    UNPRICED by design: web search bills per request (not captured in in/out tokens),
 #    so the example panel sets no price and `score` reports token totals only, no cost.

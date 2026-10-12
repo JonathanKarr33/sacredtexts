@@ -1,5 +1,5 @@
-"""Scoring: strict exactness AND graded similarity, per answer (the group's open
-question — Nancy leans toward testing both, so every answer gets both).
+"""Scoring: per answer, the metrics the SELECTED graders emit plus always-on diagnostics
+(default graders strict + containment test exactness AND containment; the group's open question).
 
 Metrics emitted per answer:
 

@@ -74,8 +74,8 @@ headline, so the lift above is now in the accuracy column rather than hidden ben
   an English caveat lands at a median `token_f1` ~0.45, not near 1.0, so "low headline + high
   `token_f1`" does not surface wrapped-but-correct cases. The reliable signal is **whether the
   normalised reference is contained in the answer** (`contains_reference` in `scores.jsonl`).
-- **Containment has no anti-hedge rule.** 1 of opus-search's 74 correct Talmud cells,
-  `retrieve_quote-4ad4392645da` (Ketubot 8a:8), is a two-candidate hedge whose *expected*
+- **Containment has no anti-hedge rule.** One of opus-search's 8 correct Talmud cells —
+  `retrieve_quote-4ad4392645da` (Ketubot 8a:8) — is a two-candidate hedge whose *expected*
   verse is the model's **secondary** guess; containment counts it correct (~1 pt on
   opus-search's accuracy). `cite_passage`/`identify_source` have an anti-hedge rule;
   text-retrieval does not.
@@ -84,8 +84,9 @@ headline, so the lift above is now in the accuracy column rather than hidden ben
   then offered a from-memory Uthmani reconstruction (`token_f1` 0.68 — the only refused cell
   above 0.5 across 268). Under the deterministic refusal rule it is `refused` (excluded from
   accuracy); counting it incorrect would put haiku-search at 78.8% rather than 80%. The rule
-  is well-calibrated (265/266 refused cells sit below `token_f1` 0.3), but this one is a
-  judgment call worth naming so the refusal exclusion isn't read as perfectly clean.
+  is well-calibrated (**267 of the 268** refused cells across both runs sit below `token_f1` 0.3 —
+  this is the only one above), but it is a judgment call worth naming so the refusal exclusion isn't
+  read as perfectly clean.
 
 ## Copyright / licensing
 

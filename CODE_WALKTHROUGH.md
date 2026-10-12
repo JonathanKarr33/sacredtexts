@@ -238,8 +238,10 @@ loop (`generate.py:246`).
 
 ### 2. The scoring contract in `score.py`
 
-Scoring lives in `pipelines/sacredbench/score.py`. Every answer gets **both tiers
-plus similarity**, and each task declares which sub-metrics it reports:
+Scoring lives in `pipelines/sacredbench/score.py`. For the text-retrieval tasks the reported
+sub-metrics and the headline are set by the **selected graders** (default `strict` + `containment`
+⇒ exact/normalized/token_f1/contains_reference); the provenance tasks declare their own fixed
+sub-metrics. Every answered cell also gets an **outcome** (correct / incorrect / refused):
 
 - The per-answer scorer is `score_answer()` (`pipelines/sacredbench/score.py:225`) —
   a branch per task returning its metrics dict, including the headline `correct` and

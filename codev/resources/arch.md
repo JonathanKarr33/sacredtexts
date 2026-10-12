@@ -63,11 +63,16 @@ round-trip that proves no invention/reordering.
   a non-terminal `stop_reason` (allowlist `end_turn`/`stop_sequence`) so a truncated or
   `pause_turn` turn never silently re-bills; `_openai`/`_gemini` lack that guard (latent
   trap for a future mixed tool-using panel — the tutorial panel is all-anthropic).
-- **score.py**: per-task headline contract — `retrieve_quote`/`complete_unit` →
-  normalized full-string match (+ exact/token-F1); `verify_source` → yes/no;
-  `identify_version` → label exact/normalized; citation tasks → the single extracted
-  citation must equal ground truth (a multi-candidate hedge scores 0; extractor chosen
-  by the ground-truth citation shape). `normalize()` is script-aware: it **deletes**
+- **score.py**: per-task headline contract — `retrieve_quote`/`complete_unit` → the OR of the
+  SELECTED graders' verdicts (default `strict` + `containment` ⇒ `normalized OR contains_reference`,
+  Spec 15; graders are named + selectable via `score --evaluator`, a paid/separate-pass grader
+  expressible for #21; + exact/token-F1 reported); `verify_source` → yes/no; `identify_version` →
+  label exact/normalized; citation tasks → the single extracted citation must equal ground truth (a
+  multi-candidate hedge scores 0; extractor chosen by the ground-truth citation shape). Every
+  answered cell also carries an **outcome** (correct/incorrect/**refused**): a deterministic decline
+  is `refused` and excluded from `accuracy = correct/(correct+incorrect)`, with **coverage** reported
+  beside it. A deliberate contract change is a sanctioned, oracle-witnessed rebaseline, not a
+  forbidden re-score. (verify_source commitment-parsing hardening is deferred — issue #23.) `normalize()` is script-aware: it **deletes**
   Arabic/Hebrew combining marks (harakat/niqqud/cantillation) and tatweel and folds
   alef-wasla→alef / Hebrew maqaf→space *before* the punctuation pass, so vocalised
   non-Latin words score fairly; Latin text is byte-for-byte unchanged (a pinned

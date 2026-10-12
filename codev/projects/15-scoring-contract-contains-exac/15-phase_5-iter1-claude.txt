@@ -1,0 +1,42 @@
+I'll start by reading the plan's phase 5 section and the docs that phase changed.I verified every phase-5 claim against the code and the committed run data (and ran the suites). Here's my review.
+
+## What's solid
+
+**CODE_WALKTHROUGH.md §2a "Adding an evaluator"** is accurate and genuinely useful. I checked each claim against `graders.py`:
+- "inline grader may own only keys `score_answer` already computes — enforced at import" → real (`graders.py:62-67`, `_CANONICAL_ORDER` subset check raising `GraderError`).
+- "`inline=False` + no verdict callable; selecting it fails fast" → real (`resolve_evaluators`, `graders.py:102-106`), and the commented `jev` descriptor makes the #21 seam legible.
+- "`token_f1` always-on; `--evaluator strict` emits only exact/normalized" → matches `submetrics_for` + `score_answer`'s `{k: computed[k] for k in submetrics_for(graders)}`.
+
+**Pointers were genuinely re-derived.** I resolved all 60-odd `file:line` tokens and printed the target line: `score.py:225`→`def score_answer`, `:288`→`def _with_outcome`, `:128`→`_SUBMETRICS`, `:207`→`_single_citation_correct`, `graders.py:33/49/86/111`→`Grader`/`GRADERS`/`resolve_evaluators`/`submetrics_for`. `test_code_walkthrough.py` 100 passed; full `pytest pipelines` 345 passed, 1 skipped.
+
+**TUTORIAL.md** has both required sentences (grader choice via `--evaluator`; "accuracy = right when it answers / coverage = how often it answers"), and its viewer prose is true — `LeaderboardTable.tsx:97` really renders "Search on vs off", `ExplorerFilters.tsx:100` has the `refused` option, `QuestionList.tsx:24` renders a neutral refused badge.
+
+**Run READMEs** — I recomputed from `scores.jsonl`: tutorial 66/0/34, 74/2/24, 52/13/35, 47/19/34 and all accuracy/coverage figures match exactly; first-run 25/20/55, 1/79/20, 0/34/66, 0/100/0 match. The "8 of 34"/"24 of 33" contains counts are preserved per the plan. The first-run "17 answers" correction is independently verifiable: `normalized` 0.5333×45 = 24, `contains_reference` 0.5556×45 = 25 — the lift really is one cell. Governance sync (arch-critical, lessons-critical, lessons-learned incl. the porch rollback-replay quirk) is thorough.
+
+## Issues
+
+**1. `runs/tutorial-2026-10-11/README.md:87` — wrong calibration statistic.** "The rule is well-calibrated (265/266 refused cells sit below `token_f1` 0.3)". Actual, computed over both committed runs: **268** refused cells, exactly 1 at/above 0.3 → **267/268**. It's also internally inconsistent with "across 268" two lines above in the same bullet. This looks like a number that went stale during phase-3 iterations. (The companion claim — haiku-search `retrieve_quote-e2d74279aaf0`, `token_f1` 0.6806, the only refused cell above 0.5 across 268 — is correct.)
+
+**2. `runs/tutorial-2026-10-11/README.md:77-79` — impossible denominator.** "1 of opus-search's **74 correct Talmud cells**". 74 is opus-search's *overall* correct count; its Judaism correct count is **8** (and there are only 34 Talmud questions). Should read "1 of opus-search's 8 correct Talmud cells" (or "of its 74 correct cells"). The plan asked for the 1/21-rescued hedge caveat; the caveat survived but acquired a wrong count.
+
+**3. `codev/resources/arch.md:66-69` still states the superseded contract.** It says `retrieve_quote`/`complete_unit` → "normalized full-string match (+ exact/token-F1)", with no containment headline, no `outcome`, no grader registry; the summary-block sentence below it omits accuracy/coverage. This now directly contradicts the hot-tier entry you rewrote in `arch-critical.md` ("Scoring = named graders + an always-on outcome"), and arch-critical's own map points readers at arch.md for scoring detail. The plan listed arch-critical but not arch.md — still, "the docs match the implemented contract" is this phase's acceptance criterion and it's a two-bullet edit.
+
+## Minor / nits
+
+- `README.md:20-21` ("scoring (strict + normalized + token-F1)") and `TUTORIAL.md:158` (the step-6 comment, same phrasing) both predate the contract. One-line each; the step-6 comment is the one a Track-B reader actually runs past.
+- `runs/first-run-2026-10-11/README.md:38`: "mean `token_f1` 0.13–0.24" for gemma/llama — graded-cell means are 0.150 and 0.235; 0.13 is gpt-oss's. "0.15–0.24" would be exact.
+- Pointer drift (resolution-only, test can't catch): `collect.py:129` is cited as where the digest is written but lands on the `panel_fingerprint` line (digest write is ~6 lines later, same dict); `cli.py:349` is cited for the `[web_search]`/`[no-tools]` marker but lands on the "panel snapshot" comment.
+
+Items 1 and 2 are the ones I'd insist on: they're factual errors in committed benchmark evidence, in the very caveat paragraph that exists to keep the refusal-exclusion honest — the kind of line a paper would quote verbatim.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase-5 doc sync is substantively complete and the evaluator recipe/pointers check out, but two factual errors in the tutorial run README's caveats (267/268 reported as 265/266; "74 correct Talmud cells" where it is 8) and a stale scoring contract in arch.md need fixing.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `runs/tutorial-2026-10-11/README.md:87`: "265/266 refused cells sit below token_f1 0.3" — actual is 267/268 (verified across both committed runs); also contradicts "across 268" in the same bullet.
+- `runs/tutorial-2026-10-11/README.md:77`: "1 of opus-search's 74 correct Talmud cells" — opus-search has 8 correct Talmud cells (74 is its overall correct count; only 34 Talmud questions exist).
+- `codev/resources/arch.md:66-69` still describes the pre-Spec-15 headline ("normalized full-string match") with no containment/outcome/coverage/grader seam, contradicting the newly updated `arch-critical.md`.
+- Minor stale one-liners: `README.md:20-21` and `TUTORIAL.md:158` still say "strict + normalized + token-F1"; first-run README's "mean token_f1 0.13–0.24" should be 0.15–0.24.

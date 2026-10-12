@@ -17,8 +17,9 @@ questions.jsonl × model panel ─collect─▶ answers.jsonl ─score─▶ sco
 - `pipelines/` — the benchmark pipeline (`sacredbench`, Python/uv/Typer):
   converters to the group's standard flat JSON, question generation (six
   templates, incl. false-premise negatives), multi-provider collection
-  (Anthropic / OpenAI-compatible / Gemini), scoring (strict + normalized +
-  token-F1). See `pipelines/README.md`.
+  (Anthropic / OpenAI-compatible / Gemini), scoring (named graders → accuracy with
+  coverage + a refused outcome; exact / normalized / token-F1 / contains_reference per
+  answer). See `pipelines/README.md`.
 - `texts/` — converted standard-format corpora (gitignored pending licensing;
   rebuilt locally by the converters).
 - `configs/` — model-panel configs (`models.example.yaml`; real panel gitignored).
