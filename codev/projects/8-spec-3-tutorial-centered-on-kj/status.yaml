@@ -11,18 +11,18 @@ plan_phases:
     status: complete
   - id: phase_3
     title: Committed KJV/Qur'an/Talmud tutorial run
-    status: in_progress
+    status: complete
   - id: phase_4
     title: Tutorial rework and viewer verification
-    status: pending
-current_plan_phase: phase_3
+    status: in_progress
+current_plan_phase: phase_4
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -73,7 +73,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-8/codev/projects/8-spec-3-tutorial-centered-on-kj/8-phase_3-iter2-claude.txt
 started_at: '2026-10-11T21:00:43.465Z'
-updated_at: '2026-10-12T01:44:33.635Z'
+updated_at: '2026-10-12T01:50:39.805Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T22:08:42.816Z'
@@ -81,3 +81,5 @@ context_refreshes:
   - boundary: plan-phase:phase_3
     at: '2026-10-11T22:31:54.769Z'
     acknowledged_at: '2026-10-11T22:32:12.145Z'
+  - boundary: plan-phase:phase_4
+    at: '2026-10-12T01:50:39.805Z'
