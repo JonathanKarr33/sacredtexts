@@ -23,10 +23,10 @@ look *harmful*.
 **Evidence (committed runs; word-bounded normalized containment vs. the current `normalized` headline):**
 
 - `runs/tutorial-2026-10-11` (400 `retrieve_quote` cells): **20** cells are `normalized=0` while the
-  expected text *is contained* — all search-on, all Qur'an (`+12` haiku-search, `+8` opus-search,
-  `+0` for both no-tools models). Under containment the per-model headline moves: **haiku-search 40 % →
-  52 %** (vs. haiku no-tools 47 %) — so the strict contract currently reports *search as a 7-point
-  regression* when it is in fact a 5-point gain.
+  expected text *is contained* — all search-on (`+12` haiku-search, all Qur'an; `+8` opus-search, 7 Talmud
+  + 1 Qur'an; `+0` for both no-tools models), i.e. **13 Qur'an + 7 Talmud**. Under containment the per-model
+  headline moves: **haiku-search 40 % → 52 %** (vs. haiku no-tools 47 %) and **opus-search 66 % → 74 %** —
+  so the strict contract currently reports *search as a 7-point regression* when it is in fact a 5-point gain.
 - A further, **distinct** residue of near-misses — `normalized=0` with high `token_f1` but **not**
   contained — is where the model fetched a different Uthmani digitisation (orthographic variance the
   mark-stripper does not fold). Measured on the tutorial run: **25** such cells (of 29 high-`token_f1`

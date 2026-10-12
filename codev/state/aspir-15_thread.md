@@ -108,4 +108,25 @@ Checks pass (plan_exists, has_phases_json, min_two_phases=2). Signalled PLAN_DRA
   (300-304) amend, + first-run README (stale 24% AND factually-wrong "17 answers" — only 1/18 high-F1
   misses contained; rest genuine paraphrase). "five other tasks"→four.
 
-Next: porch next → write rebuttal task → porch done.
+### Plan consult round 2 — codex REQUEST_CHANGES (docs+rigor), claude COMMENT (all verified correct). Folded (iter3):
+- **TUTORIAL.md:94-103** stale old headline/"misleading" framing → Phase 2 (verified).
+- **lessons-critical/lessons-learned** "never re-score" contradicts sanctioned rebaseline → Phase 2 adds
+  sanctioned-exception caveat; headline-reshape governance line stays post-PR MAINTAIN (not final till PR).
+- **Validation must be EXACT 21 pairs + pre/post projection** (aggregates can't prove "nothing moved") →
+  strengthened mandatory test.
+- **Summary writer pinned**: json.dump(indent=1)+newline, summary_markdown, pass question_set_digest (verified cli.py).
+- **Re-derive ALL ~12 score.py:N pointers in CODE_WALKTHROUGH** (Phase 1 shifts them; test only in-range → silent stale).
+- **Insert position pinned**: contains_reference after token_f1 in _SUBMETRICS, before correct in score_answer dict (append-only).
+- **StandingsPage.test.tsx:134** "24%(n=100)" first-run → named (6th viewer pin).
+- **FACTUAL FIX ("all Qur'an")**: recomputed — 20 flips = haiku-search 12 (all Qur'an) + opus-search 8
+  (7 Talmud + 1 Qur'an) = **13 Qur'an + 7 Talmud**. Corrected BOTH spec Problem Statement + plan; tutorial
+  README "Talmud 8 of 34"→7; first-run high-F1 misses ~17(≥0.9)/~23(≥0.8), exactly 1 contained holds.
+- claude confirmed viewer SOURCE needs no change (ScoreMetrics keys optional, metricOrNull key-typed).
+
+### Cross-builder: architect relayed aspir-11 panel-shape change (panel.model→raw, +panel.tools, -api_model);
+aspir-11 Phase 2 migrates TUTORIAL summary.json to it (NOT first-run). Folded as risk row: scores.jsonl +
+deltas are panel-shape-independent; tutorial summary.json panel block is merge-order-dependent (rebase onto
+whichever score.py is on main; viewer standings keys on panel.tools if 11 first); first-run untouched →
+verbatim panel + api_model pre-registration hold. Acked architect.
+
+Next: porch next (iter3 or advance).
