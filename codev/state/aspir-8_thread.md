@@ -322,9 +322,17 @@ search req + --per-task 5 cheap-trial note w/ digest-changes caveat. (2) "most-r
 is mtime-dependent (tie→first-run by id-asc) → hedged Track A + Track C to point at run selector.
 (3) lessons-critical unchanged noted as deliberate (agreed) — no action. Full gate GREEN after fixes:
 viewer 125/125 (realRun + #86 still green), pipelines 195/195.
-NEXT: commit review-response → porch next 8 (porch re-runs consult iter2; expect APPROVE → advance).
-Then open ONE PR (all phases = commits on builder/aspir-8), porch done --pr, architect approval gate
-→ porch approve, merge, porch done --merged, verify phase.
+### Phase 4 review iter2: codex APPROVE/HIGH + claude APPROVE/HIGH — PHASE APPROVED
+Both verified vs real artifacts (claude recomputed contains-exact + ran Track-A/B repro + confirmed
+only apps/viewer change is the test file; codex: none). Applied 2 optional non-blocking polish items
+claude suggested (pure docs): (1) replaced the mtime "typically" hedge in TUTORIAL Track A/C with a
+deterministic `/?run=tutorial-2026-10-11` deep-link; (3) run README "falls to 12" → "12 of 33"
+(count-vs-percent clarity). Skipped #2 (skipIf-vacuous — consistent w/ realRun, run is negated/present).
+Gate still green 125/125 + 195/195. Committed as the phase_4 polish.
+NEXT: porch next 8 → both APPROVE so porch advances phase_4 (final plan phase) → open ONE PR (all
+phases = commits on builder/aspir-8), porch done 8 --pr <N> --branch builder/aspir-8, afx send
+architect "PR ready", architect approval gate → porch approve, merge, porch done 8 --merged <N>,
+verify phase. REVIEW-DOC carry-forward (encoding-variance) goes in codev/reviews/8-*.md at review phase.
 
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,

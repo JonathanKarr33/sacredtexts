@@ -104,10 +104,9 @@ Aramaic recall from nothing, and the headline hid the entire lift. Full numbers,
 per-tradition cuts, and the orthographic-variance caveat are in the run's
 [`README.md`](runs/tutorial-2026-10-11/README.md).
 
-Then view it (Track C below): open `/` — the viewer shows the leaderboard for the
-most-recent run under `runs/` (by directory mtime, newest first). That is normally this
-tutorial run on a fresh clone; if the leaderboard opens on a different run, pick
-`tutorial-2026-10-11` from the run selector.
+Then view it (Track C below): start the viewer and open
+`/?run=tutorial-2026-10-11` (append `?run=tutorial-2026-10-11` to the printed dev URL) to
+land directly on this run's leaderboard, independent of run mtime.
 
 ## Track B — do your own run (needs API keys — the only paid part)
 
@@ -180,11 +179,11 @@ pnpm -C apps/viewer install
 pnpm -C apps/viewer dev          # then open the printed URL
 ```
 
-- `/` shows the **leaderboard** for the most-recent run under `runs/` automatically
-  (typically the committed `runs/tutorial-2026-10-11/` when you haven't added your own —
-  use the run selector if it opens on another): the four panel entries ranked by overall
-  accuracy, with per-task and per-tradition columns and per-model token totals. The dev
-  server serves the repo's `runs/` at `/runs/`.
+- `/` shows the **leaderboard** for the most-recent run under `runs/` automatically; to
+  land on this tutorial run regardless of run mtime, open `/?run=tutorial-2026-10-11`. The
+  four panel entries are ranked by overall accuracy, with per-task and per-tradition
+  columns and per-model token totals. The dev server serves the repo's `runs/` at
+  `/runs/`.
 - A **run selector** lists every run under `runs/` (here: the tutorial run and
   `first-run-2026-10-11`); switching writes the selection to the URL as a bare run id
   (`/?run=<id>`), so a view is shareable and survives refresh.

@@ -66,7 +66,7 @@ Two concrete cuts make this unmistakable:
   headline hid the entire lift because opus-search cited its source around the quote.
 - **Qur'an.** haiku-search contains the exact reference in **24 of 33** cells vs. **19 of
   33** for haiku-off — more correct retrieval with search — yet its headline falls to 12
-  because 12 of those contained answers wrap the quote in prose. Its **21 headline misses
+  of 33 because 12 of those contained answers wrap the quote in prose. Its **21 headline misses
   split into 12 wrappers** (contain the exact reference) **and 9 orthographic/encoding
   variants** — the correct āyah in a different Uthmani encoding that `normalize` does not
   fold to exact equality (several of those 9 also wrapped in English prose); none are wrong
