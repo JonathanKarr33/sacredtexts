@@ -35,4 +35,31 @@ architect flag; architect surfaces the contract change to the human at PR.
 **Coordination:** aspir-11 working #11 (panel.tools + viewer standings key) touches
 score.py/cli.py/guards in parallel — second merger rebases. Keeping diff narrow + additive.
 
-Architect ack sent (held, main busy). Next: signal SPEC_DRAFTED, porch runs 3-way consult.
+Architect ack sent (held, main busy). Signalled SPEC_DRAFTED; porch ran 2-way consult (codex+claude).
+
+### Consult round 1 — both REQUEST_CHANGES (HIGH), strongly convergent. Folded all in (iter2):
+- **Reporting surface over-claimed** (both, code-verified by me): `summary_markdown`/`_cell_str` show
+  ONLY accuracy — no submetric columns; viewer `QuestionList.tsx:85-87` + `localResults.ts:169`
+  hardcode exact/normalized/token_f1. FIX: don't promise a new column. Key reconciliation →
+  **recommend headline adoption `correct = normalized OR contains_reference`**, so the recovered gain
+  rides the EXISTING accuracy column (visible in summary.md + leaderboard) with NO viewer change. Keeps
+  it simple AND avoids a double rebaseline.
+- **Sign-inversion** (claude): haiku-search 40%→52% vs haiku 47% — strict contract currently reports
+  search as a 7pt REGRESSION when it's a 5pt gain. Much sharper than "+5pp". Now the headline of the
+  Problem Statement.
+- **20/29 overlap by 4** (claude): not-contained near-miss residue is **25**, not 29. Fixed; judge-pilot
+  cell set = `normalized==0 ∧ token_f1 high ∧ ¬contains_reference`.
+- **first-run delta** (both): +1 cell (claude-haiku 24%→25%). Pre-registered both deltas (+20/+1).
+- **KeyError trap** (claude): `score_file` accumulator has FIXED keys; adding to `_SUBMETRICS` alone
+  → KeyError. Must extend accumulator too. CODE_WALKTHROUGH:256 misleading. Flagged as constraint.
+- **More guards** (claude): `test_score.py:46`/`:231` assert whole metrics dicts → will break too (not
+  just the 2 run guards). All FOUR guards enumerated as rebaseline scope.
+- **Empty-expected** (both): `re.escape("")` matches anywhere → contains_reference=0 guard. Decided.
+- **Convert open→decided** (codex): word-bounded=YES, complete_unit=YES, judge=OUT-of-scope. New
+  "Decisions (resolved)" section.
+- **Judge egress** (claude): sending restricted-source expected text to 3rd-party judge API = egress the
+  audit gate doesn't cover. One line in Approach 3 + success criteria.
+- Docs to update: CODE_WALKTHROUGH §4/§5 + line 256, runs/tutorial README. Added to refs + criteria.
+
+Headline recommendation (adopt) is the architect's "contract change surfaced to human at PR" — spec
+routes final confirm to PR gate, pre-analyses the revert as a bounded 2nd rebaseline. Next: porch next.
