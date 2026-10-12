@@ -230,32 +230,92 @@ def _answer(qid, model_id, api_model, digest="d"):
     }
 
 
-def test_panel_identity_marks_both_variants_and_avoids_first_run_collision(tmp_path):
+def test_panel_tools_field_distinguishes_arms_and_dedupes_bare_model(tmp_path):
+    """Approach B (Issue #11): `tools` is a real panel field and `model` is raw. The two arms
+    still get distinct standings keys (tools is part of the key), but the no-tools arm now keys
+    IDENTICALLY to first-run's bare committed row — its stale row becomes supersedable. This is
+    the score.py written-snapshot half; it replaces Spec 8's marker + api_model shape."""
     answers = tmp_path / "answers.jsonl"
     rows = [_answer("retrieve_quote-0", "haiku-search", "claude-haiku-5-5"),
             _answer("retrieve_quote-1", "haiku", "claude-haiku-5-5")]
     answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    # panel as cli.py builds it: marked model + raw api_model
+    # panel as cli.py builds it under Approach B: raw model + a real tools list
     panel = {
-        "haiku-search": {"provider": "anthropic", "model": "claude-haiku-5-5 [web_search]",
-                         "api_model": "claude-haiku-5-5", "endpoint": "api.anthropic.com"},
-        "haiku": {"provider": "anthropic", "model": "claude-haiku-5-5 [no-tools]",
-                  "api_model": "claude-haiku-5-5", "endpoint": "api.anthropic.com"},
+        "haiku-search": {"provider": "anthropic", "model": "claude-haiku-5-5",
+                         "tools": ["web_search"], "endpoint": "api.anthropic.com"},
+        "haiku": {"provider": "anthropic", "model": "claude-haiku-5-5",
+                  "tools": [], "endpoint": "api.anthropic.com"},
     }
     summary = score_file(answers, tmp_path / "scores.jsonl", panel=panel)
     p = summary["panel"]
 
     def key(mid):
-        return f"{p[mid]['provider']}\u0000{p[mid]['model']}"
+        return (p[mid]["provider"], p[mid]["model"], tuple(p[mid]["tools"]))
 
-    # the two variants get distinct standings keys...
+    # the two arms still get distinct standings keys (tools is part of the key)...
     assert key("haiku-search") != key("haiku")
-    # ...and NEITHER collides with first-run's bare committed key (no silent row replacement)
-    first_run_key = "anthropic\u0000claude-haiku-5-5"
-    assert key("haiku-search") != first_run_key and key("haiku") != first_run_key
-    # api_model keeps the true model recoverable (equal for both); no secrets present
-    assert p["haiku-search"]["api_model"] == p["haiku"]["api_model"] == "claude-haiku-5-5"
-    # panel carries only non-secret identity fields
-    assert set(p["haiku"]) == {"provider", "model", "api_model", "endpoint", "served_by"}
+    # ...and the no-tools arm now keys identically to first-run's bare committed row
+    # (provider, model, no tools), so that stale row becomes supersedable — the #11 fix.
+    first_run_key = ("anthropic", "claude-haiku-5-5", ())
+    assert key("haiku") == first_run_key
+    assert key("haiku-search") != first_run_key
+    # raw model (no marker), real tools list, api_model dropped as pure redundancy
+    assert p["haiku-search"]["model"] == p["haiku"]["model"] == "claude-haiku-5-5"
+    assert p["haiku-search"]["tools"] == ["web_search"] and p["haiku"]["tools"] == []
+    # panel carries only non-secret identity fields — tools replaces api_model
+    assert set(p["haiku"]) == {"provider", "model", "tools", "endpoint", "served_by"}
     # generated_at present and ISO-parseable (Issue #7 half)
     assert datetime.fromisoformat(summary["generated_at"])
+
+    # the markdown panel table renders a tools column: web_search on the search arm, '—' off.
+    # Scope to the panel-composition section — the token-usage table shares the first cell.
+    from sacredbench.score import summary_markdown
+    md = summary_markdown(summary)
+    panel_md = md[md.index("### Panel composition"):md.index("### Token usage")]
+    assert "| tools |" in panel_md  # header carries the column
+    search_row = next(ln for ln in panel_md.splitlines() if ln.startswith("| haiku-search |"))
+    notools_row = next(ln for ln in panel_md.splitlines() if ln.startswith("| haiku |"))
+    assert "web_search" in search_row
+    assert "web_search" not in notools_row and "| — |" in notools_row
+
+
+def test_cli_score_panel_emits_tools_field_and_raw_model(tmp_path, monkeypatch):
+    """cli.py builds the panel inline, behind the fingerprint cross-check — a hand-built panel
+    dict can't reach it. Exercise it end-to-end: collect fingerprinted answers for a
+    search-on + search-off pair, then `score --config`, and inspect the written summary.json.
+    Without this, cli.py's Approach-B emission would ship untested until the Phase-2 migration."""
+    from typer.testing import CliRunner
+
+    from sacredbench.cli import app
+    from sacredbench.generate import write_questions
+
+    q = _ar_q()
+    answers = tmp_path / "answers.jsonl"
+    monkeypatch.setattr(collect_mod, "complete", lambda m, p, retries=2: ("x", {"in": 1, "out": 1}, 1))
+    cfg = RunConfig(models=(
+        ModelSpec(id="haiku-search", provider="anthropic", model="claude-haiku-5-5", tools=("web_search",)),
+        ModelSpec(id="haiku", provider="anthropic", model="claude-haiku-5-5", tools=()),
+    ), concurrency=1)
+    collect([q], cfg, answers)  # each answer row carries its arm's panel fingerprint
+
+    questions_path = tmp_path / "questions.jsonl"
+    write_questions([q], questions_path)
+    import yaml
+    cfg_path = tmp_path / "cfg.yaml"
+    cfg_path.write_text(yaml.safe_dump({"models": [
+        {"id": "haiku-search", "provider": "anthropic", "model": "claude-haiku-5-5", "tools": ["web_search"]},
+        {"id": "haiku", "provider": "anthropic", "model": "claude-haiku-5-5"},
+    ]}))
+    summary_out = tmp_path / "sum.json"
+    r = CliRunner().invoke(app, ["score", str(answers),
+                                 "--scores-out", str(tmp_path / "s.jsonl"),
+                                 "--summary-out", str(summary_out),
+                                 "--questions", str(questions_path), "--config", str(cfg_path)])
+    assert r.exit_code == 0, r.output
+    panel = json.loads(summary_out.read_text())["panel"]
+    # raw model, a real tools list, api_model gone — the Approach-B shape from cli.py
+    assert panel["haiku-search"]["model"] == "claude-haiku-5-5"
+    assert panel["haiku-search"]["tools"] == ["web_search"] and panel["haiku"]["tools"] == []
+    assert "api_model" not in panel["haiku-search"] and "api_model" not in panel["haiku"]
+    blob = json.dumps(panel)
+    assert "[no-tools]" not in blob and "[web_search]" not in blob  # no leftover marker
