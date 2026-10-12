@@ -166,5 +166,81 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       #4 Issue #7 `generated_at` recency (tie-mtime clone lets first-run's stale haiku row win) —
       ARCHITECT note, explicitly out of scope per spec. Viewer 129 passed, check-types green.
       porch advancing to phase_3.
-- [ ] Implement Phase 3 — prose docs (arch-critical/arch via update-arch-docs, CODE_WALKTHROUGH,
-      TUTORIAL). Not started.
+- [x] Implement Phase 3 — prose docs DONE (PROSE ONLY, no code). Corrected the four FALSIFIED
+      authoritative docs to the Approach-B shape (real `panel.tools` list + raw unmarked `model`,
+      no marker, no api_model; viewer standings key `provider\u0000model\u0000sortedTools`,
+      missing⇒[]; search-on/off stay distinct while same-model/same-tools dedupe):
+      • `codev/resources/arch-critical.md` line 9 (always-on hot tier) — rewrote "Tool-use is part
+        of panel identity" bullet IN PLACE via update-arch-docs skill (no fact-count change; file
+        still 20 lines ≤35 cap). No "zero-viewer-change" claim; `_panel_fingerprint` stays
+        tools-aware/unchanged.
+      • `codev/resources/arch.md` lines 78-80 (panel block desc) + 100-107 (standings key) via
+        update-arch-docs.
+      • `CODE_WALKTHROUGH.md` §6 evidence-integrity bullet — panel-identity sentence; guard test
+        `test_code_walkthrough.py` only checks SYMBOL existence (not line nums/marker prose), and
+        I removed no referenced symbol → gate unaffected.
+      • `TUTORIAL.md` ~line 196-203 (user-facing standings section) — raw-model rows + `web_search`
+        tag indicator. Line 144 (`tools: [web_search]` CONFIG) left intact = the sole permitted hit.
+      SCOPED-GREP GATE GREEN: `grep -rn "no-tools|\[web_search\]|api_model"` over the 4 docs →
+      ONLY `TUTORIAL.md:144`. NOTE: to satisfy the gate's LETTER (not just intent), I reworded the
+      corrected prose to AVOID the literal tokens even in NEGATIONS (e.g. "no separate duplicate id
+      field" not "no `api_model`"; "search-off" not "no-tools") — otherwise negations like "the
+      marker is gone" would themselves trip the grep.
+      `.codev/checks/test.sh` GREEN: viewer vitest 129 passed, pipelines pytest 291 passed/1 skipped
+      (PRE-EXISTING unrelated skip in test_first_run_regression.py), audit (test_audit.py) passed.
+      Diff TIGHT: exactly the 4 docs (git diff --stat: CODE_WALKTHROUGH.md, TUTORIAL.md,
+      arch-critical.md, arch.md). Spec 8 historical artifacts (plans/8, projects/8, reviews/8,
+      state/aspir-8) UNTOUCHED. No code touched. Signaling build-complete → 2-way consult (codex+claude).
+      Phase 3 consult (iter1): codex APPROVE/HIGH (no issues); claude REQUEST_CHANGES/HIGH — 1 BLOCKING
+      + 3 non-blocking. ALL ADDRESSED (verdicts at 11-phase_3-iter1-{codex,claude}.txt):
+      • BLOCKING (accepted): TUTORIAL.md kept Approach-A claim "four tutorial entries appear as four
+        distinct ROWS" — false under Approach B (tutorial's search-off haiku now collides with
+        first-run's bare haiku; spec FORBIDS claiming a winner). Reworded to four distinct standings
+        KEYS + **7** total rows across both runs (not 8) + first-run haiku "supersedable rather than
+        orphaned" + mtime/id tiebreak caveat (same register as runs/.../README.md:17-20). No winner claimed.
+      • NB#1 (accepted, resolved via simplify not naming): dropped the opaque "no separate duplicate id
+        field" circumlocution in arch-critical.md:9, arch.md:78-80, CODE_WALKTHROUGH — per arch-doc
+        "describe current state, no graveyards" the dropped field needn't be memorialized; prose now
+        just states the current shape (raw `model`, no inline marker). Keeps scoped-grep green WITHOUT
+        reintroducing literal tokens or widening the permitted-hits list (plan's criterion #1 intact).
+      • NB#2 (accepted): restored a `file:line` pointer in CODE_WALKTHROUGH — bare `(cli.py)` →
+        `score.py:430` (the WRITTEN committed snapshot's tools field; cli.py only builds the in-memory
+        dict). Walkthrough pointer test now validates it (pipelines 292 passed, +1 vs prior run).
+      • NB#3 (accepted): arch.md:104 "newest run per model" → per `(provider, model, tools)` identity.
+      Re-verified: scoped grep → ONLY TUTORIAL.md:144; `.codev/checks/test.sh` GREEN (viewer passed,
+      pipelines 292 passed/1 pre-existing skip). Diff still TIGHT to the 4 docs, no code, Spec 8 untouched.
+      Phase 3 consult ITER 2: codex APPROVE/HIGH (no issues); claude REQUEST_CHANGES/HIGH — 1 scope item
+      + 3 nits. Rebuttal at 11-phase_3-iter2-rebuttals.md. NITS ALL FIXED:
+      • CODE_WALKTHROUGH:341-343 ragged wrap re-flowed; arch.md:104-108 re-flowed + collapsed dup
+        "(provider,model,tools) identity"→"that identity"; TUTORIAL:205 "same-date tie"→"mtime tie"
+        (aggregate.ts ties on exact mtimeMs); arch-critical:9 dropped trailing "(Spec 11, Approach B)"
+        provenance tag (cold arch.md keeps the pointer) to reverse hot-line density creep.
+      • SCOPE ITEM (BLOCKED on architect): claude correctly found `apps/viewer/README.md:44-47` still
+        asserts the now-FALSE `(provider,model)` standings key (falsified by Phase 2's aggregate.ts
+        change; arch-critical routes agents to read it before viewer work). BUT spec Constraints bake
+        gov-doc scope as "limited to [arch-critical, arch, CODE_WALKTHROUGH, TUTORIAL, run README]" — a
+        CLOSED list excluding apps/viewer/README.md. Crossing a baked "limited to" is the architect's
+        call → did NOT edit it; sent architect a decision-ready note (recommend INCLUDE: 1-line fix,
+        serves spec goal, no aspir-15 conflict — it touches viewer TEST FIXTURES not this README).
+      Re-verified after nit fixes: grep → only TUTORIAL.md:144; gate GREEN (pipelines 292/1-skip, viewer
+      passed).
+      ARCHITECT RULED (main, 2026-10-12T17:34Z): option A — AUTHORIZED fixing apps/viewer/README.md
+      ("'limited to' was a scope guardrail, not a licence to leave a falsified doc arch-critical routes
+      agents to; note the deviation + authorization in your review doc, then porch done"). Applied the
+      1-line fix (README:44-48 → `(provider,model,tools)` key, missing tools⇒[]). Scoped grep over ALL
+      FIVE docs → still only TUTORIAL.md:144. **DEVIATION (carry into codev/reviews/11-*.md): added
+      apps/viewer/README.md to the spec's enumerated gov-doc list under explicit architect auth.**
+      → proceeding with porch done (iter 2).
+      Phase 3 consult ITER 3: codex APPROVE/HIGH + claude APPROVE/HIGH — PHASE PASSES, no blocking.
+      Folded in 3 of claude's 4 non-blocking nits (reviewer-suggested, docs-only, no re-consult needed):
+      (1) arch-critical:9 dropped the `web_search_20250305`/`max_uses:5` pinning detail (duplicated in
+      arch.md) → hot line shorter; (2) arch.md:100-107 split the dense nested `))` parenthetical into a
+      standalone "Because the standings key incorporates…" sentence; (3) TUTORIAL:200 "the model id is
+      now shown unmarked" → "the model name shown in each row's subtext is the raw API id (no marker)"
+      (claude: row.modelId was never marked; the panel `model` in the subtext is what's now raw).
+      DECLINED nit #4 (deliberate): pipelines/README.md:101 + apps/viewer/README.md:14 loose "panel
+      (provider/model/endpoint)" summaries omit tools/served_by — claude EXPLICITLY says NOT falsified by
+      this change (they never asserted the marker), so outside even the architect-authorized deviation
+      (which covered the FALSIFIED README:44 line). Leaving per tight-diff; noted for deliberate PR-review.
+      Re-verified: grep over all 5 docs → only TUTORIAL.md:144; gate GREEN (pipelines 292/1-skip, viewer
+      passed). Phase 3 COMPLETE. Next: porch next → commit phase_3 → open the single PR.
