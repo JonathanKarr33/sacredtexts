@@ -248,11 +248,46 @@ equality (token_f1 up to 0.95, scores correct=0). Future refinement: fold these,
 pipeline-level contains_reference submetric. NOT done in Spec 8 (req 4: would reshape scores.jsonl
 + break byte-for-byte re-score regressions). Put this in codev/reviews/8-*.md.
 
-### Next
-porch done phase_3 → phase_4 (TUTORIAL rework around KJV/Qur'an/Talmud + web-search on/off;
-reproduce canonical cmds per-task 100; remove clearance step from TUTORIAL; update arch/lessons;
-verify merged viewer renders committed run with ZERO code changes — leaderboard/explorer/standings).
-Then open ONE PR (phases = commits). Smoke scratchpad files are in session scratchpad (NOT committed).
+## Phase 3 APPROVED (iter3: codex APPROVE/HIGH, claude APPROVE/HIGH) → porch advanced to phase_4.
+Commits: 4caadef (run), 79e0d47 (README analysis fix iter1), 458fcc8 (README scope fix iter2).
+Phase 3 fully done: committed run runs/tutorial-2026-10-11/ (100 Q, digest 37eb58400fdf4ea9,
+400 answers, unpriced, audit-clean, secret-free, 0 invisible chars, 195 tests). configs/models.yaml
+exists locally but is GITIGNORED — do NOT commit it.
+
+### PHASE 4 WORK (TUTORIAL rework + viewer verification) — carry-forwards for a cold reader:
+1. Rework repo-root TUTORIAL.md around the 3 sources (KJV en / Qur'an ar / Talmud he) + the
+   web-search on/off contrast. Track B commands must match Phase-3 canonical block VERBATIM:
+   per-task 100, seed 20261011, the 3 standardized corpora paths, configs/models.example.yaml.
+   Keep Track A (explore committed run, no keys) + Track C (view). Remove any manual
+   copyright-clearance step from TUTORIAL → replace with one-line fair-use note.
+2. ⭐ FIX plan `codev/plans/8-spec-3-tutorial-centered-on-kj.md:~39` — a stray "canonical
+   committed run params" still says `--per-task 30`; the committed run + Phase-3 canonical block
+   (line ~223) are `--per-task 100`. Phase 4 MUST reproduce 100 to match digest 37eb58400fdf4ea9.
+   (claude iter3 non-blocking flag.) Grep the plan for "per-task 30" and fix.
+3. Verify merged viewer (apps/viewer/) renders runs/tutorial-2026-10-11 with ZERO source changes:
+   run selector lists it + first-run; leaderboard ranks 4 entries (per-task+per-tradition, tokens);
+   explorer drills each; standings = 4 distinct rows (search-on/off not collapsed, no first-run
+   collision). Confirm realRun.test.ts (first-run gate) + #86 CSS probe still green. Decide if a
+   new viewer test is added (spec allows; no behavioural source change). Viewer dedupe key =
+   aggregate.ts:59 `${provider}\u0000${model}`.
+4. Update arch/lessons docs (codev/resources/arch.md + lessons-learned.md, or the -critical hot
+   tiers if warranted): non-Latin normalisation (Phase 1), web-search tools config/identity
+   (Phase 2), generated_at (#7 pipeline half), and the ⭐ REVIEW-DOC item below.
+5. Cosmetic (optional, non-blocking, claude iter3): README.md ~lines 98-99 mid-sentence line
+   break; summary.md panel table omits api_model (present in summary.json — it's generated, fine).
+
+⭐ REVIEW-DOC CARRY-FORWARD (claude iter2 req — put in codev/reviews/8-*.md at ASPIR review phase):
+web-retrieved encoding-variance gap — a search-on model can return the correct āyah in a different
+Uthmani Unicode encoding (U+06E1 vs U+0652, Arabic Extended-A tanwin U+08F0-08F2, U+0657,
+yeh/alef-maksura) that normalize() does NOT fold to exact equality (token_f1 up to 0.95,
+correct=0). Future refinement: fold these OR add a pipeline-level contains_reference submetric.
+NOT done in Spec 8 (req 4: would reshape scores.jsonl + break byte-for-byte re-score regressions).
+
+### PR / completion
+Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,
+then architect approval gate → `porch approve`, merge, `porch done 8 --merged <N>`, verify phase.
+Smoke scratchpad files live in session scratchpad (NOT committed). Attribution: per global CLAUDE.md
+NO Co-Authored-By on commits; PR body gets the 🤖 Generated-with line per session reminder.
 ⚠️ Phase 3 = paid Anthropic web-search run. Order: convert → generate (seed 20261011, per-task 30,
 3 corpora) → audit → SMOKE (few cells, check pause_turn gate #1) → full collect → score (unpriced)
 → copyright-clearance (review ALL search-on answers; strip web bidi/joiner/BOM chars if present) →
