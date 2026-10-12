@@ -11,21 +11,21 @@ plan_phases:
     status: complete
   - id: phase_3
     title: Refused outcome + coverage + second rebaseline
-    status: in_progress
+    status: complete
   - id: phase_4
     title: 'Viewer: four outcome categories + coverage + search-on/off contrast'
-    status: pending
+    status: in_progress
   - id: phase_5
     title: Documentation sync for the evaluator/outcome contract
     status: pending
-current_plan_phase: phase_3
+current_plan_phase: phase_4
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_3
@@ -64,7 +64,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter3-claude.txt
 started_at: '2026-10-12T16:17:31.163Z'
-updated_at: '2026-10-12T19:55:53.313Z'
+updated_at: '2026-10-12T19:55:55.535Z'
 pr_ready_for_human: false
 force_advanced:
   phase: phase_3
@@ -82,3 +82,5 @@ context_refreshes:
   - boundary: plan-phase:phase_3
     at: '2026-10-12T17:55:31.998Z'
     acknowledged_at: '2026-10-12T17:57:14.240Z'
+  - boundary: plan-phase:phase_4
+    at: '2026-10-12T19:55:55.535Z'
