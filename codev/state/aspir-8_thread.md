@@ -230,6 +230,24 @@ scores.jsonl → break byte-for-byte re-score regressions) — put numbers in RE
 token_f1 median on 20 wrapped = 0.45 (my recompute; claude said 0.54 on a diff subset) → used 0.45.
 Rebuttals: 8-phase_3-iter1-rebuttals.md. 195 tests still pass. Committed README fix; reconsulting.
 
+### Phase 3 review iter2: codex REQUEST_CHANGES (denominator); claude REQUEST_CHANGES (same + 2)
+Both caught: my iter1-fix sentence "exactly one Qur'an miss is orthographic; rest are wrappers"
+WRONGLY applied claude's regression-subset figure (11 Q: 10 wrappers+1) to ALL misses. Verified
+aggregate: haiku-search Qur'an 21 misses = 12 wrappers + 9 encoding variants (correct āyah in a
+different Uthmani Unicode encoding normalize doesn't fold; 5 pure-Arabic f1 0.69-0.95, 4 +EN prose;
+none wrong scripture). haiku-OFF also has 14 encoding-variant misses, 0 wrappers → orthographic
+near-miss is NOT a search artifact. FIXED Qur'an bullet (12+9 split, scoped the "exactly one" to
+the regression subset). claude +2: (a) scoped line-53 "mechanism not orthography/fabrication" to
+the 20 wrapped cells; (b) record encoding-variance as future work (below). claude said 22=13+9;
+codex+my recompute = 21=12+9 (haiku-search correct=12) → used verified 12/21. iter2 rebuttals written.
+
+⭐ REVIEW-DOC CARRY-FORWARD (claude iter2 req): web-retrieved encoding-variance gap — a search-on
+model can return the correct āyah in a different Uthmani Unicode encoding (U+06E1 vs U+0652, Arabic
+Extended-A tanwin U+08F0-08F2, U+0657, yeh/alef-maksura) that normalize() does NOT fold to exact
+equality (token_f1 up to 0.95, scores correct=0). Future refinement: fold these, OR add a
+pipeline-level contains_reference submetric. NOT done in Spec 8 (req 4: would reshape scores.jsonl
++ break byte-for-byte re-score regressions). Put this in codev/reviews/8-*.md.
+
 ### Next
 porch done phase_3 → phase_4 (TUTORIAL rework around KJV/Qur'an/Talmud + web-search on/off;
 reproduce canonical cmds per-task 100; remove clearance step from TUTORIAL; update arch/lessons;

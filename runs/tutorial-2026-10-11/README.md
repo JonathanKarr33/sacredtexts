@@ -50,8 +50,9 @@ reference text anywhere in it tells the real story:
 
 So **web search retrieves *more* correct scripture, not less** (opus 66→74, haiku 47→52),
 and **20 of 400 cells score 0 while containing the exact reference text — every one of
-them a search-on cell** (opus-search 8, haiku-search 12). The mechanism is not orthography
-and not fabrication: a search-enabled model tends to **wrap** the retrieved quote in
+them a search-on cell** (opus-search 8, haiku-search 12). For these 20 cells the mechanism
+is not orthography and not fabrication (they contain the exact reference by definition): a
+search-enabled model tends to **wrap** the retrieved quote in
 citation/attribution prose ("According to Sefaria…", a source URL, an explanatory caveat),
 and the deliberately strict "and nothing else" headline scores that wrapper as wrong. The
 search-off entries, answering from memory, emit the bare quote and so match the headline
@@ -64,9 +65,16 @@ Two concrete cuts make this unmistakable:
   for opus-off.** Web search lifted Aramaic Talmud retrieval from *nothing* to ~24%; the
   headline hid the entire lift because opus-search cited its source around the quote.
 - **Qur'an.** haiku-search contains the exact reference in **24 of 33** cells vs. **19 of
-  33** for haiku-off — again *more* correct retrieval with search — yet its headline falls
-  (12 vs. 19) purely because 12 of those answers wrap the quote. Exactly **one** search-on
-  Qur'an miss is a genuine text/orthographic difference; the rest are wrappers.
+  33** for haiku-off — more correct retrieval with search — yet its headline falls to 12
+  because 12 of those contained answers wrap the quote in prose. Its **21 headline misses
+  split into 12 wrappers** (contain the exact reference) **and 9 orthographic/encoding
+  variants** — the correct āyah in a different Uthmani encoding that `normalize` does not
+  fold to exact equality (several of those 9 also wrapped in English prose); none are wrong
+  scripture. That orthographic near-miss is *not* a web-search artifact: all 14 of
+  haiku-*off*'s own Qur'an misses are the same non-exact encoding variants, with zero
+  wrappers. (The "exactly one genuine text difference" figure belongs to the narrower
+  off-correct→on-wrong **regression** subset of 11 questions — 10 wrappers + 1 — not to all
+  misses.)
 
 The one opus right→wrong item (`retrieve_quote-642fbf516c7a`) is in this same bucket: the
 quoted āyah is `normalize`-equal to the reference and scores 0 only for a trailing English

@@ -1,0 +1,68 @@
+I'll start by reading the key files for Phase 3 — the committed run artifacts and the README whose analysis was the blocking issue in iteration 1.Let me verify the README's claims against the committed data independently.Now let me independently recompute the README's claims using the repo's own `normalize`, writing only to `/tmp`.My script guessed the record shape wrong. Let me inspect the actual schemas.My recompute matches the README's corrected numbers exactly. Now let me probe the remaining specific claims — especially the "exactly one genuine orthographic miss" assertion.Found a significant discrepancy. Let me quantify it objectively before judging.All 9 are the same āyah in a different Uthmani encoding. Let me now verify the remaining claims — web-search counts, secrets, audit, and the gate tests.Iteration 1 used a different denominator ("regressions", not "misses"). Let me check whether the builder's README sentence changed the denominator while keeping the number.I have a complete, verified picture. Let me confirm one last README claim about the named flip item.## Review: Phase 3 — Committed KJV/Qur'an/Talmud tutorial run (iteration 2)
+
+All verification was read-only; every script I ran was written to `/tmp` and the only command that writes output (`score_file`) went to a tmp path. I did not modify the tree under review.
+
+### The iteration-1 blocking issue is genuinely fixed
+
+I independently recomputed the README's corrected analysis from the committed `answers.jsonl` + `scores.jsonl` using the repo's own `normalize`. **Every headline number in the rewritten README is exactly right:**
+
+| Claim | My recompute |
+|---|---|
+| opus 66 head / 66 contains / 0 wrapped | ✅ 66 / 66 / 0 |
+| opus-search 66 / **74** / **8** | ✅ 66 / 74 / 8 |
+| haiku 47 / 47 / 0 | ✅ 47 / 47 / 0 |
+| haiku-search 40 / **52** / **12** | ✅ 40 / 52 / 12 |
+| 20/400 wrapped cells, **all** search-on | ✅ 20, all search-on |
+| Talmud lift: opus-search 8/34 (~24%) vs opus 0/34 | ✅ 8 vs 0 |
+| Qur'an: haiku-search contains 24/33 vs 19/33; headline 12 vs 19 | ✅ exact |
+| wrapped `token_f1` median ~0.45, range 0.16–0.99 | ✅ 0.4530, 0.159–0.986 |
+| Qur'an-only wrapped f1 ~0.47 | ✅ 0.4706 |
+| The one opus right→wrong item `…642fbf516c7a` is a trailing-disclaimer wrapper | ✅ sole flip; quote portion is `normalize`-equal, whole answer is not |
+
+The builder's rebuttal was honest and the correction is the right one — it leads with the contains-exact cut and the wrapper asymmetry, and correctly declines to touch `_SUBMETRICS` (spec req 4) rather than re-scoring committed evidence.
+
+**Artifact integrity also fully confirmed:** audit passes (`origin only`), no secret material, no `cost`/`price` anywhere (unpriced by design), four distinct standings keys with both variants marked and no collision with first-run's `anthropic\0claude-haiku-5-5`, `generated_at` ISO-parseable, `.gitignore` negation present, manifest digest `37eb58400fdf4ea9` / corpus `ed3f05dcf703e2e3` matching the README, 34 Hebrew / 33 Arabic / 33 Latin expected text, 0 empty answers, 0 retries, single digest across all 400 rows, web-search provenance exact (opus-search 34 cells/131 req, haiku-search 59 cells/95 req = 93/226). 195 tests green. `test_tutorial_run.py` is well-targeted — the standings key mirrors `aggregate.ts:59` and the secret scan correctly distinguishes key material from env-var mentions.
+
+### One remaining factual error — a swapped denominator, doc-only
+
+`runs/tutorial-2026-10-11/README.md:68-69`:
+
+> "Exactly **one** search-on Qur'an miss is a genuine text/orthographic difference; the rest are wrappers."
+
+That "exactly one" is true only for the **right→wrong regression** denominator iteration 1 used, not the **miss** denominator the README now states:
+
+```
+haiku-search vs haiku [Qur'an]: 11 right->wrong regressions = 10 wrapped + 1 orthographic   ← iter-1's figure
+haiku-search ALL Qur'an misses: 21 = 12 wrapped +  9 orthographic
+opus-search  ALL Qur'an misses:  1 =  1 wrapped +  0 orthographic
+→ all search-on Qur'an misses: 22 = 13 wrapped + 9 orthographic
+```
+
+So "the rest are wrappers" implies ~21 wrappers when there are 13, and **9** orthographic misses, not one. The rebuttal's justification ("confirmed by recompute: contains-exact 24/33 vs. headline 12/33 — 12 wrapped, not misspelled") is a non-sequitur: it accounts for the 12 wrapped cells but says nothing about the 9 answers that don't contain the reference at all.
+
+This matters beyond wording, because it suppresses a real finding. I classified those 9 by consonantal skeleton (dropping all `Mn`/`So`/`Lm` and folding alef/yeh variants): **all 9 are the same āyah in a different Unicode encoding of Uthmani script**, with `token_f1` up to 0.95 — e.g. 27:92 expected `أَتْلُوَا۟ … يَهْتَدِى` vs. returned `أَتۡلُوَاْ … يَهۡتَدِي` (U+06E1 in place of sukun U+0652, Arabic Extended-A tanween U+08F0–08F2 for U+064B–064D, U+0657 for U+064F, and yeh ي for alef-maksura ى). Phase 1 derived its mark set from the committed QUL corpus, which is correct for its scope — but web-retrieved Qur'an text uses a *different encoding* than the corpus, and that is precisely the "genuine text/orthographic difference" the README says barely exists. The README's "The mechanism is not orthography" (line 53) is right about the 20 wrapped cells and wrong about these 9.
+
+**Requested fix is one sentence of prose, doc-only — no re-collect, no re-score, no spend:** state the regression figure with its own denominator ("10 of the 11 haiku right→wrong Qur'an regressions are wrappers; 1 is a text difference") and report the miss breakdown honestly ("of the 22 search-on Qur'an headline misses, 13 are wrappers and 9 return the correct āyah in a different Uthmani Unicode encoding that `normalize()` does not fold").
+
+**Do not change `normalize()` here.** Extending it to the Arabic Extended-A / alternate-encoding set would force a re-score of both committed runs and break the byte-for-byte regressions in `test_first_run_regression.py` and `test_tutorial_run.py` — the project lesson explicitly forbids re-running score over committed evidence. The encoding-variance finding belongs in the review/lessons doc as a future refinement (it's arguably a more interesting benchmark result than the wrapper story).
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Iteration-1's blocking misattribution is genuinely fixed and every artifact invariant verifies, but the README still claims "exactly one" search-on Qur'an miss is orthographic by applying iteration-1's regression figure to the miss denominator — 9 of the 22 misses return the correct āyah in an unfolded Uthmani encoding.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `runs/tutorial-2026-10-11/README.md:68-69` — "Exactly one search-on Qur'an miss is a genuine text/orthographic difference; the rest are wrappers" is false under the "miss" denominator: all search-on Qur'an headline misses are 22 = 13 wrappers + **9** orthographic. The "exactly one" holds only for the 11 haiku right→wrong *regressions* (10 wrapped + 1 orthographic), which is the denominator iteration 1 used. Fix the sentence to name its denominator and report the miss breakdown.
+- Consequently README line 53 ("The mechanism is not orthography and not fabrication") overstates: it is accurate for the 20 wrapped cells but wrong for the 9 non-containing Qur'an misses, all of which I verified carry an identical consonantal skeleton (same āyah, different Uthmani Unicode encoding — U+06E1 vs U+0652, Arabic Extended-A tanween U+08F0–08F2, U+0657, yeh/alef-maksura), with `token_f1` as high as 0.95.
+- Do NOT fix this by changing `normalize()` or `_SUBMETRICS` (spec req 4; would force re-scoring committed evidence and break `test_first_run_regression.py` / `test_tutorial_run.py`). Record the web-retrieved-encoding-variance gap in the review/lessons doc as future work instead.
+- Everything else in Phase 3 verifies clean and needs no change: reproducible digest, origin-clean audit, secret-free, unpriced, four distinct non-colliding standings identities, `generated_at`, gitignore negation, exact web-search provenance, 3 scripts/3 traditions, 195 tests green.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - runs/tutorial-2026-10-11/README.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.
