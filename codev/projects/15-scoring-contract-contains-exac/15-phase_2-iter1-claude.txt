@@ -1,0 +1,38 @@
+I'll start by reading the key implementation files for phase_2.I read the phase-2 implementation from disk, ran the pipelines test suite, and independently verified the no-op claim end-to-end through the CLI.
+
+## What I verified (not just read)
+
+| Phase-2 acceptance item | Result |
+|---|---|
+| Registry + CLI, unknown fails fast | ✅ `--evaluator bogus` → exit 2, `unknown evaluator 'bogus'; known: containment, strict`; `--evaluator ""` → `empty --evaluator selection`. Validation runs *before* any output file is created. |
+| Default re-score reproduces committed `scores.jsonl` byte-for-byte | ✅ I re-scored **both** runs via the real CLI into `/tmp`: `cmp` says BYTE-IDENTICAL for `tutorial-2026-10-11` and `first-run-2026-10-11`. |
+| Phase-1 guards + oracle pass unchanged; no rebaseline | ✅ `310 passed, 1 skipped`. `git diff HEAD~2 --stat` confirms the phase-2 commit touches **only** `pipelines/` + thread/status — `runs/**` untouched (the 800-line `scores.jsonl` churn in the PR file list is phase 1's rebaseline, not this phase). |
+| `--evaluator strict` emits `{exact,normalized,token_f1}`, no `contains_reference`, `correct==normalized` | ✅ Real row: `{"exact":0,"normalized":0,"token_f1":0.0,"correct":0}`; summary cell has no `contains_reference` key and `accuracy 0.47 == normalized 0.47` (the pre-phase-1 strict figure). `containment` only → `{token_f1, contains_reference, correct}`, accuracies 47/52/66/74 = the committed headline. The `score.py:334/372` latent bug is genuinely fixed by derivation, and the test pins it. |
+| Separate-pass grader expressible, never inline | ✅ Descriptor shape + fail-fast on inline selection. |
+
+I ran only the `pipelines` lane; phase 2 changed no viewer source, so the vitest lane is unaffected (its diff entries are phase-1 fixture updates).
+
+## Issues (none blocking)
+
+1. **`submetrics_for` silently drops an unrecognised metric key** (`graders.py:103` filters by `_CANONICAL_ORDER`). A future inline grader declaring a key outside that tuple loses its metric from `scores.jsonl` *silently*, and its verdict lambda then `KeyError`s on `score.py`'s hardcoded `computed` dict. That's exactly the trap the phase-5 "add an evaluator" recipe will walk a contributor into, and it violates the project's fail-fast rule. Cheap fix: validate at import that every inline grader's `metric_keys ⊆ _CANONICAL_ORDER` (or raise in `submetrics_for`). Worth doing in phase 3 so the phase-5 recipe can lean on it.
+2. **Stale `.get()` tolerance / empty-list hole.** `acc[sm] += metrics.get(sm, 0)` (`score.py:362`) now can't miss, since `sm_keys` derives from the same selection — `metrics[sm]` would fail loudly if that ever drifts. Similarly `score_answer(..., graders=[])` passed explicitly yields `correct=0` with no error, bypassing `resolve_evaluators`' empty check. Both low-probability, both one-liners.
+3. **Dead `_SUBMETRICS` rows.** The thread says "`_SUBMETRICS` kept only for `identify_version`", but `score.py:116-120` still carries the `retrieve_quote`/`complete_unit` entries, now unreachable via `_task_submetrics`. Editable-with-no-effect; trim to `identify_version`.
+4. **Docstring drift in `graders.py`.** It says values are "computed in `score.py` (keyed by grader name)" — they're a flat 4-primitive dict, not grader-keyed; and it cites an import cycle that doesn't exist (`graders.py` imports nothing from the package), so the function-local imports in `score.py` need no such justification. Phase 5 touches docstrings anyway.
+5. **No provenance stamp of the selected graders.** A `scores.jsonl` scored with `--evaluator strict` is indistinguishable from the default one by inspection — `correct` means something different with nothing recorded. Adding `summary["evaluators"]` now would have broken the phase-2 no-op, so deferring was right; phase 3 rewrites the summaries anyway and is the natural place.
+6. **Test-quality notes** (non-blocking): in `test_separate_pass_grader_is_expressible_but_not_inline`, `assert "jev" not in DEFAULT_EVALUATORS` is vacuous (the tuple is frozen at import, so it would pass even with `default=True`) — the real paid-never-default guard is `test_default_set_is_the_deterministic_inline_graders`, which is sound. The "merge path" block only mutates a local dict and asserts its own mutation, so it documents the seam rather than covering it. The test also mutates module-global `GRADERS` (restored in `finally`; no xdist in this project, so safe today).
+
+Forward note for phase 4, not a change request: `QuestionList.tsx` hardcodes three metric keys, which are now absent under a subset selection — already in the phase-4 scope.
+
+---
+VERDICT: APPROVE
+SUMMARY: Grader registry + `--evaluator` land as a genuinely provable no-op — I independently reproduced both committed `scores.jsonl` byte-for-byte via the CLI, with 310 tests green and run evidence untouched; remaining items are small fail-fast/docstring polish.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `submetrics_for` silently drops metric keys outside `_CANONICAL_ORDER` — a silent-failure trap for the future graders the phase-5 recipe invites; add an import-time subset check (recommend fixing in phase 3)
+- Dead `retrieve_quote`/`complete_unit` entries left in `_SUBMETRICS`, contradicting the thread note that it is now `identify_version`-only
+- `graders.py` docstring is inaccurate: values are not "keyed by grader name", and the cited import cycle does not exist
+- No record of the selected evaluators in `scores.jsonl`/`summary.json`; correctly deferred to preserve the no-op, but should land with phase 3's summary rewrite
+- Minor fail-fast gaps: `metrics.get(sm, 0)` dead tolerance, and an explicit `graders=[]` bypasses the empty-selection error
+- `assert "jev" not in DEFAULT_EVALUATORS` and the "merge path" assertions are vacuous; the paid-never-default property is covered elsewhere

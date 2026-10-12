@@ -112,10 +112,10 @@ def strip_script_marks(text: str) -> str:
         )
     )
 
-# Similarity sub-metrics reported per task (the spec's per-task contract table).
+# Fixed sub-metrics for the NON-graded tasks. The text-retrieval tasks (retrieve_quote /
+# complete_unit) derive their submetric set from the selected graders (see graders.submetrics_for),
+# so they are intentionally absent here.
 _SUBMETRICS = {
-    "retrieve_quote": ("exact", "normalized", "token_f1", "contains_reference"),
-    "complete_unit": ("exact", "normalized", "token_f1", "contains_reference"),
     "identify_version": ("exact", "normalized"),
 }
 
@@ -218,9 +218,12 @@ def score_answer(task: str, answer: str, expected: dict, graders: "list | None" 
     ``{strict, containment}`` emits ``exact``/``normalized``/``token_f1``/``contains_reference`` with
     ``correct = normalized OR contains_reference`` — identical to the frozen phase-1 contract."""
     if task in ("retrieve_quote", "complete_unit"):
-        from .graders import resolve_evaluators, submetrics_for
+        from .graders import GraderError, resolve_evaluators, submetrics_for
 
-        graders = graders if graders is not None else resolve_evaluators(None)
+        if graders is None:
+            graders = resolve_evaluators(None)
+        elif not graders:
+            raise GraderError("empty grader list passed to score_answer")
         target = expected["text"]
         # all primitives are computed; only the selected graders' fields (+ always-on token_f1)
         # are emitted. contains_reference reuses _bounded_equal (word-bounded normalised
@@ -359,7 +362,7 @@ def score_file(
             acc["n"] += 1
             acc["correct"] += metrics["correct"]
             for sm in sm_keys:
-                acc[sm] += metrics.get(sm, 0)
+                acc[sm] += metrics[sm]  # sm_keys derives from the same selection ⇒ present (fail loud if not)
             # token usage for cost accounting (recorded per answer row by collect)
             u = d.get("usage") or {}
             um = usage.setdefault(

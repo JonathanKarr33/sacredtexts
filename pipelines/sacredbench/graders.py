@@ -3,8 +3,10 @@
 A *grader* decides correct-vs-incorrect for a `retrieve_quote` / `complete_unit` cell and owns a
 set of reported metric fields. Graders are **selectable by name** on the `score` CLI (`--evaluator`);
 the headline is the OR of the selected graders' verdicts. This module is **pure metadata + selection
-logic** — the metric *values* are computed in ``score.py`` (keyed by grader name), so there is no
-import cycle.
+logic** (it imports nothing from the package) — the metric *values* for inline graders are computed
+once in ``score.py`` (a flat primitives dict), and each grader's ``verdict`` reads from that dict and
+its ``metric_keys`` select which fields are emitted. An inline grader may only own fields in
+``_CANONICAL_ORDER`` (what ``score.py`` computes); this is enforced at import.
 
 Decisions encoded here:
 - `token_f1` is an always-on diagnostic owned by NO grader (see ``ALWAYS_ON``); it is always emitted
@@ -51,6 +53,18 @@ GRADERS: dict[str, Grader] = {
     # exercisable, non-default, non-inline, verdict-less:
     # "jev": Grader("jev", ("jev_verdict", "jev_prob"), None, default=False, inline=False),
 }
+
+# Fail fast at import: an inline grader may only own fields score.py actually computes
+# (the canonical primitives). A grader declaring a key outside that set would otherwise have its
+# metric silently dropped by submetrics_for and KeyError in its verdict — the trap the phase-5
+# "add an evaluator" recipe must not walk a contributor into. (Non-inline/separate-pass graders are
+# exempt: their fields are produced and merged by their own pass, not by score.py.)
+for _g in GRADERS.values():
+    if _g.inline and not set(_g.metric_keys) <= set(_CANONICAL_ORDER):
+        raise GraderError(
+            f"inline grader {_g.name!r} owns metric keys {sorted(set(_g.metric_keys) - set(_CANONICAL_ORDER))} "
+            f"outside the canonical set {_CANONICAL_ORDER}; score.py cannot compute them"
+        )
 
 # The default selection: the inline, default-flagged graders, in registry order.
 DEFAULT_EVALUATORS: tuple[str, ...] = tuple(
