@@ -1,0 +1,7 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 3 is largely complete, but `verify_source` still mistakes incidental single Yes/No mentions inside explicit refusals for committed answers.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `parse_yes_no()` (`score.py:145`) treats any answer containing exactly one `yes` or `no` token as a commitment. Consequently, explicit declines such as “I can’t verify whether the answer is yes” score **correct** when expected is `yes`, while “I cannot verify this; no reliable source is available” can score **correct** when expected is `no`. Because `classify_refusal()` uses the same parser, these are never classified as refused. The both-token regression was fixed, but the underlying “mere Yes/No mention” problem remains. Require an affirmative answer/commitment shape rather than token presence, and add single-incidental-token tests for both expected values.

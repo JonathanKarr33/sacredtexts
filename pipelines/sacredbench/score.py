@@ -143,12 +143,12 @@ def token_f1(answer: str, expected: str) -> float:
 
 
 def parse_yes_no(answer: str) -> str | None:
-    """The COMMITTED Yes/No, or None. A commitment is a single unambiguous token: an answer that
-    mentions BOTH ("I can't verify whether the answer is yes or no") commits to neither and parses
-    to None — so it is not scored correct and, with a leading decline, classifies as `refused`
-    (Spec 15). An answer with neither token is also None."""
-    toks = set(re.findall(r"\b(yes|no)\b", normalize(answer)))
-    return next(iter(toks)) if len(toks) == 1 else None
+    """The leading Yes/No verdict (first token), or None. Deliberately simple: a DECLINE to verify
+    is handled by the outcome layer (a leading decline cue → ``refused``, Spec 15), not here, so this
+    needs only to read a committed verdict. Hardening against negation/evasion on NON-declining
+    answers remains the deferred verify_source gap noted in the module docstring."""
+    m = re.search(r"\b(yes|no)\b", normalize(answer))
+    return m.group(1) if m else None
 
 
 def _contains(answer: str, needle: str) -> bool:
@@ -285,13 +285,15 @@ def _with_outcome(metrics: dict, task: str, answer: str, expected: dict) -> dict
     non-refused cell the outcome is simply correct-vs-incorrect per the headline verdict."""
     from .outcomes import classify_refusal
 
-    # Refusal short-circuits the headline, but ONLY for a cell that is not already correct: a
-    # decline-prefixed answer that still delivers the right result (e.g. a hedged-but-correct
-    # provenance citation — "I can't verify, but it's Jude 1:3") is an ANSWER, not a refusal. For
-    # text-retrieval `correct` is already 0 whenever classify_refusal holds (the matcher's
-    # not-contained half), so the `not correct` gate is a no-op there; it is the provenance guard
-    # (cite_passage/identify_source/identify_version have no containment half in classify_refusal).
-    if not metrics["correct"] and classify_refusal(answer, task, expected):
+    # A decline-prefixed answer that still DELIVERS the right result (a hedged-but-correct citation,
+    # "I can't verify, but it's Jude 1:3") is an ANSWER, not a refusal — so for the tasks whose
+    # correctness is a DELIVERED result, refusal only applies when the headline is not already
+    # correct. verify_source is different: its "answer" is the verdict itself, so a leading decline
+    # ("I can't verify whether …") is a refusal regardless of any incidental Yes/No token the
+    # first-token parser may have matched — otherwise an explicit decline could score correct.
+    refused = classify_refusal(answer, task, expected) and (task == "verify_source" or not metrics["correct"])
+    if refused:
+        metrics["correct"] = 0  # headline skipped for a declined verify_source (no-op elsewhere)
         metrics["outcome"] = "refused"
     else:
         metrics["outcome"] = "correct" if metrics["correct"] else "incorrect"

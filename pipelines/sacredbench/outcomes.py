@@ -26,9 +26,10 @@ Both halves matter:
   genuine preamble ("I'm sorry, but I am unable…", "Let me try to get the segment. I couldn't…").
 - *reference not delivered* — a decline-prefixed answer that still contains the reference
   (word-bounded) IS a correct retrieval ("I can't be certain, but it's: <verse>"), so the containment
-  half keeps it out of the refused set. For ``verify_source`` the parallel test is that no Yes/No was
-  committed; for the other provenance tasks a leading decline alone is the refusal (they carry no
-  committed evidence, so this stays minimal and conservative).
+  half keeps it out of the refused set. For ``verify_source`` and the other provenance tasks a leading
+  decline alone is the refusal — a genuine verdict/citation leads with its answer, not a decline — and
+  ``score._with_outcome`` applies verify_source's refusal ungated (so an incidental Yes/No inside a
+  decline cannot score correct) while gating the delivered-result tasks on ``not correct``.
 
 This module is deliberately thin: the primitives (``normalize``, ``_bounded_equal``, ``parse_yes_no``)
 live in ``score.py`` and are imported lazily so there is no import cycle (``score`` imports this inside
@@ -109,15 +110,18 @@ def classify_refusal(answer: str, task: str, expected: dict) -> bool:
     """
     if not leading_decline(answer):
         return False
-    from .score import _bounded_equal, parse_yes_no
 
     if task in _TEXT_RETRIEVAL:
+        from .score import _bounded_equal
+
         # The containment half is load-bearing, not redundant: under the default graders a contained
         # answer already has correct=1 (so `_with_outcome`'s `not correct` gate excludes it), but under
         # `--evaluator strict` a contained-but-not-normalized answer scores correct=0, so only this
         # check stops a decline-prefixed correct retrieval from being mislabelled `refused`. Keep it.
         target = expected.get("text", "")
         return not (target and _bounded_equal(answer, target))
-    if task == "verify_source":
-        return parse_yes_no(answer) is None
+    # verify_source and the other provenance tasks: a leading decline cue IS the refusal — the model
+    # declined to answer. For verify_source `_with_outcome` applies this ungated (so an incidental
+    # Yes/No token in the decline cannot score correct); for cite_passage/identify_source/
+    # identify_version the gate keeps a decline-prefixed but DELIVERED-correct answer an answer.
     return True

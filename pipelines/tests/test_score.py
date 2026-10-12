@@ -37,13 +37,11 @@ def test_token_f1_bounds():
 
 @pytest.mark.parametrize("ans,expected", [
     ("Yes.", "yes"), ("no,", "no"), ("NO!", "no"), ("maybe", None),
-    # a single unambiguous commitment stands even behind a hedge prefix
-    ("I can't be sure, but yes.", "yes"),
-    # mentioning BOTH commits to neither -> None (not the first token)
-    ("I can't verify whether the answer is yes or no.", None),
-    ("yes or no", None),
+    # leading verdict wins even with a later incidental token ("no doubt")
+    ("Yes, there is no doubt about it.", "yes"),
 ])
 def test_parse_yes_no(ans, expected):
+    # first committed Yes/No token; a DECLINE to verify is handled by the outcome layer, not here
     assert parse_yes_no(ans) == expected
 
 
@@ -155,14 +153,23 @@ def test_wrapped_and_near_miss_are_not_refused():
 
 
 def test_verify_source_decline_is_refused():
-    # a declined verification parses to no Yes/No -> refused (not scored incorrect for parsing None)
+    # a leading decline on verify_source is a refusal regardless of any incidental Yes/No token it
+    # contains — otherwise an explicit decline could score correct via the first-token parser
     r = score_answer("verify_source", "I can't verify that claim.", {"answer": "yes"})
     assert r["outcome"] == "refused" and r["correct"] == 0
-    # a committed Yes/No is graded normally even if wrong
+    # a committed Yes/No (no leading decline) is graded normally even if wrong
     assert score_answer("verify_source", "No.", {"answer": "yes"})["outcome"] == "incorrect"
-    # a decline that MENTIONS both yes and no commits to neither -> refused, not falsely correct
-    both = score_answer("verify_source", "I can't verify whether the answer is yes or no.", {"answer": "yes"})
-    assert both["outcome"] == "refused" and both["correct"] == 0
+    # declines whose incidental token happens to MATCH the expected answer must NOT score correct
+    for ans, exp in [
+        ("I can't verify whether the answer is yes.", "yes"),           # single incidental "yes"
+        ("I cannot verify this; no reliable source is available.", "no"),  # single incidental "no"
+        ("I can't verify whether the answer is yes or no.", "yes"),      # both tokens
+    ]:
+        c = score_answer("verify_source", ans, {"answer": exp})
+        assert c["outcome"] == "refused" and c["correct"] == 0, ans
+    # a genuine leading "Yes" verdict with a later incidental "no" stays a committed, correct answer
+    ok = score_answer("verify_source", "Yes, there is no doubt that this is from John 1:1.", {"answer": "yes"})
+    assert ok["outcome"] == "correct" and ok["correct"] == 1
 
 
 def test_hedged_but_correct_provenance_is_not_refused():

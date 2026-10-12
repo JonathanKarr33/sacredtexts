@@ -412,3 +412,15 @@ Pipeline suite green after fixes; both consult outputs committed with the phase 
 - claude nits applied: leading_decline scans only the window; documented classify_refusal containment
   half is load-bearing under --evaluator strict.
 340 pipeline tests pass/1 skip; both lanes green. iter2 rebuttal written.
+
+### phase_3 consult iter3 (codex REQUEST_CHANGES, claude COMMENT) — root-caused my iter2 regression, fixed
+Both about my iter2 parse_yes_no change (both-token→None): claude = regression ("Yes, there is no
+doubt…"→None→incorrect); codex = single-incidental-token declines still mis-commit. FIX: stop making
+the token parser commitment-aware (that's the deferred verify_source-hardening gap). (1) parse_yes_no
+reverted to first-token; (2) verify_source refusal now comes from the decline CUE, ungated in
+_with_outcome (a leading "I can't verify…" is refused regardless of incidental yes/no), while delivered-
+result tasks keep the not-correct gate. No committed verify_source evidence → NO rebaseline (runs/ clean).
+Tests: all 4 reviewer cases. 338 pipeline + viewer green. iter3 rebuttal written.
+NOTE: phase_3 has now run 3 consult rounds, all centered on verify_source — which has ZERO committed
+evidence and is a documented pre-existing deferred gap. If iter4 still RC's on verify_source hardening,
+escalate to architect (out-of-scope churn).
