@@ -25,4 +25,15 @@ Precedence for recency, mtime-independent: `generated_at` (summary.json) → run
   client re-derives recency defensively. StandingsPage display switches mtime→recency.
 
 ## Status
-- Implementing. Viewer-only → dispatcher runs vitest.
+- Implemented + PR #17 opened (review embedded in body, `Closes #7`). Viewer-only.
+- **CMAP (codex + claude, gemini dropped per config)**: both APPROVE / HIGH.
+  - codex: no issues.
+  - claude: APPROVE; verified the fix against real evidence + the prod no-`/runs` path.
+    Flagged 3 cleanups, all addressed:
+    1. orphaned `listRuns` JSDoc above `readGeneratedAt` → moved back above `listRuns`;
+    2. stale module header (`[{id, mtimeMs}]`) → updated to `{id,mtimeMs,generatedAt?}` + recency;
+    3. untested display branch → added StandingsPage test for "dated <date>" + "date unknown".
+- First CMAP run failed on `consult` project auto-detect ("Multiple projects found") →
+  re-ran with `--project-id 7`. (Note for siblings: pass `--project-id` in this multi-project worktree.)
+- Tests: 141 pass. `porch check 7` green (implement + pr phases).
+- Waiting on human PR-gate approval before `porch approve`.

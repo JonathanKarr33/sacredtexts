@@ -4,8 +4,9 @@
 // stray client import cannot pull fs/path into the browser bundle.
 //
 // It exposes:
-//   listRuns(runsDir)      — the run index: [{id, mtimeMs}] for each subdir with a
-//                            readable summary.json, newest first.
+//   listRuns(runsDir)      — the run index: [{id, mtimeMs, generatedAt?}] for each subdir
+//                            with a readable summary.json, newest first BY RECENCY (not
+//                            mtime alone — see listRuns / recency.ts, Issue #7).
 //   resolveRunFile(dir,rel)— confined single-file resolution (realpath + symlink reject).
 //   createRunsHandler(dir) — a Connect middleware mounting both at /runs (dev server).
 //
@@ -28,10 +29,6 @@ export interface RunIndexEntry {
   generatedAt?: string;
 }
 
-/** Immediate subdirectories of `runsDir` that contain a readable `summary.json`, newest
- * first. Ordering is by recency (`summary.generated_at` → run-id date → dir mtime, Issue #7;
- * id asc as a stable tiebreak), NOT mtime alone, which collapses in a fresh clone. A
- * nonexistent root returns []. */
 /** `generated_at` from a run's summary.json if present as a string, else undefined. Never
  * throws: a missing/unreadable/malformed summary yields undefined (recency then falls back). */
 function readGeneratedAt(summaryPath: string): string | undefined {
@@ -44,6 +41,10 @@ function readGeneratedAt(summaryPath: string): string | undefined {
   }
 }
 
+/** Immediate subdirectories of `runsDir` that contain a readable `summary.json`, newest
+ * first. Ordering is by recency (`summary.generated_at` → run-id date → dir mtime, Issue #7;
+ * id asc as a stable tiebreak), NOT mtime alone, which collapses in a fresh clone. A
+ * nonexistent root returns []. */
 export function listRuns(runsDir: string): RunIndexEntry[] {
   let root: string;
   try {
