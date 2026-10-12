@@ -1,0 +1,60 @@
+I'll verify the spec's claims against the actual codebase before judging.Now let me verify the pipeline claims.I've verified the spec's claims against the actual code. The spec is unusually well-researched — its citations are accurate (`aggregate.ts:59`, `cli.py:349-351`, `score.py:429`, `parseSummary` passing `panel` through structurally at `localResults.ts:138`, `_panel_fingerprint` already tools-aware, `panel` consumed only by `aggregate`/`StandingsPage` in the viewer, `audit.py` untouched). Structure matches `protocols/spir/templates/spec.md` heading-for-heading. Baked decisions are honored. Three findings, though.
+
+## 1. The headline supersession criterion is not achievable by this change (blocking)
+
+Success criterion 5 and the Desired State promise that "the tutorial run's no-tools `claude-haiku-5-5` row **supersedes** first-run's bare row." The key change reliably delivers the *dedupe* half — one row instead of two. It does **not** deliver *which run wins*, because `aggregate` ranks on `mtimeMs` (`aggregate.ts:76`), and `mtimeMs` is the **run directory's filesystem mtime** supplied by the dev-server run index (`StandingsPage.tsx:34`, `runIndex.ts:49`) — not `generated_at`. Git does not preserve mtimes, so on a fresh clone or in CI the two run dirs get checkout-time mtimes that are arbitrary and near-identical; an exact tie breaks **id-ascending** (`aggregate.ts:76`), and `first-run-2026-10-11` < `tutorial-2026-10-11` — the **stale row wins**.
+
+This matters because the obvious test mirrors today's, which hardcodes `mtimeMs: 1` / `mtimeMs: 2` (`tutorialRun.test.ts:75-78`). The builder will pass the criterion with a fabricated ordering while the real `/standings` page may show first-run's October haiku numbers. That is precisely this repo's own `lessons-critical.md` warning.
+
+Note the ingredient already exists and is unused: `score.py:435` emits `generated_at` as "a committed, mtime-independent recency signal" and **no viewer source reads it** (grep: `generated_at` appears in no `apps/viewer/src` file). First-run's `summary.json` has no `generated_at` at all, so adopting it needs a fallback — plausibly Issue #7's half, not this spec's.
+
+**Fix (either is fine, pick one):**
+- Narrow the criterion honestly: "the two entries dedupe to a **single** standings key; which run supplies the row follows the existing mtime recency rule — making that rule mtime-independent is Issue #7." Then assert dedupe (key identity + row count), not a specific winner.
+- Or bring recency onto `generated_at` with an mtime fallback — but that widens scope against your own tight-diff constraint.
+
+## 2. The committed run's `summary.md` and four stale docs are unscoped
+
+The migration criterion names only `summary.json` and `scores.jsonl`. But `runs/tutorial-2026-10-11/summary.md:27-30` carries the markers in its panel table, and `score` rewrites it **only if `--summary-md` is passed** (`cli.py:360-363`). Regenerate without that flag and the committed run dir is self-inconsistent: raw `model` in the JSON, `[no-tools]` in the Markdown — inside a test that reads `summary.md` (`test_tutorial_run.py:73`).
+
+There's also a design question the spec should settle: `summary_markdown` (`score.py:486-494`) renders `| model_id | provider | model | endpoint | served_by |`. With the marker gone, `haiku` and `haiku-search` show an **identical** `model` cell — the human-readable "committed-artifact proof" table silently loses the arm distinction, while `arch-critical.md` says tool-use *is* part of panel identity. Decide: add a `tools` column, or state that `model_id` carrying the distinction is sufficient.
+
+Stale after this change, none mentioned in Desired State or Success Criteria:
+- `codev/resources/arch-critical.md:9` — **always-on hot-tier context**, asserts the marker *and* calls it "a zero-viewer-change property". Both become false for every future agent in this repo.
+- `codev/resources/arch.md:103`, `CODE_WALKTHROUGH.md:339` (cites `cli.py:349`), `TUTORIAL.md:199` (user-facing: tells readers to look for `…[web_search]` / `…[no-tools]` rows), `runs/tutorial-2026-10-11/README.md:17`.
+
+## 3. The test-rewrite criterion misses an inverting Python assertion
+
+The spec correctly identifies that `tutorialRun.test.ts`'s premise inverts, but describes `test_tutorial_run.py`'s change as only the key-set (`tools`, no `api_model`). That file also contains a **Python mirror of the viewer's standings key** — `_standings_key()` at line 29-31, `FIRST_RUN_KEY` at line 20, and `test_panel_has_four_distinct_standings_identities` asserting `FIRST_RUN_KEY not in keys` (line 42). Under Approach B that assertion must **invert** (the tutorial's no-tools haiku key must now *equal* first-run's for dedupe to work) and the mirror must gain the tools segment. Same inverting-premise defect, caught on the TS side, missed on the Python side. Add it to the criterion.
+
+## Minor (non-blocking)
+
+- Criterion 3 says panel keys are "**exactly** `{provider, model, tools, endpoint, served_by}`"; `test_tutorial_run.py:50` uses `⊆` while `test_phase2_tools.py:259` uses `==`. Say which you want.
+- `score.py:421` iterates `set(usage) | set(panel)`, so a model in `usage` but absent from `panel` gets a synthesised entry — `tools` has no usage fallback there and should default to `[]`. Worth one line; the viewer default covers the viewer, not the artifact.
+- Verified and correct: `ModelSpec.tools` is already `tuple(sorted(set(...)))`, so "serialised deterministically (sorted)" is free. Also correct that `price_in`/`price_out` never reach the artifact (`score.py:424-432` rebuilds with explicit keys).
+- Row count after the fix is 7 (4 tutorial + 3 non-overlapping first-run); first-run's only anthropic entry is `claude-haiku-5-5`. You might just state 7 rather than "the corrected total row count."
+
+**Security:** no concerns. The panel stays secret-free, `tools` is a closed enum (`TOOLS = ("web_search",)`, fail-fast validated), and the leak-scan test is unaffected.
+
+I did not modify anything in the worktree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Approach B is the right call and the spec's code analysis is accurate, but its headline supersession criterion can't be delivered by the key change (recency is filesystem mtime, not `generated_at`), and the committed `summary.md` plus four marker-documenting docs — including always-on `arch-critical.md` — are unscoped.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Success criterion 5 ("tutorial run supersedes first-run") is environment-dependent: `aggregate.ts:76` ranks on run-directory mtime from `runIndex.ts`/`StandingsPage.tsx:34`, which git doesn't preserve; an mtime tie breaks id-ascending and the stale first-run row wins. A test with hardcoded mtimes (as `tutorialRun.test.ts:75-78` does today) would pass while the real page shows stale data. Narrow the criterion to dedupe-to-one-key, or move recency onto the already-emitted-but-unread `generated_at` (Issue #7 territory).
+- Migration scope omits `runs/tutorial-2026-10-11/summary.md:27-30`, which holds the markers and is only rewritten when `score` is passed `--summary-md` (`cli.py:360`) — risking a run dir whose JSON and Markdown disagree. Also undecided: `summary_markdown`'s panel table (`score.py:486-494`) loses the search-on/off distinction entirely once `model` is raw; decide whether it gains a `tools` column.
+- No criterion covers the docs the change falsifies: `codev/resources/arch-critical.md:9` (always-on hot-tier, asserts the marker and the "zero-viewer-change property"), `arch.md:103`, `CODE_WALKTHROUGH.md:339`, `TUTORIAL.md:199` (user-facing), `runs/tutorial-2026-10-11/README.md:17`.
+- The test-rewrite criterion misses `test_tutorial_run.py`'s Python mirror of the standings key (`_standings_key` line 29, `FIRST_RUN_KEY` line 20, `FIRST_RUN_KEY not in keys` line 42) — that assertion must invert, same as the TS one.That background `find` resolved a loose end in my structure check — it only turned up `spec.md` copies in **unrelated** projects (`waleedkadous/test`, `waleedkadous/modtrail`). I confirmed the sacredtexts worktree has no `codev/protocols/` or `.codev/protocols/` directory at all, so per the four-tier resolution the governing template really is the package skeleton at `/opt/homebrew/lib/node_modules/@cluesmith/codev/skeleton/protocols/spir/templates/spec.md` — the one I compared against.
+
+That confirms the structure finding in my review: the spec conforms to the correct template heading-for-heading (Problem Statement → Current State → Desired State → Success Criteria → Constraints → Assumptions → Solution Approaches → Open Questions → Test Scenarios → Risks and Mitigation → References), with no sections missing or renamed and none reduced to "N/A". No structural defect.
+
+**My verdict is unchanged** — REQUEST_CHANGES on the three substantive findings, none of which are structural:
+
+1. **Blocking:** the supersession success criterion can't be delivered by the key change (recency is run-directory mtime via `aggregate.ts:76` / `runIndex.ts:49`, not the already-emitted-but-unread `generated_at`), and a hardcoded-mtime test would mask it.
+2. Committed `summary.md` migration unscoped (`--summary-md` is opt-in at `cli.py:360`), plus the undecided question of whether `summary_markdown`'s panel table gains a `tools` column — and five marker-documenting docs including always-on `arch-critical.md:9`.
+3. `test_tutorial_run.py`'s Python mirror of the standings key (lines 20, 29, 42) also has an inverting assertion the spec doesn't name.
+
+All three are surgical spec edits, not a redesign — the Approach B direction itself is sound and well-evidenced.

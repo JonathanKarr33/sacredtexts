@@ -17,7 +17,10 @@ from sacredbench.score import score_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN = REPO_ROOT / "runs" / "tutorial-2026-10-11"
-FIRST_RUN_KEY = "anthropic\u0000claude-haiku-5-5"
+# first-run's bare claude-haiku-5-5 panel entry has no `tools` field, which the viewer keys
+# as [] → an empty trailing tools segment. Under Approach B the tutorial's no-tools haiku
+# entry produces this exact key, so the two dedupe.
+FIRST_RUN_KEY = "anthropic\u0000claude-haiku-5-5\u0000"
 
 
 def _load_summary():
@@ -28,32 +31,58 @@ def _load_summary():
 
 
 def _standings_key(entry: dict) -> str:
-    # mirrors apps/viewer/src/lib/aggregate.ts : `${provider}\u0000${model}`
-    return f"{entry['provider']}\u0000{entry['model']}"
+    # mirrors apps/viewer/src/lib/aggregate.ts:
+    #   `${provider}\u0000${model}\u0000${[...(tools ?? [])].sort().join(",")}`
+    tools = ",".join(sorted(entry.get("tools") or []))
+    return f"{entry['provider']}\u0000{entry['model']}\u0000{tools}"
 
 
 def test_panel_has_four_distinct_standings_identities():
     panel = _load_summary()["panel"]
     assert len(panel) == 4
     keys = [_standings_key(e) for e in panel.values()]
-    # search-on vs. off never collapse into one standings row
+    # search-on vs. off stay distinct standings rows (tools is part of the key)
     assert len(set(keys)) == 4
-    # and none collides with the earlier first-run bare claude-haiku-5-5 row
-    assert FIRST_RUN_KEY not in keys
+    # but the no-tools haiku entry now COLLIDES with the earlier first-run bare
+    # claude-haiku-5-5 row (first-run has no tools field ⇒ []): the two dedupe into one
+    # standings row, so the stale first-run row is supersedable rather than orphaned.
+    assert FIRST_RUN_KEY in keys
 
 
-def test_panel_is_secret_free_carries_api_model_and_is_unpriced():
+def test_panel_is_secret_free_carries_tools_and_is_unpriced():
     summary = _load_summary()
     panel = summary["panel"]
     for entry in panel.values():
-        # only non-secret identity fields
-        assert set(entry) <= {"provider", "model", "api_model", "endpoint", "served_by"}
-        assert entry["api_model"]  # true API model recoverable
+        # EXACTLY the non-secret identity fields — Approach B drops api_model, adds tools
+        assert set(entry) == {"provider", "model", "tools", "endpoint", "served_by"}
+        assert isinstance(entry["tools"], list)  # tools is a real field, not a marker
+    # the two -search arms carry web_search; the two bare arms carry no tools
+    tools_by_model = {mid: e["tools"] for mid, e in panel.items()}
+    assert tools_by_model["haiku-search"] == ["web_search"]
+    assert tools_by_model["opus-search"] == ["web_search"]
+    assert tools_by_model["haiku"] == []
+    assert tools_by_model["opus"] == []
     # unpriced: no cost figure anywhere in the summary
     assert "cost" not in json.dumps(summary).lower()
     # generated_at present and ISO-parseable (Issue #7)
     from datetime import datetime
     assert datetime.fromisoformat(summary["generated_at"])
+
+
+def test_committed_summary_md_panel_table_carries_tools_column():
+    """JSON/MD skew guard: the migrated summary.md panel table has a `tools` column that
+    mirrors summary.json's panel.tools — web_search on the -search rows, the em-dash
+    placeholder on the bare rows. Catches a hand-edit that updates one file but not the
+    other."""
+    p = RUN / "summary.md"
+    if not p.exists():
+        pytest.skip("tutorial run evidence not present")
+    md = p.read_text(encoding="utf-8")
+    assert "| model_id | provider | model | tools | endpoint | served_by |" in md
+    assert "| haiku-search | anthropic | claude-haiku-5-5 | web_search |" in md
+    assert "| opus-search | anthropic | claude-opus-5-5 | web_search |" in md
+    assert "| haiku | anthropic | claude-haiku-5-5 | — |" in md
+    assert "| opus | anthropic | claude-opus-5-5 | — |" in md
 
 
 def test_committed_run_has_no_secrets():

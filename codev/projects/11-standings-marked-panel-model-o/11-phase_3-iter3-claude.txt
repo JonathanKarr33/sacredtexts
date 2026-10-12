@@ -1,0 +1,37 @@
+I'll read the Phase 3 doc files from disk to verify the implementation.## Review — Phase 3: "Correct falsified marker docs"
+
+I read all six doc files from disk and verified each factual claim against the shipped Phase 1/2 code (`aggregate.ts`, `StandingsPage.tsx`, `score.py`, `tutorialRun.test.ts`, `test_code_walkthrough.py`). I made no edits to the tree.
+
+### Verification of each claim
+
+**`codev/resources/arch-critical.md:9`** — "emitted as a real `panel.tools` list (the `model` is the raw API id, with no inline marker); the viewer's standings key is `provider\u0000model\u0000sortedTools` (missing ⇒ `[]`)". Matches `aggregate.ts:66-67` exactly (`[...(p?.tools ?? [])].sort()` then `` `${p.provider}\u0000${p.model}\u0000${tools.join(",")}` ``). The retired "zero-viewer-change property" claim is gone. `_panel_fingerprint` claim still true (`collect.py` untouched).
+
+**`codev/resources/arch.md:78-80, 101-107`** — panel block now described as "raw unmarked `model` … plus a real `tools` list (sorted; `[]` when none)", matching `score.py:424-433`. Standings description gives the exact key string and the missing-⇒-`[]` default, and the iter-1 fix ("newest run per that identity" rather than "per model") is in place. Parens are balanced (I checked: two opens at 100/106, two closes at 107).
+
+**`CODE_WALKTHROUGH.md:335-343`** — pointer restored as `score.py:430`, which I confirmed is literally the `"tools": p.get("tools") or []` line that writes tools into the committed snapshot — the right referent for an evidence-integrity bullet. `_REQUIRED_SYMBOLS` intact; the pointer guard (`test_code_walkthrough.py:71-78`) only checks resolve + line-in-range, and 430 is well within `score.py`.
+
+**`TUTORIAL.md:196-207`** — the iter-1 blocking issue is properly fixed. It now claims (a) four distinct *keys*, (b) the search-off haiku collapsing with first-run's bare haiku to a single row, (c) **7** rows across both runs, (d) the mtime/id-asc tiebreak with git-doesn't-preserve-mtimes caveat, (e) issue #7 as the out-of-scope recency fix. No winner is claimed. (b)+(c) are pinned by `tutorialRun.test.ts:107,112-113,125`; (d) matches `aggregate.ts:85`. The `web_search` tag claim matches `StandingsPage.tsx:133`. `TUTORIAL.md:144` remains valid config prose (the sole permitted grep hit).
+
+**`apps/viewer/README.md:44-48`** — the iter-2 finding is fixed to `(provider, model, tools)` with the missing-⇒-`[]` note. The enumeration deviation is explicitly authorized by the architect in the builder's rebuttal, and the builder correctly flagged the carry-forward requirement into `codev/reviews/11-*.md`. I agree with the disposition: leaving a false 2-tuple claim in the doc `arch-critical.md` routes agents to would have defeated this phase's purpose.
+
+**Grep gate** — I re-ran the scoped audit across all `*.md` plus source: the only surviving `no-tools` / `[web_search]` / `api_model` hits are `TUTORIAL.md:144` (config), Spec 8's historical artifacts (correctly untouched), builder scratch files (untracked, out of scope), and descriptive test/code comments. No stale marker *instruction* remains anywhere. `runs/tutorial-2026-10-11/README.md:16-20` (Phase 2) is consistent with the Phase 3 prose.
+
+### Non-blocking notes
+
+1. **`arch-critical.md:9` is still the hot file's longest fact** — 525 chars vs. 432 for the next longest, and up from 453 before this change (the iter-2 trim removed the provenance tag but net density is still higher). All content is load-bearing, but the `web_search_20250305` / `max_uses: 5` pinning detail is duplicated in `arch.md:61-62` and the run README, so it is the natural candidate if you want the line back under its prior length. Purely cosmetic; I would not hold the phase for it.
+2. **`arch.md:100-107` is one dense nested parenthetical ending in `))`.** Balanced and accurate, just a hard read. Splitting the "because the key incorporates…" clause out of the route-tree parenthetical into its own sentence would help a future reader.
+3. **`TUTORIAL.md:200` "the model id is now shown unmarked"** conflates two ids: the row's primary label is `row.modelId` (`haiku` / `haiku-search`), which was never marked; what is now unmarked is the panel `model` in the subtext. In context it's clear enough, but "the raw API model id is shown unmarked" would be exact.
+4. **Out of scope, for PR review if you like:** `pipelines/README.md:101` and `apps/viewer/README.md:14` both give a loose "`panel` block (provider/model/endpoint)" summary that now omits `tools` (and `served_by`). Neither asserted the marker, so this change does not *falsify* them — unlike the `apps/viewer/README.md:44` line you already fixed. Mentioning only so the decision is deliberate.
+
+---
+VERDICT: APPROVE
+SUMMARY: All five (plus the authorized sixth) Phase 3 docs accurately describe the shipped panel.tools / (provider, model, tools) behavior; the iter-1 TUTORIAL and iter-2 viewer-README findings are properly resolved and the grep gate is clean.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None (blocking)
+- Nit: `arch-critical.md:9` remains the hot file's longest fact (525 chars, up from 453) — the `web_search_20250305`/`max_uses: 5` detail is duplicated in `arch.md` and could be dropped
+- Nit: `arch.md:100-107` is a dense nested parenthetical ending in `))` — balanced and correct, but hard to read
+- Nit: `TUTORIAL.md:200` "the model id is now shown unmarked" conflates `row.modelId` (never marked) with the panel `model`
+- Out of scope: `pipelines/README.md:101` and `apps/viewer/README.md:14` loose panel summaries omit `tools`/`served_by` — not falsified by this change, flagging only for a deliberate PR-review decision

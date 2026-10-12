@@ -413,7 +413,7 @@ def score_file(
     summary["usage"] = {"per_model": per_model_usage, "total": total}
 
     # Panel composition, so the ≥3-model / ≥2-provider bar is checkable from the
-    # committed artifact itself (no secrets — provider, model and endpoint host only).
+    # committed artifact itself (no secrets — provider, model, tools and endpoint host only).
     # Only emitted when a run config was supplied: without it there is no provider/
     # endpoint to prove, and a table of blanks under a "proof" heading would mislead.
     if panel:
@@ -424,9 +424,10 @@ def score_file(
             summary["panel"][model_id] = {
                 "provider": p.get("provider"),
                 "model": p.get("model") or um.get("model"),
-                # raw API model string (viewer-ignored); keeps the proof truthful when
-                # `model` carries a tools marker (Spec 8).
-                "api_model": p.get("api_model") or p.get("model") or um.get("model"),
+                # tools is part of panel identity (Approach B): the viewer keys standings
+                # on (provider, model, tools). A synthesised entry (usage with no panel)
+                # defaults to [] so a bare model keys identically to a no-tools config.
+                "tools": p.get("tools") or [],
                 "endpoint": p.get("endpoint"),
                 "served_by": sorted(um.get("served_by", {})) or None,
             }
@@ -483,14 +484,15 @@ def summary_markdown(summary: dict) -> str:
 
     panel = summary.get("panel") or {}
     if panel:
-        lines += ["", "### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)"]
-        lines += ["| model_id | provider | model | endpoint | served_by |", "|" + "---|" * 5]
+        lines += ["", "### Panel composition (committed-artifact proof — provider / model / tools / endpoint, no secrets)"]
+        lines += ["| model_id | provider | model | tools | endpoint | served_by |", "|" + "---|" * 6]
         for mid in sorted(panel):
             p = panel[mid]
             served = ", ".join(p.get("served_by") or []) or "—"
+            tools = ", ".join(p.get("tools") or []) or "—"
             lines.append(
                 f"| {mid} | {p.get('provider') or '—'} | {p.get('model') or '—'} "
-                f"| {p.get('endpoint') or '—'} | {served} |"
+                f"| {tools} | {p.get('endpoint') or '—'} | {served} |"
             )
 
     usage = summary.get("usage") or {}

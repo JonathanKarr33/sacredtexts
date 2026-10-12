@@ -254,11 +254,12 @@ A new task must keep every property that makes a committed run trustworthy:
 
 - **Panel identity includes tool use.** A model cell's identity is `_panel_fingerprint()`
   (`pipelines/sacredbench/collect.py:32`), which folds in its `tools`, and the same
-  tools identity is stamped into the emitted `panel.model` marker (`[web_search]` /
-  `[no-tools]`) in `cli.py:349` — so web-search-on and web-search-off never collapse into
-  one row. Tools are validated (and fail-fast on a non-Anthropic provider) by
-  `_parse_tools` (`pipelines/sacredbench/config.py:59`; the `tools` field on the model
-  spec is at `pipelines/sacredbench/config.py:50`).
+  tools identity is emitted as a real `panel.tools` list — the `model` stays the raw API
+  id, with no inline marker — in the written panel snapshot (`score.py:430`), so the viewer
+  keys standings on `(provider, model, tools)`: web-search-on and web-search-off stay
+  distinct rows while same-model/same-tools runs dedupe. Tools are validated (and fail-fast
+  on a non-Anthropic provider) by `_parse_tools` (`pipelines/sacredbench/config.py:59`; the
+  `tools` field on the model spec is at `pipelines/sacredbench/config.py:50`).
 - **Resumable collect.** Already-answered cells are skipped on re-run and a failed cell
   makes the run exit non-zero — nothing is silently dropped (`_existing`,
   `pipelines/sacredbench/collect.py:39`; the run driver `collect`,

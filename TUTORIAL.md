@@ -235,7 +235,9 @@ What you can look at:
   extra words" answers that the strict rule marked wrong.
 - **Standings** (link in the header) shows each model's most recent result across all
   runs. Because web-search-on and web-search-off count as different contestants, the four
-  tutorial entries stay as four separate rows.
+  tutorial entries stay as four separate rows — but the plain (no-search) `claude-haiku-5-5`
+  now shares a row with the same model from the earlier first run, and the newer run wins,
+  so you see one up-to-date row for it instead of two.
 
 For more on the viewer, see [`apps/viewer/README.md`](apps/viewer/README.md).
 

@@ -80,6 +80,40 @@ describe("StandingsPage — cross-run rollup", () => {
     expect(within(dataRows[1]!).getByRole("link", { name: "run-a" }).getAttribute("href")).toContain("run=run-a");
   });
 
+  it("surfaces the tools setting in the subtext so a search-on row is visibly distinct from off", async () => {
+    // Two arms of one model (same provider/model, tools on vs. off) are distinct identities
+    // under Approach B; the standings row must show the tools setting so they're not two
+    // visually identical rows. (Spec: "the standings page visibly distinguishes a search-on
+    // row from a search-off row".)
+    const summaries: Record<string, Summary> = {
+      "run-a": {
+        models: {
+          haiku: { retrieve_quote: { n: 1, accuracy: 0.5 }, _overall: { n: 1, accuracy: 0.5 } },
+          "haiku-search": { retrieve_quote: { n: 1, accuracy: 0.4 }, _overall: { n: 1, accuracy: 0.4 } },
+        },
+        by_tradition: {},
+        panel: {
+          haiku: { ...ANTHROPIC, tools: [] },
+          "haiku-search": { ...ANTHROPIC, tools: ["web_search"] },
+        },
+      },
+    };
+    vi.stubGlobal("fetch", standingsFetcher([{ id: "run-a", mtimeMs: 1 }], summaries));
+    renderApp("/standings");
+    expect(await screen.findByText("Current standings")).toBeInTheDocument();
+
+    const table = screen.getByRole("table");
+    const dataRows = within(table).getAllByRole("row").slice(1);
+    expect(dataRows).toHaveLength(2); // two tool-arm identities, not collapsed into one row
+
+    const rowFor = (modelId: string) =>
+      dataRows.find((r) => within(r).queryByRole("link", { name: modelId }))!;
+    // the search-on row shows its tools setting as a `· web_search` tag; the no-tools row shows none
+    expect(rowFor("haiku-search").textContent).toContain("anthropic / claude-haiku-5-5 · web_search");
+    expect(rowFor("haiku").textContent).toContain("anthropic / claude-haiku-5-5");
+    expect(rowFor("haiku").textContent).not.toContain("web_search");
+  });
+
   it("shows the resolved recency date (from generated_at), and 'date unknown' when no signal exists", async () => {
     const summaries: Record<string, Summary> = {
       // Has generated_at → recency Oct 12, shown as "dated 2026-10-12".

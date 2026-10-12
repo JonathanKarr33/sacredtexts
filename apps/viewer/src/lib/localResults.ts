@@ -28,6 +28,11 @@ export interface Usage {
 export interface PanelEntry {
   provider: string;
   model: string;
+  // The tools setting (e.g. ["web_search"]) is part of panel identity (Approach B): the
+  // standings key incorporates it, so search-on/off stay distinct rows while a no-tools
+  // entry keys identically to a bare run of the same model. Absent on pre-Approach-B runs
+  // (e.g. first-run-2026-10-11) → the aggregator defaults a missing value to [].
+  tools?: string[];
   endpoint: string;
   // Nullable in the real data (e.g. the anthropic-hosted model reports served_by: null).
   served_by: string[] | null;
