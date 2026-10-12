@@ -1,0 +1,33 @@
+I'll review phase_3 — the doc corrections. Let me read the relevant files.I've read the phase_3 doc edits plus the shipped code they describe. Verification notes:
+
+- **Scoped grep gate**: ran the plan's exact grep over the four docs → only `TUTORIAL.md:144` (`tools: [web_search]` config), the permitted survivor. ✅
+- **Walkthrough guard test**: `pipelines/tests/test_code_walkthrough.py` only checks pointer resolvability (floor ≥20) and symbol existence. I re-implemented its pointer check: 66 pointers, all resolve and in range; no `_REQUIRED_SYMBOLS` entry was touched. ✅
+- **Accuracy against code**: `aggregate.ts:67` key = `` `${provider}\u0000${model}\u0000${sortedTools.join(",")}` `` with `p?.tools ?? []` — matches `arch-critical.md:9`, `arch.md:100-108`, `CODE_WALKTHROUGH.md:335-344`. `StandingsPage.tsx:130-134` renders `provider / model [tools]` subtext — matches TUTORIAL's "`web_search` tag after the raw model name". ✅
+- **Scope discipline**: Spec 8's `codev/plans/8-*`, `projects/8-*`, `reviews/8-*`, `state/aspir-8_thread.md` untouched; diff is prose-only across exactly the four docs. ✅
+
+### Blocking issue — TUTORIAL.md:196-203 preserves a claim this change falsified
+
+The old bullet's "the four tutorial entries … appear as **four distinct rows** and do not collapse into one or collide with first-run's own `claude-haiku-5-5` row" was *true* under Approach A, precisely because the keys could never collide. The rewrite keeps the first half — "the four tutorial entries appear as **four distinct rows**" — but Approach B makes that mtime-dependent:
+
+- `runs/first-run-2026-10-11/summary.json` panel `claude-haiku` → `{anthropic, claude-haiku-5-5}` (no `tools` ⇒ `[]`), which now keys **identically** to the tutorial's `haiku` entry (verified by reading both committed panels).
+- For that shared key, `aggregate.ts:85` picks the greater `mtimeMs`, tie → run id ascending → `first-run-2026-10-11`. So the haiku-search-off row a reader sees may be labelled `claude-haiku` and sourced from first-run — the tutorial's own search-off entry doesn't appear.
+
+There are four distinct *keys* from the tutorial, but not four tutorial-sourced *rows*, and the spec is explicit: "this spec does **not** promise a specific winner between two same-date runs" / "Do not claim a winner." The bullet also doesn't tell the reader the total (7 rows, not 8), so the "four distinct rows" + "collapse to a single row" sentences read as being in tension. Suggested shape: say the four arms are four distinct standings *keys* (search-on rows carry the `web_search` tag), total **7** rows across both runs, and that which run supplies the shared search-off-haiku row depends on run-directory mtime (the same caveat the bullet at line 183 already makes for the leaderboard default). The run `README.md:17-20` got this right — "supersedable rather than orphaned" — TUTORIAL should match that register.
+
+### Non-blocking
+
+1. **Grep-letter circumlocution hurts the docs.** Per `codev/state/aspir-11_thread.md:185-188` the prose was deliberately reworded to avoid the literal tokens *even in negations*, which is why `arch-critical.md:9` and `arch.md:78-81` say "no separate duplicate id field" instead of naming `api_model`. The plan's criterion was "no stale marker *instruction* remains" — intent, not letter. The cost is real: a future agent grepping `api_model` to find out what happened to it finds nothing, and "the former separate duplicate id field" is opaque to a reader who never saw Spec 8. Prefer naming the field ("the `api_model` field is dropped — `model` is now the raw id") and listing those lines as permitted grep hits.
+2. **`CODE_WALKTHROUGH.md:339-340` dropped a `file:line` pointer.** `cli.py:349` became a bare `(cli.py)`, while every sibling claim in the same bullet keeps one (`collect.py:32`, `config.py:59`, `config.py:50`). The pointer is the doc's stated value proposition; the current target is `cli.py:347`. Also worth noting the panel *snapshot written to `summary.json`* is emitted by `score.py`'s panel path — `cli.py` builds the in-memory dict — so a `score.py` pointer alongside would be more precise. Line wrapping in that paragraph is now ragged (one 7-word line).
+3. **`arch.md:104`** still says "the newest run per model winning"; with the new key it's per `(provider, model, tools)`. One-word fix if you're touching the line anyway.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Doc corrections are accurate and the grep/walkthrough gates hold, but TUTORIAL.md keeps an Approach-A-era claim ("four tutorial entries appear as four distinct rows") that Approach B makes mtime-dependent and that the spec explicitly forbids claiming.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `TUTORIAL.md:196-203` (user-facing) claims the four tutorial entries appear as four distinct rows; the search-off `claude-haiku-5-5` row is now a shared key with first-run and the mtime/id rule may source it from `first-run-2026-10-11`. Reword to distinct *keys* / 7 total rows + the mtime caveat (as `runs/tutorial-2026-10-11/README.md` already does).
+- Non-blocking: `arch-critical.md:9` / `arch.md:78-81` avoid naming `api_model` purely to satisfy the grep's letter, making the "what happened to that field" story ungreppable and opaque; prefer naming it and whitelisting those lines.
+- Non-blocking: `CODE_WALKTHROUGH.md:339` replaced the `cli.py:349` pointer with a bare `(cli.py)`, breaking the doc's file:line convention (current target `cli.py:347`; the written snapshot is actually `score.py`).
+- Non-blocking: `arch.md:104` "newest run per model" should be per `(provider, model, tools)`.
