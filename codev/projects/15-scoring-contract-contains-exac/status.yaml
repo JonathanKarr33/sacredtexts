@@ -8,27 +8,27 @@ plan_phases:
     status: complete
   - id: phase_2
     title: Named-grader registry + score --evaluator CLI (provable no-op)
-    status: in_progress
+    status: complete
   - id: phase_3
     title: Refused outcome + coverage + second rebaseline
-    status: pending
+    status: in_progress
   - id: phase_4
     title: 'Viewer: four outcome categories + coverage + search-on/off contrast'
     status: pending
   - id: phase_5
     title: Documentation sync for the evaluator/outcome contract
     status: pending
-current_plan_phase: phase_2
+current_plan_phase: phase_3
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-12T16:17:31.163Z'
-updated_at: '2026-10-12T17:49:33.215Z'
+updated_at: '2026-10-12T17:55:31.998Z'
 pr_ready_for_human: false
 force_advanced:
   phase: plan
@@ -43,3 +43,5 @@ context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-12T17:41:03.264Z'
     acknowledged_at: '2026-10-12T17:41:10.028Z'
+  - boundary: plan-phase:phase_3
+    at: '2026-10-12T17:55:31.998Z'
