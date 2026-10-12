@@ -511,3 +511,10 @@ NOT via --evaluator, merges via own pass); dropped "every answer gets both tiers
 CODE_WALKTHROUGH:241 + score.py docstring (kept 2 lines → pointers unshifted); root README +
 TUTORIAL:158 one-liners; arch.md scoring bullet rewritten to Spec-15 contract (had lagged
 arch-critical). dispatcher 345/1, test_code_walkthrough 100. iter1 rebuttal written.
+
+### phase_5 consult iter2 (codex RC, claude COMMENT) — folded, docs only
+codex: pipelines/README score step + apps/viewer/README leaderboard+explorer still stale → rewritten
+to Spec-15 contract (graders/--evaluator/#21, 4 outcomes, refused filter, coverage column, contrast).
+claude: first-run token_f1 → GRADED-cell means from summary.json (~0.15 gemma/~0.24 llama, not all-100);
+CODE_WALKTHROUGH recipe now names the Grader.default=True trap; cli.py:349→361 (tools-marker line).
+dispatcher 346/1. iter2 rebuttal written.

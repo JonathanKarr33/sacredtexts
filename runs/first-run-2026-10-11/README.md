@@ -35,7 +35,8 @@ The two behaviours the old strict headline conflated are now split cleanly by th
   coverage** (right when it answers), not a flat 25%.
 - **Fabrication (confident but wrong → `incorrect`).** `gemma-3-4b` answers every cell and is always
   wrong (0% / coverage 100%); `llama-3.1-8b` likewise emits fluent scripture-like text that is not
-  the requested verse (mean `token_f1` ~0.15 gemma / ~0.21 llama — wrong text, not a formatting miss).
+  the requested verse (mean `token_f1` over graded cells ~0.15 gemma / ~0.24 llama, per `summary.json`
+  — wrong text, not a formatting miss).
 
 **Correction to an earlier draft:** `claude-haiku`'s containment lift is **one** cell, not 17.
 `retrieve_quote-88403db0a16b` (a KJV-LDS Zephaniah verse) is the single answer that reproduces the

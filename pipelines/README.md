@@ -88,11 +88,16 @@ cp configs/models.example.yaml configs/models.yaml   # then edit; keys via env
 uv --project pipelines run python -m sacredbench collect runs/questions.jsonl configs/models.yaml
 
 # 5. Score and print the summary. Per-task contract: retrieve_quote/complete_unit
-#    -> normalized-exact (+ exact/token-F1); verify_source -> boolean; identify_version
-#    -> label exact/normalized; cite_passage/identify_source -> the SINGLE extracted
-#    citation must equal ground truth (a multi-candidate hedge scores 0). The summary
-#    also breaks down per model x task x TRADITION (each observation once per listed
-#    tradition). Optional flags:
+#    -> the OR of the SELECTED named graders' verdicts (default `strict` + `containment`
+#    => `normalized OR contains_reference`; pick a subset with `--evaluator strict` /
+#    `--evaluator containment`; a paid/separate-pass grader is expressible, never default
+#    -> issue #21); verify_source -> boolean; identify_version -> label exact/normalized;
+#    cite_passage/identify_source -> the SINGLE extracted citation must equal ground truth
+#    (a multi-candidate hedge scores 0). Every answered cell also gets an OUTCOME
+#    (correct/incorrect/refused): a decline is `refused` and excluded from
+#    `accuracy = correct/(correct+incorrect)`, with `coverage = (correct+incorrect)/n`
+#    reported beside it. The summary also breaks down per model x task x TRADITION (each
+#    observation once per listed tradition). Optional flags:
 #      --summary-md PATH            also write the markdown summary (Phase 8 evidence)
 #      --questions Q --config CFG   report missing/failed cells against the panel x
 #                                   question-set roster (expected_n / 'miss N')

@@ -1,0 +1,38 @@
+I'll review the Phase 5 documentation sync work. Let me start by reading the key files.Let me read the prior iteration context and the key Phase 5 documentation files.Now let me read the actual Phase 5 documentation files to verify the fixes.Let me verify the factual claims against the committed evidence data.The outcome is nested in `metrics`. Let me recompute correctly.All iter-1 numbers verified correct. Now let me check the remaining files and the first-run README figures.Let me verify the llama token_f1 figure more carefully — it looks off.Now let me check the remaining doc-sync targets: arch.md, CODE_WALKTHROUGH.md recipe, and the root README.CODE_WALKTHROUGH's evaluator recipe is the core Phase-5 deliverable. Let me read it and run the test gate.Test gate is green. Let me verify the recipe's claims against `graders.py` and check the cited line pointers.Let me verify the governance doc updates (lessons-learned porch quirk) and remaining READMEs.Let me check the pointer-drift nits from iter-1 that the disposition didn't mention.Let me verify the lessons-learned never-re-score bullet and what `test_code_walkthrough` actually guards.Let me do a final check on the summary.md renders (coverage beside accuracy) and the web-search activity figures.I verified every Phase-5 claim against the code and committed data, and ran the test gate (345 passed, 1 skipped).
+
+## Iteration-1 blockers — all verifiably fixed
+
+I recomputed each disputed number from `scores.jsonl` rather than trusting the disposition:
+
+- **`267 of the 268`** (tutorial README:87) — confirmed: 268 refused across both runs, 267 below `token_f1` 0.3, exactly one above (`haiku-search / retrieve_quote-e2d74279aaf0`, 0.6806). Now internally consistent with "across 268" in the same bullet, and the companion "only one above 0.5" claim holds.
+- **"8 correct Talmud cells"** (README:77) — confirmed: `opus-search` Judaism is `{correct: 8, incorrect: 2, refused: 24}`. The 74/8 conflation is gone.
+- **`arch.md:66-69`** — genuinely rewritten to the Spec-15 contract (grader-OR headline, `outcome`/refused, accuracy+coverage, sanctioned rebaseline, #23 deferral). No longer contradicts `arch-critical.md`.
+- **Stale one-liners** — `README.md:19-21`, `TUTORIAL.md:159` step-6 comment, `CODE_WALKTHROUGH.md:239-242`, and `score.py`'s opening docstring all now say the *selected* graders set the metrics/headline. The "both tiers" wording is gone everywhere.
+- **TUTORIAL.md:95-98** — now correctly states `--evaluator` accepts only inline graders and the #21 judge merges via its own resumable pass. This matches `graders.resolve_evaluators` (`graders.py:102-106`), which fails fast on `inline=False`.
+
+**Independently re-verified**: every accuracy/coverage figure in both run READMEs and both `summary.md`s (tutorial 66/0/34, 74/2/24, 52/13/35, 47/19/34; first-run 25/20/55, 1/79/20, 0/34/66, 0/100/0); the "~3 points" claim (100% → 97.4%); "78.8% if counted incorrect" (52/66); web-search activity (93 cells, 226 requests, 34/131 + 59/95); the "8 of 34" / "24 of 33" containment counts preserved per the plan; the first-run one-cell lift (normalized 24 → contains 25). All exact. `summary.md` renders coverage beside accuracy with `n/a` for all-refused.
+
+The evaluator recipe (`CODE_WALKTHROUGH.md:268-288`) is accurate — the import-time `_CANONICAL_ORDER` guard, the verdict-less non-inline descriptor, and all four `graders.py:N` pointers resolve to the right symbols.
+
+## Residual minor items
+
+**1. `runs/first-run-2026-10-11/README.md:38` — "~0.21 llama" uses the superseded denominator.** The graded-cell mean is **0.2351**, which is what the committed `summary.json` carries (`/models/llama-3.1-8b/retrieve_quote/token_f1: 0.2351`). 0.2085 is the mean over all 100 cells — the denominator Phase 3 explicitly abandoned ("submetric averages over graded cells"). So the prose now disagrees with its own committed summary. `~0.15` for gemma is right, but only coincidentally: gemma has zero refusals, so both denominators agree. Fix is `~0.24`. The qualitative point ("wrong text, not a formatting miss") holds either way.
+
+**2. Recipe step 2 says "Add it to the default set with `default=True`"** — that reads as opt-in, but `Grader.default` is `True` by the dataclass (`graders.py:37`), so registration is opt-**out**. A contributor following the recipe literally would silently land a new inline grader in `DEFAULT_EVALUATORS`, moving the headline for everyone and forcing a rebaseline. The spec's "paid graders never default" invariant is still safe (`DEFAULT_EVALUATORS` also requires `g.inline`), so this isn't a correctness hole — but the recipe carefully warns about the `metric_keys` trap and not this one.
+
+**3. Pointer drift (nit):** `collect.py:129` is cited for the digest write but lands on `panel_fingerprint` (digest is 5 lines later, same dict); `cli.py:349` is cited for the `[web_search]` marker but lands ~7 lines early. `test_code_walkthrough.py`'s own docstring declares lines are deliberately not pinned ("a drifted line is a convenience to fix"), so this is an acknowledged class, and the plan only required re-deriving `score.py:N` pointers — which are correct.
+
+Items 1 and 2 are one-line fixes. Neither invalidates a headline figure, the implemented contract, or any acceptance criterion, so I wouldn't hold the phase for them.
+
+*Note: I reviewed read-only and made no edits to the worktree.*
+
+---
+VERDICT: COMMENT
+SUMMARY: All four iteration-1 blockers are verifiably fixed against recomputed run data, the evaluator recipe and pointers check out, and the test gate is green; two one-line doc nits remain (llama token_f1 uses the abandoned all-cells denominator; recipe implies default-set membership is opt-in when it is opt-out).
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `runs/first-run-2026-10-11/README.md:38`: "mean token_f1 ~0.21 llama" is the all-100-cells mean; the graded-cell mean committed in `summary.json` is 0.2351 (~0.24). Prose contradicts its own committed artifact using the denominator Phase 3 abandoned.
+- `CODE_WALKTHROUGH.md:280-281`: "Add it to the default set with `default=True`" implies opt-in, but `Grader.default` defaults to `True` (`graders.py:37`) — a new inline grader joins the default headline unless `default=False` is set. Recipe should name this trap as it does the `metric_keys` one.
+- Nit (acknowledged class, test does not pin lines): `collect.py:129` and `cli.py:349` pointers in `CODE_WALKTHROUGH.md` land a few lines off their cited targets.

@@ -277,8 +277,10 @@ reported metric fields; graders are selectable by name on `score --evaluator`. T
    stray key fails loudly rather than being silently dropped.
 2. Nothing else for an inline grader: `resolve_evaluators` (`graders.py:86`) and
    `submetrics_for` (`graders.py:111`) pick it up, `score_answer` emits the selected graders'
-   fields, and the headline becomes the OR of the selected verdicts. Add it to the default set
-   with `default=True`.
+   fields, and the headline becomes the OR of the selected verdicts. **`Grader.default` defaults
+   to `True`** (`graders.py:37`), so a new inline grader joins the DEFAULT headline — and reshapes
+   every committed `scores.jsonl` — unless you pass `default=False`. Set it deliberately; that is
+   the second trap after the `metric_keys` one.
 3. A **paid / separate-pass** grader (the future Jev judge, issue #21) is a descriptor with
    `inline=False` and **no verdict callable**: `score` never runs it inline (selecting it fails
    fast), and a later resumable pass merges its declared `metric_keys` into each row's metrics
@@ -380,7 +382,7 @@ must keep all of them:
   `_panel_fingerprint()` (`pipelines/sacredbench/collect.py:32`), which includes its
   `tools`, so a web-search-on cell can never be resumed as web-search-off. The same
   tools identity is baked into the emitted `panel.model` marker
-  (`[web_search]` / `[no-tools]`) in `cli.py:349`, so search-on and search-off never
+  (`[web_search]` / `[no-tools]`) in `cli.py:361`, so search-on and search-off never
   collapse or collide in the viewer's standings key. Tools are validated — and
   fail-fast on a non-Anthropic provider — in `config.py` (`_parse_tools`,
   `config.py:59`; `tools` on `ModelSpec`, `config.py:50`).
