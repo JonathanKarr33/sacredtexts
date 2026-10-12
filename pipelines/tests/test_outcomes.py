@@ -23,6 +23,7 @@ EXP = {"text": "The keeper planted twelve trees."}
         "I couldn't verify the exact text of that passage.",
         "I can't help with that.",
         "I must decline to reproduce it.",
+        "I can neither provide a quote from the Talmud nor a translation of it.",
     ],
 )
 def test_leading_declines_are_refusals(answer):

@@ -87,27 +87,27 @@
   "llama-3.1-8b": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.0122,
-    "coverage": 0.82,
+    "accuracy": 0.0125,
+    "coverage": 0.8,
     "correct": 1,
-    "incorrect": 81,
-    "refused": 18,
-    "refused_rate": 0.18,
-    "exact": 0.0122,
-    "normalized": 0.0122,
-    "token_f1": 0.2325,
-    "contains_reference": 0.0122,
+    "incorrect": 79,
+    "refused": 20,
+    "refused_rate": 0.2,
+    "exact": 0.0125,
+    "normalized": 0.0125,
+    "token_f1": 0.2351,
+    "contains_reference": 0.0125,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.0122,
-    "coverage": 0.82,
+    "accuracy": 0.0125,
+    "coverage": 0.8,
     "correct": 1,
-    "incorrect": 81,
-    "refused": 18,
-    "refused_rate": 0.18,
+    "incorrect": 79,
+    "refused": 20,
+    "refused_rate": 0.2,
     "expected_n": 100,
     "missing": 0
    }
@@ -413,22 +413,22 @@
     "retrieve_quote": {
      "n": 25,
      "accuracy": 0.0,
-     "coverage": 0.32,
+     "coverage": 0.24,
      "correct": 0,
-     "incorrect": 8,
-     "refused": 17,
-     "refused_rate": 0.68,
+     "incorrect": 6,
+     "refused": 19,
+     "refused_rate": 0.76,
      "expected_n": 25,
      "missing": 0
     },
     "_overall": {
      "n": 25,
      "accuracy": 0.0,
-     "coverage": 0.32,
+     "coverage": 0.24,
      "correct": 0,
-     "incorrect": 8,
-     "refused": 17,
-     "refused_rate": 0.68,
+     "incorrect": 6,
+     "refused": 19,
+     "refused_rate": 0.76,
      "expected_n": 25,
      "missing": 0
     }
@@ -586,5 +586,5 @@
   "strict",
   "containment"
  ],
- "generated_at": "2026-10-12T19:27:16.896940+00:00"
+ "generated_at": "2026-10-12T19:41:55.017434+00:00"
 }

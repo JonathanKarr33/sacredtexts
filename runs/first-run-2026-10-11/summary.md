@@ -1,7 +1,7 @@
 | model | retrieve_quote | overall |
 |---|---|---|
 | claude-haiku | 56% cov 45% (n=100; c/i/r 25/20/55) | **56%** cov 45% (c/i/r 25/20/55) |
-| llama-3.1-8b | 1% cov 82% (n=100; c/i/r 1/81/18) | **1%** cov 82% (c/i/r 1/81/18) |
+| llama-3.1-8b | 1% cov 80% (n=100; c/i/r 1/79/20) | **1%** cov 80% (c/i/r 1/79/20) |
 | gemma-3-4b | 0% cov 100% (n=100; c/i/r 0/100/0) | **0%** cov 100% (c/i/r 0/100/0) |
 | gpt-oss-20b | 0% cov 34% (n=100; c/i/r 0/34/66) | **0%** cov 34% (c/i/r 0/34/66) |
 
@@ -22,7 +22,7 @@ _Cells: accuracy cov coverage (n answered; c/i/r = correct/incorrect/refused). a
 | gpt-oss-20b | Protestant Christian | 0% cov 80% (n=25; c/i/r 0/20/5) | **0%** cov 80% (n=25; c/i/r 0/20/5) |
 | gpt-oss-20b | Roman Catholic | 0% cov 8% (n=25; c/i/r 0/2/23) | **0%** cov 8% (n=25; c/i/r 0/2/23) |
 | gpt-oss-20b | The Church of Jesus Christ of Latter-Day Saints | 0% cov 48% (n=25; c/i/r 0/12/13) | **0%** cov 48% (n=25; c/i/r 0/12/13) |
-| llama-3.1-8b | Judaism | 0% cov 32% (n=25; c/i/r 0/8/17) | **0%** cov 32% (n=25; c/i/r 0/8/17) |
+| llama-3.1-8b | Judaism | 0% cov 24% (n=25; c/i/r 0/6/19) | **0%** cov 24% (n=25; c/i/r 0/6/19) |
 | llama-3.1-8b | Protestant Christian | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
 | llama-3.1-8b | Roman Catholic | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
 | llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% cov 96% (n=25; c/i/r 1/23/1) | **4%** cov 96% (n=25; c/i/r 1/23/1) |

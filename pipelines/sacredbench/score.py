@@ -143,8 +143,12 @@ def token_f1(answer: str, expected: str) -> float:
 
 
 def parse_yes_no(answer: str) -> str | None:
-    m = re.search(r"\b(yes|no)\b", normalize(answer))
-    return m.group(1) if m else None
+    """The COMMITTED Yes/No, or None. A commitment is a single unambiguous token: an answer that
+    mentions BOTH ("I can't verify whether the answer is yes or no") commits to neither and parses
+    to None — so it is not scored correct and, with a leading decline, classifies as `refused`
+    (Spec 15). An answer with neither token is also None."""
+    toks = set(re.findall(r"\b(yes|no)\b", normalize(answer)))
+    return next(iter(toks)) if len(toks) == 1 else None
 
 
 def _contains(answer: str, needle: str) -> bool:
@@ -455,10 +459,10 @@ def score_file(
     all_cells = set(per_cell) | set(expected)
     for (model_id, task) in sorted(all_cells):
         acc = per_cell.get((model_id, task))
-        if acc:
-            cell = _outcome_cell(acc, _task_submetrics(task))
-        else:
-            cell = {"n": 0, "accuracy": None}  # no data (not a 0% score)
+        # a fully-missing (expected-but-unanswered) cell gets the same three-outcome schema via a
+        # zero accumulator (accuracy/coverage/refused_rate → None, counts → 0), so summary consumers
+        # see one shape; `missing` below stays distinct from `refused` (answered-then-declined).
+        cell = _outcome_cell(acc or {"n": 0, "correct": 0, "refused": 0}, _task_submetrics(task))
         if (model_id, task) in expected:
             cell["expected_n"] = expected[(model_id, task)]
             cell["missing"] = max(expected[(model_id, task)] - cell["n"], 0)
@@ -487,10 +491,8 @@ def score_file(
     all_trad_cells = set(per_trad) | set(expected_tradition)
     for (model_id, trad, task) in sorted(all_trad_cells):
         tacc = per_trad.get((model_id, trad, task))
-        if tacc:
-            cell = _outcome_cell(tacc, ())  # tradition cells report outcomes, not submetrics
-        else:
-            cell = {"n": 0, "accuracy": None}
+        # tradition cells report outcomes, not submetrics; a fully-missing one uses the same schema
+        cell = _outcome_cell(tacc or {"n": 0, "correct": 0, "refused": 0}, ())
         if (model_id, trad, task) in expected_tradition:
             cell["expected_n"] = expected_tradition[(model_id, trad, task)]
             cell["missing"] = max(expected_tradition[(model_id, trad, task)] - cell["n"], 0)

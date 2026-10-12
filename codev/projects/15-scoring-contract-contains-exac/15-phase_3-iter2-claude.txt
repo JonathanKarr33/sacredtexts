@@ -1,0 +1,60 @@
+I'll start by reading the key implementation files to verify the iteration-2 fixes.I've independently verified the implementation. Here's my review.
+
+## Phase 3 review — refused outcome + coverage + second rebaseline
+
+### Iteration-1 fixes: both confirmed in code, not just claimed
+
+**1. Provenance refusal override (both lanes' MUST-FIX) — fixed.** `score.py:290` now reads `if not metrics["correct"] and classify_refusal(...)`. The comment correctly explains *why* it's a no-op for text-retrieval (the matcher's own not-contained half already forces `correct == 0`) and load-bearing only for provenance. `test_hedged_but_correct_provenance_is_not_refused` covers `cite_passage`, `identify_source`, and `verify_source` hedged-but-correct, **plus** the still-refused decline-without-delivery case — the right shape, since the gate could otherwise be satisfied vacuously.
+
+**2. `summary.md` three-outcome breakdown (codex) — fixed.** Both committed `summary.md` files now render `56% cov 45% (n=100; c/i/r 25/20/55)` per cell and in the overall column, with a legend defining all three quantities. Note `refused_rate = 1 − coverage` exactly (`c+i+r = n`), so printing it numerically would be pure redundancy — showing the formula in the legend is the right call, and codex's point is substantively met.
+
+**3. `@lru_cache` on `_normalized_cues()`** — applied.
+
+### Independent verification (not taking the builder's word)
+
+| Claim | My check | Result |
+|---|---|---|
+| No third rebaseline / no hand edits | `test_rescoring_committed_answers_reproduces_scores` re-scores committed `answers.jsonl` and byte-compares | passes **unmodified** for both runs |
+| Phase-1 oracle survives | `test_similarity_projection_unchanged` | passes — `(exact, normalized, token_f1)` SHA unchanged |
+| No false positives | counted refused cells with `contains_reference == 1` | **0** in both runs |
+| Refused set integrity | per-model counts sum | 55+66+18 = 139 ✓, 34+34+35+24 = 127 ✓ |
+| `LEADING_WINDOW = 60` not a tuned magic number | recomputed the refused set at windows {30, 45, 60, 80, 120, ∞} | first-run **139 at every window**; tutorial 126/127/127/128/128/128 — genuinely not load-bearing |
+| Gates | `uv --project pipelines run pytest` / `pnpm vitest` | **336 passed, 1 skipped** / **125 passed** (incl. `test_audit.py`) |
+
+Accuracy/coverage/counts/`refused_rate` are present at every level (task, `_overall`, `by_tradition`); all-refused → `accuracy: null` rendered `n/a`; submetrics average over graded cells only and go `None` when nothing was graded.
+
+### New finding: two genuine missed refusals (not previously raised)
+
+I scanned **every** `incorrect` cell in both runs for decline language in the leading window. Exactly two unambiguous declines are scored `incorrect`:
+
+- `llama-3.1-8b / retrieve_quote-22fab64cec81` — *"I can neither provide a quote from the Talmud nor a translation of it. Is there anything else I can help you with?"*
+- `llama-3.1-8b / retrieve_quote-74d14c70efb0` — *"I can neither provide nor verify the text of the William Davidson Edition - English translation of Bava Kamma 105a:7."*
+
+`_DECLINE_CUES_RAW` carries `"i can't provide"`, `"i cannot provide"`, `"unable to provide"` — but not the `can neither … nor` construction. These are counted as *wrong answers* for a model that explicitly declined, which is the exact conflation the phase exists to end. (The other four hits from my broad regex are true negatives: scripture containing "cannot"/"will not", and `d9d818ef890f` which rejects the premise then delivers.)
+
+**Impact is small and no criterion is violated.** `llama-3.1-8b` retrieve_quote 18→20 refused: accuracy 0.0122→0.0125, coverage 0.82→0.80; its Judaism cell cov 32%→24%. Nothing in the search-on/off narrative moves, and a false negative is the spec's sanctioned direction of error ("conservative — only clear declines"). I would not block the numbers.
+
+**What I'd push back on is the framing.** `test_refused_set_matches_preregistration` asserts the matcher reproduces the hand-frozen set "EXACTLY" and its docstring says it guards against "over- **or under-**matching declines." A reader concludes no declines were missed. The hand survey missed two answers that *open* with "I can neither provide" — so the pin validates the matcher against an incomplete survey, in precisely the direction the docstring claims to cover. Pick one:
+
+- **(a)** Add a `"i can neither provide"` / `"can neither"` cue and re-pin — costs a corrective re-score of first-run (defensible as completing the same rebaseline, not a third, since the evidence hasn't shipped).
+- **(b)** Leave the numbers and add one honest sentence to the docstring + the phase-5 caveat list, naming both question_ids — alongside the 1/21 hedge and the `haiku-search` 0.68 refused cell you already track.
+
+Either is fine; (b) is cheaper and consistent with how you've handled the other known gaps.
+
+### Minor notes (no action required)
+
+- `leading_decline` runs ~70 `find` calls over the *full* normalized answer then checks position. Slicing to `nans[:LEADING_WINDOW + max_cue_len]` first would bound the work with identical semantics. Micro-perf only.
+- The containment half inside `classify_refusal` is redundant for text-retrieval under the default set but **load-bearing under `--evaluator strict`** (where `correct = normalized`, so a decline-prefixed wrapped delivery would otherwise be gated in as refused). `_with_outcome` documents why the outer gate is a no-op there; worth a word on why the inner half must stay, so a later reader doesn't "simplify" it away.
+- `test_outcome_exclusive_and_refused_keeps_submetrics` iterates text-retrieval rows only — correct, since both runs are `retrieve_quote`-only; provenance exclusivity over real evidence is necessarily unit-test-only.
+- A roster-only model's `_overall` renders `**n/a** (c/i/r 0/0/0) −3`. Cosmetic.
+
+---
+VERDICT: COMMENT
+SUMMARY: Both iteration-1 must-fixes are genuinely fixed and independently verified; the rebaseline is clean (oracle unchanged, byte guards pass unmodified, zero false-positive refusals, window non-load-bearing) — one new low-impact calibration gap should be fixed or documented before the PR.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Refusal cue set misses the "I can neither provide … nor" construction: `llama-3.1-8b / retrieve_quote-22fab64cec81` and `/retrieve_quote-74d14c70efb0` are unambiguous declines scored `incorrect`. Impact is tiny (accuracy 0.0122→0.0125, coverage 0.82→0.80 on the bottom-ranked model) and false negatives are the spec's sanctioned direction, but `test_refused_set_matches_preregistration`'s docstring claims to guard against under-matching, so the pre-registration is weaker than advertised. Add the cue and re-pin, or document both question_ids in the docstring and the phase-5 caveat list.
+- Nit: `leading_decline` scans the full normalized answer per cue; slice to the leading window first (no behavior change).
+- Nit: document why `classify_refusal`'s containment half must stay (load-bearing under `--evaluator strict`, redundant under the default set) so it isn't later removed as dead.

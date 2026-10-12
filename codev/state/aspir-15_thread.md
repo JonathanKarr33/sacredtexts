@@ -397,3 +397,18 @@ refused 265/266 < 0.3; 3-way attack; LEADING_WINDOW 60 not load-bearing, ±1 cel
 - phase_4: localResults.ts:388 formatCell renders a null-accuracy (all-refused) cell as bare "n/a",
   dropping n (e.g. tutorial all-refused Judaism rows lose n). Fix with the coverage-column work.
 Pipeline suite green after fixes; both consult outputs committed with the phase work.
+
+### phase_3 consult iter2 (codex REQUEST_CHANGES HIGH, claude COMMENT) — all folded
+- codex#1 verify_source: `parse_yes_no` returned FIRST yes/no → "I can't verify whether yes or no"
+  falsely committed/scored correct. FIX: parse_yes_no now needs a SINGLE unambiguous token (both/
+  neither → None) → ambiguous decline scores correct=0 → gate lets classify_refusal mark refused.
+  No committed verify_source evidence → no rebaseline. +regression tests.
+- codex#2 missing cells: fully-missing (n=0) cells lacked outcome/coverage keys. FIX: route them
+  through _outcome_cell (counts 0, ratios None; missing≠refused). No committed n=0 cells → no change.
+- claude (COMMENT): 2 genuine "I can neither provide…nor" llama declines missed. FIXED (not just
+  documented) — added "i can neither" cue, re-pinned refused set within the OPEN phase_3 rebaseline:
+  first-run 139→141 (llama 18→20), SHA re-pinned; tutorial unchanged. ONLY those 2 cells flip
+  incorrect→refused; oracle + flip set byte-unchanged; llama acc 0.0122→0.0125 cov 0.82→0.80.
+- claude nits applied: leading_decline scans only the window; documented classify_refusal containment
+  half is load-bearing under --evaluator strict.
+340 pipeline tests pass/1 skip; both lanes green. iter2 rebuttal written.

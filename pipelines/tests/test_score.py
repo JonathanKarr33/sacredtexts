@@ -35,7 +35,14 @@ def test_token_f1_bounds():
     assert 0.0 < token_f1("the keeper planted", "the keeper planted trees") < 1.0
 
 
-@pytest.mark.parametrize("ans,expected", [("Yes.", "yes"), ("no,", "no"), ("NO!", "no"), ("maybe", None)])
+@pytest.mark.parametrize("ans,expected", [
+    ("Yes.", "yes"), ("no,", "no"), ("NO!", "no"), ("maybe", None),
+    # a single unambiguous commitment stands even behind a hedge prefix
+    ("I can't be sure, but yes.", "yes"),
+    # mentioning BOTH commits to neither -> None (not the first token)
+    ("I can't verify whether the answer is yes or no.", None),
+    ("yes or no", None),
+])
 def test_parse_yes_no(ans, expected):
     assert parse_yes_no(ans) == expected
 
@@ -153,6 +160,9 @@ def test_verify_source_decline_is_refused():
     assert r["outcome"] == "refused" and r["correct"] == 0
     # a committed Yes/No is graded normally even if wrong
     assert score_answer("verify_source", "No.", {"answer": "yes"})["outcome"] == "incorrect"
+    # a decline that MENTIONS both yes and no commits to neither -> refused, not falsely correct
+    both = score_answer("verify_source", "I can't verify whether the answer is yes or no.", {"answer": "yes"})
+    assert both["outcome"] == "refused" and both["correct"] == 0
 
 
 def test_hedged_but_correct_provenance_is_not_refused():
@@ -464,9 +474,15 @@ def test_missing_cells_with_roster(tmp_path):
     summary = score_file(answers, tmp_path / "scores.jsonl", expected)
     m1 = summary["models"]["m1"]
     assert m1["retrieve_quote"]["n"] == 1 and m1["retrieve_quote"]["missing"] == 2
-    assert m1["verify_source"]["n"] == 0 and m1["verify_source"]["missing"] == 2  # fully-missing task
+    vs = m1["verify_source"]
+    assert vs["n"] == 0 and vs["missing"] == 2  # fully-missing task
+    # a fully-missing cell carries the same three-outcome schema (counts 0, ratios None), distinct
+    # from refused; coverage/accuracy/refused_rate are None (nothing answered)
+    assert vs["correct"] == 0 and vs["incorrect"] == 0 and vs["refused"] == 0
+    assert vs["accuracy"] is None and vs["coverage"] is None and vs["refused_rate"] is None
     assert "m2" in summary["models"]  # a model whose every cell failed still appears
     assert summary["models"]["m2"]["retrieve_quote"]["missing"] == 3
+    assert summary["models"]["m2"]["retrieve_quote"]["refused"] == 0  # missing != refused
     assert summary["models"]["m2"]["_overall"]["missing"] == 3
     assert "miss" in summary_markdown(summary)
 

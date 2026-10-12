@@ -93,11 +93,14 @@ EXPECTED_COVERAGE = {
 # sacredbench/outcomes.classify_refusal must reproduce this set EXACTLY. Pinned by per-model count
 # (readable) + a SHA-256 of the sorted (model_id, question_id) pairs (catches any single-cell drift).
 REFUSED_COUNTS = {
-    "first-run-2026-10-11": {"claude-haiku": 55, "gpt-oss-20b": 66, "llama-3.1-8b": 18},
+    # first-run llama-3.1-8b is 20 (not 18): the iter-2 review surfaced two genuine "I can neither
+    # provide … nor …" declines (retrieve_quote-22fab64cec81, -74d14c70efb0) the first survey missed;
+    # the cue was added and the set re-pinned (llama accuracy 0.0122→0.0125, coverage 0.82→0.80).
+    "first-run-2026-10-11": {"claude-haiku": 55, "gpt-oss-20b": 66, "llama-3.1-8b": 20},
     "tutorial-2026-10-11": {"haiku": 34, "opus": 34, "haiku-search": 35, "opus-search": 24},
 }
 REFUSED_SET_SHA256 = {
-    "first-run-2026-10-11": "76086cc5d447cae95dbcb1ede147d8e19c5f3c65717671650caa7a99ec8e693c",
+    "first-run-2026-10-11": "8f6a7dcc2157705029bf4f43c024b48807737bafbfdc33fed6d370bdf6db583b",
     "tutorial-2026-10-11": "5d8856fa9a7c7c319e0fcc26d0eaf659af308d4397b9ff6d33b633fa1afee6dd",
 }
 

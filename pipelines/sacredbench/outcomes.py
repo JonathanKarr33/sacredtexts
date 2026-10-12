@@ -65,6 +65,8 @@ _DECLINE_CUES_RAW: tuple[str, ...] = (
     # sorry-but-no
     "i'm sorry, but i don't", "i'm sorry but i don't", "i'm sorry, but i can't",
     "i'm sorry but i can't", "i can't help with that", "i can't fulfill", "i cannot fulfill",
+    # "I can neither provide … nor …" — a two-part decline (surfaced by the iter-2 review)
+    "i can neither",
     # cannot / couldn't verify · recall · find · confirm · retrieve · get
     "i'm unable to verify", "i am unable to verify", "i'm not able to verify",
     "i am not able to verify", "i can't verify", "i cannot verify",
@@ -91,7 +93,9 @@ def leading_decline(answer: str) -> bool:
     """True iff a decline cue opens the answer (first ``LEADING_WINDOW`` normalized chars)."""
     from .score import normalize
 
-    nans = normalize(answer)
+    # only the leading window can match; keep a cue-length margin so a cue that STARTS just inside
+    # the window but runs past it is still found (same result as scanning the whole answer).
+    nans = normalize(answer)[: LEADING_WINDOW + 64]
     return any(0 <= nans.find(cue) < LEADING_WINDOW for cue in _normalized_cues())
 
 
@@ -108,6 +112,10 @@ def classify_refusal(answer: str, task: str, expected: dict) -> bool:
     from .score import _bounded_equal, parse_yes_no
 
     if task in _TEXT_RETRIEVAL:
+        # The containment half is load-bearing, not redundant: under the default graders a contained
+        # answer already has correct=1 (so `_with_outcome`'s `not correct` gate excludes it), but under
+        # `--evaluator strict` a contained-but-not-normalized answer scores correct=0, so only this
+        # check stops a decline-prefixed correct retrieval from being mislabelled `refused`. Keep it.
         target = expected.get("text", "")
         return not (target and _bounded_equal(answer, target))
     if task == "verify_source":

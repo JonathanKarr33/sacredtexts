@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 3 is substantially complete, but `verify_source` can still misclassify explicit refusals as answered—and even correct.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `outcomes.py::classify_refusal` treats any occurrence of “yes” or “no” as a committed answer because it delegates to `parse_yes_no()`. Thus, a clear refusal such as “I can’t verify whether the answer is yes or no” is not refused and may score correct depending on the expected value. Distinguish an actual Yes/No commitment from merely mentioning the alternatives, and add a regression test.
+- Fully missing roster cells are emitted without `correct`, `incorrect`, `refused`, `coverage`, or `refused_rate`, unlike other summary cells. Using `_outcome_cell` for zero-answer expected task/tradition cells would keep the Phase 3 summary schema consistent while preserving `missing` as distinct.
