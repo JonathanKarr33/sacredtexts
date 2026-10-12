@@ -110,13 +110,14 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
 
     const { tasks, rows } = leaderboardRows(run.summary);
     expect(tasks).toEqual(["retrieve_quote"]);
-    // Four rows, ranked by overall accuracy desc with model_id as the tiebreak: the two
-    // 66% opus entries first (opus < opus-search), then haiku (47%), then haiku-search (40%).
-    expect(rows.map((r) => r.modelId)).toEqual(["opus", "opus-search", "haiku", "haiku-search"]);
+    // Four rows, ranked by overall accuracy desc with model_id as the tiebreak. Under the
+    // Spec 15 contains_reference headline the search-on arms rise: opus-search 74%, opus 66%,
+    // haiku-search 52%, haiku 47% (the +8 / +12 wrapped-exact flips lift the two tool arms).
+    expect(rows.map((r) => r.modelId)).toEqual(["opus-search", "opus", "haiku-search", "haiku"]);
     const acc = rows.map((r) => r.overall?.accuracy ?? -1);
     expect(acc).toEqual([...acc].sort((a, b) => b - a)); // non-increasing
-    expect(rows[0].overall?.accuracy).toBeCloseTo(0.66, 5);
-    expect(rows[3].overall?.accuracy).toBeCloseTo(0.4, 5);
+    expect(rows[0].overall?.accuracy).toBeCloseTo(0.74, 5);
+    expect(rows[3].overall?.accuracy).toBeCloseTo(0.47, 5);
     // Each row carries its per-model token totals (the leaderboard's token column).
     expect(rows.every((r) => r.tokens && r.tokens.calls === 100)).toBe(true);
 
@@ -139,13 +140,14 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     if (!run.ok) return;
 
     // Drill into one search-on model: its 100 roster questions, no missing cells, and the
-    // headline-`correct` count matching summary.md (haiku-search = 40/100).
+    // headline-`correct` count matching summary.md (haiku-search = 52/100 under Spec 15's
+    // contains_reference headline — up from 40 as the 12 wrapped-exact Qur'an cells now pass).
     const hs = modelQuestions(run.results, "haiku-search");
     expect(hs).toHaveLength(100);
     const stats = questionStats(hs);
     expect(stats.total).toBe(100);
     expect(stats.missing).toBe(0);
-    expect(stats.correct).toBe(40);
+    expect(stats.correct).toBe(52);
     expect(stats.correct + stats.wrong + stats.missing).toBe(100);
 
     // The tradition filter composes: all three traditions present, Sunni Islam is 33 of them.

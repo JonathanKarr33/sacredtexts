@@ -12,12 +12,20 @@ Metrics emitted per answer:
 - ``token_f1``    bag-of-words F1 between normalised answer and expected text
                   (0..1) — the v1 "semantic similarity" stand-in; embedding- or
                   judge-based semantic scoring is a later, pluggable metric
+- ``contains_reference``  (retrieve_quote / complete_unit ONLY) the normalised reference
+                  appears word-bounded inside the normalised answer (0/1) — catches a
+                  correct-but-wrapped retrieval (bracketed quote + a citation/caveat) that
+                  strict ``normalized`` scores 0. A strict superset of ``normalized``.
 - ``correct``     the per-task headline judgment (see below)
 
 Per-task headline rule (the spec's contract — designed to resist evasive answers so
 that containment alone cannot game provenance honesty, within the SCOPE noted below):
 
-- retrieve_quote / complete_unit : ``normalized`` match (exact + token-F1 alongside)
+- retrieve_quote / complete_unit : ``normalized`` OR ``contains_reference`` (Spec 15: a
+                                   verbatim quote wrapped in brackets/notes IS a correct
+                                   retrieval; exact + token-F1 reported alongside).
+                                   Containment is confined to these two text-retrieval
+                                   tasks — the provenance tasks below never use it.
 - verify_source                  : parsed leading Yes/No equals expected
 - identify_version               : the answer, normalised, EQUALS the version label
                                    (exact + normalized reported) — an evasive
@@ -106,8 +114,8 @@ def strip_script_marks(text: str) -> str:
 
 # Similarity sub-metrics reported per task (the spec's per-task contract table).
 _SUBMETRICS = {
-    "retrieve_quote": ("exact", "normalized", "token_f1"),
-    "complete_unit": ("exact", "normalized", "token_f1"),
+    "retrieve_quote": ("exact", "normalized", "token_f1", "contains_reference"),
+    "complete_unit": ("exact", "normalized", "token_f1", "contains_reference"),
     "identify_version": ("exact", "normalized"),
 }
 
@@ -174,8 +182,10 @@ def _citation_candidates(answer: str, expected_citation: str) -> set[str]:
 
 
 def _bounded_equal(answer: str, expected: str) -> bool:
-    """The full normalized expected citation appears with word boundaries (so
-    ``Jude 1:3`` does not match ``Jude 1:30``), not mere substring containment."""
+    """The full normalized ``expected`` appears with word boundaries (so ``Jude 1:3`` does
+    not match ``Jude 1:30``), not mere substring containment. Despite the citation-flavoured
+    name this is word-bounded normalised CONTAINMENT, reused by ``score_answer`` to compute
+    ``contains_reference`` for the text-retrieval tasks (caller guards the empty case)."""
     ne = normalize(expected)
     return re.search(r"(?<!\w)" + re.escape(ne) + r"(?!\w)", normalize(answer)) is not None
 
@@ -205,7 +215,21 @@ def score_answer(task: str, answer: str, expected: dict) -> dict:
         exact = int(answer.strip() == target.strip())
         norm = int(normalize(answer) == normalize(target))
         f1 = token_f1(answer, target)
-        return {"exact": exact, "normalized": norm, "token_f1": round(f1, 4), "correct": norm}
+        # contains_reference: the normalised reference appears, word-bounded, inside the
+        # normalised answer — a correct-but-wrapped retrieval (bracketed quote + a citation
+        # or caveat) that strict ``normalized`` scores 0. Reuses ``_bounded_equal`` (which IS
+        # word-bounded normalised containment); the ``bool(normalize(target))`` guard stops an
+        # empty reference (whose escaped regex matches everywhere) from scoring 1. Scoped to
+        # these two text-retrieval tasks ONLY — the provenance tasks below never see it, so
+        # containment cannot game provenance honesty (the Spec 1/8 anti-evasion contract).
+        contains_reference = int(bool(normalize(target)) and _bounded_equal(answer, target))
+        return {
+            "exact": exact,
+            "normalized": norm,
+            "token_f1": round(f1, 4),
+            "contains_reference": contains_reference,
+            "correct": int(norm or contains_reference),
+        }
     if task == "verify_source":
         parsed = parse_yes_no(answer)
         correct = int(parsed == expected["answer"])
@@ -307,13 +331,17 @@ def score_file(
             )
             acc = per_cell.setdefault(
                 (d["model_id"], d["task"]),
-                {"n": 0, "correct": 0, "exact": 0, "normalized": 0, "token_f1": 0.0},
+                {"n": 0, "correct": 0, "exact": 0, "normalized": 0, "token_f1": 0.0,
+                 "contains_reference": 0},
             )
             acc["n"] += 1
             acc["correct"] += metrics["correct"]
             acc["exact"] += metrics.get("exact", 0)
             acc["normalized"] += metrics.get("normalized", 0)
             acc["token_f1"] += metrics.get("token_f1", 0.0)
+            # new submetric: present only for the text-retrieval tasks (see _SUBMETRICS);
+            # the explicit += mirrors the keys above — the summary loop reads acc[sm].
+            acc["contains_reference"] += metrics.get("contains_reference", 0)
             # token usage for cost accounting (recorded per answer row by collect)
             u = d.get("usage") or {}
             um = usage.setdefault(

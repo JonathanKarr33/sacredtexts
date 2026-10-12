@@ -211,7 +211,7 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
     expect(screen.getAllByText("Protestant Christian").length).toBe(4);
     expect(screen.getAllByText("Roman Catholic").length).toBe(4);
     expect(screen.getAllByText("The Church of Jesus Christ of Latter-Day Saints").length).toBe(4);
-    // the LDS cell at 72% for claude-haiku
-    expect(screen.getAllByText("72% (n=25)").length).toBeGreaterThan(0);
+    // the LDS cell at 76% for claude-haiku (Spec 15: +1 wrapped-exact flip in the LDS tradition, 18/25→19/25)
+    expect(screen.getAllByText("76% (n=25)").length).toBeGreaterThan(0);
   });
 });

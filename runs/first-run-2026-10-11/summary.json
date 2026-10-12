@@ -3,16 +3,17 @@
   "claude-haiku": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.24,
+    "accuracy": 0.25,
     "exact": 0.16,
     "normalized": 0.24,
     "token_f1": 0.505,
+    "contains_reference": 0.25,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.24,
+    "accuracy": 0.25,
     "expected_n": 100,
     "missing": 0
    }
@@ -24,6 +25,7 @@
     "exact": 0.0,
     "normalized": 0.0,
     "token_f1": 0.1496,
+    "contains_reference": 0.0,
     "expected_n": 100,
     "missing": 0
    },
@@ -41,6 +43,7 @@
     "exact": 0.0,
     "normalized": 0.0,
     "token_f1": 0.13,
+    "contains_reference": 0.0,
     "expected_n": 100,
     "missing": 0
    },
@@ -58,6 +61,7 @@
     "exact": 0.01,
     "normalized": 0.01,
     "token_f1": 0.2085,
+    "contains_reference": 0.01,
     "expected_n": 100,
     "missing": 0
    },
@@ -116,13 +120,13 @@
    "The Church of Jesus Christ of Latter-Day Saints": {
     "retrieve_quote": {
      "n": 25,
-     "accuracy": 0.72,
+     "accuracy": 0.76,
      "expected_n": 25,
      "missing": 0
     },
     "_overall": {
      "n": 25,
-     "accuracy": 0.72,
+     "accuracy": 0.76,
      "expected_n": 25,
      "missing": 0
     }
@@ -336,12 +340,14 @@
   "claude-haiku": {
    "provider": "anthropic",
    "model": "claude-haiku-5-5",
+   "api_model": "claude-haiku-5-5",
    "endpoint": "api.anthropic.com",
    "served_by": null
   },
   "gemma-3-4b": {
    "provider": "openai",
    "model": "google/gemma-3-4b-it",
+   "api_model": "google/gemma-3-4b-it",
    "endpoint": "openrouter.ai",
    "served_by": [
     "DeepInfra"
@@ -350,6 +356,7 @@
   "gpt-oss-20b": {
    "provider": "openai",
    "model": "openai/gpt-oss-20b",
+   "api_model": "openai/gpt-oss-20b",
    "endpoint": "openrouter.ai",
    "served_by": [
     "AkashML",
@@ -366,6 +373,7 @@
   "llama-3.1-8b": {
    "provider": "openai",
    "model": "meta-llama/llama-3.1-8b-instruct",
+   "api_model": "meta-llama/llama-3.1-8b-instruct",
    "endpoint": "openrouter.ai",
    "served_by": [
     "DeepInfra",
@@ -373,5 +381,6 @@
     "Novita"
    ]
   }
- }
+ },
+ "generated_at": "2026-10-12T17:06:42.261600+00:00"
 }

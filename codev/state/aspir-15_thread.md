@@ -145,4 +145,30 @@ verbatim panel + api_model pre-registration hold. Acked architect.
   (no generated_at today); summary.md row-order changes (pre-registered); pointer drift fixed (tutorialRun
   :115 not :117, Leaderboard :215, ExplorerPage 5 "24" sites, CODE_WALKTHROUGH score.py set has no :176).
 
-claude re-verified deltas/approach/mechanics/9-guard surface/aspir-11 analysis all correct. Next: porch next.
+claude re-verified deltas/approach/mechanics/9-guard surface/aspir-11 analysis all correct.
+
+Plan phase DONE — porch advanced to IMPLEMENT (phase_1).
+
+## 2026-10-12 — Implement phase_1 (Contains-exact scoring contract + one-shot rebaseline)
+
+One atomic commit. Steps done:
+1. Captured durable oracle (pre-change projection SHA-256) + exact 21-pair flip set from committed
+   scores.jsonl BEFORE any change. Oracles: first-run 0229fa15…, tutorial 64e5b660…
+2. score.py: contains_reference = int(bool(normalize(target)) and _bounded_equal(answer,target)) for
+   retrieve_quote/complete_unit (before `correct`); correct = normalized OR contains_reference; added to
+   _SUBMETRICS (after token_f1) + accumulator seed + explicit +=; updated module docstring + _bounded_equal
+   docstring. Provenance tasks untouched.
+3. test_score.py:46 dict gained contains_reference; added 4 new unit tests (wrapped/superset-bounded/empty-
+   guard/scoped-to-text-retrieval). :274 identify_version dict left unchanged.
+4. Rebaseline (script in scratchpad, to be pasted in review): score_file re-score in place; roster derived
+   from each committed summary's OWN expected_n (bulletproof); panel verbatim from committed summary;
+   writer json.dump(indent=1)+newline + summary_markdown. Honest diff VERIFIED exactly: scores.jsonl oracle
+   matches (exact/normalized/token_f1 unmoved), flips=1/20; first-run summary +api_model +generated_at
+   +contains_reference +1 accuracy; tutorial +contains_reference +generated_at +20 accuracy.
+5. NEW test_contains_reference_rebaseline.py: durable oracle hash + exact 21-pair flip set + self-contained
+   invariants (correct==normalized except 21; contains⊇normalized) + pinned per-cell accuracies.
+6. Viewer fixtures updated (needed `pnpm -C apps/viewer install` first — node_modules was absent):
+   tutorialRun.test.ts (order opus-search/opus/haiku-search/haiku; 0.74/0.47; correct 52),
+   ExplorerPage (24→25, 5 sites), LeaderboardPage (LDS 72%→76%), StandingsPage (24%→25%).
+
+Pipeline suite 301 passed/1 skip; viewer 125 passed. Next: commit atomic, run dispatcher, porch done phase_1.

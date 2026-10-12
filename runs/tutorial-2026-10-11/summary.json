@@ -7,6 +7,7 @@
     "exact": 0.18,
     "normalized": 0.47,
     "token_f1": 0.6396,
+    "contains_reference": 0.47,
     "expected_n": 100,
     "missing": 0
    },
@@ -20,16 +21,17 @@
   "haiku-search": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.4,
+    "accuracy": 0.52,
     "exact": 0.24,
     "normalized": 0.4,
     "token_f1": 0.583,
+    "contains_reference": 0.52,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.4,
+    "accuracy": 0.52,
     "expected_n": 100,
     "missing": 0
    }
@@ -41,6 +43,7 @@
     "exact": 0.33,
     "normalized": 0.66,
     "token_f1": 0.6608,
+    "contains_reference": 0.66,
     "expected_n": 100,
     "missing": 0
    },
@@ -54,16 +57,17 @@
   "opus-search": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.66,
+    "accuracy": 0.74,
     "exact": 0.34,
     "normalized": 0.66,
     "token_f1": 0.7054,
+    "contains_reference": 0.74,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.66,
+    "accuracy": 0.74,
     "expected_n": 100,
     "missing": 0
    }
@@ -146,13 +150,13 @@
    "Sunni Islam": {
     "retrieve_quote": {
      "n": 33,
-     "accuracy": 0.3636,
+     "accuracy": 0.7273,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
-     "accuracy": 0.3636,
+     "accuracy": 0.7273,
      "expected_n": 33,
      "missing": 0
     }
@@ -206,13 +210,13 @@
    "Judaism": {
     "retrieve_quote": {
      "n": 34,
-     "accuracy": 0.0294,
+     "accuracy": 0.2353,
      "expected_n": 34,
      "missing": 0
     },
     "_overall": {
      "n": 34,
-     "accuracy": 0.0294,
+     "accuracy": 0.2353,
      "expected_n": 34,
      "missing": 0
     }
@@ -234,13 +238,13 @@
    "Sunni Islam": {
     "retrieve_quote": {
      "n": 33,
-     "accuracy": 0.9697,
+     "accuracy": 1.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
-     "accuracy": 0.9697,
+     "accuracy": 1.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -306,5 +310,5 @@
    "served_by": null
   }
  },
- "generated_at": "2026-10-12T01:20:16.523576+00:00"
+ "generated_at": "2026-10-12T17:06:42.383948+00:00"
 }

@@ -131,7 +131,7 @@ describe.skipIf(!present)("StandingsPage — committed run gate", () => {
     // panel identity is shown, and claude-haiku's overall is its leaderboard value
     // (retrieve_quote is the only task, so the task cell and the overall cell both read it)
     expect(screen.getByText("anthropic / claude-haiku-5-5")).toBeInTheDocument();
-    expect(within(dataRows[0]!).getAllByText("24% (n=100)").length).toBeGreaterThan(0);
+    expect(within(dataRows[0]!).getAllByText("25% (n=100)").length).toBeGreaterThan(0);
     // every row links back into the source run
     expect(within(dataRows[0]!).getByRole("link", { name: "first-run-2026-10-11" }).getAttribute("href")).toContain(
       "run=first-run-2026-10-11",

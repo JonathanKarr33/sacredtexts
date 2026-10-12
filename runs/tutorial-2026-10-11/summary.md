@@ -1,9 +1,9 @@
 | model | retrieve_quote | overall |
 |---|---|---|
+| opus-search | 74% (n=100) | **74%** |
 | opus | 66% (n=100) | **66%** |
-| opus-search | 66% (n=100) | **66%** |
+| haiku-search | 52% (n=100) | **52%** |
 | haiku | 47% (n=100) | **47%** |
-| haiku-search | 40% (n=100) | **40%** |
 
 ### By tradition (each observation counts once per listed tradition)
 | model | tradition | retrieve_quote | overall |
@@ -13,13 +13,13 @@
 | haiku | Sunni Islam | 58% (n=33) | **58%** (n=33) |
 | haiku-search | Judaism | 0% (n=34) | **0%** (n=34) |
 | haiku-search | Protestant Christian | 85% (n=33) | **85%** (n=33) |
-| haiku-search | Sunni Islam | 36% (n=33) | **36%** (n=33) |
+| haiku-search | Sunni Islam | 73% (n=33) | **73%** (n=33) |
 | opus | Judaism | 0% (n=34) | **0%** (n=34) |
 | opus | Protestant Christian | 100% (n=33) | **100%** (n=33) |
 | opus | Sunni Islam | 100% (n=33) | **100%** (n=33) |
-| opus-search | Judaism | 3% (n=34) | **3%** (n=34) |
+| opus-search | Judaism | 24% (n=34) | **24%** (n=34) |
 | opus-search | Protestant Christian | 100% (n=33) | **100%** (n=33) |
-| opus-search | Sunni Islam | 97% (n=33) | **97%** (n=33) |
+| opus-search | Sunni Islam | 100% (n=33) | **100%** (n=33) |
 
 ### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)
 | model_id | provider | model | endpoint | served_by |

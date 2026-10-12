@@ -43,11 +43,54 @@ def test_parse_yes_no(ans, expected):
 def test_retrieve_quote_tiers():
     exp = {"text": "The keeper planted twelve trees."}
     exact = score_answer("retrieve_quote", "The keeper planted twelve trees.", exp)
-    assert exact == {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}
+    assert exact == {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1}
     punct = score_answer("retrieve_quote", "the keeper planted twelve trees", exp)
     assert (punct["exact"], punct["normalized"], punct["correct"]) == (0, 1, 1)
     wrong = score_answer("retrieve_quote", "something else entirely different", exp)
     assert wrong["correct"] == 0 and wrong["token_f1"] == 0.0
+
+
+def test_contains_reference_wrapped_exact_flips_headline():
+    # Spec 15: a verbatim quote wrapped in brackets + an English caveat scores normalized=0
+    # (it is NOT "the quote and nothing else") but contains_reference=1 → correct=1.
+    exp = {"text": "The keeper planted twelve trees."}
+    wrapped = score_answer(
+        "retrieve_quote",
+        "﴾The keeper planted twelve trees.﴿\n\n(Note: retrieved from a web page.)",
+        exp,
+    )
+    assert wrapped["normalized"] == 0
+    assert wrapped["contains_reference"] == 1
+    assert wrapped["correct"] == 1
+    # complete_unit carries the signal too (symmetry)
+    assert "contains_reference" in score_answer("complete_unit", "x", {"text": "x"})
+
+
+def test_contains_reference_is_superset_and_bounded():
+    exp = {"text": "The keeper planted twelve trees."}
+    # a strict match is contained
+    assert score_answer("retrieve_quote", "The keeper planted twelve trees.", exp)["contains_reference"] == 1
+    # near-miss that does NOT contain the reference is not rescued
+    near = score_answer("retrieve_quote", "The keeper planted twelve oaks.", exp)
+    assert near["contains_reference"] == 0 and near["correct"] == 0
+    # word boundary: the shorter reference must not match inside a longer token
+    assert score_answer("retrieve_quote", "Jude 1:30", {"text": "Jude 1:3"})["contains_reference"] == 0
+
+
+def test_contains_reference_empty_reference_guard():
+    # an empty-normalising reference must not match everywhere (re.escape("") matches anywhere)
+    r = score_answer("retrieve_quote", "literally anything", {"text": "   "})
+    assert r["contains_reference"] == 0 and r["correct"] == 0
+
+
+def test_contains_reference_scoped_to_text_retrieval_only():
+    # the four provenance/other tasks must NEVER carry a contains_reference key
+    assert "contains_reference" not in score_answer("identify_version", "KJV", {"version": "KJV"})
+    assert "contains_reference" not in score_answer("verify_source", "Yes", {"answer": "yes"})
+    assert "contains_reference" not in score_answer("cite_passage", "Jude 1:3", {"citation": "Jude 1:3"})
+    assert "contains_reference" not in score_answer(
+        "identify_source", "John 1:1 in the Gospel of John", {"work": "John", "citation": "John 1:1"}
+    )
 
 
 def test_verify_and_citation_tasks():

@@ -144,14 +144,14 @@ function committedRunFetcher(): typeof fetch {
 }
 
 describe.skipIf(!present)("ExplorerPage — committed run drill-in gate", () => {
-  it("claude-haiku: 100 questions, 24 correct; a failing row shows all three metrics", async () => {
+  it("claude-haiku: 100 questions, 25 correct; a failing row shows all three metrics", async () => {
     expect(present).toBe(true); // a vanished committed run should fail loudly, not silently skip
     vi.stubGlobal("fetch", committedRunFetcher());
     renderApp("/run/first-run-2026-10-11/model/claude-haiku");
     expect(await screen.findByText("Error explorer")).toBeInTheDocument();
-    // 100 roster questions, 24 correct (overall accuracy 0.24), 0 missing
+    // 100 roster questions, 25 correct (overall accuracy 0.25), 0 missing
     expect(
-      screen.getByText((c) => c.includes("100 questions") && c.includes("24 correct") && c.includes("0 missing")),
+      screen.getByText((c) => c.includes("100 questions") && c.includes("25 correct") && c.includes("0 missing")),
     ).toBeInTheDocument();
     expect(screen.getByText(/Showing 100 of 100/)).toBeInTheDocument();
     // per-metric scores render for the (many) failing rows
@@ -160,11 +160,11 @@ describe.skipIf(!present)("ExplorerPage — committed run drill-in gate", () => 
     expect(screen.getAllByText("token-F1").length).toBeGreaterThan(0);
   });
 
-  it("filtering by correct=correct narrows to the 24 correct answers", async () => {
+  it("filtering by correct=correct narrows to the 25 correct answers", async () => {
     expect(present).toBe(true);
     vi.stubGlobal("fetch", committedRunFetcher());
     renderApp("/run/first-run-2026-10-11/model/claude-haiku?correct=correct");
     expect(await screen.findByText("Error explorer")).toBeInTheDocument();
-    expect(screen.getByText(/Showing 24 of 100/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 25 of 100/)).toBeInTheDocument();
   });
 });

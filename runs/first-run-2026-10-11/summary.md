@@ -1,6 +1,6 @@
 | model | retrieve_quote | overall |
 |---|---|---|
-| claude-haiku | 24% (n=100) | **24%** |
+| claude-haiku | 25% (n=100) | **25%** |
 | llama-3.1-8b | 1% (n=100) | **1%** |
 | gemma-3-4b | 0% (n=100) | **0%** |
 | gpt-oss-20b | 0% (n=100) | **0%** |
@@ -11,7 +11,7 @@
 | claude-haiku | Judaism | 0% (n=25) | **0%** (n=25) |
 | claude-haiku | Protestant Christian | 24% (n=25) | **24%** (n=25) |
 | claude-haiku | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| claude-haiku | The Church of Jesus Christ of Latter-Day Saints | 72% (n=25) | **72%** (n=25) |
+| claude-haiku | The Church of Jesus Christ of Latter-Day Saints | 76% (n=25) | **76%** (n=25) |
 | gemma-3-4b | Judaism | 0% (n=25) | **0%** (n=25) |
 | gemma-3-4b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
 | gemma-3-4b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
@@ -25,7 +25,7 @@
 | llama-3.1-8b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
 | llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% (n=25) | **4%** (n=25) |
 
-### Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)
+### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)
 | model_id | provider | model | endpoint | served_by |
 |---|---|---|---|---|
 | claude-haiku | anthropic | claude-haiku-5-5 | api.anthropic.com | — |
