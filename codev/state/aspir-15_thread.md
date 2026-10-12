@@ -81,4 +81,31 @@ Drafted plan. **2 phases** (deliberately, not 3):
 
 Key impl risks flagged: summary.json regen must preserve panel/usage (only accuracy + generated_at move);
 _SUBMETRICS-without-accumulator KeyError; test_code_walkthrough line anchors.
-Checks pass (plan_exists, has_phases_json, min_two_phases=2). Next: signal PLAN_DRAFTED → porch consult.
+Checks pass (plan_exists, has_phases_json, min_two_phases=2). Signalled PLAN_DRAFTED; porch ran consult.
+
+### Plan consult round 1 — both REQUEST_CHANGES (HIGH); BOTH verified deltas correct (+20/+1). Folded (iter2):
+- **9 affected guards, not 4** (claude, verified): 5 viewer vitest suites pin committed-run numbers as
+  fixtures (tutorialRun.test.ts:117-119,148; ExplorerPage:152+correct-filter; LeaderboardPage:214
+  "72%(n=25)"→76%; recheck StandingsPage/realRun). `.codev/checks/test.sh` maps runs/→pipelines lane
+  ONLY → my gate stays green while main breaks. FIX: Phase 1 edits apps/viewer/ in same commit (forces
+  vitest) + updates all fixtures. Retracted "no viewer change" claim; sent architect merge-coord update.
+- **first-run summary NOT CLI-regenerable** (both, verified): first-run answers have NO panel_fingerprint
+  → `score --config` fail-fasts (cli.py:325-331); keyless score nulls panel (the scar); models.yaml
+  gitignored. FIX: explicit procedure — score_file() with panel VERBATIM from committed summary.json +
+  roster from questions.jsonl; NEVER YAML (would stamp [no-tools] → collide tutorial haiku standings key +
+  stale FIRST_RUN_KEY). Recorded in plan + review.
+- **"only accuracy moves" wrong**: summary.json also gains contains_reference submetric + (first-run)
+  api_model. FIX: pre-registered honest-diff section per file.
+- **test_score.py:231 is identify_version** (verified) — must NOT get contains_reference; only :46
+  (retrieve_quote dict) changes. Fixed (inherited the spec's error).
+- **acc[sm]+= path doesn't exist** (verified): score_file updates explicit keys; acc[sm] only READ. FIX:
+  explicit acc["contains_reference"]+= + seed.
+- **Mandatory non-circular delta validation** (both): byte guards circular post-rebaseline → promoted to a
+  REQUIRED pinned test (exact 21-cell flip set / per-cell values).
+- **_bounded_equal ALREADY is word-bounded containment** (claude): contains_reference =
+  int(bool(normalize(target)) and _bounded_equal(answer,target)). Reuse, don't duplicate regex. Simpler.
+- **Docs expanded**: + score.py module docstring (Phase 1), + CODE_WALKTHROUGH never-re-score bullet
+  (300-304) amend, + first-run README (stale 24% AND factually-wrong "17 answers" — only 1/18 high-F1
+  misses contained; rest genuine paraphrase). "five other tasks"→four.
+
+Next: porch next → write rebuttal task → porch done.
