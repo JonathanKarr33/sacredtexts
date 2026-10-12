@@ -1,7 +1,7 @@
 id: '8'
 title: spec-3-tutorial-centered-on-kj
 protocol: aspir
-phase: implement
+phase: review
 plan_phases:
   - id: phase_1
     title: Fair Arabic/Hebrew scoring normalisation
@@ -14,15 +14,15 @@ plan_phases:
     status: complete
   - id: phase_4
     title: Tutorial rework and viewer verification
-    status: in_progress
-current_plan_phase: phase_4
+    status: complete
+current_plan_phase: null
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -85,7 +85,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-8/codev/projects/8-spec-3-tutorial-centered-on-kj/8-phase_4-iter1-claude.txt
 started_at: '2026-10-11T21:00:43.465Z'
-updated_at: '2026-10-12T02:17:40.567Z'
+updated_at: '2026-10-12T02:23:26.725Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T22:08:42.816Z'
@@ -96,3 +96,5 @@ context_refreshes:
   - boundary: plan-phase:phase_4
     at: '2026-10-12T01:50:39.805Z'
     acknowledged_at: '2026-10-12T01:53:20.079Z'
+  - boundary: enter:review
+    at: '2026-10-12T02:23:26.724Z'
