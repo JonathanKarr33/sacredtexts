@@ -36,7 +36,7 @@ on `` `${provider}\u0000${model}` `` and `parseSummary` ignores unknown panel fi
   pipeline half, as the human flagged.
 - **Committed run params (canonical; defined here, reproduced by the Phase-4 tutorial):** run
   id `runs/tutorial-2026-10-11/` (date = collection date), `--tasks retrieve_quote
-  --per-task 30 --seed 20261011`, inputs = the three standardized dirs:
+  --per-task 100 --seed 20261011`, inputs = the three standardized dirs:
   `texts/standardized/Protestant Christian/the-bible-kjv-en`,
   `texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar`,
   `texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he`; panel =

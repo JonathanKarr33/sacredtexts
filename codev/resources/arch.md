@@ -52,21 +52,37 @@ round-trip that proves no invention/reordering.
 - **collect.py**: concurrency-bounded fan-out; **resumable** (skips answered
   `(question_id, model_id)` cells); failed cells stay pending and the run exits
   non-zero; stamps the question-set digest on every row and refuses to resume a file
-  built for a different question set.
+  built for a different question set. The `_panel_fingerprint` includes the `tools`
+  setting (provider|model|base_url|tools), so the same model run with and without web
+  search is two distinct panel entries, not one.
 - **providers.py**: `anthropic` / `openai` (any OpenAI-compatible host via
   `base_url`+`api_key_env`, e.g. OpenRouter) / `gemini`; keys from env only; missing
-  credentials fail before any network call; bounded retries; per-call timeout.
+  credentials fail before any network call; bounded retries; per-call timeout. The
+  Anthropic path passes the server-side web-search tool (`web_search_20250305`,
+  `max_uses: 5`) iff a spec enables it, records `web_search_requests`, and fails loud on
+  a non-terminal `stop_reason` (allowlist `end_turn`/`stop_sequence`) so a truncated or
+  `pause_turn` turn never silently re-bills; `_openai`/`_gemini` lack that guard (latent
+  trap for a future mixed tool-using panel — the tutorial panel is all-anthropic).
 - **score.py**: per-task headline contract — `retrieve_quote`/`complete_unit` →
   normalized full-string match (+ exact/token-F1); `verify_source` → yes/no;
   `identify_version` → label exact/normalized; citation tasks → the single extracted
   citation must equal ground truth (a multi-candidate hedge scores 0; extractor chosen
-  by the ground-truth citation shape). Emits per-model × task × **tradition** breakdown
-  with a missing-cell roster, a `usage` block (per-model + total tokens; cost only when
-  every model is priced — prices never invented), and (with `--config`) a `panel` block
-  (provider/model/endpoint/served_by, no secrets).
+  by the ground-truth citation shape). `normalize()` is script-aware: it **deletes**
+  Arabic/Hebrew combining marks (harakat/niqqud/cantillation) and tatweel and folds
+  alef-wasla→alef / Hebrew maqaf→space *before* the punctuation pass, so vocalised
+  non-Latin words score fairly; Latin text is byte-for-byte unchanged (a pinned
+  invariance snapshot guards it). Emits per-model × task × **tradition** breakdown with a
+  missing-cell roster, a `usage` block (per-model + total tokens; cost only when every
+  model is priced — prices never invented), an additive `generated_at` (UTC ISO; closes
+  issue #7's pipeline half — the viewer ignores it), and (with `--config`) a `panel` block
+  (provider/model/endpoint/served_by, no secrets) that carries each entry's tools-marked
+  display model plus its raw `api_model` string.
 - **audit.py**: see arch-critical — origin layer always; content-fingerprint layer when
-  restricted payloads are present locally.
-- **config.py**: model-panel YAML; `ModelSpec` carries optional `price_in`/`price_out`.
+  restricted payloads are present locally; `_norm` strips non-Latin marks too so Arabic/
+  Hebrew/Greek unit texts fingerprint consistently (was ASCII-only, a non-Latin no-op).
+- **config.py**: model-panel YAML; `ModelSpec` carries optional `price_in`/`price_out`
+  and an optional `tools` list (fail-fast parse: non-list / unknown tool / `web_search`
+  on a non-anthropic provider → `ConfigError`).
 
 ## Viewer local results
 
@@ -82,7 +98,11 @@ gone. The route tree is `/` (the **leaderboard home** — `routes/LeaderboardPag
 `components/QuestionList.tsx`/`ExplorerFilters.tsx`, classification/filters in
 `lib/explorer.ts`), `/standings` (the **cross-run current standings** —
 `routes/StandingsPage.tsx`, rollup in `lib/aggregate.ts`, keyed on the panel's
-`(provider, model)` identity with the newest run per model winning), plus a 404. The
+`(provider, model)` identity — `${provider}\u0000${model}` — with the newest run per
+model winning; because the pipeline bakes the tools setting into `panel.model`
+(`[web_search]`/`[no-tools]`), a model's search-on/off variants are distinct standings
+rows and never collide with another run's bare-model row — all a *zero-viewer-change*
+property), plus a 404. The
 selected run lives in the URL as a **bare run id**, `/?run=<id>` (validated by a plain
 `validateSearch` fn — zod is pruned — and resolved to the fetch base
 `/runs/${encodeURIComponent(id)}`); the default is the most-recent run from the
@@ -100,9 +120,10 @@ is a static SPA host (`server/index.mjs`, hono + history fallback; no `/api` pro
 
 `runs/<id>/`: `questions.jsonl` (+ `.manifest.json`), `answers.jsonl`, `scores.jsonl`,
 `summary.json`, `summary.md`, and a `README.md` that makes the evidence self-describing.
-`runs/*` is gitignored with a per-run negation for committed evidence
-(`!runs/first-run-2026-10-11/`). The per-user `configs/models.yaml` is gitignored; keys
-come from the environment only.
+`runs/*` is gitignored with a per-run negation for each committed-evidence dir
+(`!runs/first-run-2026-10-11/`, `!runs/tutorial-2026-10-11/` — the latter the Spec-3
+KJV/Qur'an(ar)/Talmud(he) 2×2 web-search on/off panel). The per-user
+`configs/models.yaml` is gitignored; keys come from the environment only.
 
 ## Test gate
 

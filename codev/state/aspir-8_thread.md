@@ -283,6 +283,34 @@ yeh/alef-maksura) that normalize() does NOT fold to exact equality (token_f1 up 
 correct=0). Future refinement: fold these OR add a pipeline-level contains_reference submetric.
 NOT done in Spec 8 (req 4: would reshape scores.jsonl + break byte-for-byte re-score regressions).
 
+## Phase 4 DONE — TUTORIAL rework + viewer verification + docs (implement iter 1)
+Re-entered after context refresh (porch next 8 → phase_4 implement). All FREE (no spend). Work:
+1. ✅ Plan fix: `codev/plans/8-*.md:39` stray "canonical committed run params --per-task 30" → 100
+   (matches committed run + line ~223). Phase-4 repro must match digest 37eb58400fdf4ea9.
+2. ✅ TUTORIAL.md fully reworked around KJV(en)/Qur'an(ar)/Talmud-Aramaic(he) + 2×2 web-search
+   on/off panel + parametric-vs-retrieval framing. Track A now explores runs/tutorial-2026-10-11/
+   (re-score-to-/tmp reproduces); Track B commands match Phase-3 canonical VERBATIM (3 specific
+   target-slug dirs, --per-task 100 --seed 20261011, configs/models.example.yaml); Track C notes
+   4 distinct standings rows. Fair-use note (no clearance step). Kept Track A/B/C + copy-paste det.
+   VERIFIED E2E: ran the Track-B generate cmd to scratch → digest 37eb58400fdf4ea9 MATCH, n=100.
+3. ✅ Viewer verified ZERO source change: added test-only apps/viewer/src/local/tutorialRun.test.ts
+   (loadRun → 4 marked panel entries / 400 cells / usage 400; aggregate → 4 distinct standings keys
+   + first-run claude-haiku key distinct & still present, 8 rows total). pnpm test green 123/123
+   incl. realRun.test.ts + #86 deploy.test.ts probe. Manual dev server (port 5219): /runs/_index
+   lists BOTH runs (tutorial newest → default leaderboard), tutorial summary serves 4 marked models.
+4. ✅ Docs via update-arch-docs (diff-mode): arch.md (score.py non-Latin normalize + generated_at
+   + tools-marked panel/api_model; config.py tools fail-fast; providers.py web_search tool + loud
+   stop_reason; collect.py tools in fingerprint; viewer standings tools-identity zero-change;
+   run-evidence tutorial negation). arch-critical.md +1 fact (tool-use=panel identity) + non-Latin
+   clause on scoring fact (now 10 facts, within cap). lessons-learned.md (cold): non-Latin fairness,
+   wrapper-penalty/contains-exact cut, encoding-variance deferral, web_search identity+unpriced.
+   lessons-critical.md UNCHANGED (at cap; new items are cold reference — respected displacement).
+5. ✅ Cosmetic: fixed run README mid-sentence line break (claude iter3 flag). summary.md api_model
+   omission left as-is (it's a generated table; api_model IS in summary.json — non-blocking, fine).
+NEXT: commit [Spec 8][Phase 4] → run .codev/checks/test.sh (pipelines + viewer lanes) → porch done 8
+→ porch runs 3-way consult + checks → if APPROVE, advance. Then open ONE PR (all phases = commits on
+builder/aspir-8), porch done --pr, architect approval gate → porch approve, merge, porch done --merged.
+
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,
 then architect approval gate → `porch approve`, merge, `porch done 8 --merged <N>`, verify phase.

@@ -95,8 +95,8 @@ alongside in `scores.jsonl` so the strictness is visible. Note that **`token_f1`
 a reliable wrapper detector here**: across the 20 wrapped-but-correct cells a short
 Arabic/Aramaic quote diluted by an English caveat lands at a median `token_f1` of ~0.45
 (range 0.16–0.99), not near 1.0 — so "low headline + high `token_f1`" does not surface the
-wrapped-but-correct cases. The
-reliable cut is **whether the normalised reference text is contained in the answer** (the
+wrapped-but-correct cases. The reliable cut is **whether the normalised reference text is
+contained in the answer** (the
 "contains exact reference" column above); that, not `token_f1`, is what separates a
 correctly-retrieved-but-wrapped answer from wrong scripture.
 

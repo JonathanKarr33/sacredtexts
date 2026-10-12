@@ -17,6 +17,28 @@ Seeded from Spec 1 (Phase 1 benchmark).
   ground-truth citation *shape*, and spans asserting the expected citation collapsed to
   one, took 5 consult rounds to get right. Containment is gameable; a numeric-only or
   greedy-paragraph extractor regresses correct answers.
+- **Non-Latin fairness = delete marks, don't let punctuation split letters.** The
+  original `normalize()` ran its `[^\w\s]`→space pass *before* handling diacritics, so
+  Arabic harakat / Hebrew niqqud split each vocalised word into single letters
+  (token_f1→0). Fix: strip combining marks + tatweel and fold alef-wasla→alef /
+  maqaf→space *first*; derive the mark set from the **real** QUL data (annotation marks
+  run well past basic harakat — U+06D6–U+06ED, superscript alef U+0670, …, many mid-word),
+  not from a spec. Pin a Latin byte-for-byte invariance snapshot: an over-eager global
+  delete (e.g. soft-hyphen) silently regresses committed English answers.
+- **The strict `retrieve_quote` headline penalises correct-but-wrapped retrieval.** A
+  web-search model that returns the exact quote *plus* a citation/URL/caveat scores 0
+  under "the quote and nothing else," so the headline can look flat/down while the model
+  actually retrieves *more* correct scripture. The honest search-on/off cut is **whether
+  the normalised reference is contained in the answer**, not `token_f1` (a short quote
+  diluted by an English caveat lands ~0.45, not near 1.0). Report the contains-exact
+  numbers in the run README; don't reshape the headline contract to chase them.
+- **Web retrieval surfaces real orthographic variance the normaliser can't fold.** A
+  correct āyah can come back in a *different* Uthmani Unicode encoding (U+06E1 vs U+0652,
+  Arabic Extended-A tanwīn U+08F0–08F2, U+0657, yeh/alef-maksura) that `normalize()` does
+  not fold to exact equality (token_f1 up to 0.95, `correct`=0) — present in search-OFF
+  answers too, so it is *not* a tool artifact. Future refinement: fold these, or add a
+  pipeline-level `contains_reference` submetric — deferred because either reshapes
+  `scores.jsonl` and breaks the byte-for-byte re-score regression guard.
 
 ## Live runs & providers
 
@@ -27,6 +49,13 @@ Seeded from Spec 1 (Phase 1 benchmark).
   live-only failures; the smoke caught the empty-output mode before the full run.
 - **Validate model slugs against the provider's own catalogue** (OpenRouter
   `/models`) before a run, rather than guessing.
+- **A server-side tool (e.g. Anthropic `web_search`) must be part of panel identity and
+  fail loud, not silent.** Bake the `tools` setting into the panel fingerprint and the
+  emitted `panel.model` so on/off never collapse into one row; pin the tool version
+  (`web_search_20250305`) and a `max_uses`; and treat any non-terminal `stop_reason`
+  (`max_tokens`, `pause_turn`) as a hard error — a silent retry over a per-request-billed
+  tool re-bills forever and the cell never converges. Such a run is **unpriced** (web
+  search bills per request, uncaptured in in/out tokens) — never invent a cost.
 
 ## Evidence & copyright
 
