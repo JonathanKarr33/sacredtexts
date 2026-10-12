@@ -66,9 +66,17 @@ green.
   (so the synthesised-entry path, `set(usage) | set(panel)`, defaults to `[]`); remove the
   `api_model` line. In `summary_markdown` (~lines 484–494): add a `tools` column to the panel
   table header, separator, and row (`", ".join(p.get("tools") or []) or "—"`).
-- `pipelines/tests/test_phase2_tools.py` — update the hand-built-panel assertions (~238–259):
-  the panel built by `cli.py` now has raw `model` + `tools` (not marked, no `api_model`); the
-  emitted key-set is exactly `{provider, model, tools, endpoint, served_by}`.
+- `pipelines/tests/test_phase2_tools.py` — update **two** test paths:
+  (a) the `score_file`-level hand-built-panel assertions (~238–259): raw `model` + `tools`, no
+  `api_model`, key-set `== {provider, model, tools, endpoint, served_by}` — this covers
+  **score.py** only; and
+  (b) a **CLI-level** test that exercises **cli.py**'s panel build. The `cli.py score` panel path
+  is inline behind the fingerprint cross-check, so a hand-built dict can't reach it — follow the
+  existing `test_score_config_drift_from_answers_refused` recipe (~106–137): monkeypatch
+  `collect_mod.complete`, run `collect` to write *fingerprinted* answers, then
+  `CliRunner().invoke(app, ["score", str(answers), "--config", …, "--questions", …, …])` and
+  assert the written `summary.json` panel has raw `model` + `tools`, no `api_model`. Without (b),
+  `cli.py`'s new emission would ship with zero coverage until the Phase-2 migration first runs it.
 
 #### Deliverables
 
@@ -76,8 +84,9 @@ green.
 - [ ] `score.py` written entry is exactly `{provider, model (raw), tools, endpoint, served_by}`;
       synthesised entries default `tools` to `[]`.
 - [ ] `summary_markdown` panel table has a `tools` column.
-- [ ] `test_phase2_tools.py` asserts the new shape (raw model, `tools`, no `api_model`, exact
-      key-set with `==`).
+- [ ] `test_phase2_tools.py` covers **both** score.py (via `score_file`) and cli.py (via
+      `CliRunner` over collect-written fingerprinted answers) emitting the new shape (raw model,
+      `tools`, no `api_model`, exact key-set with `==`).
 - [ ] Tests for this phase (above) pass; no committed run artifact is modified in this phase.
 
 #### Acceptance Criteria
@@ -119,12 +128,20 @@ committed-run tests are mutually dependent for a green suite.
   `` p ? `${p.provider}\u0000${p.model}\u0000${[...(p.tools ?? [])].sort().join(",")}` : modelId ``;
   `StandingRow` gains `tools: string[]`, populated `p?.tools ?? []`. (Sort defensively even
   though the pipeline already sorts, so a hand-written summary can't produce an order-dependent
-  key.)
+  key.) **Also update the now-false in-code text**: the `StandingRow.key` doc comment and the
+  `aggregate()` docstring both state the key is `` `${provider}\u0000${model}` `` — correct them
+  to the tools-aware key.
 - `apps/viewer/src/routes/StandingsPage.tsx` — render the tools setting in the provider/model
   subtext when non-empty (e.g. `… [web_search]`), so raw-model rows for different arms are
-  visually distinct.
+  visually distinct. **Also update the now-false text**: the header comment (lines ~9–10) and the
+  **user-visible** blurb (~line 97, "keyed on the panel's provider + model") — both must mention
+  tools, so the Phase-2 commit isn't self-contradictory.
 - `runs/tutorial-2026-10-11/summary.json` **and** `summary.md` — **migrated** (see Test Plan:
   regenerate into a temp dir, byte-diff `scores.jsonl`, copy the two files in).
+- `runs/tutorial-2026-10-11/README.md` (line 17) — update the panel-identity prose to the
+  `panel.tools` shape **in this phase** (not Phase 3): leaving it to the doc sweep would make the
+  Phase-2 commit a run dir whose `summary.json` carries `tools` while its own README still
+  describes the marker.
 - `apps/viewer/src/local/tutorialRun.test.ts` — rewrite: assert raw `panel.model` + `tools`;
   assert the four distinct standings keys (now tools-aware); **invert** the first-run collision
   assertion (the tutorial-no-tools haiku key now equals first-run's bare haiku key); assert total
@@ -133,7 +150,9 @@ committed-run tests are mutually dependent for a green suite.
   `FIRST_RUN_KEY` accordingly; **invert** `FIRST_RUN_KEY not in keys` → `in keys`; rename/rewrite
   `test_panel_is_secret_free_carries_api_model_and_is_unpriced` to assert `tools` present and the
   exact key-set `== {provider, model, tools, endpoint, served_by}` (drop the `api_model`
-  assertion); tighten `⊆` to `==`.
+  assertion); tighten `⊆` to `==`. **Add a committed-`summary.md` assertion** (the real JSON/MD
+  skew guard): the migrated `summary.md` panel table has a `tools` column with `web_search` on the
+  `-search` rows and empty/`—` on the no-tools rows.
 - `apps/viewer/src/lib/aggregate.test.ts`, `apps/viewer/src/routes/StandingsPage.test.tsx` —
   update any assertions on the old `(provider, model)` key or the marker subtext to the new shape
   (verify by running the suite; add a tools-dedupe / missing-tools edge case where natural).
@@ -147,12 +166,18 @@ committed-run tests are mutually dependent for a green suite.
       `tools` (no marker, no `api_model`; md has the `tools` column); `scores.jsonl`,
       `answers.jsonl`, `questions.jsonl` byte-unchanged.
 - [ ] `tutorialRun.test.ts`: four distinct arm keys, first-run/tutorial key collision, 7 rows.
-- [ ] `test_tutorial_run.py`: mirror updated + collision asserted + exact new key-set.
+- [ ] `test_tutorial_run.py`: mirror updated + collision asserted + exact new key-set + committed
+      `summary.md` `tools`-column assertion (JSON/MD skew guard).
+- [ ] `aggregate.ts`/`StandingsPage.tsx` in-code + user-visible text and the run `README.md`
+      updated to the tools-aware shape (no self-contradiction in the Phase-2 commit).
 - [ ] `aggregate.test.ts` / `StandingsPage.test.tsx` updated; tests for this phase pass.
 
 #### Acceptance Criteria
 
 - [ ] `.codev/checks/test.sh` green (pipeline pytest + viewer vitest + audit).
+- [ ] `pnpm -C apps/viewer check-types` green — `tsc --noEmit` is **not** in the dispatcher gate,
+      so the new `PanelEntry.tools` / `StandingRow.tools` fields must be typechecked explicitly or
+      type breakage ships silently.
 - [ ] `audit runs/tutorial-2026-10-11` passes; the committed panel key-set is exactly
       `{provider, model, tools, endpoint, served_by}` and secret-free.
 - [ ] Standings over both committed runs = 7 rows; the four tutorial arms are distinct; the
@@ -163,11 +188,12 @@ committed-run tests are mutually dependent for a green suite.
 #### Test Plan
 
 - **Migration procedure (manual, scripted, no in-place re-score):**
-  1. `uv --project pipelines run python -m sacredbench score --answers
+  1. `uv --project pipelines run python -m sacredbench score
      runs/tutorial-2026-10-11/answers.jsonl --questions runs/tutorial-2026-10-11/questions.jsonl
      --config configs/models.example.yaml --scores-out <TMP>/scores.jsonl --summary-out
-     <TMP>/summary.json --summary-md <TMP>/summary.md` where `<TMP>` is a fresh scratch dir
-     (confirm the exact flag names against `cli.py score` first).
+     <TMP>/summary.json --summary-md <TMP>/summary.md` where `<TMP>` is a fresh scratch dir.
+     Note `answers` is a **positional** argument (`cli.py score`), not `--answers`; everything
+     else is an option.
   2. `diff runs/tutorial-2026-10-11/scores.jsonl <TMP>/scores.jsonl` → **must be empty**.
   3. Confirm `<TMP>/summary.json` differs from the committed one only in the `panel` block and
      the `generated_at` timestamp (a `jq`/diff spot-check on `models`/`by_tradition`/`usage`).
@@ -193,8 +219,10 @@ committed-run tests are mutually dependent for a green suite.
 #### Objective
 
 Update the authoritative docs the change falsifies so no future agent is instructed to restore
-the marker, and the user-facing tutorial matches what `/standings` now shows. Spec 8's historical
-plan/review/project/thread artifacts are left as records of what Spec 8 did.
+the marker, and the user-facing tutorial matches what `/standings` now shows. (The in-code/UI
+text in `aggregate.ts`/`StandingsPage.tsx` and the run `README.md` were already corrected in
+Phase 2, so this phase is the remaining prose: arch docs, the walkthrough, and the tutorial.)
+Spec 8's historical plan/review/project/thread artifacts are left as records of what Spec 8 did.
 
 #### Files to Create / Modify
 
@@ -209,22 +237,28 @@ plan/review/project/thread artifacts are left as records of what Spec 8 did.
   for `…[web_search]`/`…[no-tools]` rows; update to describe the raw-model rows + the tools
   indicator. (Line 144 refers to the `tools: [web_search]` *config*, still valid — verify, leave
   if accurate.)
-- `runs/tutorial-2026-10-11/README.md` (line 17) — update the panel-identity prose to the
-  `panel.tools` shape.
+  *(`runs/tutorial-2026-10-11/README.md:17` is handled in Phase 2, with the run migration, so the
+  Phase-2 commit is self-consistent.)*
 
 #### Deliverables
 
-- [ ] `arch-critical.md`, `arch.md`, `CODE_WALKTHROUGH.md`, `TUTORIAL.md`, run `README.md`
-      describe the `panel.tools` + viewer-key shape; no stale marker instruction remains.
+- [ ] `arch-critical.md`, `arch.md`, `CODE_WALKTHROUGH.md`, `TUTORIAL.md` describe the
+      `panel.tools` + viewer-key shape; no stale marker *instruction* remains.
 - [ ] Spec 8's `codev/plans/8-*`, `codev/projects/8-*`, `codev/reviews/8-*`,
       `codev/state/aspir-8_thread.md` are **not** modified.
-- [ ] Tests for this phase: `.codev/checks/test.sh` still green (docs do not affect tests);
-      a `grep` confirms no authoritative doc still prescribes the marker.
+- [ ] Tests for this phase: `.codev/checks/test.sh` still green (docs do not affect tests;
+      `CODE_WALKTHROUGH.md` has a pointer-line-range test — keep its `_REQUIRED_SYMBOLS` intact);
+      the scoped grep (below) confirms no authoritative doc still prescribes the marker.
 
 #### Acceptance Criteria
 
-- [ ] `grep -rn "no-tools\|\[web_search\]\|api_model"` over the authoritative docs returns
-      nothing prescriptive (only historical Spec-8 artifacts may still mention the marker).
+- [ ] A **scoped** grep returns nothing — run it over the authoritative docs only and allow the
+      legitimate survivors: `grep -rn "no-tools\|\[web_search\]\|api_model" codev/resources/arch-critical.md
+      codev/resources/arch.md CODE_WALKTHROUGH.md TUTORIAL.md`, where the sole permitted hit is
+      `TUTORIAL.md:144` (`tools: [web_search]` is valid *config*, not a standings-row instruction).
+      Explicitly **not** scanned (legitimate marker mentions): `configs/models.example.yaml`
+      (`tools: [web_search]` config) and Spec 8's historical `codev/plans/8-*`/`codev/projects/8-*`/
+      `codev/reviews/8-*`/`codev/state/aspir-8_thread.md`.
 - [ ] `.codev/checks/test.sh` green.
 - [ ] `update-arch-docs` hot-tier caps respected for `arch-critical.md`.
 
@@ -241,7 +275,7 @@ plan/review/project/thread artifacts are left as records of what Spec 8 did.
 | Migrating the committed run before the viewer key change collapses haiku/haiku-search mid-PR | Medium | Medium | Bundle migration + viewer key + committed-run tests in **one phase (2)**; never commit the migration without the key change. |
 | A hardcoded-mtime test "proves" the tutorial supersedes first-run while the real page shows the stale row | High | High | Assert the key **collision** + 7-row count as the guarantee; the directional test explicitly injects mtimes and is labelled a demonstration; Issue #7 named as the real recency fix (out of scope). |
 | Migration perturbs `scores.jsonl`/usage (not just panel) | Low | High | Regenerate into a temp dir; byte-diff `scores.jsonl` (must be empty); surgical panel-only edit fallback. |
-| JSON/MD skew (regenerate JSON without `--summary-md`) | Medium | Medium | Always regenerate with `--summary-md`; `test_tutorial_run.py` reads `summary.md` and pins the `tools` column. |
+| JSON/MD skew (regenerate JSON without `--summary-md`) | Medium | Medium | Always regenerate with `--summary-md`; Phase 2 adds an explicit `test_tutorial_run.py` assertion that the committed `summary.md` panel table has the `tools` column (today that file only secret-scans the md). |
 | Missed the Python standings-key mirror in `test_tutorial_run.py` | Medium | Medium | Phase 2 names `_standings_key`/`FIRST_RUN_KEY`/the `not in keys` inversion explicitly. |
 | Merge conflict with builder-aspir-15 (both touch `score.py`/`cli.py`) | Medium | Medium | Confine Phase 1 edits to the panel-projection + markdown-table lines; whoever merges second rebases. |
 | A stale always-on `arch-critical.md` tells a future agent to restore the marker | Medium | Medium | Phase 3 corrects it via `update-arch-docs`; grep audit gate. |
@@ -249,11 +283,15 @@ plan/review/project/thread artifacts are left as records of what Spec 8 did.
 
 ## Documentation Updates
 
-Phase 3 is entirely documentation: `codev/resources/arch-critical.md`, `codev/resources/arch.md`
-(both via the `update-arch-docs` skill), `CODE_WALKTHROUGH.md`, `TUTORIAL.md`, and
-`runs/tutorial-2026-10-11/README.md`. Spec 8's historical artifacts are intentionally left
-unchanged. No API docs exist to update; `lessons-critical.md` already carries the relevant
-lessons (panel identity; never re-run score over committed evidence) and needs no change — the
-migration honours the latter via the temp-dir procedure.
+- **Phase 2** (with the code, to keep that commit self-consistent): the in-code key docstrings in
+  `apps/viewer/src/lib/aggregate.ts`, the header comment + user-visible blurb in
+  `apps/viewer/src/routes/StandingsPage.tsx`, and `runs/tutorial-2026-10-11/README.md`.
+- **Phase 3** (prose sweep): `codev/resources/arch-critical.md` + `codev/resources/arch.md` (both
+  via the `update-arch-docs` skill), `CODE_WALKTHROUGH.md`, `TUTORIAL.md`.
+
+Spec 8's historical artifacts are intentionally left unchanged. No API docs exist to update;
+`lessons-critical.md` already carries the relevant lessons (panel identity; never re-run score
+over committed evidence) and needs no change — the migration honours the latter via the temp-dir
+procedure.
 
 <signal>PLAN_DRAFTED</signal>

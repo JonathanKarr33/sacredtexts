@@ -75,6 +75,27 @@ codex + claude converge:
 Minor: key-set assertion → use `==` (not `⊆`) {provider,model,tools,endpoint,served_by};
 score.py:421 synthesized-entry path needs `tools: []` default; state row count = 7.
 
+## Plan (3 phases, each green at its own commit)
+- P1: pipeline emits panel.tools (raw model, no api_model) + md tools column. Touches NO
+  committed artifact → suite stays green. Tests: score.py via score_file dict AND cli.py via
+  CliRunner over collect-written fingerprinted answers (claude: the dict path can't reach cli.py).
+- P2: viewer keys standings on (provider,model,tools) [missing⇒[]] + display + MIGRATE committed
+  run (temp-dir regen, byte-diff scores.jsonl, copy summary.json+summary.md) + invert both
+  committed-run tests (TS + py mirror) + aggregate.ts/StandingsPage.tsx in-code+user text +
+  run README.md. Atomic (migration/key/tests mutually dependent). check-types in acceptance.
+- P3: prose docs — arch-critical.md + arch.md (update-arch-docs skill), CODE_WALKTHROUGH.md,
+  TUTORIAL.md. Scoped grep gate w/ named survivors. Spec-8 historical artifacts untouched.
+- Migration verified viable by claude: committed answer fingerprints match models.example.yaml
+  exactly; config is unpriced so no cost_usd appears → diff = panel + generated_at only.
+
+## Plan consult iter-1: codex APPROVE (no issues); claude COMMENT (6 corrections, all accepted)
+Fixed: (1) `answers` positional not --answers; (2) P1 needs a CLI-level test (CliRunner +
+fingerprinted answers) or cli.py emission is untested; (3) add committed summary.md tools-column
+assertion (real md-skew guard); (4) add `pnpm -C apps/viewer check-types` (not in gate);
+(5) move aggregate.ts/StandingsPage.tsx text + run README to P2 (self-consistency); (6) scope
+P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 artifacts).
+
 ## Status
-- [x] Specify — spec written; iter-1 consult (both REQUEST_CHANGES, Approach B endorsed);
-      spec revised to address all 3 findings + minors; rebuttal written. Advancing.
+- [x] Specify — done (both consults addressed, rebuttal, advanced).
+- [x] Plan — written; iter-1 consult (codex APPROVE / claude COMMENT); plan revised for all 6
+      corrections; rebuttal written. Advancing to re-verify.
