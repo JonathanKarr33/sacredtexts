@@ -194,10 +194,18 @@ pnpm -C apps/viewer dev          # then open the printed URL
   is where the wrapped-but-correct search-on answers are visible — a correct quote with a
   citation around it, scored 0 by the strict headline.
 - **Standings** (`/standings`, in the header) shows each model's most recent result
-  across all runs — one row per model, keyed on the panel's provider + model. Because the
-  tools setting is part of that identity, the four tutorial entries
-  (`…[web_search]` / `…[no-tools]`) appear as **four distinct rows** and do not collapse
-  into one or collide with first-run's own `claude-haiku-5-5` row.
+  across all runs — one row per `(provider, model, tools)`. The tools setting is part of
+  that identity, so the tutorial's four entries are **four distinct standings keys**: the
+  two search-on rows carry a `web_search` tag after the raw model name, the search-off rows
+  carry none, and the model name shown in each row's subtext is the raw API id (no marker).
+  Because a search-off entry keys
+  identically to a bare run of the same model, the tutorial's search-off `claude-haiku-5-5`
+  and first-run's own `claude-haiku-5-5` collapse to a **single** row — so across both runs
+  you see **7** rows, not 8, and the earlier first-run haiku row is supersedable rather
+  than orphaned. Which run supplies that shared row follows the same run-directory mtime
+  rule as the leaderboard default above; git does not preserve mtimes, so on an mtime tie
+  the lexicographically-smaller run id wins (making recency calendar-accurate is
+  issue #7, out of scope here).
 - An empty `runs/` shows an informative empty state.
 - The multibrowser surface (`/t/...`, `/results`, `/raw`, `/review*`) has been removed.
 

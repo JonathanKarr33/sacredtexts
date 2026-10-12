@@ -335,11 +335,12 @@ must keep all of them:
 - **Panel fingerprints — including tool-use identity.** A model cell's identity is
   `_panel_fingerprint()` (`pipelines/sacredbench/collect.py:32`), which includes its
   `tools`, so a web-search-on cell can never be resumed as web-search-off. The same
-  tools identity is baked into the emitted `panel.model` marker
-  (`[web_search]` / `[no-tools]`) in `cli.py:349`, so search-on and search-off never
-  collapse or collide in the viewer's standings key. Tools are validated — and
-  fail-fast on a non-Anthropic provider — in `config.py` (`_parse_tools`,
-  `config.py:59`; `tools` on `ModelSpec`, `config.py:50`).
+  tools identity is emitted as a real `panel.tools` list — `model` stays the raw API id
+  and carries no inline marker — in the written panel snapshot (`score.py:430`), so the
+  viewer's standings key — `(provider, model, tools)` — keeps search-on and search-off
+  as distinct rows while same-model/same-tools runs dedupe (Spec 11, Approach B). Tools
+  are validated — and fail-fast on a non-Anthropic provider — in `config.py`
+  (`_parse_tools`, `config.py:59`; `tools` on `ModelSpec`, `config.py:50`).
 - **Resumable collect.** Already-answered `(question_id, model_id)` cells are skipped
   on re-run (`_existing`, `collect.py:39`; the pending-cell list is built at
   `collect.py:113`), and a failed cell stays pending and makes the run exit non-zero —

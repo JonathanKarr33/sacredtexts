@@ -75,8 +75,9 @@ round-trip that proves no invention/reordering.
   missing-cell roster, a `usage` block (per-model + total tokens; cost only when every
   model is priced — prices never invented), an additive `generated_at` (UTC ISO; closes
   issue #7's pipeline half — the viewer ignores it), and (with `--config`) a `panel` block
-  (provider/model/endpoint/served_by, no secrets) that carries each entry's tools-marked
-  display model plus its raw `api_model` string.
+  (provider/model/endpoint/served_by, no secrets) where each entry carries a raw unmarked
+  `model` (the API model id, no inline tool marker) plus a real `tools` list (sorted; `[]`
+  when none) — Spec 11, Approach B.
 - **audit.py**: see arch-critical — origin layer always; content-fingerprint layer when
   restricted payloads are present locally; `_norm` strips non-Latin marks too so Arabic/
   Hebrew/Greek unit texts fingerprint consistently (was ASCII-only, a non-Latin no-op).
@@ -98,11 +99,12 @@ gone. The route tree is `/` (the **leaderboard home** — `routes/LeaderboardPag
 `components/QuestionList.tsx`/`ExplorerFilters.tsx`, classification/filters in
 `lib/explorer.ts`), `/standings` (the **cross-run current standings** —
 `routes/StandingsPage.tsx`, rollup in `lib/aggregate.ts`, keyed on the panel's
-`(provider, model)` identity — `${provider}\u0000${model}` — with the newest run per
-model winning; because the pipeline bakes the tools setting into `panel.model`
-(`[web_search]`/`[no-tools]`), a model's search-on/off variants are distinct standings
-rows and never collide with another run's bare-model row — all a *zero-viewer-change*
-property), plus a 404. The
+`(provider, model, tools)` identity, `${provider}\u0000${model}\u0000${sortedTools}` with
+a missing `tools` defaulting to `[]`, newest run per that identity winning), plus a 404.
+Because the standings key incorporates the `panel.tools` list, a model's search-on/off
+variants stay distinct standings rows while two runs of the same model with the same tools
+dedupe — so a bare pre-Spec-11 run collides with an explicit search-off run instead of
+orphaning it (Spec 11, Approach B, which required the viewer change). The
 selected run lives in the URL as a **bare run id**, `/?run=<id>` (validated by a plain
 `validateSearch` fn — zod is pruned — and resolved to the fetch base
 `/runs/${encodeURIComponent(id)}`); the default is the most-recent run from the

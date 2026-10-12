@@ -43,8 +43,9 @@ pnpm -C apps/viewer dev          # then open the printed URL
   URL (`?task=&tradition=&correct=&mode=`).
 - **Standings** (`/standings`, linked in the header) is the cross-run view: one row per
   model showing its **most recent** result across all runs, keyed on the run panel's
-  `(provider, model)` identity (so a model renamed between runs still dedupes to one row),
-  with the source run's id and date linking back into that run's leaderboard.
+  `(provider, model, tools)` identity (a missing `tools` ⇒ `[]`), so search-on/off stay
+  distinct rows while two runs of the same model with the same tools dedupe to one, with
+  the source run's id and date linking back into that run's leaderboard.
 - The dev server exposes the repo's (gitignored) `runs/` at `/runs/` via a dev-only Vite
   middleware (`serveRuns` in `vite.config.ts`, logic in `vite/runsEndpoint.ts`), including
   a `/runs/_index` run index. Symlinked run directories are intentionally omitted from the
