@@ -5,10 +5,10 @@ phase: implement
 plan_phases:
   - id: phase_1
     title: Containment headline + one-shot rebaseline (DONE)
-    status: in_progress
+    status: complete
   - id: phase_2
     title: Named-grader registry + score --evaluator CLI (provable no-op)
-    status: pending
+    status: in_progress
   - id: phase_3
     title: Refused outcome + coverage + second rebaseline
     status: pending
@@ -18,17 +18,17 @@ plan_phases:
   - id: phase_5
     title: Documentation sync for the evaluator/outcome contract
     status: pending
-current_plan_phase: phase_1
+current_plan_phase: phase_2
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-12T16:17:31.163Z'
-updated_at: '2026-10-12T17:40:56.937Z'
+updated_at: '2026-10-12T17:41:03.264Z'
 pr_ready_for_human: false
 force_advanced:
   phase: plan
@@ -40,3 +40,5 @@ context_refreshes:
   - boundary: enter:implement
     at: '2026-10-12T17:38:16.216Z'
     acknowledged_at: '2026-10-12T17:38:52.276Z'
+  - boundary: plan-phase:phase_2
+    at: '2026-10-12T17:41:03.264Z'
