@@ -1,0 +1,31 @@
+I'll start by locating the worktree and reading the changed files.I read every Phase-2 file from disk, ran the project gate, the typecheck, and the audit read-only. I did not modify anything in the builder's tree.
+
+## What I verified
+
+**Migration (the risky part) — clean.** Diffing `319090d...HEAD` over `runs/`, only three files moved: `summary.json`, `summary.md`, `README.md`. `scores.jsonl`, `answers.jsonl`, `questions.jsonl` are byte-untouched, and a block-by-block JSON compare shows `models`, `by_tradition`, `usage` **identical** — only `panel` and `generated_at` changed. `runs/first-run-2026-10-11/` is untouched. Committed panel key-set is exactly `{provider, model, tools, endpoint, served_by}`; raw `claude-haiku-5-5`/`claude-opus-5-5`, `tools: []` / `["web_search"]`, no `api_model`, no marker. `summary.md` panel table gained the `tools` column and agrees with the JSON.
+
+**Gate.** `.codev/checks/test.sh` green (viewer 17 files / 128 tests incl. `realRun.test.ts` and the `deploy.test.ts` CSS probe; pipelines 292 passed / 1 pre-existing skip). `pnpm -C apps/viewer check-types` green. `audit runs/tutorial-2026-10-11` → OK.
+
+**Key change.** `aggregate.ts` touches exactly one key-construction site; tools sorted defensively, missing ⇒ `[]`, `model_id` fallback for a panel-less run preserved (test at `aggregate.test.ts:78`). Three new edge-case tests (tools-distinct, missing⇒`[]` dedupe, order-stability). Python mirror in `test_tutorial_run.py` updated and the `FIRST_RUN_KEY not in keys` assertion correctly inverted; new `summary.md` skew guard. In-code docstrings, the user-visible blurb, and the run `README.md` were all corrected in this commit — no self-contradictory artifact.
+
+## Non-blocking findings
+
+1. **The standings *display* requirement has no test.** `StandingsPage.tsx:133` renders the ` [web_search]` subtext, but `StandingsPage.test.tsx` is untouched and its only subtext assertion (`getByText("anthropic / claude-haiku-5-5")`, line 133) is first-run's *no-tools* row — so the suffix is never exercised. Spec criterion "the standings page visibly distinguishes a search-on row from a search-off row" is currently satisfied by inspection only, and the thread doesn't record the plan's manual `/standings` check. A fixture with two arms asserting the suffix would lock it (cheap; note that `getByText` with the full string won't match a tools row, since `textContent` includes the suffix — use a substring matcher).
+
+2. **`tutorialRun.test.ts:102` is a tautology.** `expect(haikuNoTools).toBe("anthropic\u0000claude-haiku-5-5\u0000")` compares a constant to the same literal — it documents intent but proves nothing about first-run. The *real* proof is lines 106–108 + the 7-row count, and that proof holds: first-run's `claude-haiku` entry has `model: "claude-haiku-5-5"`, so a non-colliding key would yield three `claude-haiku-5-5` rows, not two. Stronger: derive the key from `firstRun.summary.panel["claude-haiku"]` and assert equality.
+
+3. **Malformed `tools` crashes rather than degrades.** `[...(p?.tools ?? [])]` throws on a non-iterable (e.g. `tools: 5` in a hand-written summary), escaping `aggregate` inside the `useMemo` and taking the page down instead of yielding a typed "malformed". The spec explicitly waived this ("handled like any other unexpected panel value"), so it's not a change request — an `Array.isArray` guard is cheap insurance.
+
+4. **For the architect, not this phase:** the collision now means one of the two haiku-no-tools results disappears from `/standings`. In a fresh clone with tied dir mtimes the id-asc tiebreak favours `first-run`, so the stale 24% row survives and the tutorial's 47% no-tools row isn't shown at all. The spec knowingly accepts this and names Issue #7 (`generated_at` recency) as the fix — worth prioritising, since the user-visible staleness isn't fully gone until then.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 2 is complete and verified — tools-aware standings key, clean minimal migration (scores byte-identical, first-run untouched), gate + typecheck + audit green; only test-coverage nits remain.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- No test covers the `StandingsPage` tools subtext (spec's "visibly distinguishes" criterion is inspection-only; `StandingsPage.test.tsx` untouched and its subtext assertion uses a no-tools row)
+- `tutorialRun.test.ts:102` asserts a constant against its own literal (vacuous); derive first-run's key from its panel entry instead — the collision proof at 106–108/120 is sound, so this is cosmetic
+- `aggregate` spreads `p.tools` unguarded: a non-array `tools` throws and crashes the standings render instead of degrading (spec-waived; an `Array.isArray` guard is cheap)
+- Architect note (out of scope): with the keys now colliding, a tie-mtime clone lets first-run's stale haiku row win and hides the tutorial's no-tools result — Issue #7's `generated_at` recency is the real fix

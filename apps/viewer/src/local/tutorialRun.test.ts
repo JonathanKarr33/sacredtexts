@@ -99,7 +99,12 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     // Approach B inverts the Spec-8 property: first-run's bare `claude-haiku-5-5` (no tools
     // field ⇒ []) now keys IDENTICALLY to the tutorial's no-tools haiku entry, so the two
     // dedupe into a single standings row rather than orphaning the stale first-run row.
-    expect(haikuNoTools).toBe("anthropic\u0000claude-haiku-5-5\u0000"); // == first-run's key
+    // Derive first-run's key from its ACTUAL committed panel entry (not a hand-copied
+    // literal) and prove it equals the tutorial's no-tools key.
+    const fp = firstRun.summary.panel?.["claude-haiku"];
+    expect(fp).toBeDefined();
+    const firstRunHaikuKey = `${fp!.provider}\u0000${fp!.model}\u0000${[...(fp!.tools ?? [])].sort().join(",")}`;
+    expect(firstRunHaikuKey).toBe(haikuNoTools);
 
     // Only ONE row carries that shared key (collision proven), and — because tools off and
     // on are distinct keys — there are exactly two haiku-5-5 rows in all.
