@@ -25,9 +25,11 @@ clean (tools is its own field; the model id stays the raw API id).
 - [x] AC5: The viewer's standings key incorporates tools, so the tutorial run's search-on/off
       variants render as separate rows (Phase 2)
 - [x] AC6: Two runs of the same `(provider, model, tools)` dedupe to one key — the tutorial's
-      no-tools `claude-haiku-5-5` and first-run's bare `claude-haiku-5-5` now collide; recency
-      (mtime/id) unchanged; directional supersession test injects distinct mtimes and the
-      collision + 7-row count is the asserted guarantee (Phase 2)
+      no-tools `claude-haiku-5-5` and first-run's bare `claude-haiku-5-5` collide; after
+      integrating `main`, recency is `generated_at`-based (Issue #7, merged on `main`), so the
+      tutorial run (newer `generated_at`, 2026-10-12) supplies the single surviving row over
+      first-run's run-id-date fallback (2026-10-11); 7 rows total (Phase 2, reconciled at
+      integration — see Deviations)
 - [x] AC7: A panel entry with no `tools` field keys identically to an explicit `tools: []`
       (missing ⇒ empty tool set) (Phase 2)
 - [x] AC8: A run with no panel entry still degrades to keying on `model_id` (Phase 2)
@@ -65,6 +67,23 @@ clean (tools is its own field; the model id stays the raw API id).
 - **Phase 2 — fixed two pre-existing latent `TS2532` in `tutorialRun.test.ts`** (`rows[0]` →
   `rows[0]!`, matching the sibling-test `!` convention), surfaced only once the viewer lane began
   type-checking. In-scope (a file the phase already owned).
+- **Integration — merged `origin/main` and reconciled to Issue #7's landed recency (architect-
+  approved).** The PR-level consult found the branch 18 commits behind `main`, which had since
+  merged Issue #7 (`generated_at`-based run recency, `lib/recency.ts`/`runRecencyMs`) and #19/#10
+  (a single-track rewrite of `TUTORIAL.md` + `CODE_WALKTHROUGH.md`). Architect `main` ruled
+  (2026-10-12 17:51Z): **merge** `origin/main` (not a 37-commit rebase) and **reconcile** to #7's
+  recency as the contract. Applied in the merge commit: `aggregate.ts` composes the
+  `(provider, model, tools)` key **on top of** `runRecencyMs` (did not clobber #7); the doc
+  corrections were re-applied onto #19's rewritten `CODE_WALKTHROUGH.md`/`TUTORIAL.md` keeping
+  their single-track tone; the recency-dependent tests/prose were flipped from the old
+  "mtime-tie / no winner / Issue #7 out of scope" framing to assert the **correct post-#7
+  outcome** — the tutorial run wins the shared `claude-haiku-5-5` key via its newer `generated_at`.
+  Two follow-ons from the reconciliation: (a) the tutorial run's `generated_at` was restored to its
+  original run time (`2026-10-12T01:20:16`) rather than the migration time, since #7 made it the
+  load-bearing recency signal and the migration must stay panel-only (claude PR-consult finding);
+  (b) the standings subtext tag was changed from `[web_search]` to `· web_search` so it no longer
+  reads like the model-id marker this spec removes (claude nit); (c) `arch.md`'s stale
+  "`generated_at` … the viewer ignores it" line was corrected (it is now the recency key).
 - Otherwise the plan held across all three phases.
 
 ## Consultation Feedback
@@ -146,6 +165,29 @@ see the worktree (set in `.codev/config.json`). No `CONSULT_ERROR`s occurred.
   outside even the architect-authorized deviation; left per tight-diff and recorded as a
   follow-up for a deliberate PR-review decision.
 
+### Review — PR consult (Round 1)
+
+#### Codex — REQUEST_CHANGES (HIGH)
+- **Concern**: the branch is 18 commits behind `main`, which has merged Issue #7's
+  `generated_at` recency; a careless resolution would regress it and the PR is not
+  integration-ready → **Addressed**: merged `origin/main` (architect-approved) and composed the
+  tools key on top of `runRecencyMs` without clobbering #7; re-ran the gate green.
+
+#### Claude — REQUEST_CHANGES (HIGH)
+- **Concern**: implementation/tests/migration are sound, but the branch is `CONFLICTING`; `main`
+  shipped #7 (`recency.ts`) and #19 (TUTORIAL/CODE_WALKTHROUGH rewrite), so the new docs/comments
+  are falsified → **Addressed**: merged and reconciled — re-applied the doc corrections onto #19's
+  rewrites (single-track tone kept), flipped the recency-dependent tests/prose to the post-#7
+  behaviour (tutorial wins the shared key via `generated_at`).
+- **Concern**: the `tutorialRun.test.ts` injected mtimes become inert post-#7 (recency resolves
+  via `generated_at`/run-id date), so the directional assertion no longer tests what it claims →
+  **Addressed**: rewrote the test to give first-run the larger mtime and assert the tutorial still
+  wins (proving `generated_at` precedence, not mtime).
+- **Concern**: the migration bumped `generated_at` (now load-bearing under #7) to the migration
+  time → **Addressed**: restored the original run timestamp so the migration stays panel-only.
+- **Concern (nit)**: `StandingsPage` renders the tool set as `[web_search]`, which reads like the
+  removed marker → **Addressed**: changed to `· web_search`.
+
 ## Lessons Learned
 
 ### What Went Well
@@ -153,9 +195,10 @@ see the worktree (set in `.codev/config.json`). No `CONSULT_ERROR`s occurred.
 - The committed-run migration regenerated into a fresh temp dir and was verified
   **`scores.jsonl` byte-identical** before the two files were copied back — the project lesson
   ("never re-run score over committed evidence") held, and the panel-only change was provable.
-- The tests assert the **key collision + 7-row count** as the guarantee rather than a specific
-  winner, so they stay honest about what Approach B actually delivers (dedupe), leaving recency
-  (Issue #7) cleanly out of scope.
+- The tests assert the **key collision + 7-row count** as the core guarantee of Approach B
+  (dedupe). Spec 11 delivered the collision; Issue #7 (merged on `main` in parallel) then supplied
+  the `generated_at` recency that decides *which* run wins the shared key — the two compose cleanly
+  at integration, and the tutorial run now correctly supersedes the stale first-run haiku row.
 - Consultation earned its keep on a docs-only phase: claude caught a genuinely falsified
   user-facing claim (TUTORIAL "distinct rows") and a falsified doc outside the spec's enumeration
   (`apps/viewer/README.md`).
@@ -166,9 +209,13 @@ see the worktree (set in `.codev/config.json`). No `CONSULT_ERROR`s occurred.
   (`TUTORIAL.md:144`). Correcting prose while even *negations* ("the marker is gone") would trip
   the literal tokens forced a choice; resolved by describing current state only (no backward
   reference to the retired marker/`api_model`), which satisfies both the gate and readability.
-- **Recency is mtime, and git does not preserve it.** On a same-checkout tie the id-ascending
-  tiebreak favours `first-run` over the tutorial, so the docs had to describe the *collision*
-  without promising the tutorial wins — easy to get subtly wrong (the iter-1 TUTORIAL miss).
+- **Recency changed underneath the branch mid-flight.** While Spec 11 was in review, Issue #7
+  merged `generated_at`-based recency onto `main` — the exact mechanism this spec had documented as
+  out of scope. The PR-level consult caught that the branch's new docs/tests (written against the
+  old mtime-tie behaviour) were now falsified. The integration merge reconciled them: the
+  reconciled tests assert the correct post-#7 outcome (tutorial wins via `generated_at`). Lesson:
+  a long-lived branch's "out of scope" boundary can be overtaken by a parallel merge — the
+  pre-merge PR consult is the checkpoint that catches it.
 
 ### What Would Be Done Differently
 
@@ -194,7 +241,9 @@ falsified them):
   reverse density creep.
 - Routed: **cold** — `codev/resources/arch.md` — updated the `panel` block description (raw
   `model` + `tools` list, no `api_model`/marker) and the `/standings` key description
-  (`(provider, model, tools)`, missing ⇒ `[]`, newest run per that identity).
+  (`(provider, model, tools)`, missing ⇒ `[]`, newest run per that identity). At integration, also
+  corrected the now-stale `generated_at` line (it said "the viewer ignores it"; post-#7 it is the
+  viewer's primary run-recency signal, pointing at `lib/recency.ts`).
 
 ## Lessons Learned Updates
 
@@ -212,12 +261,12 @@ pre-existing, deliberate, unrelated skip — not a flaky test skipped during thi
 
 ## Follow-up Items
 
-- **Issue #7 — `generated_at`-based recency.** Make standings recency calendar-accurate so a
-  newer run always supersedes an older one regardless of checkout mtimes; this is what decides
-  *which* run supplies the shared `claude-haiku-5-5` row. Out of scope here (this spec delivered
-  the collision/dedupe only).
+- **Issue #7 — `generated_at`-based recency: RESOLVED on `main` and integrated here.** It merged
+  in parallel and now decides *which* run supplies the shared `claude-haiku-5-5` row; this branch's
+  integration merge composes the tools key on top of it. No longer an open follow-up.
 - **Loose `panel` summaries** in `pipelines/README.md:101` and `apps/viewer/README.md:14` omit
   `tools` (and `served_by`). Not falsified by this change (they never asserted the marker), so
   left per tight-diff; worth a deliberate decision at PR review whether to round them out.
 - **Parallel work coordination:** builder-aspir-15 (#15) also touches `score.py`/`cli.py` and
-  viewer test fixtures; whoever merges second rebases.
+  viewer test fixtures and had not merged to `main` as of this integration; whoever merges second
+  rebases.

@@ -292,3 +292,29 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       TUTORIAL: re-apply onto #19 keeping tone). PRESERVE tutorial run's ORIGINAL generated_at (01:20:16,
       honest run time; tutorial still wins) — migration should not move the now-load-bearing timestamp.
       Update review doc (drop "Issue #7 out of scope"; recency now generated_at; tutorial wins). STARTING.
+- [x] INTEGRATION DONE. Merged origin/main (commit e6cd2cf, --no-ff). Resolved 8 files:
+      • aggregate.ts: function body AUTO-merged correctly (runRecencyMs + my tools key/field both
+        present); resolved 2 docstring conflicts (kept tools field doc + main's recencyMs doc; merged
+        the aggregate() docstring to (provider,model,tools) key + generated_at→run-id-date→mtime recency).
+      • aggregate.test.ts: kept my 3 tools tests + main's recency tie-break test (dropped my mtime-worded
+        duplicate). My tools tests use date-less run ids so runRecencyMs falls back to mtime — pass.
+      • tutorialRun.test.ts: flipped the directional test — first-run given the LARGER mtime, tutorial
+        still wins the shared haiku key via generated_at (2026-10-12 > first-run run-id-date 2026-10-11);
+        rewrote the stale "Issue #7 out of scope" comment to the real post-#7 win.
+      • StandingsPage.test.tsx: KEPT BOTH tests (my tools-subtext + main's recency-date) as separate it();
+        updated my assertions to `· web_search` tag.
+      • StandingsPage.tsx (auto-merged: tools subtext + main's recencyDate/recencyMs) → changed subtext
+        `[web_search]`→`· web_search` (claude nit: less marker-like). localResults.ts auto-merged (tools? +
+        main's generated_at) — verified.
+      • CODE_WALKTHROUGH.md: took #19's compact section-6 structure, re-applied my panel.tools correction
+        to its panel bullet (score.py:430 pointer, dropped the stale cli.py:349 marker bullet).
+      • TUTORIAL.md: took #19's single-track "Where to go next"; small tone-matching edit to #19's standings
+        bullet adding the dedupe/supersession in plain language (no mtime/issue jargon).
+      PRESERVED tutorial generated_at = original 2026-10-12T01:20:16 (not migration time 17:01) — honest
+      recency signal, migration stays panel-only; tutorial summary.json now differs from main ONLY by panel.
+      FIXED arch.md stale "generated_at … viewer ignores it" → now points at lib/recency.ts (post-#7).
+      GATE GREEN: check-types clean; viewer 145 passed (18 files); pipelines 270 passed/1 pre-existing skip
+      (incl. test_code_walkthrough pointer guard now in pipelines lane, test_phase2_tools, test_tutorial_run).
+      Updated review doc (AC6, Deviations+integration, Consultation Feedback +Review PR-consult round,
+      Challenges, Architecture Updates, Follow-up — Issue #7 now RESOLVED/integrated). aspir-15 (#15) still
+      NOT on main. NEXT: commit arch.md+review+thread, push PR #22, porch rebuttal→re-consult, ping architect.

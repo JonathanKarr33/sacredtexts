@@ -73,8 +73,9 @@ round-trip that proves no invention/reordering.
   non-Latin words score fairly; Latin text is byte-for-byte unchanged (a pinned
   invariance snapshot guards it). Emits per-model × task × **tradition** breakdown with a
   missing-cell roster, a `usage` block (per-model + total tokens; cost only when every
-  model is priced — prices never invented), an additive `generated_at` (UTC ISO; closes
-  issue #7's pipeline half — the viewer ignores it), and (with `--config`) a `panel` block
+  model is priced — prices never invented), a `generated_at` (UTC ISO; the viewer's
+  primary run-recency signal since issue #7 — see `lib/recency.ts`), and (with `--config`)
+  a `panel` block
   (provider/model/endpoint/served_by, no secrets) where each entry carries a raw unmarked
   `model` (the API model id, no inline tool marker) plus a real `tools` list (sorted; `[]`
   when none) — Spec 11, Approach B.
