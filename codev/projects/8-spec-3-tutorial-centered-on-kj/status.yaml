@@ -18,15 +18,16 @@ plan_phases:
 current_plan_phase: null
 gates:
   pr:
-    status: pending
+    status: approved
     requested_at: '2026-10-12T02:35:32.512Z'
+    approved_at: '2026-10-12T16:00:27.764Z'
   verify-approval:
     status: pending
 iteration: 1
 build_complete: false
 history: []
 started_at: '2026-10-11T21:00:43.465Z'
-updated_at: '2026-10-12T02:35:32.512Z'
+updated_at: '2026-10-12T16:00:27.764Z'
 context_refreshes:
   - boundary: plan-phase:phase_2
     at: '2026-10-11T22:08:42.816Z'
@@ -45,4 +46,4 @@ pr_history:
     pr_number: 9
     branch: builder/aspir-8
     created_at: '2026-10-12T02:29:42.496Z'
-pr_ready_for_human: true
+pr_ready_for_human: false
