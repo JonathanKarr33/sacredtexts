@@ -68,6 +68,43 @@ describe("runsEndpoint listRuns", () => {
   it("returns [] for a nonexistent root (the empty state, not a throw)", () => {
     expect(listRuns(path.join(tmp, "does-not-exist"))).toEqual([]);
   });
+
+  it("surfaces summary.generated_at and orders by recency, not mtime (Issue #7)", () => {
+    // A temp root of its own so the collapsed-mtime scenario is isolated from run-a above.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "recency-"));
+    try {
+      // Two runs; `older` has the newer generated_at, `newer-by-id`... has an older one. We
+      // then touch both to the SAME mtime (the fresh-clone collapse) so only generated_at
+      // can order them correctly.
+      fs.mkdirSync(path.join(root, "z-run-2026-10-10"));
+      fs.writeFileSync(
+        path.join(root, "z-run-2026-10-10", "summary.json"),
+        JSON.stringify({ models: {}, generated_at: "2026-10-12T00:00:00+00:00" }),
+      );
+      fs.mkdirSync(path.join(root, "a-run-2026-10-10"));
+      fs.writeFileSync(
+        path.join(root, "a-run-2026-10-10", "summary.json"),
+        JSON.stringify({ models: {}, generated_at: "2026-10-11T00:00:00+00:00" }),
+      );
+      const when = new Date("2020-01-01T00:00:00Z"); // identical mtime for both dirs
+      fs.utimesSync(path.join(root, "z-run-2026-10-10"), when, when);
+      fs.utimesSync(path.join(root, "a-run-2026-10-10"), when, when);
+
+      const runs = listRuns(root);
+      // Newer generated_at first, even though its id ("z-…") would sort LAST by id-asc.
+      expect(runs.map((r) => r.id)).toEqual(["z-run-2026-10-10", "a-run-2026-10-10"]);
+      expect(runs[0]!.generatedAt).toBe("2026-10-12T00:00:00+00:00");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("lists a run whose summary.json has no generated_at (generatedAt undefined)", () => {
+    // run-a's summary ('{"models":{}}') carries no generated_at — still listed, just without it.
+    const entry = listRuns(tmp).find((r) => r.id === "run-a");
+    expect(entry).toBeDefined();
+    expect(entry!.generatedAt).toBeUndefined();
+  });
 });
 
 describe("runsEndpoint resolveRunFile confinement", () => {

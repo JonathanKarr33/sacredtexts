@@ -80,6 +80,36 @@ describe("StandingsPage — cross-run rollup", () => {
     expect(within(dataRows[1]!).getByRole("link", { name: "run-a" }).getAttribute("href")).toContain("run=run-a");
   });
 
+  it("shows the resolved recency date (from generated_at), and 'date unknown' when no signal exists", async () => {
+    const summaries: Record<string, Summary> = {
+      // Has generated_at → recency Oct 12, shown as "dated 2026-10-12".
+      dated: {
+        models: { claude: { _overall: { n: 1, accuracy: 0.5 } } },
+        by_tradition: {},
+        panel: { claude: ANTHROPIC },
+        generated_at: "2026-10-12T01:20:16+00:00",
+      },
+      // No generated_at, no date in the id, and mtime 0 → recency 0 → "date unknown".
+      nameless: {
+        models: { legacy: { _overall: { n: 1, accuracy: 0.1 } } },
+        by_tradition: {},
+        panel: { legacy: { provider: "openai", model: "legacy-x", endpoint: "e", served_by: null } },
+      },
+    };
+    vi.stubGlobal("fetch", standingsFetcher(
+      [{ id: "dated", mtimeMs: 0 }, { id: "nameless", mtimeMs: 0 }],
+      summaries,
+    ));
+    renderApp("/standings");
+    expect(await screen.findByText("Current standings")).toBeInTheDocument();
+
+    const table = screen.getByRole("table");
+    const rowFor = (model: string) =>
+      within(table).getAllByRole("row").find((r) => within(r).queryByRole("link", { name: model }));
+    expect(within(rowFor("claude")!).getByText("dated 2026-10-12")).toBeInTheDocument();
+    expect(within(rowFor("legacy")!).getByText("date unknown")).toBeInTheDocument();
+  });
+
   it("skips a run whose summary.json is missing but surfaces it as omitted (never silently)", async () => {
     vi.stubGlobal("fetch", standingsFetcher(
       // 'broken' has no summary entry → skipped; 'good' still rolls up.
