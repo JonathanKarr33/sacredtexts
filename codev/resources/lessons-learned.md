@@ -68,6 +68,13 @@ Seeded from Spec 1 (Phase 1 benchmark).
   layer adds value only when the held-back payloads are present locally.
 - **Make committed evidence self-describing** (a run `README.md`): a standalone reader
   must not misread `0%` as inability when it is refusal.
+- **Model answers are committed as collected — no manual clearance/redaction pass.**
+  Binding project policy (human ruling, Spec 8): a web-search model may incidentally echo
+  copyrighted translation text in an answer; the maintainers treat that as fair use for
+  academic benchmarking, and answers are never truncated or edited (the explorer shows
+  them verbatim). The **automated `audit` gate remains the enforcement line** — it still
+  blocks any committed artifact derived from a *restricted* source — but there is no human
+  copyright-clearance step over collected answers. Don't reintroduce one.
 
 ## Process / SPIR
 

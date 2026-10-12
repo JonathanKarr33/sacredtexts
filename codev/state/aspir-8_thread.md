@@ -307,9 +307,24 @@ Re-entered after context refresh (porch next 8 → phase_4 implement). All FREE 
    lessons-critical.md UNCHANGED (at cap; new items are cold reference — respected displacement).
 5. ✅ Cosmetic: fixed run README mid-sentence line break (claude iter3 flag). summary.md api_model
    omission left as-is (it's a generated table; api_model IS in summary.json — non-blocking, fine).
-NEXT: commit [Spec 8][Phase 4] → run .codev/checks/test.sh (pipelines + viewer lanes) → porch done 8
-→ porch runs 3-way consult + checks → if APPROVE, advance. Then open ONE PR (all phases = commits on
-builder/aspir-8), porch done --pr, architect approval gate → porch approve, merge, porch done --merged.
+Committed 26a0dc7 [Spec 8][Phase 4]. porch done 8 → checks green → BUILD COMPLETE → porch next 8
+returned the 2-way consult task (codex+claude; gemini excluded per config — can't see worktree).
+
+### Phase 4 review iter1: codex REQUEST_CHANGES/HIGH; claude APPROVE/HIGH — all addressed
+codex (2 issues): (1) tutorialRun.test.ts only hit loadRun()/aggregate(), not leaderboard/explorer
+UI → EXTENDED the test (+2 it blocks, test-only): leaderboardRows ranks 4 entries (opus,opus-search,
+haiku,haiku-search; 66/66/47/40, non-increasing; tokens.calls=100 each) + traditionRows 3 traditions;
+explorer modelQuestions(haiku-search)=100, questionStats correct=40/missing=0, tradition filter
+Sunni Islam=33. (2) fair-use copyright policy absent from docs → ADDED to cold lessons-learned
+Evidence & copyright (answers committed as collected, no manual clearance, audit stays the gate).
+claude (APPROVE, 3 non-blocking): (1) Track B had no cost magnitude → added ~4.24M in/249K out/226
+search req + --per-task 5 cheap-trial note w/ digest-changes caveat. (2) "most-recent run = tutorial"
+is mtime-dependent (tie→first-run by id-asc) → hedged Track A + Track C to point at run selector.
+(3) lessons-critical unchanged noted as deliberate (agreed) — no action. Full gate GREEN after fixes:
+viewer 125/125 (realRun + #86 still green), pipelines 195/195.
+NEXT: commit review-response → porch next 8 (porch re-runs consult iter2; expect APPROVE → advance).
+Then open ONE PR (all phases = commits on builder/aspir-8), porch done --pr, architect approval gate
+→ porch approve, merge, porch done --merged, verify phase.
 
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,

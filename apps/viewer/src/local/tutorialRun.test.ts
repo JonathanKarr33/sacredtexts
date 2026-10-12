@@ -13,6 +13,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { loadRun } from "../lib/localResults";
 import { aggregate, type RunSummary } from "../lib/aggregate";
+import { leaderboardRows, traditionRows, hasTraditionData } from "../lib/leaderboard";
+import { modelQuestions, questionStats, filterQuestions, explorerTraditions } from "../lib/explorer";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const tutorialDir = resolve(root, "runs/tutorial-2026-10-11");
@@ -98,5 +100,56 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
 
     // Total rows: 4 anthropic (tutorial) + 1 anthropic + 3 openai (first-run) = 8.
     expect(rows).toHaveLength(8);
+  });
+
+  it("the leaderboard ranks the four entries and carries per-tradition + token columns", async () => {
+    const base = "/runs/tutorial-2026-10-11";
+    const run = await loadRun(base, diskFetcher(tutorialDir, base));
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+
+    const { tasks, rows } = leaderboardRows(run.summary);
+    expect(tasks).toEqual(["retrieve_quote"]);
+    // Four rows, ranked by overall accuracy desc with model_id as the tiebreak: the two
+    // 66% opus entries first (opus < opus-search), then haiku (47%), then haiku-search (40%).
+    expect(rows.map((r) => r.modelId)).toEqual(["opus", "opus-search", "haiku", "haiku-search"]);
+    const acc = rows.map((r) => r.overall?.accuracy ?? -1);
+    expect(acc).toEqual([...acc].sort((a, b) => b - a)); // non-increasing
+    expect(rows[0].overall?.accuracy).toBeCloseTo(0.66, 5);
+    expect(rows[3].overall?.accuracy).toBeCloseTo(0.4, 5);
+    // Each row carries its per-model token totals (the leaderboard's token column).
+    expect(rows.every((r) => r.tokens && r.tokens.calls === 100)).toBe(true);
+
+    // The per-tradition breakdown renders: every entry has all three traditions.
+    expect(hasTraditionData(run.summary)).toBe(true);
+    const tRows = traditionRows(run.summary, tasks);
+    const traditionsFor = (modelId: string) =>
+      tRows.filter((r) => r.modelId === modelId).map((r) => r.tradition).sort();
+    expect(traditionsFor("opus-search")).toEqual([
+      "Judaism",
+      "Protestant Christian",
+      "Sunni Islam",
+    ]);
+  });
+
+  it("the error explorer drills into a model with the expected pass/fail/missing counts", async () => {
+    const base = "/runs/tutorial-2026-10-11";
+    const run = await loadRun(base, diskFetcher(tutorialDir, base));
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+
+    // Drill into one search-on model: its 100 roster questions, no missing cells, and the
+    // headline-`correct` count matching summary.md (haiku-search = 40/100).
+    const hs = modelQuestions(run.results, "haiku-search");
+    expect(hs).toHaveLength(100);
+    const stats = questionStats(hs);
+    expect(stats.total).toBe(100);
+    expect(stats.missing).toBe(0);
+    expect(stats.correct).toBe(40);
+    expect(stats.correct + stats.wrong + stats.missing).toBe(100);
+
+    // The tradition filter composes: all three traditions present, Sunni Islam is 33 of them.
+    expect(explorerTraditions(hs)).toEqual(["Judaism", "Protestant Christian", "Sunni Islam"]);
+    expect(filterQuestions(hs, { tradition: "Sunni Islam" })).toHaveLength(33);
   });
 });
