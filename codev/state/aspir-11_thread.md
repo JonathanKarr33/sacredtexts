@@ -253,5 +253,42 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       Lessons/Architecture Updates/Lessons Learned Updates/Flaky/Follow-up). Routed 1 COLD lesson to
       lessons-learned.md §Scoring&evaluation (marker-baked-into-identity orphans bare rows → promote to
       a real field). Arch docs already corrected in phase_3 (documented in review's Architecture Updates).
-- [ ] Open the single PR (Closes #11), then porch done → PR_READY. NO Co-Authored-By / Generated-with
-      lines (user CLAUDE.md overrides harness attribution reminder). After merge → verify phase.
+- [x] Opened PR #22 (Closes #11), recorded via porch done --pr 22 --branch builder/aspir-11. Review
+      checks green (pr_exists/arch/lessons/e2e). Notified architect. NO Co-Authored-By/Generated-with.
+- [ ] PR-LEVEL CONSULT (type pr): codex REQUEST_CHANGES/HIGH — **branch 18 behind origin/main; NOT
+      integration-ready**. claude PR consult still running. BLOCKED on architect for integration approach.
+      MAIN HAS MOVED (merged since my base 319090d): #7 (9921d41 generated_at recency — aggregate.ts now
+      imports runRecencyMs, recency = generated_at→run-id date→mtime), #19 (e5100b0 single-track TUTORIAL
+      + layout-first CODE_WALKTHROUGH rewrite), #10 (CODE_WALKTHROUGH guide). 8 OVERLAPPING files:
+      aggregate.ts(+test), localResults.ts, tutorialRun.test.ts, StandingsPage.tsx(+test),
+      CODE_WALKTHROUGH.md, TUTORIAL.md. Branch is 37 ahead / 18 behind.
+      SCOPE IMPLICATION: my spec deferred recency (Issue #7) as OUT OF SCOPE with mtime-tie / "no winner"
+      framing — but #7 is now LANDED in main. So my tutorialRun.test.ts + test_tutorial_run.py assertions
+      (mtime tie favors first-run, no winner, 7 rows) and TUTORIAL/review prose are STALE: with
+      generated_at recency the tutorial run (newer) WINS the shared haiku key. Integration must: (a)
+      combine my tools-aware key `${provider}\u0000${model}\u0000${sortedTools}` WITH main's runRecencyMs
+      recency in aggregate.ts; (b) re-apply my tools-field doc corrections onto #19's rewritten
+      TUTORIAL/CODE_WALKTHROUGH; (c) update recency-dependent tests + TUTORIAL/review to the landed
+      generated_at behavior (tutorial wins shared key; still 7 rows). SENT ARCHITECT decision request:
+      merge origin/main (recommended — 1 resolution pass, 37-commit rebase is risky + user git-caution)
+      vs rebase; + confirm the #7-scope reconciliation. HOLDING integration until they rule.
+- [ ] ARCHITECT RULED (main, 17:51Z): (1) MERGE origin/main (not rebase); (2) YES reconcile to #7 —
+      compose (provider,model,tools) key WITH runRecencyMs in aggregate.ts; re-apply tools-field doc
+      edits onto #19's rewritten TUTORIAL/CODE_WALKTHROUGH KEEPING their single-track/recipe tone (HARD
+      maintainer req); update recency-dependent tests/review → assert the tutorial run WINS the shared
+      claude-haiku-5-5 key (correct post-#7). Fold claude consult, re-run gate, ping for re-verify.
+      Both PR consults: codex + claude REQUEST_CHANGES/HIGH (impl/tests/migration solid; blocker is
+      integration). claude detail: main shipped #7 (recency.ts, StandingRow.recencyMs, runRecencyMs:
+      generated_at→run-id date→mtime) + #19 (TUTORIAL 381L + CODE_WALKTHROUGH 580L single-track rewrite);
+      main's TUTORIAL standings section no longer mentions marker (→ small edit, NOT my 11-line para);
+      main's CODE_WALKTHROUGH still asserts marker ~255-259 citing cli.py:349 (→ correct there);
+      post-#7 the injected mtimes in tutorialRun.test.ts are INERT (recency resolves via generated_at:
+      tutorial 2026-10-12 > first-run's run-id-date fallback 2026-10-11) so tutorial genuinely wins;
+      main added CODE_WALKTHROUGH→pipelines lane in test.sh (pointer guard now runs). EXECUTION PLAN:
+      merge origin/main; resolve 8 files (aggregate.ts: main base + my tools key/StandingRow/tools;
+      localResults PanelEntry: +tools?; StandingsPage: main base + tools subtext as `· web_search`
+      [claude nit, less marker-like than `[web_search]`]; aggregate.test/tutorialRun.test/StandingsPage.test:
+      combine recency+tools, flip directional test to tutorial-wins-via-generated_at; CODE_WALKTHROUGH +
+      TUTORIAL: re-apply onto #19 keeping tone). PRESERVE tutorial run's ORIGINAL generated_at (01:20:16,
+      honest run time; tutorial still wins) — migration should not move the now-load-bearing timestamp.
+      Update review doc (drop "Issue #7 out of scope"; recency now generated_at; tutorial wins). STARTING.
