@@ -67,8 +67,18 @@ What remains hardwired / missing:
 
 - **Outcome classification is core and always-on.** Every answered cell is classified as exactly one of
   `correct` / `incorrect` / `refused`. Deterministic refusal detection runs first and short-circuits the
-  graders; a refused cell is never graded. `scores.jsonl` carries an explicit `outcome`; the summary reports
-  the three outcome counts per model; **accuracy = correct / (correct + incorrect)** (refusals excluded).
+  headline *verdict* — a refused cell's `outcome` is `refused` regardless of grading. (Refused cells still
+  **keep** their diagnostic submetrics `exact/normalized/token_f1/contains_reference`, so `outcome` decides
+  only the headline and the phase-1 durable oracle is preserved.) The refusal matcher is conservative:
+  **a clear decline phrase AND the reference is not contained** (a decline-prefixed answer that still delivers
+  the verse is an answer, not a refusal). `verify_source` declines (today parsed as incorrect) become
+  `refused` too. `scores.jsonl` carries an explicit `outcome`.
+- **Accuracy is reported with coverage** (honest implementation of decision #2 — refusals are ~100–180 of the
+  committed cells, and excluding them *without* coverage re-inverts the search sign and makes "100 %" a false
+  headline for a model that declined a third of the run). The summary reports per model/tradition:
+  correct/incorrect/refused counts, **accuracy = correct/(correct+incorrect)** (`null` if all refused),
+  **coverage = (correct+incorrect)/n**, and refused_rate = refused/n — in `scores`-derived `summary.json` AND
+  `summary.md`. Submetric averages are taken over graded cells (refusals excluded, so they don't dilute).
 - **Graders are named and selectable.** The deterministic graders are `strict` (exact/normalized) and
   `containment` (contains_reference → the adopted headline). `score --evaluator a,b` selects them
   (comma-separated/repeatable); the default is the deterministic set; an unknown name fails fast; a paid
@@ -87,8 +97,13 @@ What remains hardwired / missing:
 - [ ] **(decision 1 — done)** `correct` for text-retrieval = containment; strict reported as a secondary
       submetric. (Already merged on-branch in phase 1.)
 - [ ] **(decision 2)** Every answered cell has an `outcome ∈ {correct, incorrect, refused}` in `scores.jsonl`;
-      refusal detection is deterministic and short-circuits grading; the summary reports per-model
-      correct/incorrect/refused counts; **accuracy excludes refusals**; the viewer shows a `refused` status.
+      refusal detection is deterministic (**decline phrase AND reference-not-contained**) and short-circuits the
+      headline verdict while keeping diagnostic submetrics; the summary reports per-model
+      correct/incorrect/refused counts; **accuracy excludes refusals** (`null` if all refused); the viewer shows
+      a `refused` status. `verify_source` declines classify as `refused`.
+- [ ] **(decision 2 — coverage)** Accuracy is reported **beside coverage** `(correct+incorrect)/n` in
+      `summary.json`, `summary.md`, and the viewer leaderboard (adjacent column, equal visual weight; sort by
+      accuracy); docs explain the pair in one sentence ("right when it answers" vs "how often it answers").
 - [ ] **(decision 3/5)** A grader registry with `strict` and `containment`; `score --evaluator` selects
       graders (comma-sep/repeatable), defaults to the deterministic set, **fails fast on an unknown name**,
       and **never defaults a paid grader**; the metrics dict is an open map a **separate-pass** grader can
@@ -208,7 +223,8 @@ unbuilt.
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Refusal matcher misclassifies (a real retrieval read as refused, or vice-versa) | Medium | High | Conservative matcher (only clear declines); unit tests over real + synthetic answers; pin the exact refused-cell set in the rebaseline witness so any drift is caught. |
+| Excluding refusals re-inverts the search sign / "100 %" is a false headline (refusals are ~100–180 cells; opus 66 %→100 % > opus-search 74 %→99 %) | High if coverage omitted | High | Report coverage `(correct+incorrect)/n` beside every accuracy (summary + viewer, equal weight); document ranking + the plain-sentence pair; surface the moved numbers to the architect before Phase-5 prose. |
+| Refusal matcher misclassifies (a real retrieval read as refused, or a decline-prefixed delivery refused) | Medium | High | Conservative matcher = **decline phrase AND reference-not-contained**; the two real `opus-search` decline-then-deliver cells are a pinned negative test; calibrate by hand-surveying both `answers.jsonl` and freezing the refused set before writing the matcher. |
 | Containment has no anti-hedge rule (unlike cite/identify) | Medium | Low–Med | Known and documented: 1 of phase-1's 21 rescued cells (opus-search Ketubot 8a:8) is a 2-candidate hedge whose expected text is the *secondary* guess — ~1pt on opus-search. Record as PR-gate evidence; run-README prose must not overstate the rescue's cleanliness. |
 | Second rebaseline corrupts committed evidence | Low | High | Re-score in place from committed answers; preserve panel/usage; extend the durable-oracle witness; pre-register the outcome-change set. |
 | Grader seam over-engineered | Medium | Medium | Minimal registry + flag; refusal kept OUT of the grader list; no plugin loader. |

@@ -1,0 +1,20 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The plan broadly covers the specification, but several core contracts and viewer implementation details remain ambiguous or target the wrong modules.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Define grader-selection semantics precisely. The plan does not say how `correct` is derived for `strict` only, `containment` only, or both, and `token_f1` is not assigned to either proposed grader. Specify metric ownership, verdict aggregation, empty/duplicate selections, and expected metric keys for each selection.
+- Reconcile refusal short-circuiting with the rebaseline oracle. A refused answer “is never graded,” so grader metrics should be absent; this necessarily changes the existing exact/normalized/token-F1 projection for refused cells. Specify that permitted change, the denominator for submetric averages, and behavior when every answer is refused (`accuracy: null`).
+- The proposed `Grader` requires a synchronous callable even for `inline=False`, contradicting the requirement that separate-pass graders need not be local or synchronous. Define a non-inline descriptor without an inline callable and identify the concrete merge seam/test used to update a row’s open metrics map.
+- Phase 4 does not adequately reflect the actual viewer architecture. Rendering occurs in `LeaderboardTable.tsx`/`lib/leaderboard.ts`, while a refused URL filter also requires `ExplorerFilters.tsx`, `ExplorerPage.tsx`, `lib/explorer.ts`, and `router.tsx`. Update the targeted files and choose a concrete search-on/off pairing key and presentation; “any form” leaves a core requirement unresolved.
+- Add an explicit pre-implementation evidence step that audits committed answers and records the expected refused IDs/counts before matcher calibration or artifact regeneration. Capturing the set after implementing the matcher is not meaningful pre-registration.
+- Define refused-rate semantics consistently—normally `refused / (correct + incorrect + refused)`—and require counts/rates in task, overall, and tradition cells plus the all-refused and mixed missing/refused test cases.
+
+---
+
+## ⚠️ REPOSITORY MOVED during the codex review (#1649).
+A consultant reviews the commit in front of it; it must never commit, or switch refs.
+  - HEAD: 7af757a6ae1f4162f81e603350d8f27e4b64c379 -> 5055ad5083760fd0263d28ad1f17ef6554999d04
+The files on disk may look untouched and still not be the ones this review describes.
+Check `git reflog` and `git status` before trusting this review or shipping the branch.

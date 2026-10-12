@@ -273,3 +273,28 @@ fresh codex+claude plan consult (15-plan-rescope-*.txt, committed) and folded fi
 ### Architect decision (17:28): (a) confirmed — drive porch through stale iterations, implement once fresh
 consult folded. Asks: (1) commit 15-plan-rescope-*.txt with other consult outputs; (2) record the quirk
 above in the review doc. Both honored.
+
+### Fresh re-scope consult — codex + claude BOTH REQUEST_CHANGES. MAJOR findings folded into spec+plan:
+- **claude: Phase 3 is ~10× bigger** — refusals are ~100-180 cells (not 21). Verified w/ conservative
+  decline-AND-not-contained matcher. Excluding them RE-INVERTS the search sign: opus 66%->100%(cov66%)
+  outranks opus-search 74%->99%(cov75%); "100%" is a false headline. FIX: report COVERAGE=(correct+incorrect)/n
+  beside every accuracy. **Architect CONFIRMED coverage in-scope as honest-#2** (sort by accuracy; coverage
+  adjacent column equal weight; one-sentence 'right when it answers' vs 'how often it answers').
+- **Refused cells KEEP submetrics** (outcome decides only headline) → phase-1 SHA oracle PRESERVED (claude's
+  stronger option; my 'fresh oracle' idea dropped). accuracy excludes refused; submetric avgs over graded only.
+- **Matcher = decline-phrase AND reference-not-contained** (2 real opus-search cells decline-then-DELIVER →
+  pinned negative test). verify_source declines → refused.
+- **Phase-2 fixes**: _SUBMETRICS DERIVED from selected graders (not static) — else --evaluator strict emits
+  bogus contains_reference:0.0 (score.py:334/372 latent bug). Headline = OR over selected graders' verdicts
+  (strict→normalized, containment→contains_reference); token_f1 = always-on diagnostic. Non-inline grader
+  descriptor has NO callable + merge-path test (#21).
+- **Phase-4 real files**: lib/explorer.ts, ExplorerFilters.tsx, ExplorerPage.tsx, router.tsx (URL +refused),
+  LeaderboardTable/lib/leaderboard (coverage col), StandingsPage/aggregate (values move). FOUR categories
+  (correct/incorrect/refused/missing). On/off pair key = strip [web_search]/[no-tools] marker; NO-PAIR
+  fallback for first-run (contrast test asserts tutorial only).
+- **Phase-3 calibration FIRST**: hand-survey both answers.jsonl, freeze refused set+counts BEFORE matcher.
+- **History**: git branch backup/pre-trailer-strip before the 9/28-commit Co-Authored-By strip (after all phases).
+- refused_rate=refused/n; accuracy null if all refused.
+Responses recorded in 15-plan-rescope-rebuttals.md.
+
+Next: commit spec+plan+rescope consult artifacts+rebuttal+thread → drive porch through replayed iters → implement p2.
