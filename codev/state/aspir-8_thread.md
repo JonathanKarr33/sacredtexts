@@ -215,6 +215,21 @@ a one-line fair-use note only. Automated audit gate UNCHANGED. New sequence: col
   not secret; panel secret-freeness also structurally asserted). **Full gate: 195 passed.**
 - **.gitignore**: added `!runs/tutorial-2026-10-11/`.
 
+### Phase 3 review: iter1 — codex APPROVE/HIGH; claude REQUEST_CHANGES/HIGH (accepted in full)
+Claude recomputed from committed artifacts: my run README's causal analysis was WRONG/INVERTED.
+Truth (verified by my own recompute): web search retrieves MORE correct scripture (contains-exact
+opus 66→74, haiku 47→52), but 20/400 cells score 0 while CONTAINING the exact ref — ALL 20 are
+search-on (opus-search 8, haiku-search 12) = citation/attribution WRAPPERS, not orthography.
+Talmud: opus-search contains exact Aramaic 8/34 (~24%) vs opus-off 0/34 — web search LIFTED it
+(headline hid it). Qur'an haiku: contains 24/33 vs 19/33 (more) but headline 12 vs 19 (wrappers);
+exactly 1 genuine orthographic miss. opus flip 642fbf516c7a = normalize-equal + trailing disclaimer.
+FIX = DOC-ONLY (no re-collect/re-score/code/spend): rewrote README "## The contrast" + "## Reading
+the scores" to lead with contains-exact cut, 20-wrapped asymmetry, Talmud lift, Qur'an 24-vs-19.
+Did NOT touch _SUBMETRICS/headline (req 4). Did NOT add a contains-ref submetric (would reshape
+scores.jsonl → break byte-for-byte re-score regressions) — put numbers in README prose instead.
+token_f1 median on 20 wrapped = 0.45 (my recompute; claude said 0.54 on a diff subset) → used 0.45.
+Rebuttals: 8-phase_3-iter1-rebuttals.md. 195 tests still pass. Committed README fix; reconsulting.
+
 ### Next
 porch done phase_3 → phase_4 (TUTORIAL rework around KJV/Qur'an/Talmud + web-search on/off;
 reproduce canonical cmds per-task 100; remove clearance step from TUTORIAL; update arch/lessons;

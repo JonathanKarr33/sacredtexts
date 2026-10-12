@@ -27,43 +27,70 @@ accuracy table, the panel composition, and token totals.
 ## The contrast — what the run actually shows
 
 The benchmark exists to compare parametric recall (tools off) against tool-assisted
-retrieval (tools on). The honest result here is that **web search did not improve
-strict-reference accuracy, and slightly reduced it**:
+retrieval (tools on). The **headline** (`retrieve_quote` requires the whole answer to be
+the exact reference text and *nothing else*) looks flat-to-down for web search:
 
-| model        | overall | Judaism | Protestant Christian | Sunni Islam |
-|--------------|---------|---------|----------------------|-------------|
-| opus         | 66%     | 0%      | 100%                 | 100%        |
-| opus-search  | 66%     | 3%      | 100%                 | 97%         |
-| haiku        | 47%     | 0%      | 85%                  | 58%         |
-| haiku-search | 40%     | 0%      | 85%                  | 36%         |
+| model        | headline overall | Judaism | Protestant Christian | Sunni Islam |
+|--------------|------------------|---------|----------------------|-------------|
+| opus         | 66%              | 0%      | 100%                 | 100%        |
+| opus-search  | 66%              | 3%      | 100%                 | 97%         |
+| haiku        | 47%              | 0%      | 85%                  | 58%         |
+| haiku-search | 40%              | 0%      | 85%                  | 36%         |
 
-Two things drive this, and both are the scoring contract working as designed rather
-than a defect:
+**But the headline hides the actual result, and the committed data inverts the naive
+reading.** Counting instead how often an answer *contains* the exact (normalised)
+reference text anywhere in it tells the real story:
 
-- **Orthographic variance on the Qur'an.** When the tool fires, it tends to retrieve the
-  Arabic text in a slightly different vocalisation/orthography than the Uthmani (QUL)
-  reference (e.g. different placement of small marks, explicit vs. dagger alef). The
-  non-Latin normalisation (Spec 8 Phase 1) folds diacritics and tatweel, but it
-  deliberately does **not** rewrite letter choices, so a correct-but-differently-spelled
-  retrieval misses the exact Uthmani reference and scores `correct = 0`. The headline
-  `correct` is whole-string normalised equality; `token_f1` in `scores.jsonl` shows these
-  near-misses are close, not fabrications.
-- **Talmud Aramaic recall floor.** All four entries score ~0% on the Aramaic Talmud:
-  the models either abstain or answer in English about the passage rather than
-  reproducing the Aramaic original. Web search does not lift this.
+| model        | headline `correct` | **contains exact reference** | scored 0 yet contains it |
+|--------------|--------------------|------------------------------|--------------------------|
+| opus         | 66 / 100           | 66 / 100                     | 0                        |
+| opus-search  | 66 / 100           | **74 / 100**                 | **8**                    |
+| haiku        | 47 / 100           | 47 / 100                     | 0                        |
+| haiku-search | 40 / 100           | **52 / 100**                 | **12**                   |
 
-The opus overall tie (66% vs. 66%) includes one search-on item that flipped right→wrong
-*without* invoking search (answered from memory) — i.e. ordinary sampling variation, not
-a web-search effect. The contrast is readable from the committed artifacts: per-entry and
-per-tradition accuracy in `summary.md`, and the discriminating `exact` / `normalized` /
-`token_f1` in `scores.jsonl` (and the viewer error explorer).
+So **web search retrieves *more* correct scripture, not less** (opus 66→74, haiku 47→52),
+and **20 of 400 cells score 0 while containing the exact reference text — every one of
+them a search-on cell** (opus-search 8, haiku-search 12). The mechanism is not orthography
+and not fabrication: a search-enabled model tends to **wrap** the retrieved quote in
+citation/attribution prose ("According to Sefaria…", a source URL, an explanatory caveat),
+and the deliberately strict "and nothing else" headline scores that wrapper as wrong. The
+search-off entries, answering from memory, emit the bare quote and so match the headline
+more often.
+
+Two concrete cuts make this unmistakable:
+
+- **Talmud (the clearest case).** The headline shows ~0% for all four entries, but
+  **opus-search contains the exact Aramaic reference in 8 of 34 cells (~24%) vs. 0 of 34
+  for opus-off.** Web search lifted Aramaic Talmud retrieval from *nothing* to ~24%; the
+  headline hid the entire lift because opus-search cited its source around the quote.
+- **Qur'an.** haiku-search contains the exact reference in **24 of 33** cells vs. **19 of
+  33** for haiku-off — again *more* correct retrieval with search — yet its headline falls
+  (12 vs. 19) purely because 12 of those answers wrap the quote. Exactly **one** search-on
+  Qur'an miss is a genuine text/orthographic difference; the rest are wrappers.
+
+The one opus right→wrong item (`retrieve_quote-642fbf516c7a`) is in this same bucket: the
+quoted āyah is `normalize`-equal to the reference and scores 0 only for a trailing English
+disclaimer — a wrapper penalty on a verbatim-correct retrieval, not sampling noise.
+
+This is the scoring contract working **exactly as designed** — the Spec-1 `retrieve_quote`
+rule is intentionally "the quote and nothing else," and surfacing the wrapper-vs-retrieval
+gap is the benchmark's job, not a defect. The headline rule is unchanged; the right way to
+read the search-on/off comparison is the **contains-exact-reference** and **`exact`** cuts
+above (recomputable from the committed `answers.jsonl` + `scores.jsonl`), per-tradition
+accuracy in `summary.md`, and the viewer error explorer.
 
 ## Reading the scores (important caveat)
 
 The `retrieve_quote` headline is deliberately strict: the whole answer must be the exact
 reference text and **nothing else**. `exact` / `normalized` / `token_f1` are reported
-alongside so the strictness is visible — a low headline with high `token_f1` is a correct
-quote with a wrapper or an orthographic variant, not wrong scripture.
+alongside in `scores.jsonl` so the strictness is visible. Note that **`token_f1` is *not*
+a reliable wrapper detector here**: across the 20 wrapped-but-correct cells a short
+Arabic/Aramaic quote diluted by an English caveat lands at a median `token_f1` of ~0.45
+(range 0.16–0.99), not near 1.0 — so "low headline + high `token_f1`" does not surface the
+wrapped-but-correct cases. The
+reliable cut is **whether the normalised reference text is contained in the answer** (the
+"contains exact reference" column above); that, not `token_f1`, is what separates a
+correctly-retrieved-but-wrapped answer from wrong scripture.
 
 ## Copyright / licensing
 
