@@ -155,6 +155,16 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       test_first_run_regression.py). `pnpm -C apps/viewer check-types` GREEN (fixed 2 pre-existing
       latent TS2532 in tutorialRun.test.ts leaderboard block: `rows[0]`→`rows[0]!`, matching the
       `!` convention in sibling tests — surfaced only now the viewer lane type-checks). audit OK.
-      first-run-2026-10-11 UNTOUCHED. Signalling porch done.
+      first-run-2026-10-11 UNTOUCHED. porch done → build-complete.
+      Per-phase consult (codex+claude; Gemini excluded): BOTH APPROVE, HIGH, non-blocking.
+      Verdicts at `codev/projects/11-.../11-phase_2-iter1-{codex,claude}.txt`. Folded in 2 nits
+      (commit `a3dc445`): (1) new StandingsPage two-arm test asserting the search-on row surfaces
+      its `[web_search]` subtext (deliverable was inspection-only); (2) tutorialRun.test.ts derives
+      first-run's collision key from its ACTUAL committed panel entry (prior assertion was vacuous).
+      DEFERRED (justified): claude #3 `Array.isArray` guard on `p.tools` — spec-WAIVED ("handled
+      like any other unexpected panel value") + cuts against fail-fast/tight-diff/simplicity; claude
+      #4 Issue #7 `generated_at` recency (tie-mtime clone lets first-run's stale haiku row win) —
+      ARCHITECT note, explicitly out of scope per spec. Viewer 129 passed, check-types green.
+      porch advancing to phase_3.
 - [ ] Implement Phase 3 — prose docs (arch-critical/arch via update-arch-docs, CODE_WALKTHROUGH,
       TUTORIAL). Not started.
