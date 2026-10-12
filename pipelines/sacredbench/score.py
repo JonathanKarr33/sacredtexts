@@ -1,5 +1,5 @@
-"""Scoring: per answer, the metrics the SELECTED graders emit plus always-on diagnostics
-(default graders strict + containment test exactness AND containment; the group's open question).
+"""Scoring: per answer, the metrics the SELECTED graders emit plus always-on diagnostics.
+The default graders are ``strict`` + ``containment`` (Spec 15: ``normalized OR contains_reference``).
 
 Metrics emitted per answer:
 

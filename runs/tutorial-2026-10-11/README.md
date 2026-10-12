@@ -56,8 +56,8 @@ from the original analysis):
 
 - **Talmud (Aramaic).** opus-search contains the exact reference in **8 of 34** cells (~24%)
   vs. **0 of 34** for opus-off — web search lifted Aramaic Talmud retrieval from *nothing*.
-  (opus-off refuses most of its Talmud cells rather than guessing, which is why its Judaism
-  accuracy is high-but-low-coverage.)
+  (opus-off **refused all 34** Talmud cells rather than guess — Judaism accuracy `null`, coverage
+  0% — so search converted a total abstention into 8 correct retrievals at 29% coverage.)
 - **Qur'an.** haiku-search contains the exact reference in **24 of 33** cells vs. **19 of 33**
   for haiku-off — more correct retrieval with search. The remaining Qur'an misses are
   **orthographic/encoding variants** (the correct āyah in a different Uthmani encoding that

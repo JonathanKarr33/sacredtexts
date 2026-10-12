@@ -518,3 +518,10 @@ to Spec-15 contract (graders/--evaluator/#21, 4 outcomes, refused filter, covera
 claude: first-run token_f1 → GRADED-cell means from summary.json (~0.15 gemma/~0.24 llama, not all-100);
 CODE_WALKTHROUGH recipe now names the Grader.default=True trap; cli.py:349→361 (tools-marker line).
 dispatcher 346/1. iter2 rebuttal written.
+
+### phase_5 consult iter3 (codex RC, claude COMMENT) — 3 facts fixed, 1 nit disputed
+Fixed: tutorial README Talmud parenthetical (opus-off refused ALL 34 Judaism cells → accuracy null/
+cov 0%, NOT "high-but-low-coverage" which is opus-search's shape); first-run README provenance (NOT
+TUTORIAL Track B — that's the tutorial run now; it's the earlier English ef837474 run); score.py
+docstring dropped stale "group's open question". DISPUTED (verified false positive): explorer.ts:40
+IS the filterQuestions def line (claude said 39). dispatcher 346/1. iter3 rebuttal written.
