@@ -1,0 +1,14 @@
+id: '19'
+title: rework-tutorial-md-and-code-wa
+protocol: air
+phase: implement
+plan_phases: []
+current_plan_phase: null
+gates:
+  pr:
+    status: pending
+iteration: 1
+build_complete: false
+history: []
+started_at: '2026-10-12T16:41:28.251Z'
+updated_at: '2026-10-12T16:41:28.252Z'
