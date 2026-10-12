@@ -1,0 +1,22 @@
+{
+ "seed": 20261011,
+ "inputs": [
+  "texts/standardized/Protestant Christian/the-bible-kjv-en",
+  "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar",
+  "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he"
+ ],
+ "per_task": 100,
+ "negatives_share": 0.5,
+ "quotas": {},
+ "tasks_requested": [
+  "retrieve_quote"
+ ],
+ "tasks_by_count": {
+  "retrieve_quote": 100
+ },
+ "verify_source_negatives": 0,
+ "corpus_hash": "ed3f05dcf703e2e3",
+ "question_set_digest": "37eb58400fdf4ea9",
+ "n_questions": 100,
+ "generated_at": "2026-10-12T01:07:39.061648+00:00"
+}

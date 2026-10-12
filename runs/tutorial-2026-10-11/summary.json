@@ -1,0 +1,310 @@
+{
+ "models": {
+  "haiku": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.47,
+    "exact": 0.18,
+    "normalized": 0.47,
+    "token_f1": 0.6396,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.47,
+    "expected_n": 100,
+    "missing": 0
+   }
+  },
+  "haiku-search": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.4,
+    "exact": 0.24,
+    "normalized": 0.4,
+    "token_f1": 0.583,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.4,
+    "expected_n": 100,
+    "missing": 0
+   }
+  },
+  "opus": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.66,
+    "exact": 0.33,
+    "normalized": 0.66,
+    "token_f1": 0.6608,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.66,
+    "expected_n": 100,
+    "missing": 0
+   }
+  },
+  "opus-search": {
+   "retrieve_quote": {
+    "n": 100,
+    "accuracy": 0.66,
+    "exact": 0.34,
+    "normalized": 0.66,
+    "token_f1": 0.7054,
+    "expected_n": 100,
+    "missing": 0
+   },
+   "_overall": {
+    "n": 100,
+    "accuracy": 0.66,
+    "expected_n": 100,
+    "missing": 0
+   }
+  }
+ },
+ "by_tradition": {
+  "haiku": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 34,
+     "accuracy": 0.0,
+     "expected_n": 34,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 34,
+     "accuracy": 0.0,
+     "expected_n": 34,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 0.8485,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 0.8485,
+     "expected_n": 33,
+     "missing": 0
+    }
+   },
+   "Sunni Islam": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 0.5758,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 0.5758,
+     "expected_n": 33,
+     "missing": 0
+    }
+   }
+  },
+  "haiku-search": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 34,
+     "accuracy": 0.0,
+     "expected_n": 34,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 34,
+     "accuracy": 0.0,
+     "expected_n": 34,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 0.8485,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 0.8485,
+     "expected_n": 33,
+     "missing": 0
+    }
+   },
+   "Sunni Islam": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 0.3636,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 0.3636,
+     "expected_n": 33,
+     "missing": 0
+    }
+   }
+  },
+  "opus": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 34,
+     "accuracy": 0.0,
+     "expected_n": 34,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 34,
+     "accuracy": 0.0,
+     "expected_n": 34,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 1.0,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 1.0,
+     "expected_n": 33,
+     "missing": 0
+    }
+   },
+   "Sunni Islam": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 1.0,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 1.0,
+     "expected_n": 33,
+     "missing": 0
+    }
+   }
+  },
+  "opus-search": {
+   "Judaism": {
+    "retrieve_quote": {
+     "n": 34,
+     "accuracy": 0.0294,
+     "expected_n": 34,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 34,
+     "accuracy": 0.0294,
+     "expected_n": 34,
+     "missing": 0
+    }
+   },
+   "Protestant Christian": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 1.0,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 1.0,
+     "expected_n": 33,
+     "missing": 0
+    }
+   },
+   "Sunni Islam": {
+    "retrieve_quote": {
+     "n": 33,
+     "accuracy": 0.9697,
+     "expected_n": 33,
+     "missing": 0
+    },
+    "_overall": {
+     "n": 33,
+     "accuracy": 0.9697,
+     "expected_n": 33,
+     "missing": 0
+    }
+   }
+  }
+ },
+ "usage": {
+  "per_model": {
+   "haiku": {
+    "calls": 100,
+    "in": 5166,
+    "out": 44375
+   },
+   "haiku-search": {
+    "calls": 100,
+    "in": 1460684,
+    "out": 80986
+   },
+   "opus": {
+    "calls": 100,
+    "in": 5166,
+    "out": 39954
+   },
+   "opus-search": {
+    "calls": 100,
+    "in": 2772157,
+    "out": 83210
+   }
+  },
+  "total": {
+   "calls": 400,
+   "in": 4243173,
+   "out": 248525
+  }
+ },
+ "panel": {
+  "haiku": {
+   "provider": "anthropic",
+   "model": "claude-haiku-5-5 [no-tools]",
+   "api_model": "claude-haiku-5-5",
+   "endpoint": "api.anthropic.com",
+   "served_by": null
+  },
+  "haiku-search": {
+   "provider": "anthropic",
+   "model": "claude-haiku-5-5 [web_search]",
+   "api_model": "claude-haiku-5-5",
+   "endpoint": "api.anthropic.com",
+   "served_by": null
+  },
+  "opus": {
+   "provider": "anthropic",
+   "model": "claude-opus-5-5 [no-tools]",
+   "api_model": "claude-opus-5-5",
+   "endpoint": "api.anthropic.com",
+   "served_by": null
+  },
+  "opus-search": {
+   "provider": "anthropic",
+   "model": "claude-opus-5-5 [web_search]",
+   "api_model": "claude-opus-5-5",
+   "endpoint": "api.anthropic.com",
+   "served_by": null
+  }
+ },
+ "generated_at": "2026-10-12T01:20:16.523576+00:00"
+}

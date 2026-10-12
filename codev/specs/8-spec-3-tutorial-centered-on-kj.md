@@ -211,11 +211,11 @@ benchmark's thesis, demonstrated rather than asserted.
       sacredbench audit runs/<id>` passes (origin-clean; the run derives only from
       public-domain/open sources); the committed panel in `summary.json` contains no
       secrets (provider / model / endpoint / `api_model` / served_by only — no keys).
-- [ ] The committed run's search-on answers are **copyright-cleared** before commit: a
-      documented check (recorded in the run `README.md`) that the committed answers are the
-      intended original-language text, not lifted copyrighted third-party editions/
-      translations fetched by web search. Answers are **not** truncated to dodge this (the
-      explorer must show them) — they are cleared.
+- [ ] The committed run is committed **as collected** — no manual copyright-clearance /
+      redaction pass over the search-on answers (human determination, 2026-10-11: incidentally
+      web-retrieved copyrighted text in a model answer is fair use for academic research).
+      Answers are never truncated or edited (the explorer must show them verbatim); the run
+      `README.md` carries a one-line fair-use note. The automated `audit` still gates.
 - [ ] The committed run's `README.md` preserves source / attribution / **CC-BY-NC** licence /
       non-commercial notice for the Davidson Talmud (coarse `open` audit-pass is not
       attribution).
@@ -303,10 +303,10 @@ settled (baked); not relitigated in Solution Approaches:**
 - **New copyright surface: committing live-web-search answers to a public repo.** The
   existing `audit.py` cannot detect a copyrighted third-party edition/translation echoed by a
   search-enabled model (its origin layer keys on the question's public source; its content
-  layer is restricted-payload-gated and, as verified, Latin-only). The committed search-on
-  answers must be copyright-cleared by a documented step before commit (see Solution
-  Approaches F); the project's #1 critical fact is the copyright gate, so this is a
-  first-class constraint, not a footnote.
+  layer is restricted-payload-gated and, as verified, Latin-only). **Amended 2026-10-11:** the
+  maintainers accept such incidental copyrighted text in a model answer as **fair use for
+  academic research**, so the run is committed as collected with a fair-use note (no manual
+  clearance step — see Approach F, superseded). The automated `audit` remains the enforced gate.
 - **The scoring contract does not change.** `_SUBMETRICS` and the per-task headline rules
   (incl. `retrieve_quote`'s `correct = normalized`) stay exactly as they are (requirement 4);
   only the *values* `normalize()` produces for non-Latin text change.
@@ -343,8 +343,9 @@ settled (baked); not relitigated in Solution Approaches:**
 - The benchmark targets the **original-language** texts (KJV English, Qur'an Uthmani Arabic,
   Talmud Hebrew/Aramaic original), which are public-domain as originals; the CC-BY-NC applies
   to the Davidson *edition/English translation*. A web-search answer that returns a
-  copyrighted translation is both wrong (scores 0 against the original-language target) and
-  flagged by the Approach-F clearance.
+  copyrighted translation is both wrong (scores 0 against the original-language target) and an
+  easy-to-spot outlier — but, per the 2026-10-11 amendment, it is committed as collected (fair
+  use), not redacted.
 - `generate.py` imports `normalize` from `score` (for `work_texts`/`version_texts` in
   `verify_source`/`identify_version` pooling). The normalize change therefore has a
   generation-side blast radius for non-Latin pooling, but Latin determinism is safe:
@@ -478,7 +479,15 @@ it is safe to include.
   and leave #7 open. The viewer cannot consume it without a (disallowed) change, so it does
   **not** change this spec's viewer behaviour either way.
 
-### Approach F: Web-search answers in a public committed artifact — documented clearance (CHOSEN)
+### Approach F: Web-search answers in a public committed artifact — documented clearance (SUPERSEDED)
+
+> **Amended 2026-10-11 (human determination):** the manual clearance step below was **dropped**.
+> The maintainers treat incidentally web-retrieved copyrighted text appearing in a model answer
+> as **fair use for academic research**; the run is committed **as collected**, answers never
+> truncated or edited, with a one-line fair-use note in the run `README.md`. The automated
+> `audit` (origin + restricted-payload fingerprints) remains the enforced gate. The analysis
+> below is retained as the rationale for *why* the exposure is bounded (original-language targets),
+> which still holds — only the manual review step is removed.
 
 This spec commits, for the first time, **model answers produced with live web search** to a
 **public** repo. That is a new copyright surface the existing gate cannot see: `audit.py`'s
@@ -536,11 +545,12 @@ masquerade as the run's cost.
 
 ## Open Questions
 
-- **Critical** — *How are the committed search-on answers copyright-cleared?* The mechanism
-  (documented spot-check, an automated heuristic, or restricting which corpora the committed
-  run's search-on answers may contain) must be fixed in the plan before the run is committed.
-  Blocks committing the run (Solution Approaches F); the project's copyright gate is its #1
-  critical fact.
+- **Critical — RESOLVED (human, 2026-10-11): committed search-on answers are NOT cleared.**
+  The maintainers determined that incidentally web-retrieved copyrighted text in a model answer
+  is fair use for academic research; the run is committed as collected (answers never truncated
+  or edited) with a one-line fair-use note in the run `README.md`, and no manual clearance step
+  runs. The automated `audit` (origin + restricted-payload fingerprints) remains the enforced
+  gate. (Approach F's clearance mechanism is superseded; its bounded-exposure rationale stands.)
 - **Important** — *Exact Anthropic web-search tool spec.* The precise tool type/name/version
   and any `max_uses` cap for the server-side web-search tool must be pinned against the
   installed SDK during implementation (fail loud if the response shape differs). Shapes the
@@ -609,9 +619,8 @@ masquerade as the run's cost.
 - `audit runs/<tutorial-id>` passes (origin-clean; only public-domain/open sources); a
   deliberately planted restricted-derived artifact would fail (existing gate behaviour,
   not re-implemented).
-- The documented copyright clearance of the committed search-on answers is run and recorded
-  in the run README; an answer that reproduced a copyrighted translation would be caught and
-  not committed.
+- The run is committed as collected (no manual clearance pass); the run README records the
+  fair-use note and the CC-BY-NC Davidson attribution. Answers are verbatim, never truncated.
 - The committed `summary.json.panel` contains no API keys or secrets — only provider / model
   / endpoint / `api_model` / served_by.
 - Adding the tutorial run leaves `realRun.test.ts` (first-run gate) and the `#86` CSS probe
@@ -627,8 +636,8 @@ masquerade as the run's cost.
 | Anthropic web-search tool spec/SDK shape differs from assumption; tool blocks break text/usage extraction | Medium | High | Pin the exact tool spec against the installed SDK; validate the response structure and **fail loud** on an unexpected shape (no fallback); a budgeted live smoke exercises the search-on path end-to-end. |
 | `normalize()` mark set under-covers the real QUL data (misses Qur'anic annotation marks, some mid-word), so Arabic quotes still mis-score | Medium | High | Derive the mark set from the REAL QUL/Davidson data (enumerated: U+06D6–U+06ED block, rub-el-hizb/sajdah symbols, superscript alef, tatweel); lock with a full real-ayah fixture. |
 | New `normalize()` silently changes Latin scoring (regresses the committed first-run numbers) | Low | High | Scope mark-deletion/folding to Arabic/Hebrew ranges; add a Latin regression fixture asserting byte-identical output; assert the first-run digest is unchanged; keep all existing Latin scoring tests. |
-| **A search-enabled model echoes a copyrighted translation into a committed public artifact; the audit can't see it** | Medium | High | Target original-language (public-domain) texts; a copyrighted translation scores 0 and is an outlier; a **documented copyright clearance** of committed search-on answers runs before commit (Approach F); CC-BY-NC attribution preserved in the README. |
-| `audit._norm` is Latin-only, so the content layer silently no-ops on the non-Latin committed run | Medium | Medium | Extend `audit._norm` for Arabic/Hebrew alongside `normalize()` (Approach G), or state the limitation explicitly; the committed run's enforceable protection is origin + the Approach-F clearance regardless. |
+| **A search-enabled model echoes a copyrighted translation into a committed public artifact; the audit can't see it** | Medium | Low (accepted) | Target original-language (public-domain) texts; a copyrighted translation scores 0 and is an outlier; **human determination 2026-10-11: incidental copyrighted text in a model answer is fair use for academic research** — committed as collected with a fair-use note, no manual clearance; CC-BY-NC Davidson attribution preserved in the README. |
+| `audit._norm` is Latin-only, so the content layer silently no-ops on the non-Latin committed run | Medium | Medium | Extend `audit._norm` for Arabic/Hebrew alongside `normalize()` (Approach G), or state the limitation explicitly; the committed run's enforceable protection is origin regardless. |
 | A priced search-enabled run reports a cost that omits per-request web-search charges | Low | Medium | Keep the committed panel unpriced (token-only, no `cost_usd`); forbid a priced cost table while search-request charges are uncaptured (Approach H). |
 | Headline `correct = normalized` (whole-answer equality) inverts the search-on/off contrast (attribution prose penalised) | Medium | Medium | Name the hazard; present `token_f1`/`exact` as the discriminating numbers; do NOT alter `_SUBMETRICS` (req 4). |
 | Tool-use config silently ignored (today `config.py` does no unknown-key validation) | Medium | Medium | Parse the tools setting into `ModelSpec` and validate fail-fast (ConfigError on non-Anthropic provider / invalid value); a test asserts the rejection. |

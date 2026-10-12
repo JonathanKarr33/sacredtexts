@@ -198,8 +198,18 @@ scoring-contract change.
 #### Objective
 
 Produce and commit the real tutorial run — the deterministic three-source question set answered
-by the 2×2 panel — audited clean, copyright-cleared, secret-free, unpriced — so the merged
-viewer picks it up with zero code changes. The only phase that makes paid API calls.
+by the 2×2 panel — audited clean, secret-free, unpriced — so the merged viewer picks it up with
+zero code changes. The only phase that makes paid API calls.
+
+> **Scope update (human, 2026-10-11):** the committed run is **100 questions** (≈34/33/33 across
+> the three sources), not 30 — the larger spend was explicitly approved. The `--per-task` value
+> below reflects this; the question-set digest is `37eb58400fdf4ea9`.
+>
+> **Clearance dropped (human, 2026-10-11):** no manual copyright-clearance / redaction pass is
+> performed over search-on answers. The maintainers treat incidentally-retrieved copyrighted
+> text in a model answer as fair use for academic research; the run is committed **as collected**
+> (answers never truncated or edited). The standard automated `audit` (origin + restricted-payload
+> fingerprints) still gates every commit — unchanged.
 
 #### Canonical commands (defined here; the Phase-4 tutorial must reproduce them)
 
@@ -210,7 +220,7 @@ uv --project pipelines run python -m sacredbench generate \
   "texts/standardized/Protestant Christian/the-bible-kjv-en" \
   "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar" \
   "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he" \
-  --tasks retrieve_quote --per-task 30 --seed 20261011 --out "$RUN/questions.jsonl"
+  --tasks retrieve_quote --per-task 100 --seed 20261011 --out "$RUN/questions.jsonl"
 uv --project pipelines run python -m sacredbench audit "$RUN"
 cp -n configs/models.example.yaml configs/models.yaml      # keys via env (ANTHROPIC_API_KEY)
 uv --project pipelines run python -m sacredbench collect "$RUN/questions.jsonl" configs/models.yaml --out "$RUN/answers.jsonl"
@@ -226,16 +236,13 @@ uv --project pipelines run python -m sacredbench audit "$RUN"   # whole run, pre
 - `runs/tutorial-2026-10-11/` — `questions.jsonl` (+ `.manifest.json`), `answers.jsonl`,
   `scores.jsonl`, `summary.json`, `summary.md`, and `README.md`.
 
-#### Copyright-clearance procedure (pinned — Approach F)
+#### Copyright / licensing (clearance dropped — committed as collected)
 
-After `collect`, review **every** `web_search` answer (both `-search` entries × all questions;
-~60 answers at `--per-task 30`): each committed answer must be the intended original-language
-public-domain text (KJV English / Qur'an Uthmani Arabic / Talmud Aramaic original), **not** a
-verbatim copyrighted third-party edition/translation (Steinsaltz English, NABRE, NA28, …).
-Record in `README.md`: the number of search-on answers reviewed, the criteria, and the outcome.
-**Pass** = no committed search-on answer reproduces a copyrighted translation. A flagged answer
-is removed and that cell re-collected, or (if systemic) the committed corpus is restricted —
-answers are **never** truncated (the explorer must show them).
+No manual clearance/redaction pass runs over the search-on answers (human determination, fair
+use — see the scope note above). The run is committed as collected; answers are never truncated
+or edited. The `README.md` records a one-line fair-use note plus the CC-BY-NC Davidson
+attribution (source / licence / non-commercial notice) and the web-search tool version +
+`max_uses`. The automated `audit` (origin + restricted-payload fingerprints) is the enforced gate.
 
 #### Deliverables
 
@@ -245,9 +252,8 @@ answers are **never** truncated (the explorer must show them).
 - [ ] A budgeted **live smoke** (a few cells) confirms both web-search-on and -off paths work
       end-to-end before the full collect.
 - [ ] Full `collect`; `score` unpriced (no `cost_usd`); both `audit` runs pass origin-clean.
-- [ ] The copyright-clearance procedure run and recorded in `README.md`, with the CC-BY-NC
-      Davidson attribution (source/licence/non-commercial notice) and the web-search tool
-      version + `max_uses`.
+- [ ] `README.md` records the fair-use note, the CC-BY-NC Davidson attribution, and the
+      web-search tool version + `max_uses`.
 - [ ] `.gitignore` negation; the four-file set + README committed.
 
 #### Acceptance Criteria
@@ -266,7 +272,7 @@ answers are **never** truncated (the explorer must show them).
 #### Test Plan
 
 - Live, following the canonical commands: convert → generate (inspect Arabic/Hebrew questions)
-  → smoke → collect → score → audit → clearance.
+  → smoke → collect → score → audit.
 - Automated: `audit` on the committed run; a secret-scan assertion on `summary.json`/README; a
   pipeline test loading the committed `summary.json` asserting four distinct standings
   identities, non-collision with first-run, and unpriced usage.

@@ -170,8 +170,56 @@ Do NOT fabricate the run. When unblocked, resume at: smoke (pause_turn hard gate
 → score (unpriced) → clearance (review ALL search-on answers, strip web bidi/joiner/BOM) → audit →
 commit run + README + gitignore negation.
 
+## Phase 3 — UNBLOCKED (2026-10-11): architect approved option (a), human authorized spend
+- Keys: `set -a; source /Users/mwk/Development/fftn/taqwabench/.env; set +a` before collect.
+  NEVER cat/echo/print the file or any key; never commit key material; logs carry the path only.
+- **SCOPE CHANGE (human, pre-collect)**: n=100 not 30. Regenerated `--per-task 100 --seed 20261011`
+  → 100 Q, balance 34 Judaism / 33 Sunni Islam / 33 Protestant Christian (34 Hebrew/33 Arabic/33
+  Latin), unique ids, audit clean. **digest 37eb58400fdf4ea9**, corpus ed3f05dcf703e2e3.
+  (Plan canonical cmd pinned per-task 30; deviation is the approved scope change — update Phase-4
+  TUTORIAL + plan canonical block to per-task 100 so repro matches.) Panel 100×4 = 400 cells (200 search-on).
+- **SMOKE PASSED** (3 Q = 1 Ar/1 He/1 La × 4 panel = 12 cells, scratchpad only, NOT committed):
+  exit 0, NO pause_turn (hard gate #1 CLEARED), no empty answers, no invisible-format chars.
+  Both paths work: -search cells recorded web_search_requests (1/2/5), -off None. Content sane:
+  KJV Jeremiah correct EN (all 4); Qur'an 7:70 Arabic original; Talmud Aramaic Q → EN refusals/
+  explanations ("couldn't find the exact Aramaic text"), NOT copyrighted reproductions (good early
+  clearance signal — still must review all 200).
+- Full collect running (bg task bb6h64b58) → answers.jsonl.
+
+### SCOPE REDUCTION (human, pre-commit): DROP manual copyright-clearance entirely
+Human determination: academic research / fair use; incidental copyrighted text in model answers
+is acceptable. Commit run AS COLLECTED (no review/redact/strip). Removed the required clearance
+step from spec (Approach F → SUPERSEDED note + resolved the Critical open question + risk row +
+criteria) and plan (Phase 3 clearance block → fair-use note; Objective; Test Plan). README carries
+a one-line fair-use note only. Automated audit gate UNCHANGED. New sequence: collect→score→audit→commit.
+
+## Phase 3 DONE — committed tutorial run (collect→score→audit→commit)
+- **collect**: 400 answers (100/model), 0 empty, single digest 37eb58400fdf4ea9. Web search fired
+  on 93/200 search-on cells (opus-search 34 cells/131 req, haiku-search 59/95; 226 req total).
+- **score** (unpriced, no cost_usd): summary.json keys models/by_tradition/usage/panel/generated_at.
+  Panel 4 entries, marked [web_search]/[no-tools], api_model preserved, secret-free. Standings keys
+  distinct + NO first-run collision. generated_at ISO.
+- **CONTRAST (honest, NOT what issue expected)**: web search did NOT help, slightly HURT.
+  opus 66 vs opus-search 66; haiku 47 vs haiku-search 40. By tradition: Judaism ~0 all (Aramaic
+  Talmud recall floor; abstain/EN-about); KJV 85-100 flat; Qur'an opus 100→97, haiku 58→36.
+  Driver: web-retrieved Qur'an in different vocalisation/orthography than Uthmani QUL ref →
+  normalize folds diacritics/tatweel but NOT letter choices → correct-but-differently-spelled
+  scores 0 (token_f1 shows near-miss not fabrication). 1 opus flip was web_req=None = sampling noise.
+  Documented fully in run README. Benchmark working as designed (strict reference match).
+- **audit**: origin-clean (pre- and post-score). **invisible-format scan: 0/400** (Phase-1 watch
+  item clear — no silent zeroing). **secret scan: 0 sk-/bearer/auth material across all run files.**
+- **test**: added pipelines/tests/test_tutorial_run.py (4 distinct standings + non-collision,
+  secret-free+api_model+unpriced+generated_at, re-score committed answers byte-for-byte [strong
+  non-Latin regression], 3-tradition/3-script questions). Secret-scan refined to key-MATERIAL
+  regex (sk-/bearer-with-value) not var-name mentions (ANTHROPIC_API_KEY in README repro is doc,
+  not secret; panel secret-freeness also structurally asserted). **Full gate: 195 passed.**
+- **.gitignore**: added `!runs/tutorial-2026-10-11/`.
+
 ### Next
-WAIT for architect: key + spend go-ahead, OR architect runs collect & hands me answers, OR defer P3.
+porch done phase_3 → phase_4 (TUTORIAL rework around KJV/Qur'an/Talmud + web-search on/off;
+reproduce canonical cmds per-task 100; remove clearance step from TUTORIAL; update arch/lessons;
+verify merged viewer renders committed run with ZERO code changes — leaderboard/explorer/standings).
+Then open ONE PR (phases = commits). Smoke scratchpad files are in session scratchpad (NOT committed).
 ⚠️ Phase 3 = paid Anthropic web-search run. Order: convert → generate (seed 20261011, per-task 30,
 3 corpora) → audit → SMOKE (few cells, check pause_turn gate #1) → full collect → score (unpriced)
 → copyright-clearance (review ALL search-on answers; strip web bidi/joiner/BOM chars if present) →
