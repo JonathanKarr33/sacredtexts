@@ -193,7 +193,7 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
     renderApp("/");
     expect(await screen.findByText("Leaderboard")).toBeInTheDocument();
 
-    // ranking (main table): claude-haiku (0.24) first, the two 0.0 models last (id tiebreak)
+    // ranking (main table): claude-haiku (0.25) first, the two 0.0 models last (id tiebreak)
     const mainTable = screen.getAllByRole("table")[0]!;
     const dataRows = within(mainTable).getAllByRole("row").slice(1); // drop header
     const order = dataRows.map((r) => within(r).getAllByRole("cell")[0]!.textContent);

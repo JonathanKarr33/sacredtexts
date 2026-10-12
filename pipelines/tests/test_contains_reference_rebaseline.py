@@ -135,3 +135,15 @@ def test_rebaselined_headline_accuracy(run):
     summary = json.loads(p.read_text(encoding="utf-8"))
     for (model_id, task), acc in EXPECTED_ACCURACY[run].items():
         assert summary["models"][model_id][task]["accuracy"] == acc
+
+
+def test_first_run_overall_and_lds_tradition_pinned():
+    p = REPO_ROOT / "runs" / "first-run-2026-10-11" / "summary.json"
+    if not p.exists():
+        pytest.skip("first-run evidence not present")
+    summary = json.loads(p.read_text(encoding="utf-8"))
+    # the single flip lifts claude-haiku's overall and the LDS tradition cell (18/25 -> 19/25)
+    assert summary["models"]["claude-haiku"]["_overall"]["accuracy"] == 0.25
+    lds = "The Church of Jesus Christ of Latter-Day Saints"
+    assert summary["by_tradition"]["claude-haiku"][lds]["retrieve_quote"]["accuracy"] == 0.76
+    assert summary["by_tradition"]["claude-haiku"][lds]["_overall"]["accuracy"] == 0.76
