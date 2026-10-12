@@ -72,18 +72,70 @@ def test_fingerprint_distinguishes_tools():
     assert _panel_fingerprint(on).endswith("|web_search") and _panel_fingerprint(off).endswith("|")
 
 
+def _ar_q(qid: str = "retrieve_quote-aaaaaa") -> Question:
+    return Question(id=qid, task="retrieve_quote", prompt="p",
+                    expected={"text": "x"},
+                    source={"tradition": ["T"], "work": "W", "version": "V", "language": "ar",
+                            "document_type": "scripture", "citation": "W 1:1"})
+
+
 def test_flipped_tools_resume_refused(tmp_path, monkeypatch):
     answers = tmp_path / "answers.jsonl"
-    q = Question(id="retrieve_quote-aaaaaa", task="retrieve_quote", prompt="p",
-                 expected={"text": "x"},
-                 source={"tradition": ["T"], "work": "W", "version": "V", "language": "ar",
-                         "document_type": "scripture", "citation": "W 1:1"})
+    q = _ar_q()
     monkeypatch.setattr(collect_mod, "complete", lambda m, p, retries=2: ("a", {"in": 1, "out": 1}, 1))
     on = RunConfig(models=(ModelSpec(id="m", provider="anthropic", model="claude-haiku-5-5", tools=("web_search",)),), concurrency=1)
     off = RunConfig(models=(ModelSpec(id="m", provider="anthropic", model="claude-haiku-5-5", tools=()),), concurrency=1)
     collect([q], on, answers)  # collected WITH web search
     with pytest.raises(CollectError, match="different panel identity"):
         collect([q], off, answers)  # resume WITHOUT -> refused
+
+
+def test_resume_with_missing_fingerprint_refused(tmp_path, monkeypatch):
+    """A legacy row (digest present, but NO panel_fingerprint — first-run's shape) must refuse
+    resume: without the guard its missing fingerprint bypasses the identity check, so a
+    tools-bearing config could silently mix web-search-on answers into a legacy id."""
+    from sacredbench.generate import question_set_digest
+    q = _ar_q()
+    answers = tmp_path / "answers.jsonl"
+    # digest matches the current set, so the digest guard passes — only the fingerprint is absent
+    legacy = {"question_id": q.id, "model_id": "m", "question_set_digest": question_set_digest([q])}
+    answers.write_text(json.dumps(legacy) + "\n")
+    monkeypatch.setattr(collect_mod, "complete", lambda m, p, retries=2: ("a", {"in": 1, "out": 1}, 1))
+    cfg = RunConfig(models=(ModelSpec(id="m", provider="anthropic", model="claude-haiku-5-5", tools=("web_search",)),), concurrency=1)
+    with pytest.raises(CollectError, match="no panel fingerprint"):
+        collect([q], cfg, answers)
+
+
+def test_score_config_drift_from_answers_refused(tmp_path, monkeypatch):
+    """`score --config` must cross-check config fingerprints against the answers' fingerprints:
+    flipping a model's tools between collect and score would mislabel the arm in the committed
+    panel. Here the answers were collected WITH web search; scoring under a no-tools config for
+    the same id is refused before any panel is emitted."""
+    from typer.testing import CliRunner
+
+    from sacredbench.cli import app
+    from sacredbench.generate import write_questions
+    from sacredbench.score import ScoreError
+
+    q = _ar_q()
+    answers = tmp_path / "answers.jsonl"
+    monkeypatch.setattr(collect_mod, "complete", lambda m, p, retries=2: ("a", {"in": 1, "out": 1}, 1))
+    on = RunConfig(models=(ModelSpec(id="m", provider="anthropic", model="claude-haiku-5-5", tools=("web_search",)),), concurrency=1)
+    collect([q], on, answers)  # answers carry fingerprint ...|web_search
+
+    questions_path = tmp_path / "questions.jsonl"
+    write_questions([q], questions_path)
+    import yaml
+    cfg_off = tmp_path / "cfg_off.yaml"  # same id, tools FLIPPED off
+    cfg_off.write_text(yaml.safe_dump({"models": [{"id": "m", "provider": "anthropic", "model": "claude-haiku-5-5"}]}))
+
+    r = CliRunner().invoke(app, ["score", str(answers),
+                                 "--scores-out", str(tmp_path / "s.jsonl"),
+                                 "--summary-out", str(tmp_path / "sum.json"),
+                                 "--questions", str(questions_path), "--config", str(cfg_off)])
+    assert r.exit_code != 0 and isinstance(r.exception, ScoreError)
+    assert "mislabel the experimental arm" in str(r.exception)
+    assert not (tmp_path / "sum.json").exists()  # refused before emitting the panel
 
 
 # --- provider seam (fake SDK at the lazy import site) ------------------------

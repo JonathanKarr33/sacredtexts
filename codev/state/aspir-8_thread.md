@@ -363,6 +363,28 @@ All 4 plan phases APPROVED; porch in review iter 1. Verified gate GREEN at revie
   explicit architect approval → then `porch approve 8 pr` (builder runs it) → merge → porch done
   8 --merged 9 → verify phase. Notified architect.
 
+### Architect integration review (PR #9) — 4 evidence-integrity fixes folded (2026-10-12)
+Architect (main) hands-on verified fresh clone (claude APPROVE/HIGH, codex RC/HIGH). 4 blocking,
+all pre-merge, all same class (evidence-integrity guards):
+1. ✅ collect: legacy row with digest but NO panel_fingerprint (first-run's EXACT shape, verified
+   `head -1 runs/first-run.../answers.jsonl` → panel_fingerprint ABSENT) bypassed the `if fp:`
+   mismatch check → could resume under tools:[web_search] + silently mix identities. Fix:
+   `_existing` now returns `fp_missing` set; `collect` refuses any configured model w/ fp-less rows.
+2. ✅ score: `cli.py score --config` built panel purely from config, never cross-checked answers'
+   fingerprints → flipping tools between collect/score mislabels the arm. Fix: validate each
+   model's `_panel_fingerprint` vs ans_fps (+ refuse fp-missing) before emitting panel; ScoreError.
+3. ✅ tests: test_resume_with_missing_fingerprint_refused + test_score_config_drift_from_answers_refused
+   (test_phase2_tools.py, CliRunner for the score path). Gate 197/197 (+2) + viewer still green.
+4. ✅ .codev/checks/test.sh: map `configs/` → pipelines lane (grep+sed) so a configs-only PR runs
+   test_phase2_tools (which asserts on models.example.yaml). Verified routing.
+Dispositions (my call, 1 line each in review doc): (5) marker-join `+` vs `,` → PINNED as follow-up
+(different layers: display vs identity; only web_search exists; no correctness gain unifying).
+(6) OpenRouter entry → RESTORED commented-out in models.example.yaml (discoverability; parsed panel
+still 4 entries → test_example_panel_loads_as_four_entries unaffected).
+Follow-ups 7-10 = architect files as issues, NOT this PR. Recorded all in review Consultation
+Feedback (Architect Integration Review subsection). Committed + pushed. Pinging architect.
+🚦 Still at `pr` gate (pending human). Architect takes the merge ask to the human after folding.
+
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,
 then architect approval gate → `porch approve`, merge, `porch done 8 --merged <N>`, verify phase.

@@ -224,6 +224,43 @@ it.
 
 No `CONSULT_ERROR` was encountered; both PR-round verdicts were APPROVE / HIGH.
 
+### Architect Integration Review (PR #9, pre-merge)
+The architect (`main`) ran a hands-on integration review (claude APPROVE/HIGH, codex
+REQUEST_CHANGES/HIGH) on a fresh clone and independently re-derived every run-README number.
+Four small **evidence-integrity** fixes were requested before the merge word; all **Addressed**:
+- **Concern (codex #1)**: a legacy answers file whose rows carry a digest but **no
+  `panel_fingerprint`** (first-run's exact shape — verified) bypasses the collect resume
+  mismatch check (`if fp:` skips them), so a partial pre-Spec-3 file could resume under
+  `tools: [web_search]` and silently mix identities. → **Addressed**: `_existing` now tracks
+  model ids with fingerprint-less rows; `collect` refuses resume for any configured model that
+  has such rows (`collect.py`).
+- **Concern (codex #2)**: `score --config` built the committed `panel` purely from the config,
+  never cross-checked against the fingerprints in `answers.jsonl`, so flipping a model's tools
+  between collect and score would mislabel the experimental arm with no error. → **Addressed**:
+  `cli.py score` validates each configured model's fingerprint against the answers' fingerprints
+  (and refuses a fingerprint-less answers file) before emitting the panel; `ScoreError` on drift.
+- **Concern (codex #3)**: tests for both. → **Addressed**: `test_resume_with_missing_fingerprint_refused`
+  and `test_score_config_drift_from_answers_refused` (`test_phase2_tools.py`); gate 197/197.
+- **Concern (claude #5)**: `.codev/checks/test.sh` did not map `configs/` → pipelines, yet
+  `test_phase2_tools.py` asserts on `configs/models.example.yaml` — a configs-only PR would skip
+  its guard. → **Addressed**: one registry line maps `configs/` into the pipelines lane.
+
+Two disposition calls (my judgment):
+- **Marker-join unification (claude #2)** — `cli.py` uses `'+'.join(tools)` for the display
+  marker and `collect.py` uses `','.join(tools)` for the identity fingerprint. → **Pinned as a
+  follow-up**, not unified now: they are deliberately different layers (viewer-facing display
+  vs. internal identity) and `web_search` is the only tool today, so a shared helper would
+  conflate two concerns for no correctness gain; both sites already carry explanatory comments.
+- **OpenRouter example entry (claude #7)** — the Spec-8 rework dropped the multi-provider
+  copy-paste path from `configs/models.example.yaml`. → **Restored** as a commented-out
+  OpenRouter (`provider: openai` + `base_url` + `api_key_env`) entry, preserving discoverability
+  without changing the parsed 4-entry panel.
+
+Integration-review follow-ups 7–10 (standings orphan; `pause_turn` continuation + empty-text
+re-bill; audit `_norm` Greek collision; the contains-exact scoring-contract refinement) are
+**out of this PR** — the architect is filing them as issues. Several overlap this review's
+Follow-up Items.
+
 ## Lessons Learned
 
 ### What Went Well

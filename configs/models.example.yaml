@@ -34,3 +34,14 @@ models:
     provider: anthropic
     model: claude-haiku-5-5
     max_tokens: 4096
+  # Multi-provider is still supported — this tutorial panel is all-Anthropic only because
+  # web_search is an Anthropic server-side tool. Any OpenAI-compatible host (e.g. OpenRouter)
+  # works via provider: openai + base_url + api_key_env; keys come from the environment.
+  # Uncomment and adjust to add a non-Anthropic entry (tools: must stay absent there —
+  # web_search on a non-anthropic provider is a load-time ConfigError):
+  # - id: openrouter-example
+  #   provider: openai
+  #   model: anthropic/claude-haiku-5-5        # a slug the host recognises
+  #   base_url: https://openrouter.ai/api/v1
+  #   api_key_env: OPENROUTER_API_KEY
+  #   max_tokens: 4096
