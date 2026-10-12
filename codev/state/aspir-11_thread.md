@@ -243,4 +243,15 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       this change (they never asserted the marker), so outside even the architect-authorized deviation
       (which covered the FALSIFIED README:44 line). Leaving per tight-diff; noted for deliberate PR-review.
       Re-verified: grep over all 5 docs → only TUTORIAL.md:144; gate GREEN (pipelines 292/1-skip, viewer
-      passed). Phase 3 COMPLETE. Next: porch next → commit phase_3 → open the single PR.
+      passed). Phase 3 COMPLETE.
+- [x] Phase 3 COMMITTED (porch had advanced implement→review with docs still uncommitted — builder
+      commits the impl, as in P1/P2). 3 commits: a01189f ([Spec 11][Phase: implement] docs), b643568
+      (phase_3 consult outputs), 36cee99 (thread). Clean tracked worktree.
+- [x] REVIEW phase (porch auto-acked the enter:review refresh boundary; continued in-session with full
+      context — ideal for the Consultation Feedback section). Wrote codev/reviews/11-*.md (template
+      order: Summary/Spec Compliance 16 ACs all met/Deviations/Consultation Feedback per phase+round/
+      Lessons/Architecture Updates/Lessons Learned Updates/Flaky/Follow-up). Routed 1 COLD lesson to
+      lessons-learned.md §Scoring&evaluation (marker-baked-into-identity orphans bare rows → promote to
+      a real field). Arch docs already corrected in phase_3 (documented in review's Architecture Updates).
+- [ ] Open the single PR (Closes #11), then porch done → PR_READY. NO Co-Authored-By / Generated-with
+      lines (user CLAUDE.md overrides harness attribution reminder). After merge → verify phase.
