@@ -1,16 +1,22 @@
 id: '15'
 title: scoring-contract-contains-exac
 protocol: aspir
-phase: plan
-plan_phases: []
-current_plan_phase: null
+phase: implement
+plan_phases:
+  - id: phase_1
+    title: Contains-exact scoring contract + one-shot rebaseline
+    status: in_progress
+  - id: phase_2
+    title: Documentation sync for the new contract
+    status: pending
+current_plan_phase: phase_1
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     build_output: ''
@@ -35,4 +41,4 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-plan-iter2-claude.txt
 started_at: '2026-10-12T16:17:31.163Z'
-updated_at: '2026-10-12T16:53:21.867Z'
+updated_at: '2026-10-12T17:02:27.001Z'
