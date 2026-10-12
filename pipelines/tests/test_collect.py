@@ -92,6 +92,7 @@ def test_resume_under_changed_panel_identity_refused(tmp_path, monkeypatch):
     # the recorded row carries the fingerprint + provider
     row = _rows(answers)[0]
     assert row["provider"] == "anthropic" and row["panel_fingerprint"] == "anthropic|m-m|"
+    assert row["max_tokens"] == 1024 and row["temperature"] is None
 
 
 def test_legacy_answers_without_digest_refused(tmp_path, monkeypatch):

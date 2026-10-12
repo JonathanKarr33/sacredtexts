@@ -12,9 +12,10 @@ The committed first run lives in [`runs/first-run-2026-10-11/`](runs/first-run-2
 
 - [`uv`](https://docs.astral.sh/uv/) (Python pipeline) and [`pnpm`](https://pnpm.io/)
   (the viewer). Node 20+.
-- Model API keys in your **environment** (never in a file): e.g. `ANTHROPIC_API_KEY`,
-  `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY` — only those your panel
-  uses. Needed for step 5 (`collect`) only.
+- Model API keys in your **environment**. Names are listed in `.env.example`
+  (`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`).
+  Copy it to `.env` if you want, and export only the keys your panel uses.
+  `.env` is gitignored. Needed for step 5 (`collect`) only.
 
 ```bash
 git clone <this repo> && cd sacredtexts   # (or the repo root if nested)
@@ -66,6 +67,27 @@ uv --project pipelines run python -m sacredbench score \
 diff <(sort /tmp/scores.jsonl) <(sort runs/first-run-2026-10-11/scores.jsonl) && echo "reproduced"
 ```
 
+The same answers have a separate cross-translation reading. It does not rescore
+the run and does not replace LLM-as-a-judge. It asks whether a miss is another
+edition, or another tradition's wording of the same citation (the committed
+reading is `runs/first-run-2026-10-11/cross_translation.md`):
+
+```bash
+uv --project pipelines run python -m sacredbench cross-translation \
+  runs/first-run-2026-10-11/answers.jsonl \
+  --out /tmp/cross_translation.json --md /tmp/cross_translation.md
+```
+
+The committed `runs/first-run-2026-10-11/facct.md` is the benchmark card for this
+run: what each zero is, whether another indexed edition would have passed, and
+who the 100 questions represent. Re-derive it to a scratch path the same way:
+
+```bash
+uv --project pipelines run python -m sacredbench facct \
+  runs/first-run-2026-10-11/answers.jsonl \
+  --out /tmp/facct.json --md /tmp/facct.md
+```
+
 Then view it (Track C below): open `/` — the viewer shows the leaderboard for the most-recent run under `runs/`.
 
 ## Track B — do your own run (needs API keys — the only paid part)
@@ -100,6 +122,11 @@ uv --project pipelines run python -m sacredbench collect \
 uv --project pipelines run python -m sacredbench score "$RUN/answers.jsonl" \
   --scores-out "$RUN/scores.jsonl" --summary-out "$RUN/summary.json" \
   --summary-md "$RUN/summary.md" --questions "$RUN/questions.jsonl" --config configs/models.yaml
+
+# 6b. optional Jev reading (also paid; decisions API, same OPENROUTER_API_KEY).
+#     Does not rescore. Writes a resumable judgments file beside the run.
+uv --project pipelines run python -m sacredbench judge "$RUN/answers.jsonl" \
+  --out "$RUN/judgments.jsonl"
 
 # 7. audit the WHOLE run again — now the answers/scores you'd commit, not just the
 #    questions — before committing any evidence

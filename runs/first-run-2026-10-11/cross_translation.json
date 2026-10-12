@@ -1,0 +1,220 @@
+{
+ "note": "Extra reading of retrieve_quote answers. It does not change the headline correct bit, and it does not replace LLM-as-a-judge.",
+ "corpus": {
+  "scripture_passages": 141533,
+  "three_public_domain_bibles": {
+   "versions": [
+    "KJV",
+    "ASV (1901)",
+    "WEB"
+   ],
+   "verses_in_all_three": 31095,
+   "same_after_normalize": 410,
+   "differ": 30685
+  },
+  "protestant_kjv_vs_lds_kjv": {
+   "shared_citations": 31102,
+   "same_after_normalize": 29303,
+   "differ": 1799
+  },
+  "other_tradition_same_words": {
+   "min_tokens": 12,
+   "against": "The Bible, KJV",
+   "works": {
+    "Book of Mormon": {
+     "verses": 200,
+     "bible_books": {
+      "Isaiah": 150,
+      "Matthew": 32,
+      "Malachi": 14,
+      "Exodus": 3,
+      "Deuteronomy": 2,
+      "Luke": 1,
+      "Micah": 1
+     }
+    },
+    "Doctrine and Covenants": {
+     "verses": 4,
+     "bible_books": {
+      "1 Peter": 2,
+      "1 Corinthians": 1,
+      "Luke": 1
+     }
+    },
+    "Pearl of Great Price": {
+     "verses": 26,
+     "bible_books": {
+      "Genesis": 16,
+      "Matthew": 10,
+      "Mark": 1
+     }
+    }
+   }
+  }
+ },
+ "answers": {
+  "n": 400,
+  "labels": {
+   "other_edition": 4,
+   "other_tradition": 1,
+   "requested": 26,
+   "unmatched": 369
+  },
+  "other_tradition": [
+   {
+    "question_id": "retrieve_quote-293147da344b",
+    "model_id": "claude-haiku",
+    "match_kind": "contained",
+    "asked": {
+     "tradition": "Protestant Christian",
+     "work": "The Bible",
+     "version": "KJV",
+     "language": "en",
+     "citation": "Isaiah 4:6",
+     "expected_text": "And there shall be a tabernacle for a shadow in the day time from the heat, and for a place of refuge, and for a covert from storm and from rain."
+    },
+    "answer": "And there shall be a tabernacle for a shadow in the daytime from the heat, and for a place of refuge, and for a covert from storm and from rain.",
+    "matched": [
+     {
+      "tradition": "The Church of Jesus Christ of Latter-Day Saints",
+      "work": "The Bible",
+      "version": "KJV (LDS 2013 edition)",
+      "citation": "Isaiah 4:6",
+      "text": "And there shall be a tabernacle for a shadow in the daytime from the heat, and for a place of refuge, and for a covert from storm and from rain."
+     }
+    ],
+    "same_words_also_in": []
+   }
+  ],
+  "other_edition": [
+   {
+    "question_id": "retrieve_quote-4fe34f1874b5",
+    "model_id": "llama-3.1-8b",
+    "match_kind": "contained",
+    "asked": {
+     "tradition": "Protestant Christian",
+     "work": "The Bible",
+     "version": "WEB",
+     "language": "en",
+     "citation": "John 13:3",
+     "expected_text": "Jesus, knowing that the Father had given all things into his hands, and that he came from God, and was going to God,"
+    },
+    "answer": "Jesus, knowing that the Father had given all things into his hands, and that he was come from God and went to God. (John 13:3)",
+    "matched": [
+     {
+      "tradition": "Protestant Christian",
+      "work": "The Bible",
+      "version": "KJV",
+      "citation": "John 13:3",
+      "text": "Jesus knowing that the Father had given all things into his hands, and that he was come from God, and went to God;"
+     }
+    ],
+    "same_words_also_in": [
+     {
+      "tradition": "The Church of Jesus Christ of Latter-Day Saints",
+      "work": "The Bible",
+      "version": "KJV (LDS 2013 edition)",
+      "citation": "John 13:3",
+      "text": "Jesus knowing that the Father had given all things into his hands, and that he was come from God, and went to God;"
+     }
+    ]
+   },
+   {
+    "question_id": "retrieve_quote-9849dc57e6f4",
+    "model_id": "claude-haiku",
+    "match_kind": "contained",
+    "asked": {
+     "tradition": "Protestant Christian",
+     "work": "The Bible",
+     "version": "ASV (1901)",
+     "language": "en",
+     "citation": "Isaiah 55:10",
+     "expected_text": "For as the rain cometh down and the snow from heaven, and returneth not thither, but watereth the earth, and maketh it bring forth and bud, and giveth seed to the sower and bread to the eater;"
+    },
+    "answer": "For as the rain cometh down, and the snow from heaven, and returneth not thither, but watereth the earth, and maketh it bring forth and bud, that it may give seed to the sower and bread to the eater:",
+    "matched": [
+     {
+      "tradition": "Protestant Christian",
+      "work": "The Bible",
+      "version": "KJV",
+      "citation": "Isaiah 55:10",
+      "text": "For as the rain cometh down, and the snow from heaven, and returneth not thither, but watereth the earth, and maketh it bring forth and bud, that it may give seed to the sower, and bread to the eater:"
+     }
+    ],
+    "same_words_also_in": [
+     {
+      "tradition": "The Church of Jesus Christ of Latter-Day Saints",
+      "work": "The Bible",
+      "version": "KJV (LDS 2013 edition)",
+      "citation": "Isaiah 55:10",
+      "text": "For as the rain cometh down, and the snow from heaven, and returneth not thither, but watereth the earth, and maketh it bring forth and bud, that it may give seed to the sower, and bread to the eater:"
+     }
+    ]
+   },
+   {
+    "question_id": "retrieve_quote-a556a0f3af28",
+    "model_id": "llama-3.1-8b",
+    "match_kind": "contained",
+    "asked": {
+     "tradition": "Protestant Christian",
+     "work": "The Bible",
+     "version": "ASV (1901)",
+     "language": "en",
+     "citation": "Mark 7:9",
+     "expected_text": "And he said unto them, Full well do ye reject the commandment of God, that ye may keep your tradition."
+    },
+    "answer": "And he said unto them, Full well ye reject the commandment of God, that ye may keep your own tradition.",
+    "matched": [
+     {
+      "tradition": "Protestant Christian",
+      "work": "The Bible",
+      "version": "KJV",
+      "citation": "Mark 7:9",
+      "text": "And he said unto them, Full well ye reject the commandment of God, that ye may keep your own tradition."
+     }
+    ],
+    "same_words_also_in": [
+     {
+      "tradition": "The Church of Jesus Christ of Latter-Day Saints",
+      "work": "The Bible",
+      "version": "KJV (LDS 2013 edition)",
+      "citation": "Mark 7:9",
+      "text": "And he said unto them, Full well ye reject the commandment of God, that ye may keep your own tradition."
+     }
+    ]
+   },
+   {
+    "question_id": "retrieve_quote-acdf3ea8c805",
+    "model_id": "claude-haiku",
+    "match_kind": "closer",
+    "asked": {
+     "tradition": "Protestant Christian",
+     "work": "The Bible",
+     "version": "ASV (1901)",
+     "language": "en",
+     "citation": "Judges 18:24",
+     "expected_text": "And he said, ye have taken away my gods which I made, and the priest, and are gone away, and what have I more? and how then say ye unto me, What aileth thee?"
+    },
+    "answer": "\"And they said, Ye have taken away my gods which I made, and the priest, and ye are gone away: and what have I more? and what is this that ye say unto me, What aileth thee?\"",
+    "matched": [
+     {
+      "tradition": "Protestant Christian",
+      "work": "The Bible",
+      "version": "KJV",
+      "citation": "Judges 18:24",
+      "text": "And he said, Ye have taken away my gods which I made, and the priest, and ye are gone away: and what have I more? and what is this that ye say unto me, What aileth thee?"
+     }
+    ],
+    "same_words_also_in": [
+     {
+      "tradition": "The Church of Jesus Christ of Latter-Day Saints",
+      "work": "The Bible",
+      "version": "KJV (LDS 2013 edition)",
+      "citation": "Judges 18:24",
+      "text": "And he said, Ye have taken away my gods which I made, and the priest, and ye are gone away: and what have I more? and what is this that ye say unto me, What aileth thee?"
+     }
+    ]
+   }
+  ]
+ }
+}

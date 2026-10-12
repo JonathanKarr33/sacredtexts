@@ -9,6 +9,9 @@ Metrics emitted per answer:
 - ``token_f1``    bag-of-words F1 between normalised answer and expected text
                   (0..1) — the v1 "semantic similarity" stand-in; embedding- or
                   judge-based semantic scoring is a later, pluggable metric
+                  (LLM-as-a-judge). A missed quote that is another edition or
+                  another tradition's wording is a separate reading
+                  (``cross_translation.py``); it does not change ``correct``.
 - ``correct``     the per-task headline judgment (see below)
 
 Per-task headline rule (the spec's contract — designed to resist evasive answers so
@@ -371,6 +374,8 @@ def score_file(
                 "provider": p.get("provider"),
                 "model": p.get("model") or um.get("model"),
                 "endpoint": p.get("endpoint"),
+                "max_tokens": p.get("max_tokens"),
+                "temperature": p.get("temperature"),
                 "served_by": sorted(um.get("served_by", {})) or None,
             }
     return summary
@@ -424,13 +429,18 @@ def summary_markdown(summary: dict) -> str:
     panel = summary.get("panel") or {}
     if panel:
         lines += ["", "### Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)"]
-        lines += ["| model_id | provider | model | endpoint | served_by |", "|" + "---|" * 5]
+        lines += [
+            "| model_id | provider | model | endpoint | max_tokens | temperature | served_by |",
+            "|" + "---|" * 7,
+        ]
         for mid in sorted(panel):
             p = panel[mid]
             served = ", ".join(p.get("served_by") or []) or "—"
+            temperature = "—" if p.get("temperature") is None else p.get("temperature")
             lines.append(
                 f"| {mid} | {p.get('provider') or '—'} | {p.get('model') or '—'} "
-                f"| {p.get('endpoint') or '—'} | {served} |"
+                f"| {p.get('endpoint') or '—'} | {p.get('max_tokens') if p.get('max_tokens') is not None else '—'} "
+                f"| {temperature} | {served} |"
             )
 
     usage = summary.get("usage") or {}

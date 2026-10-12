@@ -16,17 +16,30 @@ import {
 // run id (so model rows and task cells link into the error explorer); data loading and run
 // selection live in LeaderboardPage.
 
-export function LeaderboardTable({ summary, runId }: { summary: Summary; runId: string }) {
+export function LeaderboardTable({
+  summary,
+  runId,
+  secondary = false,
+}: {
+  summary: Summary;
+  runId: string;
+  secondary?: boolean;
+}) {
   const { tasks, rows } = leaderboardRows(summary);
   const showTraditions = hasTraditionData(summary);
   const tRows = showTraditions ? traditionRows(summary, tasks) : [];
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-2xl font-semibold">Leaderboard</h1>
+  const body = (
+    <>
+      {secondary ? (
+        <summary className="cursor-pointer text-lg font-semibold">Stored headline</summary>
+      ) : (
+        <h1 className="text-2xl font-semibold">Leaderboard</h1>
+      )}
       <p className="mt-1 text-sm text-default-500">
-        Models ranked by overall accuracy over the selected run. Local only — read from the
-        run's <code>summary.json</code>.
+        {secondary
+          ? "Strict string match, kept closed. The whole answer has to be the named edition and nothing else. Ordering models by this percentage puts a refusal and a fabrication in the same zero."
+          : "Models ranked by overall accuracy over the selected run. Local only — read from the run's summary.json."}
       </p>
 
       <div className="mt-4 overflow-x-auto">
@@ -112,6 +125,11 @@ export function LeaderboardTable({ summary, runId }: { summary: Summary; runId: 
           </div>
         </>
       )}
-    </div>
+    </>
   );
+
+  if (secondary) {
+    return <details className="mx-auto max-w-5xl px-4 py-4">{body}</details>;
+  }
+  return <div className="mx-auto max-w-5xl px-4 py-8">{body}</div>;
 }

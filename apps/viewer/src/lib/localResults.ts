@@ -91,6 +91,9 @@ export interface QuestionResult {
   exact: number | null;
   normalized: number | null;
   token_f1: number | null;
+  // Joined from facct.json when the run has a reading. Absent on a plain score join.
+  reading?: string;
+  readingDetail?: string;
 }
 
 function isRecord(x: unknown): x is Record<string, unknown> {
@@ -357,6 +360,225 @@ export async function loadSummary(base: string, fetcher: typeof fetch = fetch): 
     return { ok: true, summary: parseSummary(JSON.parse(s.text)) };
   } catch (e) {
     return { ok: false, kind: "malformed", message: `${base}/summary.json: ${(e as Error).message}` };
+  }
+}
+
+export interface FacctSlot {
+  n: number;
+  headline_correct: number;
+  labels: Record<string, number>;
+}
+
+/** One answer's reading. Joined to a quote on (question_id, model_id). */
+export interface FacctItem {
+  question_id: string;
+  model_id: string;
+  label: string;
+  citation: string;
+  version: string;
+  tradition: string;
+  document_type: string;
+  license: string;
+  detail: string;
+}
+
+export interface FacctFold {
+  rule: string;
+  chosen: boolean;
+  all_three_agree: number;
+  verses_in_all_three: number;
+}
+
+/** Extra reading of a finished run. Absent when the run has no facct.json. */
+export interface FacctReport {
+  note: string;
+  answers: { n: number; labels: Record<string, number> };
+  by_model: Record<string, FacctSlot>;
+  by_tradition: Record<string, FacctSlot>;
+  by_license: Record<string, FacctSlot>;
+  by_document_type: Record<string, FacctSlot>;
+  items: FacctItem[];
+  folding: FacctFold[];
+  counterfactual_bible: {
+    n: number;
+    asked_edition_contained: number;
+    any_indexed_edition_contained: number;
+    headline_miss_but_some_edition_contained: number;
+  };
+  coverage: {
+    questions: number;
+    by_language: Record<string, number>;
+    by_license: Record<string, number>;
+    plural_gold_questions: number;
+  };
+  card: {
+    non_uses: string[];
+    community_review: string;
+    claim: string;
+    threats: string[];
+    refused: string[];
+  };
+}
+
+function numberMap(value: unknown): Record<string, number> | null {
+  if (!isRecord(value)) return null;
+  const out: Record<string, number> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item !== "number") return null;
+    out[key] = item;
+  }
+  return out;
+}
+
+function parseSlot(value: unknown): FacctSlot | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.n !== "number" || typeof value.headline_correct !== "number") return null;
+  const labels = numberMap(value.labels);
+  if (!labels) return null;
+  return { n: value.n, headline_correct: value.headline_correct, labels };
+}
+
+function parseSlots(value: unknown): Record<string, FacctSlot> | null {
+  if (!isRecord(value)) return null;
+  const out: Record<string, FacctSlot> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const slot = parseSlot(item);
+    if (!slot) return null;
+    out[key] = slot;
+  }
+  return out;
+}
+
+const ITEM_FIELDS = [
+  "question_id",
+  "model_id",
+  "label",
+  "citation",
+  "version",
+  "tradition",
+  "document_type",
+  "license",
+  "detail",
+] as const;
+
+function parseItems(value: unknown): FacctItem[] {
+  if (!Array.isArray(value)) return [];
+  const out: FacctItem[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    if (ITEM_FIELDS.some((key) => typeof raw[key] !== "string")) continue;
+    out.push({
+      question_id: raw.question_id as string,
+      model_id: raw.model_id as string,
+      label: raw.label as string,
+      citation: raw.citation as string,
+      version: raw.version as string,
+      tradition: raw.tradition as string,
+      document_type: raw.document_type as string,
+      license: raw.license as string,
+      detail: raw.detail as string,
+    });
+  }
+  return out;
+}
+
+function parseFolding(value: unknown): FacctFold[] {
+  if (!isRecord(value) || !Array.isArray(value.folding_rules)) return [];
+  const out: FacctFold[] = [];
+  for (const raw of value.folding_rules) {
+    if (!isRecord(raw)) continue;
+    if (typeof raw.rule !== "string" || typeof raw.chosen !== "boolean") continue;
+    if (typeof raw.all_three_agree !== "number" || typeof raw.verses_in_all_three !== "number") continue;
+    out.push({
+      rule: raw.rule,
+      chosen: raw.chosen,
+      all_three_agree: raw.all_three_agree,
+      verses_in_all_three: raw.verses_in_all_three,
+    });
+  }
+  return out;
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function parseFacct(value: unknown): FacctReport | null {
+  if (!isRecord(value) || typeof value.note !== "string") return null;
+  if (!isRecord(value.answers) || typeof value.answers.n !== "number") return null;
+  const labels = numberMap(value.answers.labels);
+  const byModel = parseSlots(value.by_model);
+  const byTradition = parseSlots(value.by_tradition) ?? {};
+  const byLicense = parseSlots(value.by_license);
+  const byDocument = parseSlots(value.by_document_type);
+  const counter = value.counterfactual_bible;
+  const coverage = value.coverage;
+  const card = value.card;
+  if (!labels || !byModel || !byLicense || !byDocument) return null;
+  if (!isRecord(counter) || !isRecord(coverage) || !isRecord(card)) return null;
+  const asked = counter.asked_edition_contained;
+  const anyEd = counter.any_indexed_edition_contained;
+  const miss = counter.headline_miss_but_some_edition_contained;
+  const languages = numberMap(coverage.by_language);
+  const licenses = numberMap(coverage.by_license);
+  if (
+    typeof counter.n !== "number" ||
+    typeof asked !== "number" ||
+    typeof anyEd !== "number" ||
+    typeof miss !== "number" ||
+    typeof coverage.questions !== "number" ||
+    typeof coverage.plural_gold_questions !== "number" ||
+    !languages ||
+    !licenses ||
+    typeof card.community_review !== "string" ||
+    !Array.isArray(card.non_uses) ||
+    card.non_uses.some((item) => typeof item !== "string")
+  ) {
+    return null;
+  }
+  return {
+    note: value.note,
+    answers: { n: value.answers.n, labels },
+    by_model: byModel,
+    by_tradition: byTradition,
+    by_license: byLicense,
+    by_document_type: byDocument,
+    items: parseItems(value.items),
+    folding: parseFolding(value.corpus),
+    counterfactual_bible: {
+      n: counter.n,
+      asked_edition_contained: asked,
+      any_indexed_edition_contained: anyEd,
+      headline_miss_but_some_edition_contained: miss,
+    },
+    coverage: {
+      questions: coverage.questions,
+      by_language: languages,
+      by_license: licenses,
+      plural_gold_questions: coverage.plural_gold_questions,
+    },
+    card: {
+      non_uses: card.non_uses as string[],
+      community_review: card.community_review,
+      claim: typeof card.claim === "string" ? card.claim : "",
+      threats: stringList(card.threats),
+      refused: stringList(card.refused),
+    },
+  };
+}
+
+/**
+ * Load the optional FAccT card. A missing file, an HTML fallback, or a shape this
+ * view does not understand returns null so the leaderboard still renders.
+ */
+export async function loadFacct(base: string, fetcher: typeof fetch = fetch): Promise<FacctReport | null> {
+  const got = await fetchArtifact(fetcher, `${base}/facct.json`);
+  if (!got.ok) return null;
+  try {
+    return parseFacct(JSON.parse(got.text));
+  } catch {
+    return null;
   }
 }
 

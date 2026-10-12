@@ -97,11 +97,30 @@ uv --project pipelines run python -m sacredbench collect runs/questions.jsonl co
 #      --questions Q --config CFG   report missing/failed cells against the panel x
 #                                   question-set roster (expected_n / 'miss N')
 uv --project pipelines run python -m sacredbench score runs/answers.jsonl \
-    --questions runs/questions.jsonl --config configs/models.yaml --summary-md runs/summary.md
-#    The summary also carries a `panel` block (provider/model/endpoint — no secrets,
-#    so the >=3-model / >=2-provider bar is checkable from the committed artifact)
-#    and a `usage` block (per-model + total input/output tokens; cost only if the
-#    run config supplies per-model prices — prices are never invented).
+   --questions runs/questions.jsonl --config configs/models.yaml --summary-md runs/summary.md
+#    The summary also carries a `panel` block (provider/model/endpoint/max_tokens/
+#    temperature — no secrets, so the >=3-model / >=2-provider bar is checkable
+#    from the committed artifact) and a `usage` block (per-model + total
+#    input/output tokens; cost only if the run config supplies per-model prices —
+#    prices are never invented). Temperature is omitted from the table when unset.
+#    Cross-translation is a separate reading of the same answers. It does not
+#    rescore the run. It asks whether a miss is another edition of the verse,
+#    or another tradition's wording of it.
+uv --project pipelines run python -m sacredbench cross-translation runs/answers.jsonl \
+    --out runs/cross_translation.json --md runs/cross_translation.md
+#    The FAccT card splits each answer (exact, verse plus extra, other edition,
+#    other tradition, near miss, refusal, empty, made up), checks whether any indexed
+#    edition of the citation is contained, and records license, document type,
+#    and languages that were not sampled. It does not rescore the run.
+uv --project pipelines run python -m sacredbench facct runs/answers.jsonl \
+    --out runs/facct.json --md runs/facct.md
+
+# 5b. Jev (optional, paid, OpenRouter decisions API — not a chat model).
+#     Asks, per answer, whether it is a refusal, the requested wording, another
+#     indexed wording of the same citation, or neither. Does not change `correct`.
+#     Rows store judge_model and the resolved build. Same OPENROUTER_API_KEY.
+uv --project pipelines run python -m sacredbench judge runs/answers.jsonl \
+    --out runs/judgments.jsonl
 
 # 6. Copyright audit (runs in the test gate): fail if any committed artifact is
 #    derived from a restricted source. Two layers: ORIGIN (always) — the artifact's
@@ -124,6 +143,8 @@ converters (registry) · `export.py` assemble shards → interchange + round-tri
 `generate.py` templates → questions · `config.py` model
 panel YAML · `providers.py` anthropic/openai-compatible/gemini seam ·
 `collect.py` resumable fan-out · `score.py` metrics + summary (panel + usage) ·
+`jev.py` closed-question judgments via OpenRouter Decisions (does not set `correct`) ·
+`facct.py` benchmark card (does not set `correct`) ·
 `audit.py` restricted-origin/-content copyright audit · `cli.py` Typer app.
 
 Verified live (2026-10-10): 3-question smoke vs claude-haiku-5-5 — collect and

@@ -38,6 +38,13 @@ def _require_env(*names: str) -> None:
         raise ProviderError(f"missing credential env var(s): {', '.join(missing)}")
 
 
+def sampling_kwargs(model: ModelSpec) -> dict:
+    """Provider sampling args. Temperature is omitted when unset, so the host default stands."""
+    if model.temperature is None:
+        return {}
+    return {"temperature": model.temperature}
+
+
 def complete(model: ModelSpec, prompt: str, retries: int = 2) -> tuple[str, dict, int]:
     """Single-turn completion. Returns ``(text, usage, attempts)``; raises ``ProviderError``."""
     if model.provider == "anthropic":
@@ -75,6 +82,7 @@ def _anthropic(model: ModelSpec, prompt: str) -> tuple[str, dict]:
         model=model.model,
         max_tokens=model.max_tokens,
         messages=[{"role": "user", "content": prompt}],
+        **sampling_kwargs(model),
     )
     text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
     return text, _anthropic_usage(resp)
@@ -95,6 +103,7 @@ def _openai(model: ModelSpec, prompt: str) -> tuple[str, dict]:
         model=model.model,
         messages=[{"role": "user", "content": prompt}],
         **{tok_kwarg: model.max_tokens},
+        **sampling_kwargs(model),
     )
     text = resp.choices[0].message.content or ""
     usage = _openai_usage(resp)
@@ -116,7 +125,9 @@ def _gemini(model: ModelSpec, prompt: str) -> tuple[str, dict]:
     resp = client.models.generate_content(
         model=model.model,
         contents=prompt,
-        config=types.GenerateContentConfig(max_output_tokens=model.max_tokens),
+        config=types.GenerateContentConfig(
+            max_output_tokens=model.max_tokens, **sampling_kwargs(model)
+        ),
     )
     text = getattr(resp, "text", None) or ""
     return text, _gemini_usage(resp)

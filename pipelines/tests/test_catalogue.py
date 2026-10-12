@@ -448,5 +448,7 @@ def test_real_source_yaml_are_trackable_and_payloads_ignored():
         "texts/raw/Roman Catholic/nabre.json",
         "texts/raw/Greek Orthodox/septuagint.json",
         "texts/standardized/Judaism/anything.json",
+        ".DS_Store",
+        "runs/first-run-2026-10-11/.DS_Store",
     ]:
         assert _check_ignored(rel), f"restricted/standardized path must be ignored: {rel}"

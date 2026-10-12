@@ -10,6 +10,7 @@ import { ExplorerPage } from "./routes/ExplorerPage";
 import { StandingsPage } from "./routes/StandingsPage";
 import { NotFound } from "./routes/NotFound";
 import { type ExplorerFilters } from "./lib/explorer";
+import { isReadingLabel } from "./lib/readings";
 
 // Code-based routing (deliberate, documented deviation from "file-based"): avoids the
 // router-plugin codegen step, keeps the route tree explicit, and is fully unit-testable
@@ -48,6 +49,7 @@ const explorerRoute = createRoute({
     correct:
       search.correct === "correct" || search.correct === "incorrect" ? search.correct : undefined,
     mode: search.mode === "missing" || search.mode === "wrong" ? search.mode : undefined,
+    reading: typeof search.reading === "string" && isReadingLabel(search.reading) ? search.reading : undefined,
   }),
 });
 

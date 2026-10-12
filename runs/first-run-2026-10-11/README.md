@@ -37,6 +37,34 @@ retrieval: 17 answers reproduce the verse correctly but add a citation prefix an
 lose to the "nothing else" rule (`token_f1` surfaces these; a relaxed
 "quote-contained" metric is a Spec-2 refinement).
 
+## Cross-translation (extra reading, same 100 questions)
+
+The headline score is unchanged. `cross_translation.json` / `cross_translation.md`
+ask a further question of these answers: when the quote is wrong, is it another
+edition, or another tradition's wording of the same citation?
+
+The index already makes that possible. Of the verses present in KJV, ASV, and WEB,
+almost all still differ after normalisation, so a real edition can fail the edition
+that was asked for. The Protestant KJV and the Latter-day Saint 2013 KJV disagree
+on a smaller orthographic set (a space, a hyphen). Elsewhere the same words are a
+faithful quotation of two traditions: Book of Mormon verses, mostly Isaiah, match
+a KJV verse. Asking for one and receiving the other is not a fabricated verse, and
+the headline `correct` bit still marks it 0.
+
+On this run the clear case is Isaiah 4:6. The question asks for the Protestant
+KJV ("day time"). `claude-haiku` returns the Latter-day Saint 2013 wording
+("daytime") and scores 0. Several ASV and WEB questions are answered with the KJV
+instead. See `cross_translation.md` for the rows.
+
+`facct.md` opens with the claim this run can support, what would make that claim fail
+(including the missing temperature and the hosts behind gpt-oss), and what the card
+will not conclude. `facct.json` / `facct.md` also split every answer into exact, the right verse plus
+extra words, another tradition, another edition, a near miss (token overlap at
+least 0.7), a refusal, an empty answer, or a fabrication. They also record the
+languages that were not sampled, the license and document type of each slice,
+and that scholar review is not attached. The headline `correct` bit in
+`scores.jsonl` is unchanged.
+
 ## Copyright audit scope
 
 The audit ran **origin-only** here: its content layer fingerprints restricted unit

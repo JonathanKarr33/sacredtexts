@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { FacctReading } from "../components/FacctReading";
 import { CenteredSpinner } from "../components/Loading";
 import { LeaderboardTable } from "../components/LeaderboardTable";
 import { RunSelector } from "../components/RunSelector";
 import { fetchRunIndex, type RunRef } from "../lib/runIndex";
-import { loadRun, type Summary } from "../lib/localResults";
+import { loadFacct, loadRun, type FacctReport, type QuestionResult, type Summary } from "../lib/localResults";
 
 // The `/` home: the benchmark leaderboard over a selectable run.
 //
@@ -30,7 +31,7 @@ type IndexState =
 type RunState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; summary: Summary };
+  | { status: "ready"; summary: Summary; results: QuestionResult[]; facct: FacctReport | null };
 
 export function LeaderboardPage() {
   const { run } = useSearch({ from: "/" });
@@ -68,11 +69,12 @@ export function LeaderboardPage() {
     let live = true;
     setRunState({ status: "loading" });
     (async () => {
-      const result = await loadRun(`/runs/${encodeURIComponent(selectedId)}`, fetch);
+      const base = `/runs/${encodeURIComponent(selectedId)}`;
+      const [result, facct] = await Promise.all([loadRun(base, fetch), loadFacct(base, fetch)]);
       if (!live) return;
       setRunState(
         result.ok
-          ? { status: "ready", summary: result.summary }
+          ? { status: "ready", summary: result.summary, results: result.results, facct }
           : { status: "error", message: `${result.kind}: ${result.message}` },
       );
     })();
@@ -122,7 +124,14 @@ export function LeaderboardPage() {
         }
       />
       {runState.status === "loading" && <CenteredSpinner label={`Loading run ${selectedId}…`} />}
-      {runState.status === "ready" && <LeaderboardTable summary={runState.summary} runId={selectedId!} />}
+      {runState.status === "ready" && (
+        <>
+          {runState.facct && (
+            <FacctReading report={runState.facct} results={runState.results} runId={selectedId!} />
+          )}
+          <LeaderboardTable summary={runState.summary} runId={selectedId!} secondary={Boolean(runState.facct)} />
+        </>
+      )}
     </div>
   );
 }

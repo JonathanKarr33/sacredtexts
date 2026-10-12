@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   joinResults,
+  loadFacct,
   loadRun,
   loadSummary,
   parseJsonl,
@@ -236,6 +237,21 @@ describe("loadSummary (standings reads only summary.json)", () => {
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.kind).toBe("malformed");
+  });
+});
+
+describe("loadFacct", () => {
+  it("returns null when the card is absent, so a run without one still loads", async () => {
+    const report = await loadFacct("/runs/plain", fakeFetcher({}));
+    expect(report).toBeNull();
+  });
+
+  it("returns null for a card whose shape this view does not understand", async () => {
+    const report = await loadFacct(
+      "/runs/odd",
+      fakeFetcher({ "/runs/odd/facct.json": '{"note":"x"}' }),
+    );
+    expect(report).toBeNull();
   });
 });
 

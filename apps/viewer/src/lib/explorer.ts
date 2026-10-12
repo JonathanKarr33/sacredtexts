@@ -24,6 +24,8 @@ export interface ExplorerFilters {
   correct?: "correct" | "incorrect";
   /** Restrict failures to one mode; composes with the other filters by AND. */
   mode?: FailureMode;
+  /** Restrict to one reading from facct.json (exact, refusal, made up, …). */
+  reading?: string;
 }
 
 /** The results for a single model, in roster order. */
@@ -39,6 +41,7 @@ export function filterQuestions(results: QuestionResult[], f: ExplorerFilters): 
     if (f.correct === "correct" && !r.correct) return false;
     if (f.correct === "incorrect" && r.correct) return false;
     if (f.mode && failureMode(r) !== f.mode) return false;
+    if (f.reading && r.reading !== f.reading) return false;
     return true;
   });
 }

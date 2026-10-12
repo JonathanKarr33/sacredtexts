@@ -1,4 +1,5 @@
 import { type ExplorerFilters as Filters } from "../lib/explorer";
+import { readingHeading } from "../lib/readings";
 
 // The composing filter bar for the error explorer. Presentational: it renders native
 // selects (provider-less, consistent with RunSelector) for task, tradition,
@@ -14,11 +15,13 @@ function toUndef(v: string): string | undefined {
 export function ExplorerFilters({
   tasks,
   traditions,
+  kinds = [],
   value,
   onChange,
 }: {
   tasks: string[];
   traditions: string[];
+  kinds?: string[];
   value: Filters;
   onChange: (next: Filters) => void;
 }) {
@@ -31,6 +34,7 @@ export function ExplorerFilters({
     active && !options.includes(active) ? [...options, active] : options;
   const taskOptions = withActive(tasks, value.task);
   const traditionOptions = withActive(traditions, value.tradition);
+  const kindOptions = withActive(kinds, value.reading);
 
   return (
     <div className="flex flex-wrap items-end gap-4">
@@ -80,6 +84,23 @@ export function ExplorerFilters({
           <option value="incorrect">incorrect</option>
         </select>
       </label>
+
+      {kindOptions.length > 0 && (
+        <label className="flex flex-col gap-1 text-xs text-default-500">
+          kind of answer
+          <select
+            aria-label="Filter by kind of answer"
+            className={selectClass}
+            value={value.reading ?? ALL}
+            onChange={(e) => onChange({ ...value, reading: toUndef(e.target.value) })}
+          >
+            <option value={ALL}>all</option>
+            {kindOptions.map((kind) => (
+              <option key={kind} value={kind}>{readingHeading(kind)}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className="flex flex-col gap-1 text-xs text-default-500">
         failure mode

@@ -34,6 +34,14 @@ runs/*
 # Live model panel (keys come from env, panel is per-user)
 configs/models.yaml
 
+# Local secrets. .env.example is the committed name list.
+.env
+.env.*
+!.env.example
+
+# macOS folder metadata
+.DS_Store
+
 # Python
 pipelines/.venv/
 __pycache__/

@@ -191,10 +191,14 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
   it("renders the committed run's leaderboard: ranking, columns, traditions, tokens", async () => {
     vi.stubGlobal("fetch", committedRunFetcher());
     renderApp("/");
-    expect(await screen.findByText("Leaderboard")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "What kind of miss is a zero?" })).toBeInTheDocument();
+    expect(screen.getByText(/exact recitation of the named edition/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What this card will not conclude" })).toBeInTheDocument();
+    expect(screen.getByText("Stored headline")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Stored headline"));
 
-    // ranking (main table): claude-haiku (0.24) first, the two 0.0 models last (id tiebreak)
-    const mainTable = screen.getAllByRole("table")[0]!;
+    // Opened, the strict string-match table still ranks claude-haiku first.
+    const mainTable = screen.getAllByRole("table").find((table) => within(table).queryByText("retrieve_quote"))!;
     const dataRows = within(mainTable).getAllByRole("row").slice(1); // drop header
     const order = dataRows.map((r) => within(r).getAllByRole("cell")[0]!.textContent);
     expect(order).toEqual(["claude-haiku", "llama-3.1-8b", "gemma-3-4b", "gpt-oss-20b"]);
@@ -202,16 +206,19 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
     // task + overall columns
     expect(within(mainTable).getByText("retrieve_quote")).toBeInTheDocument();
     expect(within(mainTable).getByText("overall")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "verse plus extra" })).toBeInTheDocument();
 
     // per-model token totals (claude-haiku: 5,810 in / 41,140 out / 100 calls)
     expect(screen.getByText("5,810 in · 41,140 out · 100 calls")).toBeInTheDocument();
 
-    // four traditions (each repeats once per model row in the by-tradition table)
-    expect(screen.getAllByText("Judaism").length).toBe(4);
-    expect(screen.getAllByText("Protestant Christian").length).toBe(4);
-    expect(screen.getAllByText("Roman Catholic").length).toBe(4);
-    expect(screen.getAllByText("The Church of Jesus Christ of Latter-Day Saints").length).toBe(4);
+    // four traditions, once per model row in the strict by-tradition table
+    const traditionTable = screen.getAllByRole("table").find((table) => within(table).queryByRole("columnheader", { name: "tradition" }))!;
+    expect(within(traditionTable).getAllByText("Judaism")).toHaveLength(4);
+    expect(within(traditionTable).getAllByText("Protestant Christian")).toHaveLength(4);
+    expect(within(traditionTable).getAllByText("Roman Catholic")).toHaveLength(4);
+    expect(within(traditionTable).getAllByText("The Church of Jesus Christ of Latter-Day Saints")).toHaveLength(4);
     // the LDS cell at 72% for claude-haiku
     expect(screen.getAllByText("72% (n=25)").length).toBeGreaterThan(0);
+    expect(screen.getByRole("region", { name: "What kind of miss is a zero" })).toBeInTheDocument();
   });
 });

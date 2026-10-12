@@ -37,6 +37,7 @@ class ModelSpec:
     provider: str
     model: str
     max_tokens: int = 1024
+    temperature: float | None = None  # unset → host default; recorded, never invented
     base_url: str | None = None
     api_key_env: str | None = None
     # optional USD price per 1M tokens; both must be given to compute a cost
@@ -71,6 +72,13 @@ def load_config(path: Path) -> RunConfig:
             raise ConfigError(
                 f"{path}: models[{i}] unknown provider {m['provider']!r} (supported: {PROVIDERS})"
             )
+        temperature = m.get("temperature")
+        if temperature is not None:
+            if isinstance(temperature, bool) or not isinstance(temperature, (int, float)):
+                raise ConfigError(f"{path}: models[{i}] temperature must be a number")
+            if not 0 <= float(temperature) <= 2:
+                raise ConfigError(f"{path}: models[{i}] temperature must be between 0 and 2")
+            temperature = float(temperature)
         price_in, price_out = m.get("price_in"), m.get("price_out")
         if (price_in is None) != (price_out is None):
             raise ConfigError(
@@ -85,6 +93,7 @@ def load_config(path: Path) -> RunConfig:
                 provider=m["provider"],
                 model=str(m["model"]),
                 max_tokens=int(m.get("max_tokens", 1024)),
+                temperature=temperature,
                 base_url=m.get("base_url"),
                 api_key_env=m.get("api_key_env"),
                 price_in=float(price_in) if price_in is not None else None,

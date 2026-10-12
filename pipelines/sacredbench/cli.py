@@ -23,8 +23,21 @@ from sacredbench import schema
 from sacredbench.collect import CollectError
 from sacredbench.collect import collect as run_collect
 from sacredbench.config import ConfigError, load_config
+from sacredbench.facct import FacctError, build_facct, license_index_from_targets, panel_beside
+from sacredbench.facct import report_markdown as facct_markdown
 from sacredbench.generate import generate as run_generate
 from sacredbench.generate import load_questions, write_questions
+from sacredbench.jev import JEV_MODEL, JevError
+from sacredbench.jev import judge as run_judge
+from sacredbench.jev import summarize as summarize_judgments
+from sacredbench.cross_translation import (
+    CrossTranslationError,
+    build_report,
+    index_documents,
+    load_answer_rows,
+    load_scripture_documents,
+    report_markdown,
+)
 from sacredbench.score import ScoreError, score_file, summary_markdown
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
@@ -319,8 +332,11 @@ def score(
         panel = {}
         for m in cfg.models:
             endpoint = urlparse(m.base_url).netloc if m.base_url else default_host.get(m.provider)
-            panel[m.id] = {"provider": m.provider, "model": m.model, "endpoint": endpoint,
-                           "price_in": m.price_in, "price_out": m.price_out}
+            panel[m.id] = {
+                "provider": m.provider, "model": m.model, "endpoint": endpoint,
+                "max_tokens": m.max_tokens, "temperature": m.temperature,
+                "price_in": m.price_in, "price_out": m.price_out,
+            }
         summary = score_file(answers, scores_out, expected, expected_tradition, panel,
                              expected_digest=gen.question_set_digest(qs))
     else:
@@ -337,12 +353,104 @@ def score(
     typer.echo(md)
 
 
+@app.command("cross-translation")
+def cross_translation_cmd(
+    answers: Path = typer.Argument(help="answers.jsonl from collect (question embedded on each row)"),
+    out: Path = typer.Option(Path("runs/cross_translation.json"), help="JSON report path"),
+    md: Path = typer.Option(None, help="also write the short markdown reading here"),
+    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root"),
+    min_tokens: int = typer.Option(12, help="minimum tokens for a cross-tradition same-words count"),
+) -> None:
+    """Report answers that quote another edition or another tradition's wording.
+
+    Does not rescore the run. The headline ``correct`` bit and LLM-as-a-judge stay
+    where they are. Restricted sources are not indexed.
+    """
+    rows = load_answer_rows(answers)
+    docs = load_scripture_documents(raw_root)
+    report = build_report(docs, rows, min_tokens=min_tokens)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = report_markdown(report)
+    if md is not None:
+        md.parent.mkdir(parents=True, exist_ok=True)
+        md.write_text(text, encoding="utf-8")
+    labels = report["answers"]["labels"]
+    typer.echo(
+        f"wrote {out}"
+        + (f" and {md}" if md else "")
+        + f" — {report['answers']['n']} answers, labels {labels}"
+    )
+    typer.echo(text)
+
+
+@app.command()
+def facct(
+    answers: Path = typer.Argument(help="answers.jsonl from collect"),
+    out: Path = typer.Option(Path("runs/facct.json"), help="benchmark-card JSON"),
+    md: Path = typer.Option(None, help="also write the markdown card here"),
+    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root"),
+) -> None:
+    """Write the FAccT card: what each zero is, edition counterfactuals, license, language.
+
+    Does not rescore the run and does not call a model.
+    """
+    rows = load_answer_rows(answers)
+    sources = _require_catalogue(raw_root)
+    targets = cat.select_targets(sources, include_restricted=False)
+    docs = load_scripture_documents(raw_root)
+    report = build_facct(
+        docs,
+        rows,
+        license_index_from_targets(targets),
+        sorted({t.language for t in targets}),
+        panel=panel_beside(answers),
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = facct_markdown(report)
+    if md is not None:
+        md.parent.mkdir(parents=True, exist_ok=True)
+        md.write_text(text, encoding="utf-8")
+    typer.echo(f"wrote {out}" + (f" and {md}" if md else ""))
+    typer.echo(text)
+
+
+@app.command()
+def judge(
+    answers: Path = typer.Argument(help="answers.jsonl from collect"),
+    out: Path = typer.Option(Path("runs/judgments.jsonl"), help="judgment jsonl (resumable)"),
+    model: str = typer.Option(JEV_MODEL, help="OpenRouter decision model id"),
+    raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root, for other wordings of the same citation"),
+    no_index: bool = typer.Option(False, help="do not attach other indexed wordings of the citation"),
+    concurrency: int = typer.Option(4),
+) -> None:
+    """Ask Jev whether each answer is a refusal, the requested wording, another indexed wording, or neither.
+
+    Does not change the headline score. Uses OPENROUTER_API_KEY against the
+    decisions API. The resolved model build is stored on every row.
+    """
+    rows = load_answer_rows(answers)
+    index = None if no_index else index_documents(load_scripture_documents(raw_root))
+    done, failed, messages = run_judge(rows, out, index=index, model=model, concurrency=concurrency)
+    summary = summarize_judgments(out)
+    typer.echo(f"judged {done} -> {out}; file has {summary['n']} row(s) {summary['kinds']}")
+    if summary["judge_models"]:
+        typer.echo("resolved judge model(s): " + ", ".join(summary["judge_models"]))
+    if failed:
+        typer.secho(f"{failed} cell(s) FAILED (still pending; re-run to retry):", fg="red", err=True)
+        for msg in messages:
+            typer.secho(f"  {msg}", fg="red", err=True)
+        raise typer.Exit(1)
+
+
 def main() -> None:
     try:
         app()
     except (
         schema.SchemaError, conv.ConvertError, cat.CatalogueError, exp.ExportError, CollectError,
-        gen.GenerateError, ScoreError, aud.AuditError, ConfigError,
+        gen.GenerateError, ScoreError, aud.AuditError, ConfigError, CrossTranslationError, JevError,
+        FacctError,
     ) as e:
         typer.secho(f"error: {e}", fg="red", err=True)
         sys.exit(2)

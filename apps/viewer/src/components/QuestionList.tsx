@@ -1,5 +1,6 @@
 import { type QuestionResult } from "../lib/localResults";
 import { formatMetric } from "../lib/explorer";
+import { readingHeading } from "../lib/readings";
 
 // The per-question list for one model under the error explorer. Presentational: it takes
 // the (already filtered) QuestionResult[] and renders each question with its pass/fail
@@ -12,6 +13,17 @@ import { formatMetric } from "../lib/explorer";
 // produced" marker make its nature unambiguous.
 
 function StatusBadge({ r }: { r: QuestionResult }) {
+  if (r.reading) {
+    const tone =
+      r.reading === "exact"
+        ? "bg-success-100 text-success-700"
+        : r.reading === "refusal" || r.reading === "empty"
+          ? "bg-warning-100 text-warning-700"
+          : "bg-danger-100 text-danger-700";
+    return (
+      <span className={`rounded px-2 py-0.5 text-xs font-medium ${tone}`}>{readingHeading(r.reading)}</span>
+    );
+  }
   if (r.correct) {
     return <span className="rounded bg-success-100 px-2 py-0.5 text-xs font-medium text-success-700">correct</span>;
   }
@@ -43,6 +55,7 @@ export function QuestionList({ results }: { results: QuestionResult[] }) {
         <li key={r.question_id} className="rounded-lg border border-default-200 p-4">
           <div className="flex flex-wrap items-center gap-2 text-xs text-default-500">
             <StatusBadge r={r} />
+            {r.readingDetail && <span>{r.readingDetail}</span>}
             <span className="font-mono">{r.question_id}</span>
             <span>·</span>
             <span>{r.task}</span>
