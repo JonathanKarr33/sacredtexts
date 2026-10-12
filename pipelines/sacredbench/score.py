@@ -238,31 +238,86 @@ def score_answer(task: str, answer: str, expected: dict, graders: "list | None" 
         }
         metrics = {k: computed[k] for k in submetrics_for(graders)}  # canonical order
         metrics["correct"] = int(any(g.verdict(computed) for g in graders))
-        return metrics
+        return _with_outcome(metrics, task, answer, expected)
     if task == "verify_source":
         parsed = parse_yes_no(answer)
         correct = int(parsed == expected["answer"])
-        return {"parsed": parsed, "expected": expected["answer"], "correct": correct}
+        return _with_outcome(
+            {"parsed": parsed, "expected": expected["answer"], "correct": correct},
+            task, answer, expected,
+        )
     if task == "identify_version":
         # the answer must BE the version label (exact/normalized), so an evasive
         # "KJV or WEB" or "not the KJV, it's the ASV" does not score correct
         version = expected["version"]
         exact = int(answer.strip() == version)
         norm = int(normalize(answer) == normalize(version))
-        return {"exact": exact, "normalized": norm, "correct": norm}
+        return _with_outcome({"exact": exact, "normalized": norm, "correct": norm}, task, answer, expected)
     if task == "cite_passage":
         correct, n = _single_citation_correct(answer, expected["citation"])
-        return {"correct": correct, "n_candidates": n}
+        return _with_outcome({"correct": correct, "n_candidates": n}, task, answer, expected)
     if task == "identify_source":
         work_found = int(_contains(answer, expected["work"]))
         citation_ok, n = _single_citation_correct(answer, expected["citation"])
-        return {
-            "work_found": work_found,
-            "citation_found": citation_ok,
-            "n_candidates": n,
-            "correct": int(work_found and citation_ok),
-        }
+        return _with_outcome(
+            {
+                "work_found": work_found,
+                "citation_found": citation_ok,
+                "n_candidates": n,
+                "correct": int(work_found and citation_ok),
+            },
+            task, answer, expected,
+        )
     raise ScoreError(f"unknown task {task!r}")
+
+
+def _with_outcome(metrics: dict, task: str, answer: str, expected: dict) -> dict:
+    """Stamp ``outcome`` ∈ {correct, incorrect, refused} onto a metrics dict (Spec 15, decision #2).
+
+    Refusal is an OUTCOME, not a grader: a declined cell short-circuits the headline (``correct`` is
+    forced to 0) and is reported as ``refused`` so it is excluded from accuracy. All submetrics the
+    grader(s) already computed are kept unchanged — a refused text-retrieval cell still carries its
+    exact/normalized/token_f1/contains_reference (preserving the phase-1 projection oracle). For a
+    non-refused cell the outcome is simply correct-vs-incorrect per the headline verdict."""
+    from .outcomes import classify_refusal
+
+    if classify_refusal(answer, task, expected):
+        metrics["correct"] = 0  # headline verdict skipped for a declined cell
+        metrics["outcome"] = "refused"
+    else:
+        metrics["outcome"] = "correct" if metrics["correct"] else "incorrect"
+    return metrics
+
+
+def _outcome_cell(acc: dict, submetric_keys: tuple[str, ...]) -> dict:
+    """Build a summary cell with the three-outcome split + coverage (Spec 15, decision #2).
+
+    - ``accuracy = correct/(correct+incorrect)`` — refusals EXCLUDED (``None`` when nothing was
+      graded, i.e. every answered cell was refused); "how often it's right *when it answers*".
+    - ``coverage = (correct+incorrect)/n`` — "how often it answers" (the honest companion that
+      stops an all-but-one-refused model's 100% from being read as a clean sweep).
+    - ``refused_rate = refused/n``; ``correct``/``incorrect``/``refused`` are the raw counts.
+
+    Submetric averages are taken over the GRADED cells (correct+incorrect), never ``n`` — a refusal
+    is not graded, so it must not dilute the diagnostic averages. ``missing`` (roster cells that
+    produced no answer) is added by the caller and stays distinct from ``refused`` (answered, declined).
+    """
+    n = acc["n"]
+    refused = acc.get("refused", 0)
+    correct = acc["correct"]
+    graded = n - refused
+    cell = {
+        "n": n,
+        "accuracy": round(correct / graded, 4) if graded else None,
+        "coverage": round(graded / n, 4) if n else None,
+        "correct": correct,
+        "incorrect": graded - correct,
+        "refused": refused,
+        "refused_rate": round(refused / n, 4) if n else None,
+    }
+    for sm in submetric_keys:
+        cell[sm] = round(acc[sm] / graded, 4) if graded else None
+    return cell
 
 
 def score_file(
@@ -357,12 +412,17 @@ def score_file(
             sm_keys = _task_submetrics(d["task"])
             acc = per_cell.setdefault(
                 (d["model_id"], d["task"]),
-                {"n": 0, "correct": 0, **{k: 0 for k in sm_keys}},
+                {"n": 0, "correct": 0, "refused": 0, **{k: 0 for k in sm_keys}},
             )
+            refused = metrics.get("outcome") == "refused"
             acc["n"] += 1
             acc["correct"] += metrics["correct"]
-            for sm in sm_keys:
-                acc[sm] += metrics[sm]  # sm_keys derives from the same selection ⇒ present (fail loud if not)
+            acc["refused"] += int(refused)
+            # submetrics accumulate over GRADED cells only (refusals are never graded, so they must
+            # not dilute the diagnostic averages); the per-cell values are still emitted on refused rows.
+            if not refused:
+                for sm in sm_keys:
+                    acc[sm] += metrics[sm]  # sm_keys derives from the same selection ⇒ present (fail loud if not)
             # token usage for cost accounting (recorded per answer row by collect)
             u = d.get("usage") or {}
             um = usage.setdefault(
@@ -376,9 +436,12 @@ def score_file(
                 um["served_by"][host] = um["served_by"].get(host, 0) + 1
             # tradition breakdown: count this observation once PER listed tradition
             for trad in d.get("question", {}).get("source", {}).get("tradition", []) or []:
-                tacc = per_trad.setdefault((d["model_id"], trad, d["task"]), {"n": 0, "correct": 0})
+                tacc = per_trad.setdefault(
+                    (d["model_id"], trad, d["task"]), {"n": 0, "correct": 0, "refused": 0}
+                )
                 tacc["n"] += 1
                 tacc["correct"] += metrics["correct"]
+                tacc["refused"] += int(refused)
 
     expected = expected or {}
     summary: dict = {"models": {}, "by_tradition": {}}
@@ -388,9 +451,7 @@ def score_file(
     for (model_id, task) in sorted(all_cells):
         acc = per_cell.get((model_id, task))
         if acc:
-            cell = {"n": acc["n"], "accuracy": round(acc["correct"] / acc["n"], 4)}
-            for sm in _task_submetrics(task):
-                cell[sm] = round(acc[sm] / acc["n"], 4)
+            cell = _outcome_cell(acc, _task_submetrics(task))
         else:
             cell = {"n": 0, "accuracy": None}  # no data (not a 0% score)
         if (model_id, task) in expected:
@@ -400,13 +461,18 @@ def score_file(
     # _overall from RAW counts (not a lossy round(accuracy*n) reconstruction)
     for model_id in summary["models"]:
         cells = [acc for (m, _), acc in per_cell.items() if m == model_id]
-        total_n = sum(c["n"] for c in cells)
-        total_correct = sum(c["correct"] for c in cells)
-        ov = {"n": total_n, "accuracy": round(total_correct / total_n, 4) if total_n else None}
+        ov = _outcome_cell(
+            {
+                "n": sum(c["n"] for c in cells),
+                "correct": sum(c["correct"] for c in cells),
+                "refused": sum(c["refused"] for c in cells),
+            },
+            (),
+        )
         exp_total = sum(v for (m, _), v in expected.items() if m == model_id)
         if exp_total:
             ov["expected_n"] = exp_total
-            ov["missing"] = max(exp_total - total_n, 0)
+            ov["missing"] = max(exp_total - ov["n"], 0)
         summary["models"][model_id]["_overall"] = ov
     # per-model x tradition x task (each observation counted once per listed
     # tradition, so a tradition's n can exceed the overall count); overall-once
@@ -417,7 +483,7 @@ def score_file(
     for (model_id, trad, task) in sorted(all_trad_cells):
         tacc = per_trad.get((model_id, trad, task))
         if tacc:
-            cell = {"n": tacc["n"], "accuracy": round(tacc["correct"] / tacc["n"], 4)}
+            cell = _outcome_cell(tacc, ())  # tradition cells report outcomes, not submetrics
         else:
             cell = {"n": 0, "accuracy": None}
         if (model_id, trad, task) in expected_tradition:
@@ -426,14 +492,19 @@ def score_file(
         summary["by_tradition"].setdefault(model_id, {}).setdefault(trad, {})[task] = cell
     for model_id, trads in summary["by_tradition"].items():
         for trad, tasks in trads.items():
-            raw = [per_trad.get((model_id, trad, t), {"n": 0, "correct": 0}) for t in tasks]
-            tn = sum(c["n"] for c in raw)
-            tc = sum(c["correct"] for c in raw)
-            ov = {"n": tn, "accuracy": round(tc / tn, 4) if tn else None}
+            raw = [per_trad.get((model_id, trad, t), {"n": 0, "correct": 0, "refused": 0}) for t in tasks]
+            ov = _outcome_cell(
+                {
+                    "n": sum(c["n"] for c in raw),
+                    "correct": sum(c["correct"] for c in raw),
+                    "refused": sum(c["refused"] for c in raw),
+                },
+                (),
+            )
             exp_total = sum(v for (m, tr, _), v in expected_tradition.items() if m == model_id and tr == trad)
             if exp_total:
                 ov["expected_n"] = exp_total
-                ov["missing"] = max(exp_total - tn, 0)
+                ov["missing"] = max(exp_total - ov["n"], 0)
             tasks["_overall"] = ov
 
     # Token usage totals (cost accounting). Prices are NOT invented: a cost appears
@@ -479,6 +550,10 @@ def score_file(
                 "endpoint": p.get("endpoint"),
                 "served_by": sorted(um.get("served_by", {})) or None,
             }
+    # Evaluator provenance (Spec 15, decision #5): which named graders decided the headline for the
+    # text-retrieval cells in THIS summary, in selection order. The default set is {strict, containment};
+    # a `--evaluator` subset is recorded here so a summary is self-describing about its scoring contract.
+    summary["evaluators"] = [g.name for g in graders]
     # Additive run timestamp (Issue #7 pipeline half): a committed, mtime-independent
     # recency signal. The current viewer ignores it; it never affects scoring.
     summary["generated_at"] = datetime.now(timezone.utc).isoformat()
@@ -486,13 +561,16 @@ def score_file(
 
 
 def _cell_str(c: dict | None) -> str:
-    """Render one table cell: '—' if absent, 'miss N' if expected-but-unanswered,
-    'acc% (n=N)' otherwise, with a '−missing' suffix when some cells are missing."""
+    """Render one table cell: '—' if absent, 'miss N' if expected-but-unanswered, otherwise
+    'acc% cov cov% (n=N)' — accuracy is right-when-it-answers (n/a if all refused) and coverage
+    sits beside it (how often it answered). A '−missing' suffix flags unanswered roster cells."""
     if c is None:
         return "—"
     if c["n"] == 0:
         return f"miss {c['missing']}" if c.get("missing") else "—"
-    s = f"{c['accuracy']:.0%} (n={c['n']})"
+    acc = "n/a" if c.get("accuracy") is None else f"{c['accuracy']:.0%}"
+    cov = "" if c.get("coverage") is None else f" cov {c['coverage']:.0%}"
+    s = f"{acc}{cov} (n={c['n']})"
     if c.get("missing"):
         s += f" −{c['missing']}"
     return s
@@ -512,6 +590,8 @@ def summary_markdown(summary: dict) -> str:
         row = [model_id] + [_cell_str(cells.get(t)) for t in tasks]
         ov = cells["_overall"]
         overall = "**n/a**" if ov["accuracy"] is None else f"**{ov['accuracy']:.0%}**"
+        if ov.get("coverage") is not None:
+            overall += f" cov {ov['coverage']:.0%}"
         if ov.get("missing"):
             overall += f" −{ov['missing']}"
         row.append(overall)
@@ -527,7 +607,8 @@ def summary_markdown(summary: dict) -> str:
                 row = [model_id, trad] + [_cell_str(cells.get(t)) for t in tasks]
                 ov = cells["_overall"]
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
-                row.append(f"**{acc}** (n={ov['n']})")
+                cov = "" if ov.get("coverage") is None else f" cov {ov['coverage']:.0%}"
+                row.append(f"**{acc}**{cov} (n={ov['n']})")
                 lines.append("| " + " | ".join(row) + " |")
 
     panel = summary.get("panel") or {}

@@ -322,3 +322,38 @@ phase_1 (DONE) re-signalled PHASE_COMPLETE → porch advanced to phase_2.
   contains_reference + correct==normalized; containment-only omits exact/normalized. Pipeline suite 310 passed/1
   skip; dispatcher exit 0. NO rebaseline (committed runs untouched). Only pipelines/ changed.
 Next: commit phase_2 → porch done → per-phase impl consult (codex+claude) → address → phase_3.
+
+## 2026-10-12 — Implement phase_3 (Refused outcome + coverage + 2nd rebaseline) — IN PROGRESS
+Re-oriented after phase_2→phase_3 context refresh. Both runs retrieve_quote-only (400 each, 4 models).
+
+### Task 1 (calibration FIRST) — DONE, frozen set locked (pre-registration before matcher)
+Hand-surveyed both answers.jsonl (metadata-only output; raw scripture NOT dumped — a content-filter
+false-positive earlier flagged bulk Qur'an/Talmud text, so all survey scripts print only
+(model_id,qid,cue,pos,contained,len)).
+**RULE (pre-registered): a text-retrieval cell is `refused` iff a decline cue appears in the LEADING
+60 normalized chars AND the reference is NOT word-bounded-contained.** Leading-window because 262/266
+matches open with the decline; it cleanly separates upfront declines from deliver-then-caveat
+(e.g. tutorial `fb0ce4da6218` delivers the Arabic verse then "(I couldn't retrieve to verify)" at
+pos 71 → EXCLUDED, consistent with `66d7a26e7e93` which caveats with "couldn't open"). `6d1ad5fd4bee`
+("I couldn't verify the exact text…") leads → INCLUDED.
+**Frozen refused set = 266 cells:**
+- first-run: claude-haiku 55, gpt-oss-20b 66, llama-3.1-8b 18, gemma-3-4b 0 = **139**
+- tutorial: haiku 34, opus 34, haiku-search 35, opus-search 24 = **127**
+Decline-cue set = conservative first-person inability/non-delivery markers (i can't reliably/reproduce/
+provide/give, i don't have access/that/the exact, i'm sorry but i don't/can't, i can't help/fulfill/verify,
+i couldn't retrieve/confirm/get/find/verify, i must decline, i won't provide). Verse-internal matches
+("…cannot be reduced…", "I will not forget thy word") stay unmatched (cue not leading / inside delivered text).
+
+### Key invariant discovered (makes the 2nd rebaseline CLEAN): refused cells already have correct=0.
+A refused cell is not-contained ⇒ normalized=0 ∧ contains_reference=0 ⇒ correct=0 already. So adding
+`outcome` does NOT change (exact,normalized,token_f1,contains_reference,correct) on ANY cell →
+**phase-1 SHA oracle + flip set + contains_reference invariants all stay UNCHANGED**. scores.jsonl diff =
++`outcome` key per text-retrieval row only. summary.json diff = +3-outcome counts/coverage/refused_rate,
+accuracy now = correct/(correct+incorrect) (MOVES: e.g. opus 0.66→1.00 cov0.66; opus-search 0.74→~0.974
+cov0.76 — the coverage-dependent sign story), submetric avgs over graded cells, +evaluators stamp.
+
+### Viewer deferred to phase_4 (plan lines 200-209): phase_3 = pipelines/ + runs/ + pipeline tests ONLY.
+Dispatcher maps runs/→pipelines lane, so phase_3 gate green while viewer fixtures move in phase_4 (same PR).
+
+### Architect note (18:55, main) — RECORDED for phase_5 docs: round out two loose panel summaries to mention
+panel tools+served_by fields: pipelines/README.md:101 and apps/viewer/README.md:14 (two one-line edits).

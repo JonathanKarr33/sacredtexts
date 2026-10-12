@@ -1,29 +1,29 @@
 | model | retrieve_quote | overall |
 |---|---|---|
-| claude-haiku | 25% (n=100) | **25%** |
-| llama-3.1-8b | 1% (n=100) | **1%** |
-| gemma-3-4b | 0% (n=100) | **0%** |
-| gpt-oss-20b | 0% (n=100) | **0%** |
+| claude-haiku | 56% cov 45% (n=100) | **56%** cov 45% |
+| llama-3.1-8b | 1% cov 82% (n=100) | **1%** cov 82% |
+| gemma-3-4b | 0% cov 100% (n=100) | **0%** cov 100% |
+| gpt-oss-20b | 0% cov 34% (n=100) | **0%** cov 34% |
 
 ### By tradition (each observation counts once per listed tradition)
 | model | tradition | retrieve_quote | overall |
 |---|---|---|---|
-| claude-haiku | Judaism | 0% (n=25) | **0%** (n=25) |
-| claude-haiku | Protestant Christian | 24% (n=25) | **24%** (n=25) |
-| claude-haiku | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| claude-haiku | The Church of Jesus Christ of Latter-Day Saints | 76% (n=25) | **76%** (n=25) |
-| gemma-3-4b | Judaism | 0% (n=25) | **0%** (n=25) |
-| gemma-3-4b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
-| gemma-3-4b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| gemma-3-4b | The Church of Jesus Christ of Latter-Day Saints | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | Judaism | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | The Church of Jesus Christ of Latter-Day Saints | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | Judaism | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% (n=25) | **4%** (n=25) |
+| claude-haiku | Judaism | n/a cov 0% (n=25) | **n/a** cov 0% (n=25) |
+| claude-haiku | Protestant Christian | 24% cov 100% (n=25) | **24%** cov 100% (n=25) |
+| claude-haiku | Roman Catholic | n/a cov 0% (n=25) | **n/a** cov 0% (n=25) |
+| claude-haiku | The Church of Jesus Christ of Latter-Day Saints | 95% cov 80% (n=25) | **95%** cov 80% (n=25) |
+| gemma-3-4b | Judaism | 0% cov 100% (n=25) | **0%** cov 100% (n=25) |
+| gemma-3-4b | Protestant Christian | 0% cov 100% (n=25) | **0%** cov 100% (n=25) |
+| gemma-3-4b | Roman Catholic | 0% cov 100% (n=25) | **0%** cov 100% (n=25) |
+| gemma-3-4b | The Church of Jesus Christ of Latter-Day Saints | 0% cov 100% (n=25) | **0%** cov 100% (n=25) |
+| gpt-oss-20b | Judaism | n/a cov 0% (n=25) | **n/a** cov 0% (n=25) |
+| gpt-oss-20b | Protestant Christian | 0% cov 80% (n=25) | **0%** cov 80% (n=25) |
+| gpt-oss-20b | Roman Catholic | 0% cov 8% (n=25) | **0%** cov 8% (n=25) |
+| gpt-oss-20b | The Church of Jesus Christ of Latter-Day Saints | 0% cov 48% (n=25) | **0%** cov 48% (n=25) |
+| llama-3.1-8b | Judaism | 0% cov 32% (n=25) | **0%** cov 32% (n=25) |
+| llama-3.1-8b | Protestant Christian | 0% cov 100% (n=25) | **0%** cov 100% (n=25) |
+| llama-3.1-8b | Roman Catholic | 0% cov 100% (n=25) | **0%** cov 100% (n=25) |
+| llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% cov 96% (n=25) | **4%** cov 96% (n=25) |
 
 ### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)
 | model_id | provider | model | endpoint | served_by |

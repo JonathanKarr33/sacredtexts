@@ -3,17 +3,27 @@
   "haiku": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.47,
-    "exact": 0.18,
-    "normalized": 0.47,
-    "token_f1": 0.6396,
-    "contains_reference": 0.47,
+    "accuracy": 0.7121,
+    "coverage": 0.66,
+    "correct": 47,
+    "incorrect": 19,
+    "refused": 34,
+    "refused_rate": 0.34,
+    "exact": 0.2727,
+    "normalized": 0.7121,
+    "token_f1": 0.969,
+    "contains_reference": 0.7121,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.47,
+    "accuracy": 0.7121,
+    "coverage": 0.66,
+    "correct": 47,
+    "incorrect": 19,
+    "refused": 34,
+    "refused_rate": 0.34,
     "expected_n": 100,
     "missing": 0
    }
@@ -21,17 +31,27 @@
   "haiku-search": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.52,
-    "exact": 0.24,
-    "normalized": 0.4,
-    "token_f1": 0.583,
-    "contains_reference": 0.52,
+    "accuracy": 0.8,
+    "coverage": 0.65,
+    "correct": 52,
+    "incorrect": 13,
+    "refused": 35,
+    "refused_rate": 0.35,
+    "exact": 0.3692,
+    "normalized": 0.6154,
+    "token_f1": 0.8855,
+    "contains_reference": 0.8,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.52,
+    "accuracy": 0.8,
+    "coverage": 0.65,
+    "correct": 52,
+    "incorrect": 13,
+    "refused": 35,
+    "refused_rate": 0.35,
     "expected_n": 100,
     "missing": 0
    }
@@ -39,17 +59,27 @@
   "opus": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.66,
-    "exact": 0.33,
-    "normalized": 0.66,
-    "token_f1": 0.6608,
-    "contains_reference": 0.66,
+    "accuracy": 1.0,
+    "coverage": 0.66,
+    "correct": 66,
+    "incorrect": 0,
+    "refused": 34,
+    "refused_rate": 0.34,
+    "exact": 0.5,
+    "normalized": 1.0,
+    "token_f1": 1.0,
+    "contains_reference": 1.0,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.66,
+    "accuracy": 1.0,
+    "coverage": 0.66,
+    "correct": 66,
+    "incorrect": 0,
+    "refused": 34,
+    "refused_rate": 0.34,
     "expected_n": 100,
     "missing": 0
    }
@@ -57,17 +87,27 @@
   "opus-search": {
    "retrieve_quote": {
     "n": 100,
-    "accuracy": 0.74,
-    "exact": 0.34,
-    "normalized": 0.66,
-    "token_f1": 0.7054,
-    "contains_reference": 0.74,
+    "accuracy": 0.9737,
+    "coverage": 0.76,
+    "correct": 74,
+    "incorrect": 2,
+    "refused": 24,
+    "refused_rate": 0.24,
+    "exact": 0.4474,
+    "normalized": 0.8684,
+    "token_f1": 0.9098,
+    "contains_reference": 0.9737,
     "expected_n": 100,
     "missing": 0
    },
    "_overall": {
     "n": 100,
-    "accuracy": 0.74,
+    "accuracy": 0.9737,
+    "coverage": 0.76,
+    "correct": 74,
+    "incorrect": 2,
+    "refused": 24,
+    "refused_rate": 0.24,
     "expected_n": 100,
     "missing": 0
    }
@@ -78,13 +118,23 @@
    "Judaism": {
     "retrieve_quote": {
      "n": 34,
-     "accuracy": 0.0,
+     "accuracy": null,
+     "coverage": 0.0,
+     "correct": 0,
+     "incorrect": 0,
+     "refused": 34,
+     "refused_rate": 1.0,
      "expected_n": 34,
      "missing": 0
     },
     "_overall": {
      "n": 34,
-     "accuracy": 0.0,
+     "accuracy": null,
+     "coverage": 0.0,
+     "correct": 0,
+     "incorrect": 0,
+     "refused": 34,
+     "refused_rate": 1.0,
      "expected_n": 34,
      "missing": 0
     }
@@ -93,12 +143,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 0.8485,
+     "coverage": 1.0,
+     "correct": 28,
+     "incorrect": 5,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 0.8485,
+     "coverage": 1.0,
+     "correct": 28,
+     "incorrect": 5,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -107,12 +167,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 0.5758,
+     "coverage": 1.0,
+     "correct": 19,
+     "incorrect": 14,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 0.5758,
+     "coverage": 1.0,
+     "correct": 19,
+     "incorrect": 14,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -122,13 +192,23 @@
    "Judaism": {
     "retrieve_quote": {
      "n": 34,
-     "accuracy": 0.0,
+     "accuracy": null,
+     "coverage": 0.0,
+     "correct": 0,
+     "incorrect": 0,
+     "refused": 34,
+     "refused_rate": 1.0,
      "expected_n": 34,
      "missing": 0
     },
     "_overall": {
      "n": 34,
-     "accuracy": 0.0,
+     "accuracy": null,
+     "coverage": 0.0,
+     "correct": 0,
+     "incorrect": 0,
+     "refused": 34,
+     "refused_rate": 1.0,
      "expected_n": 34,
      "missing": 0
     }
@@ -137,12 +217,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 0.8485,
+     "coverage": 1.0,
+     "correct": 28,
+     "incorrect": 5,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 0.8485,
+     "coverage": 1.0,
+     "correct": 28,
+     "incorrect": 5,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -150,13 +240,23 @@
    "Sunni Islam": {
     "retrieve_quote": {
      "n": 33,
-     "accuracy": 0.7273,
+     "accuracy": 0.75,
+     "coverage": 0.9697,
+     "correct": 24,
+     "incorrect": 8,
+     "refused": 1,
+     "refused_rate": 0.0303,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
-     "accuracy": 0.7273,
+     "accuracy": 0.75,
+     "coverage": 0.9697,
+     "correct": 24,
+     "incorrect": 8,
+     "refused": 1,
+     "refused_rate": 0.0303,
      "expected_n": 33,
      "missing": 0
     }
@@ -166,13 +266,23 @@
    "Judaism": {
     "retrieve_quote": {
      "n": 34,
-     "accuracy": 0.0,
+     "accuracy": null,
+     "coverage": 0.0,
+     "correct": 0,
+     "incorrect": 0,
+     "refused": 34,
+     "refused_rate": 1.0,
      "expected_n": 34,
      "missing": 0
     },
     "_overall": {
      "n": 34,
-     "accuracy": 0.0,
+     "accuracy": null,
+     "coverage": 0.0,
+     "correct": 0,
+     "incorrect": 0,
+     "refused": 34,
+     "refused_rate": 1.0,
      "expected_n": 34,
      "missing": 0
     }
@@ -181,12 +291,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -195,12 +315,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -210,13 +340,23 @@
    "Judaism": {
     "retrieve_quote": {
      "n": 34,
-     "accuracy": 0.2353,
+     "accuracy": 0.8,
+     "coverage": 0.2941,
+     "correct": 8,
+     "incorrect": 2,
+     "refused": 24,
+     "refused_rate": 0.7059,
      "expected_n": 34,
      "missing": 0
     },
     "_overall": {
      "n": 34,
-     "accuracy": 0.2353,
+     "accuracy": 0.8,
+     "coverage": 0.2941,
+     "correct": 8,
+     "incorrect": 2,
+     "refused": 24,
+     "refused_rate": 0.7059,
      "expected_n": 34,
      "missing": 0
     }
@@ -225,12 +365,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -239,12 +389,22 @@
     "retrieve_quote": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     },
     "_overall": {
      "n": 33,
      "accuracy": 1.0,
+     "coverage": 1.0,
+     "correct": 33,
+     "incorrect": 0,
+     "refused": 0,
+     "refused_rate": 0.0,
      "expected_n": 33,
      "missing": 0
     }
@@ -310,5 +470,9 @@
    "served_by": null
   }
  },
- "generated_at": "2026-10-12T17:06:42.383948+00:00"
+ "evaluators": [
+  "strict",
+  "containment"
+ ],
+ "generated_at": "2026-10-12T19:10:54.856806+00:00"
 }

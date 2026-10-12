@@ -1,25 +1,25 @@
 | model | retrieve_quote | overall |
 |---|---|---|
-| opus-search | 74% (n=100) | **74%** |
-| opus | 66% (n=100) | **66%** |
-| haiku-search | 52% (n=100) | **52%** |
-| haiku | 47% (n=100) | **47%** |
+| opus | 100% cov 66% (n=100) | **100%** cov 66% |
+| opus-search | 97% cov 76% (n=100) | **97%** cov 76% |
+| haiku-search | 80% cov 65% (n=100) | **80%** cov 65% |
+| haiku | 71% cov 66% (n=100) | **71%** cov 66% |
 
 ### By tradition (each observation counts once per listed tradition)
 | model | tradition | retrieve_quote | overall |
 |---|---|---|---|
-| haiku | Judaism | 0% (n=34) | **0%** (n=34) |
-| haiku | Protestant Christian | 85% (n=33) | **85%** (n=33) |
-| haiku | Sunni Islam | 58% (n=33) | **58%** (n=33) |
-| haiku-search | Judaism | 0% (n=34) | **0%** (n=34) |
-| haiku-search | Protestant Christian | 85% (n=33) | **85%** (n=33) |
-| haiku-search | Sunni Islam | 73% (n=33) | **73%** (n=33) |
-| opus | Judaism | 0% (n=34) | **0%** (n=34) |
-| opus | Protestant Christian | 100% (n=33) | **100%** (n=33) |
-| opus | Sunni Islam | 100% (n=33) | **100%** (n=33) |
-| opus-search | Judaism | 24% (n=34) | **24%** (n=34) |
-| opus-search | Protestant Christian | 100% (n=33) | **100%** (n=33) |
-| opus-search | Sunni Islam | 100% (n=33) | **100%** (n=33) |
+| haiku | Judaism | n/a cov 0% (n=34) | **n/a** cov 0% (n=34) |
+| haiku | Protestant Christian | 85% cov 100% (n=33) | **85%** cov 100% (n=33) |
+| haiku | Sunni Islam | 58% cov 100% (n=33) | **58%** cov 100% (n=33) |
+| haiku-search | Judaism | n/a cov 0% (n=34) | **n/a** cov 0% (n=34) |
+| haiku-search | Protestant Christian | 85% cov 100% (n=33) | **85%** cov 100% (n=33) |
+| haiku-search | Sunni Islam | 75% cov 97% (n=33) | **75%** cov 97% (n=33) |
+| opus | Judaism | n/a cov 0% (n=34) | **n/a** cov 0% (n=34) |
+| opus | Protestant Christian | 100% cov 100% (n=33) | **100%** cov 100% (n=33) |
+| opus | Sunni Islam | 100% cov 100% (n=33) | **100%** cov 100% (n=33) |
+| opus-search | Judaism | 80% cov 29% (n=34) | **80%** cov 29% (n=34) |
+| opus-search | Protestant Christian | 100% cov 100% (n=33) | **100%** cov 100% (n=33) |
+| opus-search | Sunni Islam | 100% cov 100% (n=33) | **100%** cov 100% (n=33) |
 
 ### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)
 | model_id | provider | model | endpoint | served_by |

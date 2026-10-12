@@ -128,10 +128,11 @@ describe.skipIf(!present)("StandingsPage — committed run gate", () => {
     const order = dataRows.map((r) => within(r).getAllByRole("link")[0]!.textContent);
     expect(order).toEqual(["claude-haiku", "llama-3.1-8b", "gemma-3-4b", "gpt-oss-20b"]);
 
-    // panel identity is shown, and claude-haiku's overall is its leaderboard value
+    // panel identity is shown, and claude-haiku's overall is its leaderboard value (Spec 15 phase 3:
+    // accuracy excludes the 55 refusals → 25 correct / 45 graded = 56%, up from the phase-1 25%/100)
     // (retrieve_quote is the only task, so the task cell and the overall cell both read it)
     expect(screen.getByText("anthropic / claude-haiku-5-5")).toBeInTheDocument();
-    expect(within(dataRows[0]!).getAllByText("25% (n=100)").length).toBeGreaterThan(0);
+    expect(within(dataRows[0]!).getAllByText("56% (n=100)").length).toBeGreaterThan(0);
     // every row links back into the source run
     expect(within(dataRows[0]!).getByRole("link", { name: "first-run-2026-10-11" }).getAttribute("href")).toContain(
       "run=first-run-2026-10-11",

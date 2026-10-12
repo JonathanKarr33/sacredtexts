@@ -61,15 +61,44 @@ FLIP_SET = {
         ("opus-search", "retrieve_quote-eec71d77817a"),
     },
 }
-# Rebaselined headline accuracies (secondary pin), per run.
+# Rebaselined headline accuracies (secondary pin), per run. SECOND rebaseline (Spec 15 phase 3):
+# accuracy now EXCLUDES refusals — accuracy = correct/(correct+incorrect) — so every value MOVED up
+# from the phase-1 pins (correct/n). The companion coverage = (correct+incorrect)/n is pinned below.
 EXPECTED_ACCURACY = {
-    "first-run-2026-10-11": {("claude-haiku", "retrieve_quote"): 0.25},
+    "first-run-2026-10-11": {("claude-haiku", "retrieve_quote"): 0.5556},  # was 0.25 (correct/n)
     "tutorial-2026-10-11": {
-        ("haiku-search", "retrieve_quote"): 0.52,
-        ("haiku", "retrieve_quote"): 0.47,
-        ("opus-search", "retrieve_quote"): 0.74,
+        ("haiku-search", "retrieve_quote"): 0.80,  # was 0.52
+        ("haiku", "retrieve_quote"): 0.7121,        # was 0.47
+        ("opus-search", "retrieve_quote"): 0.9737,  # was 0.74
+        ("opus", "retrieve_quote"): 1.0,            # was 0.66 — perfect WHEN it answers (cov 0.66)
+    },
+}
+# Coverage pins (the honest companion that stops "opus 100%" from being misread as a clean sweep:
+# opus answers 66% of the time, opus-search 76%). coverage = (correct+incorrect)/n.
+EXPECTED_COVERAGE = {
+    "first-run-2026-10-11": {("claude-haiku", "retrieve_quote"): 0.45},
+    "tutorial-2026-10-11": {
+        ("haiku-search", "retrieve_quote"): 0.65,
+        ("haiku", "retrieve_quote"): 0.66,
+        ("opus-search", "retrieve_quote"): 0.76,
         ("opus", "retrieve_quote"): 0.66,
     },
+}
+
+# Pre-registered refusal set (Spec 15 phase 3, decision #2). FROZEN from a hand-survey of both
+# answers.jsonl BEFORE the matcher was written (genuine pre-registration — see the review doc and
+# codev/state/aspir-15_thread.md for the calibration method). A cell is `refused` iff a decline cue
+# opens the answer (first 60 normalized chars) AND the reference is not word-bounded-contained;
+# deliver-then-caveat answers (verse, then "(couldn't verify)") are NOT refusals. The matcher in
+# sacredbench/outcomes.classify_refusal must reproduce this set EXACTLY. Pinned by per-model count
+# (readable) + a SHA-256 of the sorted (model_id, question_id) pairs (catches any single-cell drift).
+REFUSED_COUNTS = {
+    "first-run-2026-10-11": {"claude-haiku": 55, "gpt-oss-20b": 66, "llama-3.1-8b": 18},
+    "tutorial-2026-10-11": {"haiku": 34, "opus": 34, "haiku-search": 35, "opus-search": 24},
+}
+REFUSED_SET_SHA256 = {
+    "first-run-2026-10-11": "76086cc5d447cae95dbcb1ede147d8e19c5f3c65717671650caa7a99ec8e693c",
+    "tutorial-2026-10-11": "5d8856fa9a7c7c319e0fcc26d0eaf659af308d4397b9ff6d33b633fa1afee6dd",
 }
 
 
@@ -128,13 +157,58 @@ def test_contains_reference_invariants(run):
 
 
 @pytest.mark.parametrize("run", list(EXPECTED_ACCURACY))
-def test_rebaselined_headline_accuracy(run):
+def test_rebaselined_headline_accuracy_and_coverage(run):
     p = REPO_ROOT / "runs" / run / "summary.json"
     if not p.exists():
         pytest.skip(f"{run} evidence not present")
     summary = json.loads(p.read_text(encoding="utf-8"))
     for (model_id, task), acc in EXPECTED_ACCURACY[run].items():
         assert summary["models"][model_id][task]["accuracy"] == acc
+    for (model_id, task), cov in EXPECTED_COVERAGE[run].items():
+        assert summary["models"][model_id][task]["coverage"] == cov
+
+
+@pytest.mark.parametrize("run", list(REFUSED_COUNTS))
+def test_refused_set_matches_preregistration(run):
+    """The matcher reproduces the hand-frozen refused set EXACTLY — per-model counts and the
+    (model_id, question_id) membership (via SHA). Guards against the matcher drifting from the
+    pre-registered ground truth (over- or under-matching declines)."""
+    import hashlib
+
+    scores = _load_scores(run)
+    refused = sorted(
+        (s["model_id"], s["question_id"])
+        for s in scores
+        if s["metrics"].get("outcome") == "refused"
+    )
+    counts = {}
+    for mid, _ in refused:
+        counts[mid] = counts.get(mid, 0) + 1
+    assert counts == REFUSED_COUNTS[run], "per-model refused counts drifted from pre-registration"
+    digest = hashlib.sha256(json.dumps(refused, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+    assert digest == REFUSED_SET_SHA256[run], "refused (model_id, question_id) membership drifted"
+
+
+@pytest.mark.parametrize("run", list(FLIP_SET))
+def test_outcome_exclusive_and_refused_keeps_submetrics(run):
+    """Every text-retrieval row carries outcome ∈ {correct, incorrect, refused}; a refused row has
+    headline correct=0 yet KEEPS its submetrics (so the phase-1 projection oracle is preserved); a
+    correct row has correct=1; an incorrect row has correct=0 and is not refused."""
+    scores = _load_scores(run)
+    for s in scores:
+        if s["task"] not in ("retrieve_quote", "complete_unit"):
+            continue
+        m = s["metrics"]
+        assert m["outcome"] in ("correct", "incorrect", "refused")
+        if m["outcome"] == "refused":
+            assert m["correct"] == 0
+            # submetrics preserved on refused rows (the oracle depends on this)
+            for k in ("exact", "normalized", "token_f1", "contains_reference"):
+                assert k in m
+        elif m["outcome"] == "correct":
+            assert m["correct"] == 1
+        else:
+            assert m["correct"] == 0
 
 
 def test_first_run_overall_and_lds_tradition_pinned():
@@ -142,8 +216,13 @@ def test_first_run_overall_and_lds_tradition_pinned():
     if not p.exists():
         pytest.skip("first-run evidence not present")
     summary = json.loads(p.read_text(encoding="utf-8"))
-    # the single flip lifts claude-haiku's overall and the LDS tradition cell (18/25 -> 19/25)
-    assert summary["models"]["claude-haiku"]["_overall"]["accuracy"] == 0.25
+    # SECOND rebaseline: accuracy excludes the 55 claude-haiku refusals (25 correct / 45 graded).
+    ov = summary["models"]["claude-haiku"]["_overall"]
+    assert ov["accuracy"] == 0.5556 and ov["coverage"] == 0.45
+    assert ov["correct"] == 25 and ov["incorrect"] == 20 and ov["refused"] == 55
     lds = "The Church of Jesus Christ of Latter-Day Saints"
-    assert summary["by_tradition"]["claude-haiku"][lds]["retrieve_quote"]["accuracy"] == 0.76
-    assert summary["by_tradition"]["claude-haiku"][lds]["_overall"]["accuracy"] == 0.76
+    lds_rq = summary["by_tradition"]["claude-haiku"][lds]["retrieve_quote"]
+    # 25 LDS cells: 5 refused, 19 correct, 1 incorrect -> accuracy 19/20, coverage 20/25
+    assert lds_rq["accuracy"] == 0.95 and lds_rq["coverage"] == 0.8
+    assert lds_rq["refused"] == 5
+    assert summary["by_tradition"]["claude-haiku"][lds]["_overall"]["accuracy"] == 0.95
