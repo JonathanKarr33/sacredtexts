@@ -28,10 +28,12 @@ changed=$(git diff --name-only "${base}...HEAD" 2>/dev/null)
 # runs/** (committed evidence), texts/** (corpus), and configs/** (the example panel that
 # test_phase2_tools.py loads and asserts on) map to the pipelines lane, whose pytest includes
 # the committed-artifact copyright audit — so a PR touching only those paths is still tested
-# and audited, not silently skipped.
+# and audited, not silently skipped. CODE_WALKTHROUGH.md also maps to the pipelines lane: its
+# file:line pointer guard (pipelines/tests/test_code_walkthrough.py) must run when the doc
+# changes, even if no pipeline code did.
 touched=$(printf '%s\n' "$changed" \
-  | grep -oE '^(apps/[^/]+|pipelines|runs|texts|configs)' \
-  | sed -E 's#^(runs|texts|configs)$#pipelines#' | sort -u)
+  | grep -oE '^(apps/[^/]+|pipelines|runs|texts|configs|CODE_WALKTHROUGH\.md)' \
+  | sed -E 's#^(runs|texts|configs|CODE_WALKTHROUGH\.md)$#pipelines#' | sort -u)
 
 if [ -z "${touched//[$'\n']/}" ]; then
   echo "test-dispatcher: no app/pipeline changed vs ${base} — nothing to test."
