@@ -12,30 +12,37 @@ panel composition, and token totals.
   `gpt-oss-20b`, `gemma-3-4b`, `llama-3.1-8b` (via OpenRouter). Tokens: 25,220 in /
   134,131 out.
 
-## Reading the scores (important caveat)
+## Reading the scores — three outcomes
 
-The `retrieve_quote` headline is deliberately strict: the whole answer must be the
-exact text and **nothing else** (the Phase-6-gated contract). `exact` / `normalized`
-/ `token_f1` are reported alongside so the strictness is visible.
+Under the adopted contract (Spec 15) every answered cell is **correct**, **incorrect**, or
+**refused** (an explicit decline), and the headline is **accuracy = correct/(correct+incorrect)**
+with **coverage = (correct+incorrect)/n** beside it — how often the model is right *when it
+answers*, and how often it answers. This makes Phase 1's "reject false premises / incorrect text"
+objective legible directly, as the refused rate:
 
-A `correct = 0` is **not** one thing — this run mixes two very different behaviours,
-and the headline number conflates them:
+| model        | accuracy | coverage | correct | incorrect | refused |
+|--------------|----------|----------|---------|-----------|---------|
+| claude-haiku | 56%      | 45%      | 25      | 20        | 55      |
+| llama-3.1-8b | 1%       | 80%      | 1       | 79        | 20      |
+| gpt-oss-20b  | 0%       | 34%      | 0       | 34        | 66      |
+| gemma-3-4b   | 0%       | 100%     | 0       | 100       | 0       |
 
-- **Abstention (honest refusal).** `gpt-oss-20b` answers with an explicit refusal
-  ("I'm sorry, but I can't provide that.") for most questions (~58 of 100 verbatim,
-  the rest short non-answers); `claude-haiku` abstains on texts it won't reproduce
-  "from memory" (e.g. the encyclicals, Talmud).
-- **Fabrication (confident but wrong).** `gemma-3-4b` and `llama-3.1-8b` emit
-  fluent, plausible scripture-like text that is simply not the requested verse
-  (mean `token_f1` 0.13–0.21 — wrong text, not a formatting miss).
+The two behaviours the old strict headline conflated are now split cleanly by the `refused` outcome:
 
-For Phase 1's "reject false premises / incorrect text" objective, the
-**abstention-vs-fabrication split is the most informative cut** and is the natural
-next metric — deferred to the review doc / Spec 2 because the scoring contract is
-gated (see `codev/reviews/1-*.md`). Relatedly, `claude-haiku`'s 24% understates its
-retrieval: 17 answers reproduce the verse correctly but add a citation prefix and so
-lose to the "nothing else" rule (`token_f1` surfaces these; a relaxed
-"quote-contained" metric is a Spec-2 refinement).
+- **Abstention (honest refusal → `refused`).** `gpt-oss-20b` declines ~66 of 100 ("I'm sorry, but I
+  can't provide that."); `claude-haiku` declines 55 (texts it won't reproduce from memory — the
+  encyclicals, Talmud). Refusals are excluded from accuracy, so `claude-haiku` reads **56% at 45%
+  coverage** (right when it answers), not a flat 25%.
+- **Fabrication (confident but wrong → `incorrect`).** `gemma-3-4b` answers every cell and is always
+  wrong (0% / coverage 100%); `llama-3.1-8b` likewise emits fluent scripture-like text that is not
+  the requested verse (mean `token_f1` 0.13–0.24 — wrong text, not a formatting miss).
+
+**Correction to an earlier draft:** `claude-haiku`'s containment lift is **one** cell, not 17.
+`retrieve_quote-88403db0a16b` (a KJV-LDS Zephaniah verse) is the single answer that reproduces the
+verse verbatim but wraps it, so the adopted containment headline rescues it (strict-match count
+24 → 25 of 100); every other high-`token_f1` miss is genuine paraphrase, *not* the contained
+reference. The abstention-vs-fabrication cut that was deferred to Spec 2 is now the built-in
+`refused` outcome.
 
 ## Copyright audit scope
 

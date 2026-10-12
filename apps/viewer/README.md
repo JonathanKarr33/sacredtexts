@@ -10,9 +10,11 @@ run's artifacts directly — no GitHub data layer, no backend API.
 A run lives in `runs/<id>/` and the viewer loads four artifacts
 (`pipelines/sacredbench score` output):
 
-- `summary.json` — per-model × task (and × tradition) accuracy, token `usage`, and the
-  model `panel` (provider/model/endpoint).
-- `scores.jsonl` — per-question metrics (exact / normalized / token-F1 / correct).
+- `summary.json` — per-model × task (and × tradition) accuracy **and coverage** (plus the
+  correct/incorrect/refused counts), token `usage`, and the model `panel` (provider, model
+  incl. its `[web_search]`/`[no-tools]` tools marker, endpoint, and `served_by`).
+- `scores.jsonl` — per-question metrics (exact / normalized / token-F1 / contains_reference /
+  correct) plus the `outcome` (correct / incorrect / refused).
 - `answers.jsonl` — each model's answer plus the prompt and expected text.
 - `questions.jsonl` — the authoritative question roster, so a model's **un-answered**
   questions show as missing cells.

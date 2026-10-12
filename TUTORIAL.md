@@ -25,8 +25,8 @@ on/off never collapse into one row.
 The committed tutorial run lives in
 [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (copyright-audited,
 public-domain / openly-licensed original-language corpora only) — read its
-[`README.md`](runs/tutorial-2026-10-11/README.md) for the full result and the
-headline-vs-`contains-exact` analysis. The earlier
+[`README.md`](runs/tutorial-2026-10-11/README.md) for the full result — accuracy with
+coverage, the three-outcome split, and the search-on/off contrast. The earlier
 [`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/) (a different, English-only
 panel) is also committed, so the viewer always has at least two runs to compare.
 
@@ -91,18 +91,24 @@ uv --project pipelines run python -m sacredbench score \
 diff <(sort /tmp/scores.jsonl) <(sort runs/tutorial-2026-10-11/scores.jsonl) && echo "reproduced"
 ```
 
-**What the run shows (and why the headline is misleading).** The strict `retrieve_quote`
-headline looks flat-to-down for web search (opus 66% vs opus-search 66%; haiku 47% vs
-haiku-search 40%). But counting how often an answer *contains* the exact reference text
-inverts that reading: web search retrieves **more** correct scripture (opus 66→74,
-haiku 47→52 of 100), and the only reason the headline doesn't move is that a
-search-enabled model tends to **wrap** the retrieved quote in citation/attribution prose
-("According to Sefaria…", a source URL), which the deliberately strict "and nothing
-else" rule scores as wrong. The clearest case is the Aramaic Talmud: opus-search contains
-the exact reference in 8/34 cells (~24%) versus **0/34** for opus-off — web search lifted
-Aramaic recall from nothing, and the headline hid the entire lift. Full numbers,
-per-tradition cuts, and the orthographic-variance caveat are in the run's
-[`README.md`](runs/tutorial-2026-10-11/README.md).
+`score` runs the default deterministic graders (**strict** + **containment**); name a subset with
+`--evaluator strict` or `--evaluator containment` to see one tier alone (a paid or separate-pass
+grader, once it exists, is selected the same way). Refusal is an outcome, not a grader — a declined
+answer is `refused` regardless of which graders run.
+
+**What the run shows (accuracy *with* coverage).** Under the adopted contract a text-retrieval
+answer is correct when it *contains* the exact reference (a verbatim quote wrapped in a citation
+counts), and a model that declines — "I can't reliably reproduce that line" — is scored `refused`
+rather than wrong. So each model has two headline numbers: **accuracy = how often it's right when
+it answers; coverage = how often it answers.** Read together they tell the search story the strict
+rule hid. Web search lifts haiku's accuracy **71% → 80%**; for opus it trades a point of accuracy
+(**100% → 97%**) for far more coverage (**66% → 76%**) — it answers more often instead of declining.
+That opus answers only 66% of the time yet scores 100% is exactly why coverage sits beside accuracy:
+"100%" alone would outrank opus-search's 97% while hiding that opus stayed silent on a third of the
+roster. The sharpest case is the Aramaic Talmud: opus-search contains the exact reference in 8/34
+cells (~24%) versus **0/34** for opus-off — web search lifted Aramaic recall from nothing. Full
+numbers, the three-outcome split (correct / incorrect / refused), per-tradition cuts, and the
+orthographic-variance caveat are in the run's [`README.md`](runs/tutorial-2026-10-11/README.md).
 
 Then view it (Track C below): start the viewer and open
 `/?run=tutorial-2026-10-11` (append `?run=tutorial-2026-10-11` to the printed dev URL) to
@@ -181,18 +187,21 @@ pnpm -C apps/viewer dev          # then open the printed URL
 
 - `/` shows the **leaderboard** for the most-recent run under `runs/` automatically; to
   land on this tutorial run regardless of run mtime, open `/?run=tutorial-2026-10-11`. The
-  four panel entries are ranked by overall accuracy, with per-task and per-tradition
-  columns and per-model token totals. The dev server serves the repo's `runs/` at
-  `/runs/`.
+  four panel entries are ranked by overall accuracy, with a **coverage** column of equal
+  weight beside it, per-task and per-tradition columns, per-model token totals, and — when a
+  run has search-on/off arms of the same model — a **"Search on vs off"** contrast. The dev
+  server serves the repo's `runs/` at `/runs/`.
 - A **run selector** lists every run under `runs/` (here: the tutorial run and
   `first-run-2026-10-11`); switching writes the selection to the URL as a bare run id
   (`/?run=<id>`), so a view is shareable and survives refresh.
 - Click a model (or a task / tradition cell) to open the **error explorer**
-  (`/run/$runId/model/$modelId`): every question with pass / fail / missing status, the
-  prompt, expected text, the model's answer, and the exact / normalized / token-F1 scores
-  side by side, filterable by task, tradition, correct/incorrect, and failure mode. This
-  is where the wrapped-but-correct search-on answers are visible — a correct quote with a
-  citation around it, scored 0 by the strict headline.
+  (`/run/$runId/model/$modelId`): every question with its outcome — correct / incorrect /
+  **refused** / missing — the prompt, expected text, the model's answer, and the exact /
+  normalized / token-F1 scores side by side, filterable by task, tradition, correctness, and
+  failure mode (including a **refused** filter). This is where the wrapped-but-correct
+  search-on answers are visible — a correct quote with a citation around it, which the strict
+  `normalized` tier scores 0 but the adopted containment headline counts as correct — and
+  where a declined cell shows a neutral **refused** badge rather than a red "wrong".
 - **Standings** (`/standings`, in the header) shows each model's most recent result
   across all runs — one row per model, keyed on the panel's provider + model. Because the
   tools setting is part of that identity, the four tutorial entries

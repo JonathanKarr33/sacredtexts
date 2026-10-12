@@ -98,8 +98,9 @@ uv --project pipelines run python -m sacredbench collect runs/questions.jsonl co
 #                                   question-set roster (expected_n / 'miss N')
 uv --project pipelines run python -m sacredbench score runs/answers.jsonl \
     --questions runs/questions.jsonl --config configs/models.yaml --summary-md runs/summary.md
-#    The summary also carries a `panel` block (provider/model/endpoint — no secrets,
-#    so the >=3-model / >=2-provider bar is checkable from the committed artifact)
+#    The summary also carries a `panel` block (provider, model — carrying the model's
+#    tools marker `[web_search]`/`[no-tools]` — endpoint, and `served_by` host(s); no
+#    secrets, so the >=3-model / >=2-provider bar is checkable from the committed artifact)
 #    and a `usage` block (per-model + total input/output tokens; cost only if the
 #    run config supplies per-model prices — prices are never invented).
 
