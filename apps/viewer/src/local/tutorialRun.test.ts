@@ -70,8 +70,9 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(tutorial.ok && firstRun.ok).toBe(true);
     if (!tutorial.ok || !firstRun.ok) return;
 
-    // Aggregate both runs exactly as StandingsPage would. mtimes only decide "most recent
-    // wins" WITHIN a key; the distinct keys here never contend, so both runs' rows survive.
+    // Aggregate both runs exactly as StandingsPage would. Recency (generated_at → run-id date
+    // → mtime) only decides "most recent wins" WITHIN a key; the distinct keys here never
+    // contend, so both runs' rows survive regardless of their relative recency.
     const runs: RunSummary[] = [
       { runId: "first-run-2026-10-11", mtimeMs: 1, summary: firstRun.summary },
       { runId: "tutorial-2026-10-11", mtimeMs: 2, summary: tutorial.summary },
