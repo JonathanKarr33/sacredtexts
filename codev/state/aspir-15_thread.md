@@ -261,3 +261,15 @@ NOTE for p3's 2nd rebaseline: this same script re-runs cleanly once the outcome/
   p1-p5. Checks pass (5 phases; spec sections OK).
 
 Next: signal PLAN_DRAFTED → porch done → re-consult (codex+claude) → address → re-advance to implement.
+
+### porch rollback REPLAY QUIRK (ARCHITECT ASK: record in review doc lessons section) ⚠️
+`porch rollback 15 plan` did NOT reset the plan iteration counter — it REPLAYED the old plan's iteration
+history. Each `porch done` bumps iter (2→3…) and `porch next` returns "Fix issues from iteration N" with NO
+consult task, because the OLD plan's iter1/2/3 review files still exist on disk. Net trap: a fully
+re-scoped plan can advance plan→implement WITHOUT a fresh multi-agent consult. Mitigation used: ran a MANUAL
+fresh codex+claude plan consult (15-plan-rescope-*.txt, committed) and folded findings before implementing.
+→ MUST go in codev/reviews/15-*.md ## Lessons / ## Flaky-or-Trap section. Architect-requested.
+
+### Architect decision (17:28): (a) confirmed — drive porch through stale iterations, implement once fresh
+consult folded. Asks: (1) commit 15-plan-rescope-*.txt with other consult outputs; (2) record the quirk
+above in the review doc. Both honored.
