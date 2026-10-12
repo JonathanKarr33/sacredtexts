@@ -1,353 +1,271 @@
 # CODE_WALKTHROUGH.md — extending sacredtexts
 
-A guided tour of the code for someone who wants to **augment** the benchmark —
-not a tutorial on running it. If you want to run the loop end-to-end
-(convert → validate → generate → audit → collect → score → view), start with
-[`TUTORIAL.md`](TUTORIAL.md); for the stage-by-stage CLI reference see
-[`pipelines/README.md`](pipelines/README.md); for the system-shape overview see
-[`codev/resources/arch.md`](codev/resources/arch.md). This document walks the two
-extension paths you are most likely to take and points at the real code that each
-one touches.
+This is a map of the code for anyone who wants to **add to** the benchmark. If you only
+want to *run* it, start with [`TUTORIAL.md`](TUTORIAL.md) instead; for a stage-by-stage
+command reference see [`pipelines/README.md`](pipelines/README.md).
 
-The benchmark is **multi-faith by construction**: adding a corpus is drop-in data
-(one converter-registry line + a data directory), and adding a *kind of question*
-is a bounded set of edits to `generate.py` + `score.py`. Neither changes the core
-pipeline shape — four subsystems (collection, scoring, analysis, visualisation)
-joined by JSONL seams (`questions.jsonl` → `answers.jsonl` → `scores.jsonl`). Keep
-that invariant in mind as you read.
+The benchmark is a pipeline: scripture texts go in, questions are built from them, AI
+models answer the questions, and the answers are scored. Adding to it almost always means
+one of two things, and this document is built as two **recipes** for exactly those:
 
-Line numbers below are correct at time of writing; a test
-(`pipelines/tests/test_code_walkthrough.py`) checks that every `file:line` pointer
-in this document still resolves and that the symbols it leans on still exist. If a
-pointer has drifted, search for the named symbol — the names are the stable anchor,
-the lines are a convenience.
+- **Add a new text** — plug in another scripture (a translation, a tradition, a work).
+- **Add a new evaluation task** — add another *kind* of question and grade it.
+
+Both are deliberately small, drop-in changes: a new text is data plus one short
+converter function; a new task is a handful of edits in two files. Neither touches the
+shape of the pipeline itself.
+
+Read the **codebase layout** below first so the file names in the recipes mean something,
+then follow whichever recipe you need top to bottom.
+
+> **About the `file:line` pointers.** Throughout, code is cited as `` `file.py:line` ``.
+> The line numbers are correct as of writing but drift as code changes — the **function
+> or symbol name is the reliable anchor**; if a line has moved, search for the name. A
+> test (`pipelines/tests/test_code_walkthrough.py:72`) checks that every pointer still
+> resolves to a real file and that the named symbols still exist, so this map can't rot
+> silently.
 
 ---
 
-## (a) Adding a new text + its converter
+## Codebase layout
 
-Goal: get a new corpus (a translation, a new tradition, a new work) into the
-benchmark without touching any core pipeline code.
+The whole repository, with a one-line "what lives here, and when you'd open it" for each
+entry. The recipes below refer back to these.
 
-### 1. Where corpora live — the two-tier `raw` → `standardized` layout
+```
+sacredtexts/
+├── pipelines/                 The Python engine. One self-contained project run via `uv`.
+│   └── sacredbench/
+│       ├── catalogue.py       Reads texts/raw/**/source.yaml; defines the license enum. Open when changing what a source lists or how it's parsed.
+│       ├── convert.py         Turns each raw source shape into the standard format. Open when adding a text (RECIPE A).
+│       ├── schema.py          The standard document format (one scripture → one Document of Entries). Open to see the shape your converter must emit.
+│       ├── generate.py        Builds the question set from standardized texts — no AI, fully repeatable. Open when adding a task (RECIPE B).
+│       ├── collect.py         Sends questions to the models and records answers (the paid stage). Open to understand resumability / panel identity.
+│       ├── config.py          Parses the model list (configs/models.yaml), including each model's tools. Open when touching model/tool config.
+│       ├── providers.py       Talks to Anthropic / OpenAI-compatible / Gemini APIs. Open when adding a provider.
+│       ├── score.py           Grades answers (exact / normalized / word-overlap). Open when adding a task (RECIPE B).
+│       ├── audit.py           Copyright gate: fails if any artifact derives from a restricted source. Open to understand the licence enforcement.
+│       ├── export.py          Assembles the shared "interchange" JSON and checks the merge is lossless.
+│       └── cli.py             The command-line entry points (convert, generate, collect, score, …). Open to see how a stage is wired.
+├── texts/
+│   ├── raw/<tradition>/        Source scripture as obtained, one folder per tradition, each with a source.yaml catalogue. Add a text's data here (RECIPE A).
+│   └── standardized/           Converted texts in the standard format. Rebuilt by `convert`; never committed.
+├── runs/                       Finished benchmark runs (questions + answers + scores + summary). The two dated folders are shipped reference evidence — never overwrite them.
+├── apps/viewer/                The local results website (leaderboard + error explorer). Read apps/viewer/README.md before touching it.
+│   └── src/lib/explorer.ts     Derives the viewer's task/tradition filters from the data.
+├── configs/                    models.example.yaml — the model list template copied to models.yaml for a run.
+└── codev/                      Project process: specs, plans, reviews, and resources/arch.md (the system-shape reference).
+```
 
-Texts live under `texts/` in two tiers (see [`texts/README.md`](texts/README.md)):
+Two facts hold everywhere and are worth keeping in mind:
 
-- **`texts/raw/<tradition>/`** — source JSON exactly as obtained, one directory
-  per tradition, each carrying a committed **`source.yaml`** catalogue.
-- **`texts/standardized/`** — the working-group flat-format documents produced from
-  `raw/` by `sacredbench convert`. This tier is **gitignored and rebuilt locally**;
-  nothing here is committed.
+- **The pipeline is four stages joined by files.** questions → answers → scores, each a
+  `.jsonl` file (a text file with one JSON record per line). A new text or task flows
+  through these stages as data; it does not change them.
+- **What's committed is a copyright decision.** Public-domain / openly-licensed raw texts
+  *are* stored in `texts/raw/`; copyright-**restricted** payloads and all of
+  `texts/standardized/` are kept out and rebuilt locally. The audit (`audit.py`) enforces
+  this on every commit.
 
-What is committed vs. held back is a **copyright** decision, not a convenience one:
-public-domain / openly-licensed raw sources *are* committed under `texts/raw/`
-(with their `source.yaml`); **restricted** payloads (NABRE, the Greek Orthodox TLG
-extracts) and all of `texts/standardized/` are gitignored and rebuilt locally. A
-restricted source still ships a committed `source.yaml` (with its payload absent)
-so the catalogue stays complete and auditable — see the "Obtaining the held-back
-sources" section of [`texts/README.md`](texts/README.md).
+---
 
-### 2. The catalogue: `source.yaml` as a *targets* manifest
+## Recipe A — add a new text
 
-Each tradition directory's `source.yaml` is a **targets manifest**, parsed by
-`pipelines/sacredbench/catalogue.py`. A tradition holds many works/versions/shapes,
-so a single flat record cannot describe it: instead each file has a `targets:` list,
-and every target is one `(work, version, language)` conversion unit — see the
-`Target` dataclass at `pipelines/sacredbench/catalogue.py:101` and the module
-docstring for the YAML shape. Required fields and the fail-fast parse live in
-`load_source()` (`catalogue.py:155`).
+Goal: get a new scripture into the benchmark as **data plus one converter function**, with
+no change to the pipeline itself.
 
-The field that gates everything is **`license`** — a three-value enum,
-`LICENSES` at `pipelines/sacredbench/catalogue.py:46`
-(`public-domain` / `open` / `restricted`). `select_targets()`
-(`catalogue.py:259`) excludes `restricted` targets from `convert`/`generate` unless
-`--include-restricted` is passed. The real upstream licence string is kept verbatim
-in the optional `license_detail` field (e.g. the Talmud's `CC-BY-NC`).
+### 1. Put the raw source file in place
 
-A target's converted output lands under the **standardized-path convention**
-`texts/standardized/<source-id>/<target-slug>/` (`Target.standardized_dir`,
-`catalogue.py:122`). That convention is load-bearing: `generate` recovers a
-document's licence from its path alone via `license_for_standardized_path()`
-(`catalogue.py:296`), and that recovery is **fail-closed** — a standardized file
-under no target directory is refused, never silently included
-(`filter_standardized_paths`, `catalogue.py:329`).
+Drop the source JSON under `texts/raw/<tradition>/` (create the tradition folder if it is
+new). This is the file exactly as you obtained it — whatever shape it came in.
 
-### 3. The converter registry and its one function contract
+> A tradition folder holds one **`source.yaml`** catalogue listing everything in it. Each
+> `source.yaml` is parsed by `catalogue.py` (`pipelines/sacredbench/catalogue.py:155`).
 
-Converters turn a source-JSON shape into standard-format `Document`s. They live in
-`pipelines/sacredbench/convert.py`, and the registry is a single dict,
-`CONVERTERS` at `pipelines/sacredbench/convert.py:411`. Dispatch is uniform:
-`convert_target(paths, target)` (`convert.py:422`) looks up `target.converter` in
-that dict and calls it. **Adding a source format = one function + one `CONVERTERS`
-line.** The function contract is:
+### 2. Add a *target* to that folder's `source.yaml`
+
+A `source.yaml` is a list of **targets**, where one target = one
+`(work, version, language)` unit to convert. Add an entry under `targets:` with these
+fields:
+
+- `payload` — a filename or glob matching the raw file(s) from step 1.
+- `converter` — the name of the converter function (step 3) that reads this shape.
+- `work`, `version`, `language`, `document_type`, `tradition` — the identity of the text
+  (`tradition` is a **list**).
+- `license` — **the field that gates everything**: one of `public-domain`, `open`, or
+  `restricted` (`LICENSES`, `pipelines/sacredbench/catalogue.py:46`). The optional
+  `license_detail` keeps the real upstream licence string verbatim.
+
+A target maps to the `Target` dataclass (`pipelines/sacredbench/catalogue.py:102`).
+`select_targets()` (`pipelines/sacredbench/catalogue.py:259`) excludes `restricted`
+targets from a normal `convert`. Set `license` honestly: mislabel a copyrighted text as
+`open` and the copyright gate's first line of defence won't catch it (step 6).
+
+### 3. Write the converter function
+
+Add a function to `convert.py` that turns your raw shape into standard-format documents.
+The contract is exactly:
 
 ```python
 convert_target(paths: list[Path], target: Target) -> list[Document]
 ```
 
-where `paths` are the target's resolved payload files and `target` carries
-`work`/`version`/`language`/`document_type`/`tradition`. Converters are **fail-fast**:
-an unexpected shape raises `ConvertError` naming the offending file, and a target
-whose `converter` is not registered raises `ConvertError` too (`convert.py:422`) —
-"it lands in a later phase" rather than being skipped.
+— `paths` are your target's resolved payload files, `target` carries the identity fields
+from step 2, and you return a list of `Document`s. A `Document` (and its `Entry` list) is
+the standard format, defined in `schema.py` (`pipelines/sacredbench/schema.py:52` and
+`pipelines/sacredbench/schema.py:45`); one `Document` per `(work, version, language)`,
+each `Entry` a `{unit_type, citation, text}` with the **exact** passage text.
 
-**Derive the format from the real reference data, not from docs.** This is a
-hard-won project lesson. The converter docstring (`convert.py:1`) records cases
-you would miss from documentation alone — e.g. LDS D&C is a 2-level
-`{section: {verse}}` while the other LDS works are 3-level
-`{book: {chapter: {verse}}}`, and encyclical paragraphs carry genuine duplicate
-declared numbers. `convert_lds_nested` (`convert.py:160`) handles both LDS shapes
-in one function; open the real JSON before you write the parser.
+> **Write the parser against the real data, not the format's name** — a hard-won project
+> rule. Open the actual JSON first. `convert_nabre`
+> (`pipelines/sacredbench/convert.py:246`) exists because the real file turned out to be
+> a top-level *list* of books, not the per-book object its name suggested; `convert_lds_nested`
+> (`pipelines/sacredbench/convert.py:160`) handles two different nesting depths in one
+> function for the same reason. Converters **fail loudly** (`convert_target`,
+> `pipelines/sacredbench/convert.py:422`) rather than skipping a shape they don't expect.
+>
+> Your `Document`s must survive the shared **interchange** merge without losing a citation
+> or a tradition — load-time validation is `parse_document()`
+> (`pipelines/sacredbench/schema.py:80`), and `tradition` is a list so texts can be shared
+> across communities (`pipelines/sacredbench/schema.py:95`).
 
-**The NABRE list-of-books cautionary example.** `convert_nabre`
-(`pipelines/sacredbench/convert.py:246`) exists to merge NABRE book files into one
-document — but note the docstring: the *real* `nabre.json` turned out to be a
-**top-level list** of book objects (one file, 73 books), not the per-book
-`{book, chapters}` object the shape was first written against. The converter now
-accepts both (`convert.py:258`), and NABRE embeds chapter-heading strings inside the
-first verse of a chapter, which are part of the source text and are deliberately
-**not** stripped. The lesson: a shape assumed from the format name is a bug waiting
-to happen; the converter is only correct because it was re-derived against the
-payload.
+### 4. Register the converter
 
-### 4. The interchange format (and the losslessness requirement)
+Add one line to the `CONVERTERS` dict (`pipelines/sacredbench/convert.py:411`) mapping
+your converter's name (the string you put in `source.yaml`) to the function. That is the
+entire wiring — `convert_target` looks the name up here and calls it. A name that isn't
+registered fails loudly; it is never silently skipped.
 
-The standard flat JSON is defined in `pipelines/sacredbench/schema.py` — read the
-module docstring (`schema.py:1`) for the full shape. One document per
-`(work, version, language)`:
+### 5. Run convert, then validate
 
-```json
-{
-  "source": {"tradition": ["..."], "work": "...", "version": "...",
-             "language": "...", "document_type": "...", "source_url": "..."},
-  "entries": [{"unit_type": "verse", "citation": "...", "text": "EXACT TEXT"}]
-}
+```bash
+uv --project pipelines run python -m sacredbench convert
+uv --project pipelines run python -m sacredbench validate texts/standardized
 ```
 
-The `Document` / `Entry` dataclasses are at `schema.py:51` and `schema.py:44`;
-serialisation is `Document.to_json_dict()` (`schema.py:61`); load-time validation is
-`parse_document()` (`schema.py:80`), fail-fast on any malformed field.
+`convert` writes your text to `texts/standardized/<source-id>/<target-slug>/` (the path
+convention enforced by `Target.standardized_dir`,
+`pipelines/sacredbench/catalogue.py:122`); `validate` re-checks the result is well-formed.
 
-**`tradition` is a LIST, not a string** (`schema.py:95`) — traditions *share* texts
-(the Bible belongs to many Christian communities), so an entry can be attributed to
-several. A bare string is accepted on load and normalised to a one-element list, but
-new code should treat it as a list. The export/interchange assembly
-(`pipelines/sacredbench/export.py`) **unions** traditions when it merges shards and
-checks an inverse-grouping round-trip, which is what makes the merge **lossless** —
-your converter's `Document`s must round-trip through this format without losing a
-citation or a tradition.
+### 6. Check the copyright audit
 
-### 5. How a new corpus flows through the pipeline untouched
+```bash
+uv --project pipelines run python -m sacredbench audit runs/<your-run>
+```
 
-Once the `source.yaml` target + converter exist, nothing else changes:
+The audit (`audit_paths`, `pipelines/sacredbench/audit.py:114`) is the copyright gate and
+also runs in the test suite. Its always-on layer matches each artifact's source against
+the restricted catalogue (`restricted_keys`, `pipelines/sacredbench/audit.py:84`); a
+second layer fingerprints restricted text content when the held-back payloads happen to be
+present locally (`restricted_text_fingerprints`, `pipelines/sacredbench/audit.py:49`),
+catching a restricted unit mislabeled with a public source.
 
-1. `convert` iterates the catalogue, dispatches each selected (non-restricted)
-   target through `convert_target`, and writes standardized docs under the path
-   convention.
-2. `validate` mechanically re-parses the standardized docs (licence-agnostic).
-3. `generate` loads standardized docs (restricted excluded, licence recovered from
-   path) and samples questions over them.
+> **Worked example — the Aramaic Talmud.** The cleanest recent walk of this recipe:
+> `texts/raw/Judaism/source.yaml` declares the target, `convert_sefaria_talmud`
+> (`pipelines/sacredbench/convert.py:356`) reads the real Sefaria export (strips HTML via
+> `_clean_markup`, `pipelines/sacredbench/convert.py:351`, applies the daf-2a offset,
+> merges all tractates into one document), and one line in `CONVERTERS`
+> (`pipelines/sacredbench/convert.py:418`) wires it up. Data plus one function — a whole
+> tradition in a non-Latin script, no core change.
 
-None of these stages knows about your tradition specifically — it is **drop-in
-data**. The one place balancing is tradition-aware is the sampler,
-`_balanced_sample()` (`pipelines/sacredbench/generate.py:143`), which round-robins
-over each tradition's sub-pool; it reads `doc.tradition[0]` generically, so a new
-tradition simply becomes another bucket.
-
-### 6. The copyright audit (and what an unregistered converter does)
-
-The audit is the mechanical copyright gate — `pipelines/sacredbench/audit.py`, run
-in the test gate via `.codev/checks/test.sh`. No committed artifact may derive from
-a `restricted` source. Two layers (`audit_paths`, `audit.py:114`):
-
-- **Origin (always on):** the artifact's source `(work, version, language)` is
-  matched against the restricted catalogue keys (`restricted_keys`, `audit.py:84`).
-  Since restricted payloads are never committed, origin is the enforceable proxy
-  for "contains restricted text", and it is all that runs in CI / a fresh clone.
-- **Content fingerprint (only when the held-back payload is present locally):**
-  `restricted_text_fingerprints` (`audit.py:49`) converts the restricted targets and
-  fingerprints their normalized unit texts, so a restricted unit *mislabeled* with a
-  public source is still caught.
-
-Two gotchas for a new corpus:
-
-- Set `license` correctly in `source.yaml`. If you mislabel a copyrighted
-  translation as `open`, the origin layer will not catch it (the whole point of the
-  content layer, which only runs where the payload exists).
-- A restricted target whose converter is **not** registered cannot be
-  content-fingerprinted; the audit prints a WARNING and relies on the origin layer
-  alone (`audit.py:68`). The origin layer still enforces it, so this is safe, but it
-  is why you see the warning.
-
-### 7. Worked example — the Talmud Bavli Aramaic target (Spec 8)
-
-The Talmud-he corpus is the cleanest recent example of this whole path. It was
-added as **data + one registry line**, no core changes:
-
-- **Catalogue:** `texts/raw/Judaism/source.yaml` declares two targets that share one
-  `source.yaml` — `William Davidson Edition - English` (`en`) and
-  `William Davidson Edition - Aramaic` (`he`) — both `license: open` with the
-  `CC-BY-NC` string in `license_detail`. The Aramaic target's payload glob
-  deliberately excludes the one "Vocalized Aramaic" Shevuot variant so it does not
-  collide with the standard Shevuot (see the comment in that file).
-- **Converter:** `sefaria_talmud` (`pipelines/sacredbench/convert.py:356`), one entry
-  in `CONVERTERS` (`convert.py:418`). It was derived from the real Sefaria export:
-  `text` is indexed `[section][line]` where sections 0/1 are empty (tractates begin
-  at daf 2a), so section `i` maps to daf `(i // 2) + 1` with side `a`/`b`; HTML
-  markup is stripped (`_clean_markup`, `convert.py:351`) so the stored text is exact;
-  all tractate files merge into one `Talmud Bavli` document, and a genuinely
-  conflicting duplicate tractate is refused rather than silently resolved.
-
-That is the entire footprint of adding a tradition in a non-Latin script.
+The sampler that balances questions across traditions (`_balanced_sample`,
+`pipelines/sacredbench/generate.py:143`) reads tradition generically, so your new text
+becomes another bucket with no further edits.
 
 ---
 
-## (b) Adding a new form of evaluation (a new task)
+## Recipe B — add a new evaluation task
 
-Goal: add a new *kind* of question (a new task) and score it, without corrupting the
-committed run evidence or the re-score guarantees.
+Goal: add a new *kind* of question and grade it, without disturbing the shipped run
+evidence or the scoring guarantees.
 
-### 1. The task model in `generate`
+### 1. Add the task to `generate.py` — `TASKS`
 
-Tasks are generated deterministically — **no LLM in the loop** — in
-`pipelines/sacredbench/generate.py`. The task registry is the `TASKS` tuple
-(`generate.py:48`); each task's prompt template and ground-truth `expected` dict are
-produced by `_build()` (`generate.py:102`). A generated question is the `Question`
-dataclass (`generate.py:66`): `id`, `task`, `prompt`, `expected`, `source`.
+Register the task name in the `TASKS` tuple (`pipelines/sacredbench/generate.py:48`).
+Questions are built here with **no AI in the loop**, so a given seed always yields the
+same set — that repeatability is the contract that makes a run auditable.
 
-Determinism is the contract that makes a question set reproducible and auditable:
+### 2. Give it a question template — `_build`
 
-- **Seeded sampling.** `generate()` (`generate.py:181`) takes a `seed`; the whole
-  pipeline downstream of it depends only on `(docs, seed)`. The corpus is sorted by a
-  total key up front (`generate.py:208`) so input order never matters, and
-  `_balanced_sample()` (`generate.py:143`) sorts each tradition's sub-pool by content
-  before shuffling.
-- **Content-derived IDs.** `_qid()` (`generate.py:92`) hashes task + source
-  coordinates + text, so an id is stable across runs and unique by construction.
-- **The question-set digest + manifest.** `question_set_digest()`
-  (`generate.py:307`) hashes every question's full canonical JSON;
-  `build_manifest()` (`generate.py:333`) records seed, params, `corpus_hash`
-  (`generate.py:321`) and that digest. `collect` binds the digest into every answer
-  row and `score` validates it — a resumed or scored run can never silently mix
-  question sets.
+Add a branch to `_build()` (`pipelines/sacredbench/generate.py:102`) producing the
+prompt and the ground-truth `expected` dict for your task. A built question is the
+`Question` dataclass (`pipelines/sacredbench/generate.py:67`), with a content-derived id
+from `_qid()` (`pipelines/sacredbench/generate.py:92`).
 
-To add a task you add it to `TASKS`, give it a template branch in `_build()`, and
-(if it has eligibility rules, like `identify_version` being version-gated or
-`verify_source` needing a false-premise wrong work) a pool filter in the per-task
-loop (`generate.py:246`).
+> If your task only applies to some texts (e.g. it needs a wrong "false-premise" work, or
+> two versions of the same work), add a pool filter in the per-task loop
+> (`pipelines/sacredbench/generate.py:246`). Determinism is anchored by
+> `question_set_digest()` (`pipelines/sacredbench/generate.py:307`) and recorded by
+> `build_manifest()` (`pipelines/sacredbench/generate.py:333`); `collect` stamps that
+> digest on every answer and `score` checks it, so a run can never silently mix question
+> sets.
 
-### 2. The scoring contract in `score.py`
+### 3. Grade the task — `score_answer`
 
-Scoring lives in `pipelines/sacredbench/score.py`. Every answer gets **both tiers
-plus similarity**, and each task declares which sub-metrics it reports:
+Add a branch to `score_answer()` (`pipelines/sacredbench/score.py:201`) returning your
+task's metrics dict, including the headline `correct` flag. Every answer is graded on
+three sub-metrics — exact, normalized, and word-overlap — selected per task in
+`_SUBMETRICS` (`pipelines/sacredbench/score.py:108`).
 
-- The per-answer scorer is `score_answer()` (`pipelines/sacredbench/score.py:201`) —
-  a branch per task returning its metrics dict, including the headline `correct`.
-- The reported sub-metrics per task are `_SUBMETRICS` (`score.py:108`):
-  `exact` / `normalized` / `token_f1`.
-- The **per-task headline `correct` rules** are documented in the module docstring
-  (`score.py:1`) and implemented in `score_answer`: e.g. `retrieve_quote` /
-  `complete_unit` use a `normalized` match, `identify_version` requires the answer to
-  *be* the version label, and `cite_passage` / `identify_source` require the single
-  extracted citation to equal ground truth (a multi-candidate hedge scores 0, via
-  `_single_citation_correct`, `score.py:183`).
+> Existing tasks show the range of rules: `retrieve_quote` passes on a *normalized* match;
+> others require the answer to *be* a specific label, or a single extracted citation to
+> equal the expected one (`_single_citation_correct`,
+> `pipelines/sacredbench/score.py:183`).
 
-Your new task adds a branch to `score_answer` and (if it reports similarity metrics)
-a line to `_SUBMETRICS`.
+### 4. Know the matching backbone — `_SUBMETRICS` / `normalize`
 
-### 3. `normalize()` and why Latin byte-invariance is load-bearing
+The comparison engine is `normalize()` (`pipelines/sacredbench/score.py:115`), which runs
+three passes **in a fixed order**: Unicode folding, then `strip_script_marks()`
+(`pipelines/sacredbench/score.py:87`) which removes Arabic/Hebrew vowel marks *only within
+those scripts* (so a vocalised verse matches its plain form), then the
+punctuation/case/whitespace pass. The word-overlap metric is `token_f1`
+(`pipelines/sacredbench/score.py:126`), explicitly a **v1 stand-in** for a future
+semantic metric — the designated slot if your task needs similarity scoring.
 
-The matching backbone is `normalize()` (`pipelines/sacredbench/score.py:115`). Order
-matters and is **not** to be reshuffled:
+> **Do not reorder those passes, and do not casually change `normalize()`.** English text
+> is byte-for-byte unchanged by design, and the shipped English run was scored under the
+> current rules. The guard that proves a scoring change didn't move old numbers is
+> `test_rescoring_committed_run_reproduces_scores`
+> (`pipelines/tests/test_first_run_regression.py:32`), which re-scores the committed
+> answers and asserts the committed scores reproduce exactly. A new task should *add*
+> evidence, not perturb the old — don't route around this test.
 
-1. NFKD + unicode quote/dash folding;
-2. `strip_script_marks()` (`score.py:87`) — **script-scoped**: it deletes
-   Arabic/Hebrew combining marks (category `Mn`) and a small set of editorial code
-   points *only within the RTL Unicode blocks*, and folds alef-wasla → bare alef and
-   maqaf → space, so vocalised ↔ unvocalised scripture compares equal;
-3. the punctuation + case-fold + whitespace pass.
+### 5. What flows through for free — and what NOT to touch
 
-Step 2 runs **before** the punctuation pass so marks are removed, not turned into
-word splits. Critically, the RTL blocks are script-scoped so **Latin (and every
-other script) is byte-for-byte unchanged** — read the long comment at `score.py:60`.
-This invariance is load-bearing because the committed English `first-run-2026-10-11`
-evidence was scored under the old `normalize()`; the regression test
-`test_rescoring_committed_run_reproduces_scores`
-(`pipelines/tests/test_first_run_regression.py:32`) re-scores that committed
-`answers.jsonl` and asserts the committed `scores.jsonl` reproduces **byte-for-byte**.
-If your task changes `normalize()`, this guard is what tells you whether you moved
-Latin scoring over ~400 real answers. Don't route around it.
-
-### 4. What a new task touches — and what it must NOT
-
-**Touches:**
-
-| Concern | Where |
-|---|---|
-| Generation (template + eligibility) | `generate.py` — `TASKS` (`generate.py:48`), `_build` (`generate.py:102`) |
-| Per-task scoring rule | `score.py` — `score_answer` (`score.py:201`), `_SUBMETRICS` (`score.py:108`) |
-| Summary rollup + per-tradition breakdown | `score.py` — `score_file` (`score.py:235`), `summary_markdown` (`score.py:452`) |
-| Viewer explorer filters | `apps/viewer/src/lib/explorer.ts` — `explorerTasks` (`explorer.ts:46`), `filterQuestions` (`explorer.ts:35`) |
-
-The summary and the viewer are mostly task-generic — `score_file` keys its
-accumulators on `(model_id, task)` and the tradition breakdown counts each
-observation once per *listed* tradition, so a new task flows through; the explorer
-derives its task-filter options from the data (`explorerTasks`), so a new task
-appears without a code change there. The viewer is HeroUI-v3 and provider-less —
-read [`apps/viewer/README.md`](apps/viewer/README.md) before touching it.
+The summary rollup (`score_file`, `pipelines/sacredbench/score.py:235`;
+`summary_markdown`, `pipelines/sacredbench/score.py:452`) keys on `(model, task)` and is
+task-generic, so your task appears without extra work. The viewer's filters derive from
+the data too (`explorerTasks`, `apps/viewer/src/lib/explorer.ts:47`; `filterQuestions`,
+`apps/viewer/src/lib/explorer.ts:35`), so a new task shows up there with no code change.
+The viewer is HeroUI-v3 and provider-less — read
+[`apps/viewer/README.md`](apps/viewer/README.md) before touching it.
 
 **Must NOT touch:**
 
-- **Committed run evidence.** Never re-run `generate`/`collect`/`score` over
-  `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`. A `collect` there
-  resume-skips every cell (zero calls) and a keyless `score` overwrites the committed
-  panel/usage proof with nulls. Write to a fresh `runs/<id>/` (see
-  [`TUTORIAL.md`](TUTORIAL.md), Track B).
-- **The re-score regression guards.** `test_first_run_regression.py` is the proof
-  that a scoring change did not disturb committed numbers. A new task should *add*
-  evidence, not perturb the old.
+- **The shipped run evidence.** Never re-run `generate`/`collect`/`score` over
+  `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`. Write to a fresh
+  `runs/<id>/` (see [`TUTORIAL.md`](TUTORIAL.md)). A `collect` there resume-skips every
+  cell; a keyless `score` overwrites the committed proof with nulls.
+- **The regression guard** in `test_first_run_regression.py` (step 4).
 
-### 5. The pluggable semantic-metric slot (an open working-group question)
+### 6. Preserve the evidence-integrity invariants
 
-`token_f1` (`pipelines/sacredbench/score.py:126`) is explicitly the **v1 semantic
-stand-in** — the module docstring (`score.py:1`) flags that embedding- or
-judge-based semantic scoring is a later, pluggable metric. If you are adding an
-evaluation that needs semantic similarity, this is the designated slot; it is an open
-group question, not a settled interface.
+A new task must keep every property that makes a committed run trustworthy:
 
-A worked caution lives in the committed tutorial run
-([`runs/tutorial-2026-10-11/README.md`](runs/tutorial-2026-10-11/README.md)): the
-**contains-exact-reference** follow-up cut found that `token_f1` is *not* a reliable
-wrapper detector (a short Arabic/Aramaic quote diluted by an English caveat sits near
-a median `token_f1` of ~0.45, not ~1.0). The reliable signal there was whether the
-normalised reference text is *contained* in the answer. Read that before designing a
-new similarity metric — it tells you what the v1 metric can and cannot see.
-
-### 6. Evidence-integrity invariants a new evaluation must preserve
-
-These are the properties that make a committed run trustworthy. A new evaluation
-must keep all of them:
-
-- **Question-set digest stamping.** `collect` stamps the digest into every answer row
-  (`collect.py:84`, written at `collect.py:129`) and refuses to resume an
-  `answers.jsonl` built for a different question set; `score` refuses a file that
-  mixes digests or whose digest does not match `--questions` (`score.py:266`).
-- **Panel fingerprints — including tool-use identity.** A model cell's identity is
-  `_panel_fingerprint()` (`pipelines/sacredbench/collect.py:32`), which includes its
-  `tools`, so a web-search-on cell can never be resumed as web-search-off. The same
-  tools identity is emitted as a real `panel.tools` list — `model` stays the raw API id
-  and carries no inline marker — in the written panel snapshot (`score.py:430`), so the
-  viewer's standings key — `(provider, model, tools)` — keeps search-on and search-off
-  as distinct rows while same-model/same-tools runs dedupe (Spec 11, Approach B). Tools
-  are validated — and fail-fast on a non-Anthropic provider — in `config.py`
-  (`_parse_tools`, `config.py:59`; `tools` on `ModelSpec`, `config.py:50`).
-- **Resumable collect.** Already-answered `(question_id, model_id)` cells are skipped
-  on re-run (`_existing`, `collect.py:39`; the pending-cell list is built at
-  `collect.py:113`), and a failed cell stays pending and makes the run exit non-zero —
-  nothing is silently dropped.
-- **Deterministic re-scoring.** `score_file` preserves input-row order and is a pure
-  function of the answers, which is exactly what the byte-for-byte regression guard
-  (`test_first_run_regression.py:32`) relies on.
+- **Panel identity includes tool use.** A model cell's identity is `_panel_fingerprint()`
+  (`pipelines/sacredbench/collect.py:32`), which folds in its `tools`, and the same
+  tools identity is emitted as a real `panel.tools` list — the `model` stays the raw API
+  id, with no inline marker — in the written panel snapshot (`score.py:430`), so the viewer
+  keys standings on `(provider, model, tools)`: web-search-on and web-search-off stay
+  distinct rows while same-model/same-tools runs dedupe. Tools are validated (and fail-fast
+  on a non-Anthropic provider) by `_parse_tools` (`pipelines/sacredbench/config.py:59`; the
+  `tools` field on the model spec is at `pipelines/sacredbench/config.py:50`).
+- **Resumable collect.** Already-answered cells are skipped on re-run and a failed cell
+  makes the run exit non-zero — nothing is silently dropped (`_existing`,
+  `pipelines/sacredbench/collect.py:39`; the run driver `collect`,
+  `pipelines/sacredbench/collect.py:73`).
+- **Deterministic re-scoring.** `score_file` preserves row order and is a pure function of
+  the answers — exactly what the byte-for-byte regression guard relies on.
 
 ---
 

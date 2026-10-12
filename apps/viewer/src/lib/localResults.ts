@@ -43,6 +43,9 @@ export interface Summary {
   by_tradition?: Record<string, Record<string, Record<string, Cell>>>; // model -> tradition -> task -> Cell
   usage?: Usage;
   panel?: Record<string, PanelEntry>;
+  // ISO-8601 UTC timestamp score.py stamps at summarise time: the mtime-independent recency
+  // signal (Issue #7). Absent on pre-Issue-#7 runs; recency then falls back to the run id.
+  generated_at?: string;
 }
 
 export interface ScoreMetrics {
@@ -141,6 +144,8 @@ export function parseSummary(obj: unknown): Summary {
     by_tradition: s.by_tradition ?? {},
     usage: s.usage,
     panel: s.panel,
+    // Carried through for recency (Issue #7); only trusted when it is actually a string.
+    generated_at: typeof s.generated_at === "string" ? s.generated_at : undefined,
   };
 }
 

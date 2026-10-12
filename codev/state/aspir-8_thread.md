@@ -385,6 +385,19 @@ Follow-ups 7-10 = architect files as issues, NOT this PR. Recorded all in review
 Feedback (Architect Integration Review subsection). Committed + pushed. Pinging architect.
 🚦 Still at `pr` gate (pending human). Architect takes the merge ask to the human after folding.
 
+## MERGED + VERIFY (2026-10-12)
+- Human approved the `pr` gate (relayed by architect main). Ran `porch approve 8 pr
+  --a-human-explicitly-approved-this` (checks green) → merged PR #9 with a MERGE COMMIT
+  (--merge, NOT squash, per verify prompt) → b38dfa9 on origin/main. `porch done 8 --merged 9`.
+- Confirmed all Spec 8 commits on origin/main (351f5ab ancestor ✓; porch added 88c60e0
+  gate-approved). Merged origin/main into worktree for integrated verification.
+- POST-MERGE VERIFY (integrated tree, suites run directly since diff-dispatcher sees no delta):
+  pipelines 197/197 + viewer 125/125 (realRun.test.ts + #86 probe green). E2E digest already
+  proven in Phase 4 (37eb58400fdf4ea9).
+- `porch done 8` → verify-approval gate REQUIRED → `porch gate 8` → 🚦 WAITING FOR HUMAN.
+  NEVER auto-approve. On human approval: `porch approve 8 verify-approval` → project done.
+  Notified architect.
+
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,
 then architect approval gate → `porch approve`, merge, `porch done 8 --merged <N>`, verify phase.

@@ -76,10 +76,14 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(tutorial.ok && firstRun.ok).toBe(true);
     if (!tutorial.ok || !firstRun.ok) return;
 
-    // Aggregate both runs exactly as StandingsPage would.
+    // Aggregate both runs exactly as StandingsPage would. Recency (generated_at → run-id date
+    // → mtime) only decides "most recent wins" WITHIN a key; the four distinct tutorial keys
+    // never contend, so all four survive regardless of recency. The shared no-tools haiku key
+    // DOES contend with first-run — see the directional assertion below.
+    // We give first-run the LARGER mtime to prove mtime is not the decider post-#7.
     const runs: RunSummary[] = [
-      { runId: "first-run-2026-10-11", mtimeMs: 1, summary: firstRun.summary },
-      { runId: "tutorial-2026-10-11", mtimeMs: 2, summary: tutorial.summary },
+      { runId: "first-run-2026-10-11", mtimeMs: 9, summary: firstRun.summary },
+      { runId: "tutorial-2026-10-11", mtimeMs: 1, summary: tutorial.summary },
     ];
     const { rows } = aggregate(runs);
     const keys = new Set(rows.map((r) => r.key));
@@ -112,11 +116,12 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(haikuRows).toHaveLength(2);
     expect(haikuRows.filter((r) => r.key === haikuNoTools)).toHaveLength(1);
 
-    // Directional supersession is now POSSIBLE (it was not under the marker): with the
-    // tutorial injected as the newer run, the surviving no-tools haiku row is sourced from
-    // the tutorial, not first-run. (In a real clone git ties the dir mtimes and the id-asc
-    // tiebreak would pick first-run; mtime-independent recency is Issue #7, out of scope.
-    // The collision + 7-row count below is the real guarantee; this asserts possibility.)
+    // Post-#7 recency genuinely picks the tutorial for the shared no-tools haiku key, even in
+    // a fresh clone: both run ids embed 2026-10-11, but the tutorial carries a generated_at
+    // (2026-10-12) while first-run has none, so the tutorial's timestamp outranks first-run's
+    // run-id-date fallback. first-run has the larger mtime here, yet still loses — proving
+    // mtime is not consulted. Under the Spec-8 marker this dedupe was impossible; now the
+    // stale first-run haiku row is correctly superseded by the newer tutorial run.
     const sharedRow = rows.find((r) => r.key === haikuNoTools);
     expect(sharedRow?.runId).toBe("tutorial-2026-10-11");
 

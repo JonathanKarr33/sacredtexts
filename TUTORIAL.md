@@ -1,218 +1,259 @@
 # Sacred Texts Benchmark — end-to-end tutorial
 
-Run the whole benchmark loop from a fresh clone: **convert → validate → generate →
-audit → collect → score → view**. Every command is copy-pasteable from the repo
-root. Only `collect` calls model APIs (and costs money); everything else is local
-and deterministic.
+This benchmark measures how accurately AI models can quote scripture — and whether
+giving a model a **web-search tool** helps it quote more accurately than it can from
+memory alone. This tutorial walks the whole process once, from a fresh copy of the
+code to a results page in your browser.
 
-This tutorial is built around **three canonical sources in their original languages**
-and one question the benchmark is designed to answer: *does giving a model a web-search
-tool make it quote scripture more accurately than it can from memory?*
+You do not need to be a programmer to follow it. Every step has a one-sentence
+plain-language explanation, then the exact command to copy and paste. Run the commands
+in order, from the top folder of the project (the one you land in right after the
+`clone` step below). A line starting with `#` inside a command block is just a comment
+— you can paste it or skip it.
 
-- **The Bible — King James Version** (English, `en`) — the Protestant Christian corpus.
-- **The Qur'an — Uthmani text, QUL** (Arabic, `ar`) — vocalised Arabic original.
-- **The Talmud Bavli — William Davidson Edition** (Aramaic, `he`) — the Aramaic
-  original (© Sefaria, CC-BY-NC 4.0), *not* the English translation.
+**One step costs money; the rest are free.** Only step 6 (`collect`) sends questions to
+AI models over the internet, and that is the only part that incurs a bill. Everything
+else runs entirely on your own machine. **If you have no model API key, just stop before
+step 6 and skip to step 8** — the project already ships a finished example run, and the
+viewer in step 8 will show it to you.
 
-The task is `retrieve_quote`: given a citation, return **the exact reference text and
-nothing else**. The panel runs **two models — one opus-class, one haiku-class — each
-both ways: with the Anthropic server-side web-search tool enabled and disabled** (2
-models × search-{on,off} = **4 panel entries**). Tools off measures *parametric recall*
-(what the model memorised); tools on measures *tool-assisted retrieval*. The tools
-setting is part of each entry's identity, so the viewer shows all four side by side and
-on/off never collapse into one row.
+Two short safety notes you will see repeated below, because they matter:
 
-The committed tutorial run lives in
-[`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (copyright-audited,
-public-domain / openly-licensed original-language corpora only) — read its
-[`README.md`](runs/tutorial-2026-10-11/README.md) for the full result and the
-headline-vs-`contains-exact` analysis. The earlier
-[`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/) (a different, English-only
-panel) is also committed, so the viewer always has at least two runs to compare.
+- **Never re-run steps 6, 7, or 8's scoring on top of the shipped example runs**
+  (`runs/tutorial-2026-10-11/` and `runs/first-run-2026-10-11/`). Those folders are the
+  finished reference results that come with the project; always send your own work to a
+  brand-new folder instead (step 5 sets one up).
+- **Keep your API key in your terminal's environment, never saved in a file** in the
+  project.
 
-## Prerequisites
+## What this tutorial builds
 
-- [`uv`](https://docs.astral.sh/uv/) (Python pipeline) and [`pnpm`](https://pnpm.io/)
-  (the viewer). Node 20+.
-- An `ANTHROPIC_API_KEY` in your **environment** (never in a file) — the tutorial panel
-  is all Anthropic (web search is an Anthropic server-side tool). Needed for step 5
-  (`collect`) only; Track A and the viewer need no keys.
+It runs **three scriptures in their original languages** through one question type:
+
+- **The Bible — King James Version** (English) — a Protestant Christian text.
+- **The Qur'an — Uthmani text, QUL** (Arabic) — the vocalised Arabic original.
+- **The Talmud Bavli — William Davidson Edition** (Aramaic, © Sefaria, CC-BY-NC 4.0) —
+  the Aramaic original, *not* the English translation.
+
+The question type is `retrieve_quote`: the model is given a citation (like a chapter and
+verse) and must return **the exact text of that passage and nothing else**.
+
+Four "contestants" answer every question — **two models** (a larger, more capable one
+and a smaller, faster one), each tried **two ways: with web search switched on, and with
+it off**. "Off" tests what the model memorised; "on" tests whether a live web search
+helps it find the exact words. The search setting is part of each contestant's identity,
+so the results page shows all four side by side and never mixes them up.
+
+A finished example of exactly this run already ships with the project, in
+[`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) — its
+[`README.md`](runs/tutorial-2026-10-11/README.md) has the full results write-up. A
+second, English-only example run lives in
+[`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/), so the viewer always has at
+least two runs to compare.
+
+## Before you start
+
+You need two free tools installed:
+
+- [`uv`](https://docs.astral.sh/uv/) — runs the Python part of the project. It handles
+  everything Python needs for you; you do not have to know Python.
+- [`pnpm`](https://pnpm.io/) (with Node 20 or newer) — runs the results viewer, step 8.
+
+You only need an **AI model API key** if you want to do the paid step (6) yourself. The
+tutorial uses Anthropic models (web search is an Anthropic feature), so that key is an
+`ANTHROPIC_API_KEY`. Put it in your terminal's environment (`export ANTHROPIC_API_KEY=…`),
+never in a file inside the project.
+
+**Get the code** (replace `<this repo>` with the project's address):
 
 ```bash
 git clone <this repo> && cd sacredtexts   # (or the repo root if nested)
 ```
 
-## 1. Convert the committed corpora → standardized flat documents
+`git clone` makes a copy of the project on your machine; `cd` moves you into it. Run
+every command below from this folder.
 
-The source catalogue is `texts/raw/**/source.yaml` (one per tradition; each lists
-its conversion `targets` with a `license`). Restricted sources (NABRE, the Greek
-Orthodox TLG extracts) are excluded by default — you never need them. The three
-tutorial sources — KJV (`en`), the Qur'an Uthmani QUL (`ar`), and the Talmud Bavli
-Aramaic (`he`) — are all public-domain or openly licensed and convert here.
+## 1. Convert — turn the raw scripture files into one standard format
+
+The project ships each scripture as raw data in whatever shape it arrived in. This step
+rewrites all of them into one common format the rest of the pipeline understands.
 
 ```bash
 uv --project pipelines run python -m sacredbench convert
 ```
 
-→ writes `texts/standardized/<source-id>/<target-slug>/…` (gitignored; rebuilt from
-`texts/raw`). 221 documents across 7 converters.
+This reads the catalogue of sources in `texts/raw/` and writes the converted,
+standardised texts into `texts/standardized/`. (Those standardised files are rebuilt
+on demand and are not stored in the project, so this step recreates them for you.)
+Copyright-restricted sources are skipped automatically — you never need them for this
+tutorial.
 
-## 2. Validate the standardized documents (mechanical, license-agnostic)
+## 2. Validate — check the converted texts are well-formed
+
+A quick, free sanity check that every converted file has the right structure before we
+build questions from it.
 
 ```bash
 uv --project pipelines run python -m sacredbench validate texts/standardized
 ```
 
-Steps 1–2 above are shared. From here there are two tracks: **A** explores the
-committed run with no keys and writes no files into the committed evidence;
-**B** does your own fresh run (needs keys) under a new `runs/<id>/` directory.
-Never `collect`/`score`/`generate` on top of `runs/tutorial-2026-10-11/` or
-`runs/first-run-2026-10-11/` — they are the committed reference evidence, already
-complete, so a `collect` there would just resume-skip all cells and a keyless `score`
-would overwrite their panel proof.
+## 3. Generate — build the question set
 
-## Track A — explore the committed tutorial run (no keys, no new files)
+This creates the actual questions — each one a citation whose exact passage text is the
+known correct answer. It does **not** use any AI; the questions are built directly from
+the scripture text, so the set is identical every time you run it with the same settings.
 
-The committed run already ships `questions.jsonl`, `answers.jsonl`, `scores.jsonl`,
-`summary.json` and `summary.md`. Read the accuracy table, the panel proof (all four
-search-on/off entries), and the token totals directly:
+```bash
+uv --project pipelines run python -m sacredbench generate \
+  "texts/standardized/Protestant Christian/the-bible-kjv-en" \
+  "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar" \
+  "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he" \
+  --tasks retrieve_quote --per-task 100 --seed 20261011 \
+  --out runs/my-run/questions.jsonl
+```
+
+The three quoted paths pick exactly our three scriptures. `--per-task 100` asks for 100
+questions; `--seed 20261011` is a fixed starting number that makes the random selection
+repeatable — these are the **exact settings that produced the shipped example run**, so
+your question set will match it. The questions are written to a brand-new folder,
+`runs/my-run/`, which keeps your work separate from the shipped examples.
+
+> To try the whole loop cheaply before committing to the paid step, use a smaller number
+> like `--per-task 5`. Note that **any number other than 100 produces a different
+> question set**, so it will no longer match the shipped example run.
+
+## 4. Audit — confirm nothing restricted slipped in
+
+A free copyright check: it fails loudly if any file in your run was built from a
+copyright-restricted source. Run it now on the questions, and again at the end.
+
+```bash
+uv --project pipelines run python -m sacredbench audit runs/my-run
+```
+
+## 5. Set up the model list for the paid step
+
+This copies the ready-made list of the four contestants (the two models, each with web
+search on and off) into place. It will not overwrite a list you already have.
+
+```bash
+cp -n configs/models.example.yaml configs/models.yaml
+```
+
+The models read your API key from the environment, so there are no secrets in this file.
+
+## 6. Collect — ask the models the questions  💲 *the only paid step*
+
+This sends every question to every contestant over the internet and records their
+answers. **This is the step that costs money**, and this particular set of contestants is
+not cheap: the shipped example run used roughly **4.24M input / 249K output tokens and
+226 web-search requests** across 400 question-and-model combinations — on the order of
+tens of dollars. Web search is billed per search on top of the text.
+
+```bash
+uv --project pipelines run python -m sacredbench collect \
+  runs/my-run/questions.jsonl configs/models.yaml --out runs/my-run/answers.jsonl
+```
+
+If some answers fail (a dropped connection, say), the command stops with an error and
+leaves the rest in place — just run it again and it fills in only the missing ones. It
+will refuse to run against a different question set than the one it started with, so you
+can't accidentally mix things up.
+
+> **Never point this at `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`.**
+> Those are the finished example runs; re-running here would either do nothing or
+> overwrite their results. Always use your own `runs/my-run/` folder.
+
+## 7. Score — grade the answers
+
+This compares each answer to the known-correct passage and produces the scoreboard. It
+is free and uses no AI. Every answer is graded three ways — an exact match, a "normalised"
+match (ignoring differences like vowel marks and punctuation so a vocalised Arabic verse
+still matches its plain form), and a word-overlap similarity score — and a human-readable
+summary is written out.
+
+```bash
+uv --project pipelines run python -m sacredbench score runs/my-run/answers.jsonl \
+  --scores-out runs/my-run/scores.jsonl --summary-out runs/my-run/summary.json \
+  --summary-md runs/my-run/summary.md \
+  --questions runs/my-run/questions.jsonl --config configs/models.yaml
+```
+
+Then audit the whole finished run one more time, now that it holds answers and scores:
+
+```bash
+uv --project pipelines run python -m sacredbench audit runs/my-run
+```
+
+You can read the plain-text summary right away:
+
+```bash
+cat runs/my-run/summary.md
+```
+
+> **A note on fair use.** The models' answers are saved exactly as given, with no manual
+> editing. A model using web search may happen to echo some copyrighted translation; the
+> maintainers treat that as fair use for academic research, and the automated audit above
+> still blocks anything derived from a *restricted* source.
+
+**No API key?** Steps 6 and 7 need the paid run, so skip them and explore the shipped
+example instead. Read its summary directly:
 
 ```bash
 cat runs/tutorial-2026-10-11/summary.md
 ```
 
-Re-derive the scores from the committed answers to a **scratch** path and confirm
-they reproduce bit-for-bit (reads the committed evidence, writes only to `/tmp`):
+The shipped run's [`README.md`](runs/tutorial-2026-10-11/README.md) explains the headline
+finding: under the strict "exact text and nothing else" rule, web search looks like it
+barely helps — but that is partly because a searching model tends to **wrap** the correct
+quote in extra words ("According to Sefaria…", a link), which the strict rule marks wrong.
+Counting how often the exact passage *appears anywhere* in the answer shows web search
+actually retrieves **more** correct scripture, most dramatically for the Aramaic Talmud.
+
+## 8. View — see the results in your browser
+
+This starts the local results viewer — a small website, running only on your own machine,
+that shows the scoreboard and lets you click into individual answers.
 
 ```bash
-uv --project pipelines run python -m sacredbench score \
-  runs/tutorial-2026-10-11/answers.jsonl \
-  --scores-out /tmp/scores.jsonl --summary-out /tmp/summary.json
-diff <(sort /tmp/scores.jsonl) <(sort runs/tutorial-2026-10-11/scores.jsonl) && echo "reproduced"
+pnpm -C apps/viewer install     # one-time setup: fetch the viewer's dependencies
+pnpm -C apps/viewer dev         # then open the web address it prints
 ```
 
-**What the run shows (and why the headline is misleading).** The strict `retrieve_quote`
-headline looks flat-to-down for web search (opus 66% vs opus-search 66%; haiku 47% vs
-haiku-search 40%). But counting how often an answer *contains* the exact reference text
-inverts that reading: web search retrieves **more** correct scripture (opus 66→74,
-haiku 47→52 of 100), and the only reason the headline doesn't move is that a
-search-enabled model tends to **wrap** the retrieved quote in citation/attribution prose
-("According to Sefaria…", a source URL), which the deliberately strict "and nothing
-else" rule scores as wrong. The clearest case is the Aramaic Talmud: opus-search contains
-the exact reference in 8/34 cells (~24%) versus **0/34** for opus-off — web search lifted
-Aramaic recall from nothing, and the headline hid the entire lift. Full numbers,
-per-tradition cuts, and the orthographic-variance caveat are in the run's
-[`README.md`](runs/tutorial-2026-10-11/README.md).
+Open the address it prints. To land directly on the shipped example run regardless of
+which run is newest, add `?run=tutorial-2026-10-11` to the address.
 
-Then view it (Track C below): start the viewer and open
-`/?run=tutorial-2026-10-11` (append `?run=tutorial-2026-10-11` to the printed dev URL) to
-land directly on this run's leaderboard, independent of run mtime.
+What you can look at:
 
-## Track B — do your own run (needs API keys — the only paid part)
+- The **leaderboard** (`/`) ranks the four contestants by accuracy, with columns per
+  scripture, and shows each model's token totals.
+- A **run selector** lets you switch between runs (your own and the shipped examples);
+  your choice is saved in the address so you can share or reload it.
+- Click any model (or a scripture cell) to open the **error explorer** — every question
+  with its pass / fail status, the prompt, the expected passage, the model's answer, and
+  the three scores side by side. This is where you can see the "correct but wrapped in
+  extra words" answers that the strict rule marked wrong.
+- **Standings** (link in the header) shows each model's most recent result across all
+  runs. Because web-search-on and web-search-off count as different contestants, the four
+  tutorial entries stay as four separate rows — but the plain (no-search) `claude-haiku-5-5`
+  now shares a row with the same model from the earlier first run, and the newer run wins,
+  so you see one up-to-date row for it instead of two.
 
-These are the **exact commands that produced the committed `runs/tutorial-2026-10-11/`**
-— same inputs, `--per-task 100`, and `--seed 20261011`, so `generate` reproduces the
-identical question set (digest `37eb58400fdf4ea9`). Keep every artifact under a fresh
-run directory:
+For more on the viewer, see [`apps/viewer/README.md`](apps/viewer/README.md).
 
-> **Cost.** `collect` is the only paid step, and this panel is not cheap: the committed
-> run spent **~4.24M input / ~249K output tokens and 226 web-search requests** across 400
-> cells (200 of them web-search-enabled) — on the order of tens of dollars at list opus
-> pricing, billed per web-search request on top of tokens. To try the loop cheaply first,
-> drop `--per-task` (e.g. `--per-task 5`); note that **any `--per-task` other than 100
-> changes the question set, so its digest will no longer match the committed run.**
+## Re-running the automated tests
+
+If you want to confirm everything is working, these run the project's test suites
+(free, no AI):
 
 ```bash
-RUN=runs/my-run
-
-# 3. generate (deterministic; same seed ⇒ identical questions, with a .manifest.json)
-#    The three tutorial sources in their original languages: KJV (en), Qur'an Uthmani
-#    QUL (ar), Talmud Bavli Aramaic (he). Pass the specific target-slug dirs so only
-#    these three corpora are drawn from.
-uv --project pipelines run python -m sacredbench generate \
-  "texts/standardized/Protestant Christian/the-bible-kjv-en" \
-  "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar" \
-  "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he" \
-  --tasks retrieve_quote --per-task 100 --seed 20261011 --out "$RUN/questions.jsonl"
-
-# 4. copyright audit (also runs in the test gate): fail if any artifact derives from
-#    a restricted source
-uv --project pipelines run python -m sacredbench audit "$RUN"
-
-# 5. collect from the 2×2 panel (2 models × web-search on/off). The example panel is
-#    exactly the tutorial panel: claude-opus-5-5 and claude-haiku-5-5, each with
-#    `tools: [web_search]` and without. Resumable: a failed cell stays pending and the
-#    run exits non-zero — re-run to fill exactly the missing cells; the question-set
-#    digest is stamped on every row so you can't resume against a different question set.
-cp -n configs/models.example.yaml configs/models.yaml   # the panel as-is; keys via env
-                                                         # (-n: don't clobber an existing one)
-uv --project pipelines run python -m sacredbench collect \
-  "$RUN/questions.jsonl" configs/models.yaml --out "$RUN/answers.jsonl"
-
-# 6. score (strict + normalized + token-F1; per-task contract; tradition breakdown;
-#    --questions/--config add the missing-cell roster + the panel snapshot + usage).
-#    UNPRICED by design: web search bills per request (not captured in in/out tokens),
-#    so the example panel sets no price and `score` reports token totals only, no cost.
-uv --project pipelines run python -m sacredbench score "$RUN/answers.jsonl" \
-  --scores-out "$RUN/scores.jsonl" --summary-out "$RUN/summary.json" \
-  --summary-md "$RUN/summary.md" --questions "$RUN/questions.jsonl" --config configs/models.yaml
-
-# 7. audit the WHOLE run again — now the answers/scores you'd commit, not just the
-#    questions — before committing any evidence
-uv --project pipelines run python -m sacredbench audit "$RUN"
+bash .codev/checks/test.sh                   # the pipeline + viewer tests together
+uv --project pipelines run pytest pipelines   # the Python pipeline only
+pnpm -C apps/viewer test                      # the viewer only
 ```
 
-(The committed `runs/tutorial-2026-10-11/` was produced by exactly these commands with
-that seed; its `questions.jsonl.manifest.json` records the inputs and digest.)
+## Where to go next
 
-**Fair use.** This tutorial commits model answers **as collected** — no manual
-copyright-clearance / redaction pass over the search-on answers. A search-enabled model
-may incidentally echo copyrighted translation text; the maintainers treat that as fair
-use for academic benchmarking, and answers are never truncated or edited so the explorer
-can show them verbatim. The automated `audit` gate still runs on every commit and blocks
-any artifact derived from a *restricted* source.
-
-## Track C — view the results locally
-
-```bash
-pnpm -C apps/viewer install
-pnpm -C apps/viewer dev          # then open the printed URL
-```
-
-- `/` shows the **leaderboard** for the most-recent run under `runs/` automatically; to
-  land on this tutorial run regardless of run mtime, open `/?run=tutorial-2026-10-11`. The
-  four panel entries are ranked by overall accuracy, with per-task and per-tradition
-  columns and per-model token totals. The dev server serves the repo's `runs/` at
-  `/runs/`.
-- A **run selector** lists every run under `runs/` (here: the tutorial run and
-  `first-run-2026-10-11`); switching writes the selection to the URL as a bare run id
-  (`/?run=<id>`), so a view is shareable and survives refresh.
-- Click a model (or a task / tradition cell) to open the **error explorer**
-  (`/run/$runId/model/$modelId`): every question with pass / fail / missing status, the
-  prompt, expected text, the model's answer, and the exact / normalized / token-F1 scores
-  side by side, filterable by task, tradition, correct/incorrect, and failure mode. This
-  is where the wrapped-but-correct search-on answers are visible — a correct quote with a
-  citation around it, scored 0 by the strict headline.
-- **Standings** (`/standings`, in the header) shows each model's most recent result
-  across all runs — one row per `(provider, model, tools)`. The tools setting is part of
-  that identity, so the tutorial's four entries are **four distinct standings keys**: the
-  two search-on rows carry a `web_search` tag after the raw model name, the search-off rows
-  carry none, and the model name shown in each row's subtext is the raw API id (no marker).
-  Because a search-off entry keys
-  identically to a bare run of the same model, the tutorial's search-off `claude-haiku-5-5`
-  and first-run's own `claude-haiku-5-5` collapse to a **single** row — so across both runs
-  you see **7** rows, not 8, and the earlier first-run haiku row is supersedable rather
-  than orphaned. Which run supplies that shared row follows the same run-directory mtime
-  rule as the leaderboard default above; git does not preserve mtimes, so on an mtime tie
-  the lexicographically-smaller run id wins (making recency calendar-accurate is
-  issue #7, out of scope here).
-- An empty `runs/` shows an informative empty state.
-- The multibrowser surface (`/t/...`, `/results`, `/raw`, `/review*`) has been removed.
-
-## Re-running the whole thing / tests
-
-```bash
-bash .codev/checks/test.sh                      # the pipeline + viewer test gates
-uv --project pipelines run pytest pipelines      # Python only
-pnpm -C apps/viewer test                         # viewer only
-```
+- **Run the pipeline stage by stage, with every option:** [`pipelines/README.md`](pipelines/README.md).
+- **Add a new scripture or a new kind of question:** [`CODE_WALKTHROUGH.md`](CODE_WALKTHROUGH.md).
+- **Understand how the whole system fits together:** [`codev/resources/arch.md`](codev/resources/arch.md).

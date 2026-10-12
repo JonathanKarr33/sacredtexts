@@ -4,6 +4,7 @@ import { CenteredSpinner } from "../components/Loading";
 import { formatCell, loadSummary } from "../lib/localResults";
 import { fetchRunIndex } from "../lib/runIndex";
 import { aggregate, type RunSummary } from "../lib/aggregate";
+import { recencyDate } from "../lib/recency";
 
 // The `/standings` view: cross-run "current standings" (Spec 2 requirement 6). For each
 // model it shows its MOST RECENT result across every run under `runs/` — one row per model,
@@ -40,12 +41,6 @@ async function loadAllRunSummaries(fetcher: typeof fetch): Promise<LoadState> {
   }
   failed.sort(); // stable display order (parallel loads finish in any order)
   return { status: "ready", runs: loaded, failed };
-}
-
-/** A run's index date, from its directory mtime, as a stable ISO calendar day
- * (timezone-independent). Callers guard the no-mtime (0) case. */
-function runDate(mtimeMs: number): string {
-  return new Date(mtimeMs).toISOString().slice(0, 10);
 }
 
 export function StandingsPage() {
@@ -130,7 +125,7 @@ export function StandingsPage() {
                   {row.provider && row.model && (
                     <div className="text-xs text-default-400">
                       {row.provider} / {row.model}
-                      {row.tools.length > 0 && ` [${row.tools.join(", ")}]`}
+                      {row.tools.length > 0 && ` · ${row.tools.join(", ")}`}
                     </div>
                   )}
                 </td>
@@ -143,7 +138,7 @@ export function StandingsPage() {
                     {row.runId}
                   </Link>
                   <div className="text-xs text-default-400">
-                    {row.mtimeMs ? `indexed ${runDate(row.mtimeMs)}` : "date unknown"}
+                    {row.recencyMs ? `dated ${recencyDate(row.recencyMs)}` : "date unknown"}
                   </div>
                 </td>
               </tr>
