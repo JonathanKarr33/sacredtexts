@@ -463,3 +463,14 @@ Viewer-only (no runs/ or pipelines/ change). Data flows from the 2nd-rebaselined
   the coverage story); first-run no-contrast + refused present; LeaderboardPage coverage-column render.
 - check-types 0 errors (fixed the 2 pre-existing tutorialRun rows[0]/rows[3] array-access reds too).
 Both lanes green. Next: commit → porch done → per-phase consult (codex+claude) → phase_5 (docs).
+
+### phase_4 consult iter1 (codex + claude both REQUEST_CHANGES) — all folded
+- BOTH (MUST-FIX): QuestionList StatusBadge ignored r.refused → refused rows showed the red "wrong"
+  badge. Added a neutral "refused" branch + QuestionList refused test (shows "refused" not "wrong").
+- claude: contrast UI + mode=refused/refused-filter had no RENDER test (lib-only). Added LeaderboardTable
+  contrast render test (paired fixture: section + coverage col "65% (35 refused)" + "+9 pt" delta) +
+  no-panel omits-section test; ExplorerPage committed-run mode=refused test (55 cells, badged refused).
+- claude non-blocking (fixed): searchContrast keyed on base NAME → false cross-provider pair risk; now
+  keyed on provider\u0000base (standings identity), base kept for display.
+134 viewer tests pass, check-types 0 errors. iter1 rebuttal written. Deferred (phase_5): from-memory
+caveat, #23 verify_source gate, #21 jev seam, architect's 2 panel-summary edits.

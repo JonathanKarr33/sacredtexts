@@ -55,6 +55,18 @@ describe("QuestionList", () => {
     expect(screen.getAllByText("n/a")).toHaveLength(3);
   });
 
+  it("marks a refused cell as 'refused', not 'wrong' (Spec 15 — distinct from an incorrect answer)", () => {
+    render(
+      <QuestionList
+        results={[q({ question_id: "r", correct: false, refused: true, answer: "I can't reproduce that." })]}
+      />,
+    );
+    expect(screen.getByText("refused")).toBeInTheDocument();
+    expect(screen.queryByText("wrong")).not.toBeInTheDocument();
+    // the decline text is still shown as the model's answer
+    expect(screen.getByText("I can't reproduce that.")).toBeInTheDocument();
+  });
+
   it("shows an empty-state line when nothing matches", () => {
     render(<QuestionList results={[]} />);
     expect(screen.getByText(/No questions match/i)).toBeInTheDocument();

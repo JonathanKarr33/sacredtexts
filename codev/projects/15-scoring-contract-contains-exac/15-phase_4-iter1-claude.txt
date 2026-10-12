@@ -1,0 +1,31 @@
+I'll review phase_4 (the viewer work). Let me start by reading the changed viewer files.I've read all the phase-4 viewer files and their tests, and run the viewer suite (130/130 green). Here's my assessment.
+
+## What's solid
+
+- **`explorer.ts` four-category model** is clean: `FailureMode = "missing" | "refused" | "wrong"`, `failureMode()` ordered correct→missing→refused→wrong, `questionStats` carries all four, and `filterQuestions` composes `mode` through `failureMode` so no new branch was needed. Unit-tested for exclusivity and for each mode.
+- **`localResults.ts`** extends `Cell` with `coverage/correct/incorrect/refused/refused_rate` as *optional* keys (pre-phase-3 summaries still parse), `ScoreMetrics.outcome`, and `QuestionResult.refused`. `formatCell` now disambiguates the two null-accuracy cases (`n/a (n=34; refused 34)` vs `n/a (miss 100)`) — a genuinely good catch, and pinned in `localResults.test.ts:79`.
+- **`searchContrast`** does exactly what the plan specified: marker-strip pairing on `panel[id].model`, `[]` on no-panel. The no-pair fallback is pinned on first-run (`realRun.test.ts:61`) and the pair story on tutorial (`tutorialRun.test.ts:170-179`, including the "opus trades accuracy for coverage" assertion — that's the coverage rationale made executable).
+- **Coverage column** in both `LeaderboardTable` and `StandingsPage` at equal weight (`font-semibold`), with the plain accuracy/coverage sentence in the leaderboard header. `aggregate.ts` correctly needed no change (the `Cell` passes through) — not a skipped plan item.
+- Committed-run guards updated with explained value moves (`LeaderboardPage.test.tsx:198-219`, `tutorialRun.test.ts:113-122`), not silently re-pinned.
+
+## Issues
+
+**1. A refused row still renders the red "wrong" badge (blocking).** `components/QuestionList.tsx:14-22` — `StatusBadge` branches `correct → missing → wrong` and never consults `r.refused`. So in the explorer, haiku-search's 35 refusals each display a `wrong` badge while the stats line two inches above says "13 wrong · 35 refused", and the legend defines wrong as "answered but scored incorrect". Filtering `mode=refused` yields a list of rows all labelled "wrong". That contradicts spec decision 2 ("the viewer shows a `refused` status") and the phase-4 deliverable "correct/incorrect/refused/missing all distinguishable". Fix is one branch + a `QuestionList.test.tsx` case; the test file was touched in this phase but only to add `refused: false` to the fixture helper, so no refused row is ever rendered.
+
+**2. The contrast UI itself has zero render coverage (vacuity, by reading).** If the whole `{contrast.length > 0 && (…)}` block in `LeaderboardTable.tsx:95-128` were deleted, nothing fails: `leaderboard.test.ts` and `tutorialRun.test.ts` call `searchContrast` directly; `LeaderboardTable.test.tsx` has no `coverage`/`Search on`/`Δ` match; `LeaderboardPage.test.tsx` renders first-run, which has no markers and therefore no pairs; `sample.ts` has no `panel` at all. The unexported `pct`/`accuracyDelta` helpers are untested too. Spec decision 4 says "a viewer test asserts it [visible]" — the data is asserted, the affordance is not. One `render(<LeaderboardTable>)` over a two-arm fixture asserting the heading + a `+9 pt` delta closes it.
+
+**3. The `refused` URL contract is also untested (same vacuity class).** Removing `search.mode === "refused"` from `router.tsx:51` and `<option value="refused">` from `ExplorerFilters.tsx:100` breaks no test: `ExplorerPage.test.tsx` only drives `mode=missing`/`mode=wrong`, and the sample fixture has no refused cell. Adding an `outcome: "refused"` row to `local/sample.ts` would let the existing select-driven test pattern (`ExplorerPage.test.tsx:81`) cover it end-to-end.
+
+**4. (Comment) `searchContrast` pairs provider-blind.** `leaderboard.ts:72` keys on base name only, so an anthropic `claude-haiku-5-5 [web_search]` arm and an openrouter-served `claude-haiku-5-5 [no-tools]` arm — plausible in this project, and `cli.py:361` marks *every* entry — would pair into one row whose "Δ accuracy" conflates provider with tool use. Keying on `${entry.provider}\u0000${base}` matches the standings identity key and costs one line. Not blocking today (committed runs don't hit it).
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Four-outcome data model, coverage columns and contrast pairing are well-built and tested at the lib level, but refused rows still render a "wrong" badge in the explorer, and both the contrast UI and the refused URL/filter path have no render-level coverage.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `QuestionList.tsx:14-22` `StatusBadge` ignores `r.refused` → every refused row shows the red "wrong" badge, contradicting the stats line/legend and spec decision 2's "viewer shows a refused status"; add the branch + a `QuestionList.test.tsx` refused case.
+- The `LeaderboardTable.tsx:95-128` "Search on vs off" section (and `pct`/`accuracyDelta`) is never rendered by any test — deleting it keeps the suite green; spec decision 4 requires a test asserting the affordance is visible.
+- `router.tsx:51` `mode=refused` and `ExplorerFilters.tsx:100`'s refused option are untested (no refused cell in `local/sample.ts`, no `mode=refused` page test) — the new URL contract would silently regress.
+- (Non-blocking) `leaderboard.ts:72` pairs arms by base model name without provider, so a same-name cross-provider pair would render a false search contrast; key on `provider\u0000base` to match the standings identity.

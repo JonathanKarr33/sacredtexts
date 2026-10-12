@@ -58,7 +58,9 @@ export function searchContrast(summary: Summary): ContrastPair[] {
   const panel = summary.panel;
   if (!panel) return [];
   const rowByModel = new Map(leaderboardRows(summary).rows.map((r) => [r.modelId, r]));
-  const partial = new Map<string, { on?: LeaderboardRow; off?: LeaderboardRow }>();
+  // Pair on (provider, base) — the same identity the standings use — so two same-named base models
+  // from different providers never form a spurious cross-provider contrast. `base` is kept for display.
+  const partial = new Map<string, { base: string; on?: LeaderboardRow; off?: LeaderboardRow }>();
   for (const [modelId, entry] of Object.entries(panel)) {
     const row = rowByModel.get(modelId);
     if (!row) continue;
@@ -70,12 +72,13 @@ export function searchContrast(summary: Summary): ContrastPair[] {
         : null;
     if (!arm) continue; // no tools marker → not part of an on/off contrast
     const base = m.replace(/\s*\[(web_search|no-tools)\]\s*/g, " ").trim();
-    const slot = partial.get(base) ?? {};
+    const key = `${entry.provider}\u0000${base}`;
+    const slot = partial.get(key) ?? { base };
     slot[arm] = row;
-    partial.set(base, slot);
+    partial.set(key, slot);
   }
   const out: ContrastPair[] = [];
-  for (const [base, { on, off }] of partial) if (on && off) out.push({ base, on, off });
+  for (const { base, on, off } of partial.values()) if (on && off) out.push({ base, on, off });
   out.sort((a, b) => (a.base < b.base ? -1 : a.base > b.base ? 1 : 0));
   return out;
 }

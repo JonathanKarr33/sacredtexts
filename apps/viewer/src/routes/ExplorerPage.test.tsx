@@ -167,4 +167,16 @@ describe.skipIf(!present)("ExplorerPage — committed run drill-in gate", () => 
     expect(await screen.findByText("Error explorer")).toBeInTheDocument();
     expect(screen.getByText(/Showing 25 of 100/)).toBeInTheDocument();
   });
+
+  it("filtering by mode=refused narrows to the 55 refused cells, badged 'refused' not 'wrong'", async () => {
+    expect(present).toBe(true);
+    vi.stubGlobal("fetch", committedRunFetcher());
+    renderApp("/run/first-run-2026-10-11/model/claude-haiku?mode=refused");
+    expect(await screen.findByText("Error explorer")).toBeInTheDocument();
+    // Spec 15: claude-haiku declined 55 of its 100 cells — the refused URL/filter path works, and
+    // the stats line reports the count (distinct from the 20 wrong).
+    expect(screen.getByText(/Showing 55 of 100/)).toBeInTheDocument();
+    expect(screen.getByText((c) => c.includes("55 refused"))).toBeInTheDocument();
+    expect(screen.getAllByText("refused").length).toBeGreaterThan(0);
+  });
 });
