@@ -129,4 +129,20 @@ deltas are panel-shape-independent; tutorial summary.json panel block is merge-o
 whichever score.py is on main; viewer standings keys on panel.tools if 11 first); first-run untouched →
 verbatim panel + api_model pre-registration hold. Acked architect.
 
-Next: porch next (iter3 or advance).
+### Plan consult round 3 — codex REQUEST_CHANGES (3 narrow), claude COMMENT (verified correct). Folded (iter4):
+- **claude MUST-FIX**: my iter2 "Talmud 8 of 34 → 7" was WRONG — verified opus-search Judaism
+  n=34/headline=1/contains=8/flips=7, so "8 of 34" is a CONTAINS count (1+7), correct as written. DROPPED;
+  plan now says do NOT touch the "8 of 34"/"24 of 33" contains counts. (Nearly landed a factual error.)
+- **codex: durable oracle** — pre/post projection needs a frozen source post-rebaseline. Added: new test
+  pipelines/tests/test_contains_reference_rebaseline.py pins SHA-256 of pre-change
+  (mid,qid)→(exact,normalized,token_f1) projection (from git show HEAD) + exact 21-pair flip set.
+- **codex: lessons-learned IN-PR** — lessons-learned:34 "don't reshape headline" + :40-41 "deferred" directly
+  contradicted; post-PR MAINTAIN would merge self-contradictory tree. Now updated in THIS PR, decision-
+  consistent, whole set moves together (adopt or revert). Removed MAINTAIN deferral.
+- **codex: enumerate 9 guards + name validation file** — done (4 pipeline incl. new test + 5 viewer).
+- **claude gaps**: tutorial README headline table :33-38 + framing :30-31 (named; cells pre-registered);
+  CODE_WALKTHROUGH:305-308 + TUTORIAL:29 named; first-run summary.json gains BOTH generated_at AND api_model
+  (no generated_at today); summary.md row-order changes (pre-registered); pointer drift fixed (tutorialRun
+  :115 not :117, Leaderboard :215, ExplorerPage 5 "24" sites, CODE_WALKTHROUGH score.py set has no :176).
+
+claude re-verified deltas/approach/mechanics/9-guard surface/aspir-11 analysis all correct. Next: porch next.

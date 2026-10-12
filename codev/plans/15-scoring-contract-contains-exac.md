@@ -93,14 +93,18 @@ atomic commit that corrects the search sign-inversion. The recovered gains surfa
 
 **Viewer vitest guards (same atomic commit — editing `apps/viewer/` is what makes `.codev/checks/test.sh`
 run vitest at all; `runs/` alone maps to the pipelines lane only):**
-- Run `pnpm -C apps/viewer test` and update **every** fixture that pins a pre-rebaseline number. Known to
-  break: `apps/viewer/src/local/tutorialRun.test.ts` (`:117` row order → `["opus-search","opus",
-  "haiku-search","haiku"]`; `:118-119` `0.66`→`0.74`, `0.4`→`0.47`; `:148` `correct 40`→`52`);
-  `apps/viewer/src/routes/ExplorerPage.test.tsx` (`:152` + the "24 correct" filter test → `25`);
-  `apps/viewer/src/routes/LeaderboardPage.test.tsx` (`:214` `"72% (n=25)"` → `76%`);
-  `apps/viewer/src/routes/StandingsPage.test.tsx` (`:134` `"24% (n=100)"` first-run → `25%`). Also re-check
-  `realRun.test.ts` (reads committed runs) and update if red. Viewer *source* needs no change — `ScoreMetrics`
-  keys are optional and `metricOrNull` is key-typed, so the extra JSON key is inert.
+- Run `pnpm -C apps/viewer test` and update **every** fixture (and comment) that pins a pre-rebaseline
+  number. Verified pin sites:
+  - `apps/viewer/src/local/tutorialRun.test.ts` — row-order assert `:115` → `["opus-search","opus",
+    "haiku-search","haiku"]` (`:117` is the non-increasing check; comments `:112-114`, `:142` also carry
+    40/47/66); `:118-119` `0.66`→`0.74`, `0.4`→`0.47`; `:148` `correct 40`→`52`.
+  - `apps/viewer/src/routes/ExplorerPage.test.tsx` — five "24" sites (`:147` title, `:152` comment, `:154`,
+    `:163` title, `:168`) → `25`.
+  - `apps/viewer/src/routes/LeaderboardPage.test.tsx` — pin `:215` (`:214` is the comment) `"72% (n=25)"` → `76%`.
+  - `apps/viewer/src/routes/StandingsPage.test.tsx` — `:134` `"24% (n=100)"` first-run → `25%`.
+  - `realRun.test.ts` reads committed runs but has **no numeric pins** → stays green (claude-verified); re-run to confirm.
+  Viewer *source* needs no change — `ScoreMetrics` keys are optional and `QuestionList.tsx:85-87` renders
+  three fixed metrics, so the extra JSON key is inert.
 
 #### The rebaseline procedure (explicit — the CLI cannot do first-run)
 
@@ -130,9 +134,14 @@ Never re-run `collect`/`generate`; never hand-edit `scores.jsonl`; never rebuild
 - `scores.jsonl` (both): every `retrieve_quote` row gains a `contains_reference` key; `correct` flips 0→1 on
   **exactly** the 21 pre-registered `(model_id, question_id)` cells (20 tutorial + 1 first-run); no other row changes.
 - `summary.json` (both): `retrieve_quote` cells gain a `contains_reference` submetric; `accuracy` /
-  `by_tradition` / `_overall` move only for the flipped cells; `generated_at` changes. **first-run
-  additionally** may surface `api_model` (score.py:429) where it had none — intended and documented. Panel
-  provider/model/endpoint/served_by, usage, and costs are unchanged; no standings key changes.
+  `by_tradition` / `_overall` move only for the flipped cells. Tutorial already has `generated_at` → it
+  changes. **first-run gains TWO new keys** — `generated_at` (score.py:435; committed first-run summary keys
+  are `[models, by_tradition, usage, panel]`, no `generated_at` today) **and** `api_model` (score.py:429).
+  Both are guard-safe (only tutorial/synthetic tests assert `generated_at`). Panel
+  provider/model/endpoint/served_by, usage, and costs unchanged; no standings key changes.
+- `summary.md` (both): regenerated via `summary_markdown()`; its accuracy cells move for the flipped cells
+  **and the leaderboard row order changes** (tutorial: `opus-search` rises above `opus`, `haiku-search` above
+  `haiku`). Pre-registered, not a surprise.
 
 #### Deliverables
 
@@ -140,9 +149,9 @@ Never re-run `collect`/`generate`; never hand-edit `scores.jsonl`; never rebuild
 - [ ] `_SUBMETRICS` **and** the `score_file` accumulator both carry `contains_reference` (explicit update + seed; no `KeyError`).
 - [ ] The four non-text-retrieval task branches and `test_score.py:231` byte-for-byte unchanged.
 - [ ] Both runs rebaselined once via the documented procedure; the pre-registered honest diff holds; no `[no-tools]` / standings-key drift.
-- [ ] A **mandatory** pinned validation test (see Test Plan) proving exactly the 21 cells flipped — the byte guards are circular after rebaseline and no longer witness "nothing else moved".
-- [ ] All nine guards green (`test_first_run_regression`, `test_tutorial_run`, `test_score.py` retrieve_quote dict, + the five viewer suites).
-- [ ] Tests for this phase (the `test_score.py` cases + the pinned validation).
+- [ ] A **mandatory** pinned validation test `pipelines/tests/test_contains_reference_rebaseline.py` (durable-oracle hash + exact 21-pair flip set; see Test Plan) — the byte guards are circular after rebaseline and no longer witness "nothing else moved".
+- [ ] **The nine affected guards green** — 4 pipeline: (1) `test_first_run_regression.py`, (2) `test_tutorial_run.py`, (3) `test_score.py` (retrieve_quote dict `:46`), (4) the new `test_contains_reference_rebaseline.py`; 5 viewer: (5) `tutorialRun.test.ts`, (6) `ExplorerPage.test.tsx`, (7) `LeaderboardPage.test.tsx`, (8) `StandingsPage.test.tsx`, (9) `realRun.test.ts` (reads runs; no numeric pins — confirm green).
+- [ ] Tests for this phase (the `test_score.py` cases + the new rebaseline-validation test).
 
 #### Acceptance Criteria
 
@@ -156,12 +165,20 @@ Never re-run `collect`/`generate`; never hand-edit `scores.jsonl`; never rebuild
 
 - **Unit** (`test_score.py`): the wrapped-exact / strict / not-contained / boundary / empty / four-tasks-unchanged / accumulator cases, using real tutorial wrapper strings.
 - **Regression** (both run byte guards): re-score committed answers → regenerated `scores.jsonl` byte-for-byte.
-- **Mandatory pinned validation** (new test): assert the flipped `correct` set is **exactly** the 21
-  hard-coded `(model_id, question_id)` pairs (not an aggregate — compensating changes can preserve totals),
-  **plus** a pre/post projection asserting that every row's `exact` / `normalized` / `token_f1` is unchanged
-  and `correct` is unchanged on all rows except those 21. (Pin per-cell summary values too — haiku-search
-  `0.52`, haiku `0.47`, opus-search `0.74`, opus `0.66`; first-run claude-haiku `_overall 0.25` + LDS cell
-  `0.76` — as a secondary check.) This is the real witness once the byte guards are rebaselined and circular.
+- **Mandatory pinned validation** — a NEW test file `pipelines/tests/test_contains_reference_rebaseline.py`:
+  - **Durable oracle:** pin a SHA-256 of the canonical, order-independent `(model_id, question_id) →
+    (exact, normalized, token_f1)` projection, computed **once from the pre-change committed `scores.jsonl`
+    before regeneration** (capture via `git show HEAD:…` at authoring time; the hash is the frozen oracle —
+    this PR doesn't touch those three fields, so the regenerated projection must hash identically). The test
+    re-projects the regenerated committed `scores.jsonl` and asserts the hash matches → proves
+    `exact`/`normalized`/`token_f1` unmoved on all 800 rows without needing a live "pre" file.
+  - **Exact flip set:** assert the `correct`-flip set equals **exactly** the 21 hard-coded `(model_id,
+    question_id)` pairs (not an aggregate — compensating changes preserve totals).
+  - **Self-contained invariant** (secondary): for every `retrieve_quote` row `correct == normalized` except
+    the 21, and `contains_reference ⊇ normalized`.
+  - Pin per-cell summary values too (haiku-search `0.52`, haiku `0.47`, opus-search `0.74`, opus `0.66`;
+    first-run claude-haiku `_overall 0.25` + LDS cell `0.76`).
+  This is the durable witness once the byte-for-byte run guards are rebaselined and circular.
 - **Viewer** (`pnpm -C apps/viewer test`): all suites green against the rebaselined fixtures.
 - **Manual**: open both regenerated `summary.md` and confirm the headline reflects the recovered cells.
 
@@ -176,31 +193,41 @@ line with the implemented contract, so no doc contradicts the code or the rebase
 
 #### Files to Create / Modify
 
-- `CODE_WALKTHROUGH.md` — `_SUBMETRICS` list (~`:246`) includes `contains_reference`; fix the misleading
-  "add a line to `_SUBMETRICS`" note (~`:256`) to require the accumulator update too; update §5
-  (~`:310-325`) from "a follow-up should…" to "implemented as `contains_reference`, adopted into the
-  headline"; amend the "**never** re-run generate/collect/score over the committed runs" bullet (~`:300-304`)
-  to describe the sanctioned re-score-in-place exception this PR used; and **re-derive every `score.py:N`
-  pointer** (there are ~12: `:108/:115/:126/:176/:183/:201/:235/:246/:256/:266/:288/:452`) — Phase 1 shifts the
-  module docstring, `_SUBMETRICS`, `score_answer`, and `score_file`, so most of these move, and
-  `test_code_walkthrough.py` only checks in-range, so stale pointers fail silently.
-- `TUTORIAL.md` (~`:94-103`) — presents the old headline (opus 66 % / haiku-search 40 %), calls the strict
-  headline "misleading", and frames containment as an *external* analysis. Update to the implemented,
-  adopted contract and the rebaselined figures.
-- `runs/tutorial-2026-10-11/README.md` — the contains-exact table (~`:44-110`) and "scored 0 yet contains
-  it" caveat now describe a **scored** signal; update to the rebaselined figures, and correct "Talmud 8 of
-  34" (opus-search's Talmud flips are **7**, not 8 — the 8th opus-search flip is Qur'an).
+- `CODE_WALKTHROUGH.md` — `_SUBMETRICS` list includes `contains_reference`; fix the misleading "add a line
+  to `_SUBMETRICS`" note to require the accumulator update too; update §5 from "a follow-up should…" to
+  "implemented as `contains_reference`, adopted into the headline"; amend **both** contradicted bullets: the
+  "**never** re-run generate/collect/score over the committed runs" bullet (~`:300-304`) **and** `:305-308`
+  ("`test_first_run_regression.py` is the proof that a scoring change did not disturb committed numbers … a
+  new task should *add* evidence, not perturb the old") — describe the sanctioned re-score-in-place exception
+  this PR used. **Re-derive every `score.py:N` pointer**: the real set is `:1`×2, `:60`, `:87`, `:108`×2,
+  `:115`, `:126`, `:183`, `:201`×2, `:235`, `:266`, `:452` (no `:176` pointer exists) — Phase 1 shifts the
+  module docstring, `_SUBMETRICS`, `score_answer`, and `score_file`, and `test_code_walkthrough.py` only
+  checks in-range, so stale pointers fail silently.
+- `TUTORIAL.md` — `:94-103` presents the old headline (opus 66 % / haiku-search 40 %) and calls the strict
+  headline "misleading"; `:29` frames containment as an *external* "headline-vs-contains-exact analysis".
+  Update both to the implemented, adopted contract and the rebaselined figures.
+- `runs/tutorial-2026-10-11/README.md` — the **headline table** (`:33-38`) and its "looks flat-to-down for
+  web search" framing (`:30-31`) change most: overall becomes opus 66 / opus-search 74 / haiku 47 /
+  haiku-search 52, with tradition cells moving (opus-search Judaism 3 %→24 %, Sunni Islam 97 %→100 %;
+  haiku-search Sunni Islam 36 %→73 %). The contains-exact table (`:44-110`) and "scored 0 yet contains it"
+  caveat now describe a **scored** signal. **Do NOT change the "8 of 34" / "24 of 33" contains counts** —
+  those are *containment* totals (opus-search Judaism contains = 1 pre-existing headline + 7 flips = 8),
+  correct as written; the earlier "8→7" idea conflated flips with containment and is dropped.
 - `runs/first-run-2026-10-11/README.md` — fix the stale `24%`→`25%` **and** the factually wrong "17 answers
   reproduce the verse but add a citation prefix … a relaxed quote-contained metric is a Spec-2 refinement":
   only **1** of the ~17 (≥0.9) / ~23 (≥0.8) high-F1 misses is actually contained; the rest are genuine
   paraphrase differences ("prince"→"captain", etc.). Correct number and cause — good PR-gate evidence that
   containment is not over-rescuing.
-- `codev/resources/lessons-critical.md` + `codev/resources/lessons-learned.md` — the "never re-run
-  `collect`/`score`/`generate` over committed evidence" lesson now has a **sanctioned exception** (this PR's
-  careful in-place re-score that *adds* a column while preserving panel/usage verbatim). Add a one-line
-  caveat/pointer so the always-on instruction is not read as absolute. The scoring-contract *headline*
-  reshape line (and the `arch-critical.md` scoring entry) stays a **MAINTAIN follow-up after the human
-  confirms the headline at the PR gate** — not edited here, since the contract isn't final until then.
+- `codev/resources/lessons-learned.md` (`:28-41`) + `codev/resources/lessons-critical.md` /
+  `codev/resources/arch-critical.md` scoring lines — these currently say "report the contains-exact numbers
+  in the run README; **don't reshape the headline contract** to chase them" and mark the `contains_reference`
+  submetric "**deferred** because [it] reshapes `scores.jsonl`". Both are **directly contradicted** by this
+  PR. Update them **in this PR, consistent with the PR-gate decision**: under adoption, rewrite to "implemented
+  as `contains_reference`, adopted into the headline via a deliberate one-shot rebaseline"; also add the
+  "never re-run score over committed evidence" **sanctioned-exception** caveat (in-place re-score that *adds*
+  a column, panel/usage preserved verbatim). The whole doc + contract + artifact set moves **together** —
+  all-adopted or (if the human reverts at the gate) all-reverted — so the merged tree is never
+  self-contradictory. (No deferral to a post-PR MAINTAIN run; a merged commit must be internally consistent.)
 - *(score.py module docstring is updated in Phase 1, same file as the code change.)*
 
 #### Deliverables
@@ -208,7 +235,7 @@ line with the implemented contract, so no doc contradicts the code or the rebase
 - [ ] `CODE_WALKTHROUGH.md` §5, the `_SUBMETRICS`/accumulator note, the never-re-score bullet, and **all `score.py:N` pointers** updated and consistent with `score.py` + the rebaselined evidence.
 - [ ] `TUTORIAL.md` reflects the adopted contract and rebaselined figures (no "misleading headline" framing).
 - [ ] Both run READMEs reflect the new contract, correct figures (tutorial Talmud = 7; first-run +1), and (first-run) the corrected cause.
-- [ ] `lessons-critical.md` + `lessons-learned.md` carry the re-score-in-place sanctioned-exception caveat; the headline-reshape governance line is left for the post-PR MAINTAIN follow-up.
+- [ ] `lessons-learned.md:28-41` + `lessons-critical.md` + `arch-critical.md` scoring lines updated **in this PR**, consistent with the PR-gate decision (the "don't reshape the headline contract" / "deferred" language is rewritten under adoption, or the whole set reverts together) + the re-score-in-place sanctioned-exception caveat — no post-PR MAINTAIN deferral.
 - [ ] `test_code_walkthrough.py` still green (its `_SUBMETRICS = {` / line anchors still resolve).
 
 #### Acceptance Criteria
@@ -237,8 +264,9 @@ line with the implemented contract, so no doc contradicts the code or the rebase
 
 ## Documentation Updates
 
-- `CODE_WALKTHROUGH.md` (§4/§5, `_SUBMETRICS`/accumulator note, never-re-score bullet) — Phase 2.
-- `runs/tutorial-2026-10-11/README.md`, `runs/first-run-2026-10-11/README.md` — Phase 2.
+- `CODE_WALKTHROUGH.md` (§5, `_SUBMETRICS`/accumulator note, the `:300-308` never-re-score/"add evidence not perturb" bullets, all `score.py:N` pointers) — Phase 2.
+- `TUTORIAL.md` (`:29`, `:94-103`) — Phase 2.
+- `runs/tutorial-2026-10-11/README.md` (headline table `:33-38` + framing, contains-exact table), `runs/first-run-2026-10-11/README.md` (stale 24%, "17 answers" cause) — Phase 2.
 - `pipelines/sacredbench/score.py` module docstring — Phase 1 (same file as code).
 - Spec 15 review records the pre-registered deltas, the rebaseline script, the judge-pilot deferral, and the headline-contract decision routed to the PR gate.
-- `arch-critical.md` scoring-contract line — candidate MAINTAIN update if the headline contract is confirmed at PR; not edited in this PR.
+- `codev/resources/lessons-learned.md` (`:28-41`), `lessons-critical.md`, `arch-critical.md` scoring lines — Phase 2, updated **in this PR** to match the PR-gate decision (whole set moves together; no post-PR MAINTAIN deferral).
