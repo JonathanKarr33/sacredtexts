@@ -1,0 +1,16 @@
+id: '15'
+title: scoring-contract-contains-exac
+protocol: aspir
+phase: specify
+plan_phases: []
+current_plan_phase: null
+gates:
+  pr:
+    status: pending
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: false
+history: []
+started_at: '2026-10-12T16:17:31.163Z'
+updated_at: '2026-10-12T16:17:31.163Z'
