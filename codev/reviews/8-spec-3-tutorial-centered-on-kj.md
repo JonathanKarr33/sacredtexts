@@ -193,7 +193,36 @@ it.
   "12 of 33" count clarity). Skipped the `skipIf`-vacuous suggestion (consistent with
   `realRun.test.ts`; the run is gitignore-negated so present in every clone/CI).
 
-No `CONSULT_ERROR` was encountered.
+### PR Review (Round 1) — ASPIR review-phase consultation on PR #9
+- **Codex**: APPROVE / HIGH — "complete, internally consistent, well-tested, ready to merge";
+  no issues.
+- **Claude**: APPROVE / HIGH — independently re-implemented `normalize()` from the spec in a
+  throwaway stdlib script and recomputed every run-README number from `answers.jsonl` /
+  `scores.jsonl`; all matched exactly (headline 66/66/47/40, contains-exact 66/74/47/52, the
+  20 zero-but-contains cells all search-on, Talmud opus-search 8/34 vs 0/34, Qur'an
+  haiku-search 24/33 vs 19/33, 226 web-search requests, panel secret-free/unpriced/`api_model`
+  present/`generated_at` ISO); branch MERGEABLE/CLEAN. Non-blocking notes:
+  - **Concern**: the `_TERMINAL_STOP` allowlist makes `pause_turn` fatal for *all* Anthropic
+    calls, so a long server-tool turn can never continue. → **N/A** (deferred follow-up): a
+    `pause_turn` continuation loop is the real fix; both reviewers signed off on fail-fast for
+    evidence integrity, and the Phase-3 smoke saw zero `pause_turn`. Added to Follow-up Items.
+  - **Concern**: marking both panel variants moves a re-scored pre-Spec-8 run's standings key
+    (`claude-haiku-5-5` → `… [no-tools]`), so it won't aggregate across the boundary. →
+    **Rebutted** (intentional): this is exactly the non-collision property AC7 requires;
+    Approach B (a dedicated viewer `tools` field) was deliberately deferred. Noted for a future
+    longitudinal standings view.
+  - **Concern**: AC10's generation-side digest guard skips when `texts/standardized/` is absent
+    (always in a fresh clone/CI). → **N/A** (accurate caveat): the *strong* re-score guard over
+    ~400 real first-run answers runs unconditionally; the generation-side half is additive. The
+    AC10 line is read with this caveat.
+  - **Concern**: repo has no CI, so the 195/125 counts are builder-reported. → **N/A**: true;
+    the gate is run locally (re-verified green at review entry). Out of this spec's scope.
+  - **Concern** (cosmetic): stale "≥3-model / ≥2-provider" code comment above `if panel:` in
+    `score.py`; brittle `"cost" not in json.dumps(summary).lower()` assertion in
+    `test_tutorial_run.py` (would false-positive on a model id containing "cost"). → **N/A**
+    (non-blocking, not re-opening an approved+gated branch): captured in Follow-up Items.
+
+No `CONSULT_ERROR` was encountered; both PR-round verdicts were APPROVE / HIGH.
 
 ## Lessons Learned
 
@@ -290,3 +319,14 @@ No flaky tests encountered.
   could in principle split a word mid-token under whole-string equality; it was 0/400 in this
   run and cannot be fixed globally without breaking Latin invariance. A per-answer scan (as
   done in Phase 3) is the pragmatic guard.
+- **`pause_turn` continuation loop (Anthropic).** The current `_TERMINAL_STOP` allowlist treats
+  a `pause_turn` as a fatal error so no partial turn is ever committed as an answer — correct
+  for evidence integrity, but it means a legitimately long server-tool turn can never complete.
+  The real fix is a continuation loop that re-issues the paused turn; deferred (zero `pause_turn`
+  observed in the Phase-3 smoke or full collect). Surfaced by the PR-round Claude consult.
+- **Cosmetic cleanups (non-blocking, not applied to the approved/gated branch).** A stale
+  "≥3-model / ≥2-provider" code comment remains above `if panel:` in `score.py` though the
+  rendered markdown header was softened; and `test_tutorial_run.py`'s
+  `"cost" not in json.dumps(summary).lower()` secret/price assertion would false-positive on a
+  model id containing the substring "cost" (the committed run's ids do not, so it is correct
+  today). Both are safe to tidy in a future touch of those files.

@@ -350,6 +350,19 @@ All 4 plan phases APPROVED; porch in review iter 1. Verified gate GREEN at revie
   wait for human `pr` gate approval (NEVER auto-approve) → porch approve → merge →
   porch done 8 --merged <N> → verify phase.
 
+### Review consult (PR #9) — BOTH APPROVE/HIGH → porch at `pr` gate (pending human approval)
+- codex APPROVE/HIGH (no issues). claude APPROVE/HIGH — independently recomputed EVERY run-README
+  number from answers/scores.jsonl, all exact match; branch MERGEABLE/CLEAN. Non-blocking notes
+  (none require re-opening): pause_turn-fatal (real fix = continuation loop; 0 seen), both-marked
+  standings key moves pre-Spec-8 re-score (= the AC7 non-collision property, intended), AC10 gen-side
+  digest skips in fresh clone (strong re-score guard still unconditional), no repo CI (counts
+  builder-reported), 2 cosmetics (stale score.py comment, brittle "cost" test assert).
+- Recorded the PR round in review Consultation Feedback + added pause_turn-loop + cosmetics to
+  Follow-up Items (doc-only; did NOT re-open the approved/gated branch). Committed + pushed.
+- 🚦 STOPPED at `pr` gate. porch status=gate_pending, gate=pr. NEVER auto-approve. Waiting for
+  explicit architect approval → then `porch approve 8 pr` (builder runs it) → merge → porch done
+  8 --merged 9 → verify phase. Notified architect.
+
 ### PR / completion
 Phases = commits in ONE PR. After Phase 4: open PR, `porch done 8 --pr <N> --branch builder/aspir-8`,
 then architect approval gate → `porch approve`, merge, `porch done 8 --merged <N>`, verify phase.
