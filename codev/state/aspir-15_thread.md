@@ -171,4 +171,83 @@ One atomic commit. Steps done:
    tutorialRun.test.ts (order opus-search/opus/haiku-search/haiku; 0.74/0.47; correct 52),
    ExplorerPage (24→25, 5 sites), LeaderboardPage (LDS 72%→76%), StandingsPage (24%→25%).
 
-Pipeline suite 301 passed/1 skip; viewer 125 passed. Next: commit atomic, run dispatcher, porch done phase_1.
+Pipeline suite 301 passed/1 skip; viewer 125 passed. Committed atomic (2e17d84) + nit fixup (142fc5c).
+Dispatcher both lanes green (exit 0). porch done phase_1 → tests ✓. Per-phase consult: codex COMMENT
+(2 nits, fixed), claude COMMENT.
+
+### phase_1 claude consult — verified everything (oracle hashes independently reproduced from 2e17d84^,
+honest diff exact: 21 flips/0 collateral, both lanes green). Two legit findings + a minor:
+- **1/21 rescued cell is a hedge**: opus-search/retrieve_quote-4ad4392645da (Ketubot 8a:8) — model's
+  PRIMARY guess is a DIFFERENT text; expected verse is its SECONDARY guess in a 2-candidate hedge (26
+  non-expected Hebrew tokens residue), now correct=1. containment has NO anti-hedge rule while
+  cite_passage/identify_source do. ~1pt on opus-search 74%. DOCUMENT as PR-gate evidence; don't let READMEs
+  overstate how clean the rescue is. (Great evidence the human asked for.)
+- **Co-Authored-By trailer**: my commits carried it; global CLAUDE.md FORBIDS it (session attribution
+  reminder defers to CLAUDE.md). DROPPING going forward; offered history cleanup before PR.
+- Minor/pre-existing: `pnpm -C apps/viewer check-types` red at tutorialRun.test.ts (not in gate).
+- (The consult's trailing "REPOSITORY MOVED 2901b78->142fc5c / don't trust before shipping" = it observed
+  my own build-complete+nit commits land during its review window; git state verified intact, benign.)
+
+### ARCHITECT re-scope (2026-10-12 ~17:14-17:19): issue #15 got a BINDING maintainer comment — 6 decisions.
+SCOPE FROZEN (human-confirmed complete; new = follow-up issues). Decisions:
+ 1. Containment = CORRECT in headline for text-retrieval (strict demoted to secondary) — DONE in phase_1.
+ 2. Refusal is an OUTCOME (correct/incorrect/refused), NOT a grader — detection runs in core outcome
+    classification, short-circuits graders; reported in scores/summary/viewer; accuracy excludes refused.
+ 3. Named GRADER framework (strict, containment, future jev) + CODE_WALKTHROUGH 'add an evaluator' recipe.
+ 4. Viewer surfaces search-on/off contrast without a README.
+ 5. `score --evaluator` CLI (comma-sep/repeatable; default=deterministic graders; unknown fail-fast; paid
+    never default).
+ 6. TUTORIAL grader sentence + recipe shows name-selectability.
+ + #21 SEAM CONSTRAINT: a future PAID, explicitly-invoked, resumable Jev judge (separate PASS, merges
+   verdict+prob metrics into scores.jsonl) must be EXPRESSIBLE — don't build it; seam must not assume
+   evaluators are free/local/synchronous. Keep seam minimal.
+Architect approved: TWO rebaselines (p1 done + refused=2nd), ONE PR, rollback-to-plan + re-plan autonomously.
+
+### APPROVED re-plan shape (p1 done):
+ p1 Containment headline + rebaseline — DONE.
+ p2 Grader seam + `score --evaluator` CLI — refactor strict/containment into named selectable graders;
+    default set, unknown fail-fast, paid-never-default, SEPARATE-PASS expressible (for #21). PURE refactor,
+    byte-identical scores.jsonl (NO rebaseline).
+ p3 Refused OUTCOME layer wrapping graders — deterministic refusal detection short-circuits graders; add
+    `outcome` ∈ {correct,incorrect,refused} to scores.jsonl; 3-outcome counts in summary; accuracy =
+    correct/(correct+incorrect). = the 2nd deliberate rebaseline.
+ p4 Viewer — 3 outcomes (refused status+filter in explorer, refused visible in leaderboard) + search-on/off
+    contrast visible without README.
+ p5 Docs — TUTORIAL grader sentence + score step, CODE_WALKTHROUGH 'add a grader' recipe, run READMEs
+    (incl. the 1/21 hedge caveat), lessons/arch governance (headline now DECIDED, no PR-gate conditional).
+
+### REBASELINE SCRIPT (p1) — the only path to re-derive summaries (consult-flagged as unsaved). Kept here:
+```python
+# scratchpad/rebaseline_15.py — Spec 15 p1 one-shot rebaseline.
+# Re-score committed answers in place: adds contains_reference + adopted headline, preserves panel/usage.
+# Roster derived from each committed summary's OWN expected_n (reproduces expected_n/missing exactly);
+# panel fed back VERBATIM from committed summary (prices absent -> unpriced); writer matches CLI
+# (json.dump indent=1 + trailing newline; summary_markdown for .md). Run:
+#   uv --project pipelines run python scratchpad/rebaseline_15.py
+import json, sys; from pathlib import Path
+sys.path.insert(0, "pipelines")
+from sacredbench import generate as gen
+from sacredbench.score import score_file, summary_markdown
+from sacredbench.cli import load_questions
+for run in ["first-run-2026-10-11", "tutorial-2026-10-11"]:
+    rd = Path("runs") / run
+    committed = json.loads((rd / "summary.json").read_text("utf-8"))
+    expected = {(mid, task): cell["expected_n"]
+                for mid, tasks in committed["models"].items()
+                for task, cell in tasks.items() if task != "_overall" and "expected_n" in cell}
+    expected_tradition = {(mid, trad, task): cell["expected_n"]
+                for mid, trads in committed.get("by_tradition", {}).items()
+                for trad, tasks in trads.items()
+                for task, cell in tasks.items() if task != "_overall" and "expected_n" in cell}
+    panel = committed.get("panel")           # verbatim; prices absent -> unpriced
+    digest = gen.question_set_digest(load_questions(rd / "questions.jsonl"))
+    summary = score_file(rd / "answers.jsonl", rd / "scores.jsonl",
+                         expected or None, expected_tradition or None, panel, expected_digest=digest)
+    with open(rd / "summary.json", "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=1); f.write("\n")
+    (rd / "summary.md").write_text(summary_markdown(summary), "utf-8")
+```
+NOTE for p3's 2nd rebaseline: this same script re-runs cleanly once the outcome/refused layer lands
+(score_file will then also emit the outcome field); re-capture a fresh pre-change oracle hash before it.
+
+Next: porch rollback 15 plan → re-spec (in place, scope frozen) → re-plan p1-p5 → re-consult → re-advance.
