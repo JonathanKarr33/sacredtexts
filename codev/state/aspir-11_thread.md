@@ -318,3 +318,10 @@ P3 grep + name survivors (TUTORIAL.md:144 config, models.example.yaml, Spec-8 ar
       Updated review doc (AC6, Deviations+integration, Consultation Feedback +Review PR-consult round,
       Challenges, Architecture Updates, Follow-up — Issue #7 now RESOLVED/integrated). aspir-15 (#15) still
       NOT on main. NEXT: commit arch.md+review+thread, push PR #22, porch rebuttal→re-consult, ping architect.
+- [x] Committed integration (merge e6cd2cf + reconcile 0271275 + PR-consult outputs + rebuttal).
+      Pushed builder/aspir-11. PR #22 now **MERGEABLE / CLEAN** (was CONFLICTING/DIRTY), 43 commits.
+      porch: rebuttal done → review checks green (pr_exists/arch/lessons/e2e) → advanced to **pr GATE**
+      (human approval; porch did NOT re-run the PR consult — the pr gate IS the re-verify checkpoint,
+      matching the architect's "I'll re-verify the integrated branch before the merge ask"). WAITING on
+      architect to approve the pr gate. I will NOT `porch approve` myself (builder rule + user scar).
+      Pinged architect for re-verify.
