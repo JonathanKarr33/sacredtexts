@@ -112,7 +112,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter3-claude.txt
 started_at: '2026-10-12T16:17:31.163Z'
-updated_at: '2026-10-12T21:00:34.515Z'
+updated_at: '2026-10-12T21:07:48.499Z'
 pr_ready_for_human: false
 force_advanced:
   phase: phase_5
@@ -139,3 +139,8 @@ context_refreshes:
   - boundary: enter:review
     at: '2026-10-12T21:00:03.431Z'
     acknowledged_at: '2026-10-12T21:00:34.515Z'
+pr_history:
+  - phase: review
+    pr_number: 24
+    branch: builder/aspir-15
+    created_at: '2026-10-12T21:07:48.498Z'
