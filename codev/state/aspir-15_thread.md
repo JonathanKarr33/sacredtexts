@@ -474,3 +474,12 @@ Both lanes green. Next: commit → porch done → per-phase consult (codex+claud
   keyed on provider\u0000base (standings identity), base kept for display.
 134 viewer tests pass, check-types 0 errors. iter1 rebuttal written. Deferred (phase_5): from-memory
 caveat, #23 verify_source gate, #21 jev seam, architect's 2 panel-summary edits.
+
+### phase_4 consult iter2 — BOTH APPROVE (codex: none; claude: none blocking). phase_4 DONE.
+Non-blocking minors recorded (not chased — double-APPROVE, proportionality):
+- claude: `result=incorrect` filter = "not correct" (includes refused); could relabel "not correct".
+  Defensible as-is (the legend + the dedicated failure-mode select + the refused count make it clear).
+- claude: ExplorerPage mode=refused test's getAllByText("refused") is satisfied by option+legend
+  (QuestionList unit test covers the actual badge) — redundant but harmless.
+- claude: standings coverage column lacks a render test; searchContrast would overwrite a duplicate
+  (provider,base,arm) — unrealistic edge. Candidate follow-ups if a reviewer wants them later.
