@@ -334,7 +334,7 @@ def score(
                 for trad in q.source.get("tradition", []) or []:
                     k = (m.id, trad, q.task)
                     expected_tradition[k] = expected_tradition.get(k, 0) + 1
-        # panel snapshot for the committed artifact (no secrets: provider/model/host only)
+        # panel snapshot for the committed artifact (no secrets: provider/model/tools/host only)
         default_host = {"anthropic": "api.anthropic.com", "openai": "api.openai.com",
                         "gemini": "generativelanguage.googleapis.com"}
         panel = {}

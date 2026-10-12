@@ -413,7 +413,7 @@ def score_file(
     summary["usage"] = {"per_model": per_model_usage, "total": total}
 
     # Panel composition, so the ≥3-model / ≥2-provider bar is checkable from the
-    # committed artifact itself (no secrets — provider, model and endpoint host only).
+    # committed artifact itself (no secrets — provider, model, tools and endpoint host only).
     # Only emitted when a run config was supplied: without it there is no provider/
     # endpoint to prove, and a table of blanks under a "proof" heading would mislead.
     if panel:

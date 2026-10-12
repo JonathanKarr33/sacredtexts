@@ -275,8 +275,27 @@ def test_panel_tools_field_distinguishes_arms_and_dedupes_bare_model(tmp_path):
     assert "| tools |" in panel_md  # header carries the column
     search_row = next(ln for ln in panel_md.splitlines() if ln.startswith("| haiku-search |"))
     notools_row = next(ln for ln in panel_md.splitlines() if ln.startswith("| haiku |"))
-    assert "web_search" in search_row
-    assert "web_search" not in notools_row and "| — |" in notools_row
+    # tools is the 4th cell: model_id | provider | model | tools | endpoint | served_by —
+    # assert that exact cell (not a loose substring: served_by is also '—')
+    assert search_row.split("|")[4].strip() == "web_search"
+    assert notools_row.split("|")[4].strip() == "—"
+
+
+def test_synthesised_panel_entry_defaults_tools_empty(tmp_path):
+    """A model present in usage (an answer row) but absent from the panel gets a SYNTHESISED
+    panel entry (score.py's `set(usage) | set(panel)` path). Its tools must default to [] so
+    every emitted entry has the field and keys like a no-tools run."""
+    answers = tmp_path / "answers.jsonl"
+    rows = [_answer("retrieve_quote-0", "opus", "claude-opus-5"),
+            _answer("retrieve_quote-1", "ghost", "claude-haiku-5-5")]  # "ghost" not in panel
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    panel = {"opus": {"provider": "anthropic", "model": "claude-opus-5",
+                      "tools": ["web_search"], "endpoint": "api.anthropic.com"}}
+    summary = score_file(answers, tmp_path / "scores.jsonl", panel=panel)
+    g = summary["panel"]["ghost"]
+    assert g["tools"] == []  # synthesised default, not missing/None
+    assert g["model"] == "claude-haiku-5-5"  # recovered from usage
+    assert set(g) == {"provider", "model", "tools", "endpoint", "served_by"}
 
 
 def test_cli_score_panel_emits_tools_field_and_raw_model(tmp_path, monkeypatch):
@@ -316,6 +335,10 @@ def test_cli_score_panel_emits_tools_field_and_raw_model(tmp_path, monkeypatch):
     # raw model, a real tools list, api_model gone — the Approach-B shape from cli.py
     assert panel["haiku-search"]["model"] == "claude-haiku-5-5"
     assert panel["haiku-search"]["tools"] == ["web_search"] and panel["haiku"]["tools"] == []
-    assert "api_model" not in panel["haiku-search"] and "api_model" not in panel["haiku"]
+    # exact written key-set (==, not subset): proves cli.py's in-memory price_in/price_out are
+    # stripped by score.py and api_model is gone — asserted here because this is the only path
+    # that actually carries price fields into the build.
+    for mid in ("haiku-search", "haiku"):
+        assert set(panel[mid]) == {"provider", "model", "tools", "endpoint", "served_by"}
     blob = json.dumps(panel)
     assert "[no-tools]" not in blob and "[web_search]" not in blob  # no leftover marker
