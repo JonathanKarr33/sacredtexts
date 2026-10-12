@@ -241,27 +241,57 @@ loop (`generate.py:246`).
 Scoring lives in `pipelines/sacredbench/score.py`. Every answer gets **both tiers
 plus similarity**, and each task declares which sub-metrics it reports:
 
-- The per-answer scorer is `score_answer()` (`pipelines/sacredbench/score.py:201`) —
-  a branch per task returning its metrics dict, including the headline `correct`.
-- The reported sub-metrics per task are `_SUBMETRICS` (`score.py:108`):
-  `exact` / `normalized` / `token_f1`.
-- The **per-task headline `correct` rules** are documented in the module docstring
-  (`score.py:1`) and implemented in `score_answer`: e.g. `retrieve_quote` /
-  `complete_unit` use a `normalized` match, `identify_version` requires the answer to
-  *be* the version label, and `cite_passage` / `identify_source` require the single
-  extracted citation to equal ground truth (a multi-candidate hedge scores 0, via
-  `_single_citation_correct`, `score.py:183`).
+- The per-answer scorer is `score_answer()` (`pipelines/sacredbench/score.py:225`) —
+  a branch per task returning its metrics dict, including the headline `correct` and
+  (Spec 15) an `outcome` ∈ `correct` / `incorrect` / `refused`.
+- `_SUBMETRICS` (`score.py:128`) fixes the sub-metrics for the NON-graded tasks
+  (`identify_version`). The text-retrieval tasks (`retrieve_quote` / `complete_unit`)
+  derive their sub-metric set from the **selected graders** instead
+  (`graders.submetrics_for`, `graders.py:111`), so `--evaluator strict` emits only
+  `exact`/`normalized` and `--evaluator containment` only `contains_reference`; `token_f1`
+  is always-on.
+- The **per-task headline `correct` rules** are in the module docstring (`score.py:1`) and
+  `score_answer`: `retrieve_quote` / `complete_unit` = the OR of the selected graders'
+  verdicts (default `normalized OR contains_reference`), `identify_version` requires the
+  answer to *be* the version label, and `cite_passage` / `identify_source` require the
+  single extracted citation to equal ground truth (a multi-candidate hedge scores 0, via
+  `_single_citation_correct`, `score.py:207`).
+- **Refusal is an OUTCOME, not a grader** (`_with_outcome`, `score.py:288`): a declined
+  cell short-circuits the headline (`correct` → 0) and is reported `refused`, excluded from
+  accuracy (`accuracy = correct/(correct+incorrect)`; coverage reports how often it answered).
 
-Your new task adds a branch to `score_answer` and (if it reports similarity metrics)
-a line to `_SUBMETRICS`.
+Your new task adds a branch to `score_answer`. Adding a selectable **grader** is a different
+extension — see the recipe just below.
+
+### 2a. Adding an evaluator (a named grader)
+
+A *grader* decides correct-vs-incorrect for the text-retrieval tasks and owns a set of
+reported metric fields; graders are selectable by name on `score --evaluator`. To add one:
+
+1. Register it in `GRADERS` (`pipelines/sacredbench/graders.py:49`) as a `Grader`
+   (`graders.py:33`): its `name`, the `metric_keys` it owns, and a `verdict(metrics) -> bool`.
+   An **inline** grader may own only keys `score_answer` already computes (the canonical
+   primitives `exact`/`normalized`/`token_f1`/`contains_reference`) — enforced at import, so a
+   stray key fails loudly rather than being silently dropped.
+2. Nothing else for an inline grader: `resolve_evaluators` (`graders.py:86`) and
+   `submetrics_for` (`graders.py:111`) pick it up, `score_answer` emits the selected graders'
+   fields, and the headline becomes the OR of the selected verdicts. Add it to the default set
+   with `default=True`.
+3. A **paid / separate-pass** grader (the future Jev judge, issue #21) is a descriptor with
+   `inline=False` and **no verdict callable**: `score` never runs it inline (selecting it fails
+   fast), and a later resumable pass merges its declared `metric_keys` into each row's metrics
+   map. The seam is deliberately minimal — do not assume evaluators are free/local/synchronous.
+
+Do **not** make refusal a grader — it is an outcome (`_with_outcome`) that short-circuits
+whichever graders run.
 
 ### 3. `normalize()` and why Latin byte-invariance is load-bearing
 
-The matching backbone is `normalize()` (`pipelines/sacredbench/score.py:115`). Order
+The matching backbone is `normalize()` (`pipelines/sacredbench/score.py:133`). Order
 matters and is **not** to be reshuffled:
 
 1. NFKD + unicode quote/dash folding;
-2. `strip_script_marks()` (`score.py:87`) — **script-scoped**: it deletes
+2. `strip_script_marks()` (`score.py:105`) — **script-scoped**: it deletes
    Arabic/Hebrew combining marks (category `Mn`) and a small set of editorial code
    points *only within the RTL Unicode blocks*, and folds alef-wasla → bare alef and
    maqaf → space, so vocalised ↔ unvocalised scripture compares equal;
@@ -269,7 +299,7 @@ matters and is **not** to be reshuffled:
 
 Step 2 runs **before** the punctuation pass so marks are removed, not turned into
 word splits. Critically, the RTL blocks are script-scoped so **Latin (and every
-other script) is byte-for-byte unchanged** — read the long comment at `score.py:60`.
+other script) is byte-for-byte unchanged** — read the long comment at `score.py:77`.
 This invariance is load-bearing because the committed English `first-run-2026-10-11`
 evidence was scored under the old `normalize()`; the regression test
 `test_rescoring_committed_run_reproduces_scores`
@@ -285,9 +315,9 @@ Latin scoring over ~400 real answers. Don't route around it.
 | Concern | Where |
 |---|---|
 | Generation (template + eligibility) | `generate.py` — `TASKS` (`generate.py:48`), `_build` (`generate.py:102`) |
-| Per-task scoring rule | `score.py` — `score_answer` (`score.py:201`), `_SUBMETRICS` (`score.py:108`) |
-| Summary rollup + per-tradition breakdown | `score.py` — `score_file` (`score.py:235`), `summary_markdown` (`score.py:452`) |
-| Viewer explorer filters | `apps/viewer/src/lib/explorer.ts` — `explorerTasks` (`explorer.ts:46`), `filterQuestions` (`explorer.ts:35`) |
+| Per-task scoring rule | `score.py` — `score_answer` (`score.py:225`), graders (`graders.py:49`), `_SUBMETRICS` (`score.py:128`) |
+| Summary rollup + per-tradition breakdown | `score.py` — `score_file` (`score.py:344`), `summary_markdown` (`score.py:605`) |
+| Viewer explorer filters | `apps/viewer/src/lib/explorer.ts` — `explorerTasks` (`explorer.ts:52`), `filterQuestions` (`explorer.ts:40`) |
 
 The summary and the viewer are mostly task-generic — `score_file` keys its
 accumulators on `(model_id, task)` and the tradition breakdown counts each
@@ -307,13 +337,25 @@ read [`apps/viewer/README.md`](apps/viewer/README.md) before touching it.
   that a scoring change did not disturb committed numbers. A new task should *add*
   evidence, not perturb the old.
 
+  **Sanctioned exception:** a deliberate scoring-contract change (e.g. Spec 15's
+  containment headline and refused outcome) *does* reshape committed `scores.jsonl`, so
+  the byte guards are rebaselined **on purpose, once, with evidence** — a durable
+  projection-SHA oracle + an exact pre-registered flip/refused set
+  (`test_contains_reference_rebaseline.py`) witnesses that only the intended fields moved.
+  That is the *only* reason to regenerate committed evidence; a keyless re-score is still the
+  scar. Surface the moved numbers to the architect before writing the prose.
+
 ### 5. The pluggable semantic-metric slot (an open working-group question)
 
-`token_f1` (`pipelines/sacredbench/score.py:126`) is explicitly the **v1 semantic
+`token_f1` (`pipelines/sacredbench/score.py:144`) is explicitly the **v1 semantic
 stand-in** — the module docstring (`score.py:1`) flags that embedding- or
 judge-based semantic scoring is a later, pluggable metric. If you are adding an
 evaluation that needs semantic similarity, this is the designated slot; it is an open
-group question, not a settled interface.
+group question, not a settled interface. A judge-based semantic grader is expected to
+arrive as the **separate-pass grader seam** (issue #21) described in the "Adding an
+evaluator" recipe above — `inline=False`, no inline verdict, merged by its own resumable
+pass — precisely because it would be paid and non-local, which the inline grader path
+assumes away.
 
 A worked caution lives in the committed tutorial run
 ([`runs/tutorial-2026-10-11/README.md`](runs/tutorial-2026-10-11/README.md)): the
@@ -331,7 +373,7 @@ must keep all of them:
 - **Question-set digest stamping.** `collect` stamps the digest into every answer row
   (`collect.py:84`, written at `collect.py:129`) and refuses to resume an
   `answers.jsonl` built for a different question set; `score` refuses a file that
-  mixes digests or whose digest does not match `--questions` (`score.py:266`).
+  mixes digests or whose digest does not match `--questions` (`score.py:394`).
 - **Panel fingerprints — including tool-use identity.** A model cell's identity is
   `_panel_fingerprint()` (`pipelines/sacredbench/collect.py:32`), which includes its
   `tools`, so a web-search-on cell can never be resumed as web-search-off. The same

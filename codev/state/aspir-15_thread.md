@@ -483,3 +483,22 @@ Non-blocking minors recorded (not chased — double-APPROVE, proportionality):
   (QuestionList unit test covers the actual badge) — redundant but harmless.
 - claude: standings coverage column lacks a render test; searchContrast would overwrite a duplicate
   (provider,base,arm) — unrealistic edge. Candidate follow-ups if a reviewer wants them later.
+
+## 2026-10-12 — Implement phase_5 (Documentation sync) — DONE (pre-consult)
+Docs-only (one score.py docstring/comment change — no behavior, byte guards unaffected).
+- Panel summaries + TUTORIAL + run READMEs: committed 3dbca33 (prior).
+- CODE_WALKTHROUGH.md: added §2a "Adding an evaluator (named grader)" recipe (register in GRADERS →
+  selectable via --evaluator; inline vs separate-pass/paid #21 seam; refusal-is-an-outcome-not-a-grader);
+  _SUBMETRICS note now selection-derived; §4 table + §5 updated; "Must NOT touch" gains the SANCTIONED
+  rebaseline exception; #21 jev seam in §5. RE-DERIVED ALL score.py:N pointers (code grew ~+134 lines
+  across phases → every pointer drifted; test only checks in-range so they were silently stale). Verified
+  225=score_answer, 105=strip_script_marks, 605=summary_markdown, 128=_SUBMETRICS, 77/133/144/207/288/344/394.
+  test_code_walkthrough 100 pass.
+- Governance: lessons-learned.md (refused-outcome + coverage; containment headline ADOPTED not
+  report-on-side; contains_reference shipped not deferred; sanctioned-rebaseline lesson; porch
+  rollback-replay + force-advance quirk under Process/SPIR). lessons-critical.md + arch-critical.md HOT
+  tiers updated in place (cap-respecting): scoring fact now names graders/outcome/coverage + #23 gate +
+  sanctioned rebaseline; never-re-score lesson gains the exception + the porch quirk.
+- score.py module docstring: +outcome metric, +grader-selected headline note, verify_source gap → #23.
+Dispatcher 345 pass/1 skip, both lanes. REMAINING: review doc codev/reviews/15-*.md (ASPIR review phase),
+Co-Authored-By history strip (backup branch first), PR. Next: commit → porch done → phase_5 consult.

@@ -17,11 +17,19 @@ Metrics emitted per answer:
                   correct-but-wrapped retrieval (bracketed quote + a citation/caveat) that
                   strict ``normalized`` scores 0. A strict superset of ``normalized``.
 - ``correct``     the per-task headline judgment (see below)
+- ``outcome``     (Spec 15) ``correct`` / ``incorrect`` / ``refused`` — a declined answer is
+                  ``refused`` (``correct`` forced 0) and EXCLUDED from accuracy; see
+                  ``_with_outcome`` and ``outcomes.classify_refusal``. Accuracy is then
+                  ``correct/(correct+incorrect)`` and ``score_file`` reports ``coverage`` beside it.
+
+For the text-retrieval tasks the reported sub-metrics and the headline are set by the SELECTED
+graders (``graders.py``, chosen via ``score --evaluator``; default ``strict`` + ``containment``).
 
 Per-task headline rule (the spec's contract — designed to resist evasive answers so
 that containment alone cannot game provenance honesty, within the SCOPE noted below):
 
-- retrieve_quote / complete_unit : ``normalized`` OR ``contains_reference`` (Spec 15: a
+- retrieve_quote / complete_unit : OR of the selected graders' verdicts — default
+                                   ``normalized`` OR ``contains_reference`` (Spec 15: a
                                    verbatim quote wrapped in brackets/notes IS a correct
                                    retrieval; exact + token-F1 reported alongside).
                                    Containment is confined to these two text-retrieval
@@ -44,7 +52,9 @@ reported number; tracked for the Spec 2 scoring-contract revision):
   is substring containment — both are gameable by negation ("it is NOT from X");
   since every corpus embeds the work in the citation, the work check collapses into
   the citation check. These tasks must be hardened before any verify_source /
-  identify_source number is reported.
+  identify_source number is reported — tracked as **issue #23 (PAPER GATE)**. (A leading
+  decline on verify_source is already classified ``refused`` by the outcome layer; the gap
+  is negation-evasion on a NON-declining answer, which no committed run exercises.)
 """
 
 from __future__ import annotations
