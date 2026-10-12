@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { loadRun } from "../lib/localResults";
 import { aggregate, type RunSummary } from "../lib/aggregate";
-import { leaderboardRows, traditionRows, hasTraditionData } from "../lib/leaderboard";
+import { leaderboardRows, traditionRows, hasTraditionData, searchContrast } from "../lib/leaderboard";
 import { modelQuestions, questionStats, filterQuestions, explorerTraditions } from "../lib/explorer";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -118,8 +118,8 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(rows.map((r) => r.modelId)).toEqual(["opus", "opus-search", "haiku-search", "haiku"]);
     const acc = rows.map((r) => r.overall?.accuracy ?? -1);
     expect(acc).toEqual([...acc].sort((a, b) => b - a)); // non-increasing
-    expect(rows[0].overall?.accuracy).toBeCloseTo(1.0, 5);
-    expect(rows[3].overall?.accuracy).toBeCloseTo(0.7121, 4);
+    expect(rows[0]!.overall?.accuracy).toBeCloseTo(1.0, 5);
+    expect(rows[3]!.overall?.accuracy).toBeCloseTo(0.7121, 4);
     // Each row carries its per-model token totals (the leaderboard's token column).
     expect(rows.every((r) => r.tokens && r.tokens.calls === 100)).toBe(true);
 
@@ -150,10 +150,32 @@ describe.skipIf(!present)("committed tutorial run renders through the viewer", (
     expect(stats.total).toBe(100);
     expect(stats.missing).toBe(0);
     expect(stats.correct).toBe(52);
-    expect(stats.correct + stats.wrong + stats.missing).toBe(100);
+    // Spec 15 phase 3: the 35 declines are now `refused`, split out of `wrong` (52+13+35+0 = 100)
+    expect(stats.refused).toBe(35);
+    expect(stats.wrong).toBe(13);
+    expect(stats.correct + stats.wrong + stats.refused + stats.missing).toBe(100);
 
     // The tradition filter composes: all three traditions present, Sunni Islam is 33 of them.
     expect(explorerTraditions(hs)).toEqual(["Judaism", "Protestant Christian", "Sunni Islam"]);
     expect(filterQuestions(hs, { tradition: "Sunni Islam" })).toHaveLength(33);
+  });
+
+  it("surfaces the search-on/off contrast as paired base models (the tutorial has pairs)", async () => {
+    const base = "/runs/tutorial-2026-10-11";
+    const run = await loadRun(base, diskFetcher(tutorialDir, base));
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+
+    const pairs = searchContrast(run.summary);
+    expect(pairs.map((p) => p.base)).toEqual(["claude-haiku-5-5", "claude-opus-5-5"]);
+    const haiku = pairs.find((p) => p.base === "claude-haiku-5-5")!;
+    expect([haiku.off.modelId, haiku.on.modelId]).toEqual(["haiku", "haiku-search"]);
+    // search lifts haiku's accuracy (71% → 80%)
+    expect(haiku.on.overall!.accuracy!).toBeGreaterThan(haiku.off.overall!.accuracy!);
+    // opus: search trades a little accuracy (100% → 97%) for more coverage (66% → 76%) — exactly the
+    // story coverage exists to tell, now visible from the paired rows without a README.
+    const opus = pairs.find((p) => p.base === "claude-opus-5-5")!;
+    expect(opus.off.overall!.accuracy!).toBeGreaterThan(opus.on.overall!.accuracy!);
+    expect(opus.on.overall!.coverage!).toBeGreaterThan(opus.off.overall!.coverage!);
   });
 });

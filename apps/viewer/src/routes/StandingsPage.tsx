@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CenteredSpinner } from "../components/Loading";
-import { formatCell, loadSummary } from "../lib/localResults";
+import { formatCell, formatCoverage, loadSummary } from "../lib/localResults";
 import { fetchRunIndex } from "../lib/runIndex";
 import { aggregate, type RunSummary } from "../lib/aggregate";
 
@@ -114,6 +114,7 @@ export function StandingsPage() {
                 <th key={t} className="py-1 pr-4">{t}</th>
               ))}
               <th className="py-1 pr-4">overall</th>
+              <th className="py-1 pr-4">coverage</th>
               <th className="py-1 pr-4">from run</th>
             </tr>
           </thead>
@@ -136,6 +137,7 @@ export function StandingsPage() {
                   <td key={t} className="py-1 pr-4">{formatCell(row.byTask[t])}</td>
                 ))}
                 <td className="py-1 pr-4 font-semibold">{formatCell(row.overall)}</td>
+                <td className="py-1 pr-4 font-semibold">{formatCoverage(row.overall)}</td>
                 <td className="py-1 pr-4 text-default-500">
                   <Link to="/" search={{ run: row.runId }} className="underline decoration-dotted">
                     {row.runId}

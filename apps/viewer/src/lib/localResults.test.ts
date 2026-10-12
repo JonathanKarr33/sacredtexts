@@ -6,6 +6,7 @@ import {
   parseJsonl,
   parseSummary,
   formatCell,
+  formatCoverage,
   type AnswerRow,
   type QuestionRow,
   type ScoreRow,
@@ -74,6 +75,15 @@ describe("localResults lib", () => {
     expect(formatCell({ n: 0, accuracy: null, expected_n: 100, missing: 100 })).toBe("n/a (miss 100)");
     expect(formatCell({ n: 0, accuracy: null, missing: 3 })).toBe("n/a (miss 3)");
     expect(formatCell(undefined)).toBe("—");
+    // Spec 15: an all-refused cell (null accuracy, n>0) keeps n + the refused count (not bare "n/a")
+    expect(formatCell({ n: 34, accuracy: null, coverage: 0, refused: 34 })).toBe("n/a (n=34; refused 34)");
+  });
+
+  it("formats the coverage cell (Spec 15 phase 3)", () => {
+    expect(formatCoverage({ n: 100, accuracy: 0.97, coverage: 0.76, refused: 24 })).toBe("76% (24 refused)");
+    expect(formatCoverage({ n: 100, accuracy: 0.0, coverage: 1.0, refused: 0 })).toBe("100%");
+    expect(formatCoverage({ n: 10, accuracy: 0.5 })).toBe("—"); // pre-phase-3 cell: no coverage
+    expect(formatCoverage(undefined)).toBe("—");
   });
 
   it("loadRun fetches + parses all four artifacts from a base path", async () => {

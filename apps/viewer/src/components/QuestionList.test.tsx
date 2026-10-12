@@ -10,6 +10,7 @@ function q(partial: Partial<QuestionResult>): QuestionResult {
     task: "retrieve_quote",
     correct: false,
     missing: false,
+    refused: false,
     prompt: "the prompt",
     answer: "the answer",
     expected: "the expected",

@@ -215,5 +215,7 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
     // the LDS cell for claude-haiku now 95% (Spec 15 phase 3: accuracy excludes refusals — of 25
     // LDS cells, 5 refused, 19 correct, 1 incorrect → 19/20 graded; n stays the answered count 25)
     expect(screen.getAllByText("95% (n=25)").length).toBeGreaterThan(0);
+    // the new coverage column renders beside accuracy (claude-haiku: 45% answered, 55 refused)
+    expect(screen.getAllByText("45% (55 refused)").length).toBeGreaterThan(0);
   });
 });

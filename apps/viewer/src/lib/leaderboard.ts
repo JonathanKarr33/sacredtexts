@@ -40,6 +40,46 @@ export function leaderboardRows(summary: Summary): { tasks: string[]; rows: Lead
   return { tasks, rows };
 }
 
+/** A search-on/off contrast pair (Spec 15 phase 3): two panel arms of the SAME base model, one
+ * run with `[web_search]` and one `[no-tools]`, so the tool-use effect is visible without a README.
+ * Only emitted when both arms are present. */
+export interface ContrastPair {
+  /** The base model name with the `[web_search]`/`[no-tools]` marker stripped. */
+  base: string;
+  on: LeaderboardRow;
+  off: LeaderboardRow;
+}
+
+/** Pair the panel's models by base name to surface the search-on vs search-off contrast. The only
+ * on/off signal is the `[web_search]`/`[no-tools]` marker on `panel[id].model` (PanelEntry has no
+ * api_model). Returns [] when the run has no `panel` (e.g. first-run) or no complete pair — the
+ * no-pair fallback, so the affordance degrades gracefully instead of inventing a contrast. */
+export function searchContrast(summary: Summary): ContrastPair[] {
+  const panel = summary.panel;
+  if (!panel) return [];
+  const rowByModel = new Map(leaderboardRows(summary).rows.map((r) => [r.modelId, r]));
+  const partial = new Map<string, { on?: LeaderboardRow; off?: LeaderboardRow }>();
+  for (const [modelId, entry] of Object.entries(panel)) {
+    const row = rowByModel.get(modelId);
+    if (!row) continue;
+    const m = entry.model;
+    const arm: "on" | "off" | null = m.includes("[web_search]")
+      ? "on"
+      : m.includes("[no-tools]")
+        ? "off"
+        : null;
+    if (!arm) continue; // no tools marker → not part of an on/off contrast
+    const base = m.replace(/\s*\[(web_search|no-tools)\]\s*/g, " ").trim();
+    const slot = partial.get(base) ?? {};
+    slot[arm] = row;
+    partial.set(base, slot);
+  }
+  const out: ContrastPair[] = [];
+  for (const [base, { on, off }] of partial) if (on && off) out.push({ base, on, off });
+  out.sort((a, b) => (a.base < b.base ? -1 : a.base > b.base ? 1 : 0));
+  return out;
+}
+
 export interface TraditionRow {
   modelId: string;
   tradition: string;

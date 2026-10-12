@@ -424,3 +424,42 @@ Tests: all 4 reviewer cases. 338 pipeline + viewer green. iter3 rebuttal written
 NOTE: phase_3 has now run 3 consult rounds, all centered on verify_source — which has ZERO committed
 evidence and is a documented pre-existing deferred gap. If iter4 still RC's on verify_source hardening,
 escalate to architect (out-of-scope churn).
+
+### phase_3 COMPLETE — porch FORCE-ADVANCED at the 3-iteration safety ceiling (258db2d)
+status.yaml: force_advanced{phase:phase_3, iteration:3, max_iterations:3, rebuttal_file:iter3-rebuttals}.
+iter1 codex+claude RC → iter2 codex RC/claude COMMENT → iter3 codex RC/claude COMMENT. porch's ceiling
+auto-advanced to phase_4 with the iter3 rebuttal as the dispositive response. NOT a circumvention —
+porch's designed safety mechanism.
+**Residual codex RC = the DEFERRED verify_source negation-evasion gap** (a NON-declining verify_source
+answer that evades via negation without a Yes/No verdict is still gameable by the first-token parser).
+This is: (a) documented pre-existing in score.py's module docstring ("must be hardened before any
+verify_source number is reported"), (b) ZERO committed evidence (both runs retrieve_quote-only),
+(c) out of phase_3 scope (phase_3 = the refused OUTCOME). All phase_3 DELIVERABLES met: refused outcome
++ coverage + 2nd rebaseline; verify_source DECLINES are robustly refused via the decline cue.
+claude APPROVED (COMMENT) all three iters. phase-1 oracle + flip set byte-unchanged throughout.
+Now at phase_4 (viewer: 4 outcome categories + coverage + search-on/off contrast). Context-refresh at
+the phase_3→phase_4 boundary was auto-acknowledged by porch (a0739b8).
+
+### Architect disposition (19:58): verify_source gap AGREED out-of-scope → filed as ISSUE #23
+"PAPER GATE: harden verify_source before any verify_source number is reported." MUST reference #23 in
+the phase_5 review doc's deferred list (alongside #21 jev-judge seam). Architect cleared phase_4.
+
+## 2026-10-12 — Implement phase_4 (Viewer: 4 outcome categories + coverage + search contrast) — DONE (pre-consult)
+Viewer-only (no runs/ or pipelines/ change). Data flows from the 2nd-rebaselined summary.json/scores.jsonl.
+- localResults.ts: Cell +coverage/correct/incorrect/refused/refused_rate/contains_reference; ScoreMetrics
+  +outcome; QuestionResult +refused (from metrics.outcome); formatCell now keeps n+refused on an
+  all-refused (null-accuracy, n>0) cell (claude's phase_4 note fixed); new formatCoverage.
+- explorer.ts: FOUR categories — FailureMode +refused; failureMode checks missing→refused→wrong;
+  questionStats +refused; filterQuestions composes via failureMode (mode=refused works unchanged).
+- router.tsx: mode validator accepts "refused". ExplorerFilters.tsx: +refused option. ExplorerPage.tsx:
+  stats line +refused + legend.
+- leaderboard.ts: searchContrast(summary) pairs on/off arms by stripping [web_search]/[no-tools] from
+  panel.model → base; returns [] with no panel (first-run no-pair fallback). ContrastPair type.
+- LeaderboardTable.tsx: coverage column (equal weight, font-semibold) + one-sentence accuracy/coverage
+  explanation + a "Search on vs off" contrast section (per-base off/on acc+cov + Δaccuracy).
+- StandingsPage.tsx: coverage column (values already moved via summary.json).
+- Tests (130 viewer pass, +5): explorer 4-category+refused filter; formatCoverage + all-refused formatCell;
+  searchContrast pairing + no-panel fallback; tutorial contrast (haiku +9pt; opus trades acc for coverage —
+  the coverage story); first-run no-contrast + refused present; LeaderboardPage coverage-column render.
+- check-types 0 errors (fixed the 2 pre-existing tutorialRun rows[0]/rows[3] array-access reds too).
+Both lanes green. Next: commit → porch done → per-phase consult (codex+claude) → phase_5 (docs).
