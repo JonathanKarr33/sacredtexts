@@ -43,3 +43,7 @@ __pycache__/
 # Viewer app
 apps/viewer/node_modules/
 apps/viewer/dist/
+
+# Local secrets (keys come from env; never commit)
+.env
+.env.*
