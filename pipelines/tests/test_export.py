@@ -1,14 +1,10 @@
 """Tests for the interchange exporter: assembly (ordering, dedup, tradition
-union), the semantic round-trip, and a real multi-shard work (LDS KJV OT+NT)."""
+union) and the semantic round-trip (synthetic multi-shard docs)."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from sacredbench import catalogue as cat
-from sacredbench.convert import convert_target
 from sacredbench import export as exp
 from sacredbench.export import (
     ExportError,
@@ -18,9 +14,6 @@ from sacredbench.export import (
     roundtrip_ok,
 )
 from sacredbench.schema import Document, Entry, load_document, write_document
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-RAW = REPO_ROOT / "texts" / "raw"
 
 
 def _doc(work, version, lang, tradition, entries, document_type="scripture", source_url=None):
@@ -172,20 +165,7 @@ def test_filename_collision_detected():
     with pytest.raises(ExportError):
         check_filename_collisions([a, b])
 
-
-def test_real_lds_kjv_ot_nt_merge():
-    """The real multi-shard case: LDS KJV OT and NT are two targets sharing one
-    (work, version, language); assembly merges them into one ordered document."""
-    srcs = cat.discover_catalogue(RAW)
-    lds_kjv = [
-        t for t in cat.all_targets(srcs)
-        if t.work == "The Bible" and t.version == "KJV (LDS 2013 edition)"
-    ]
-    assert len(lds_kjv) == 2  # OT + NT targets
-    shards = [convert_target(t.payload_paths(RAW), t)[0] for t in lds_kjv]
-    [merged] = assemble(shards)
-    assert len(merged.entries) == 23145 + 7957  # OT + NT, no overlap
-    assert merged.entries[0].citation == "Genesis 1:1"  # OT first (sorted by first citation)
-    assert merged.entries[-1].citation == "Revelation 22:21"
-    assert merged.tradition == ["The Church of Jesus Christ of Latter-Day Saints"]
-    assert roundtrip_ok(shards)
+# NOTE (Spec 26): the real LDS KJV OT/NT two-shard merge test was removed with the
+# two `KJV (LDS 2013 edition)` targets (issue #27 Q3). The assemble/merge and
+# roundtrip logic it exercised stays covered by the synthetic export tests above
+# (test_merge_collision_union_and_order, test_roundtrip_ok_*).

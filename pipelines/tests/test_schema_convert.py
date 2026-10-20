@@ -28,6 +28,7 @@ def _target(**over) -> cat.Target:
         version="TestV", language="en", document_type="scripture",
         tradition=("testfaith",), license="public-domain",
         provenance=cat.Provenance("a", "b", "c"),
+        requested_as=("The Bible",), canonical_language="en",
     )
     base.update(over)
     base["tradition"] = tuple(base["tradition"])

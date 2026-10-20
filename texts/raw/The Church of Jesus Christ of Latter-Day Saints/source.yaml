@@ -1,12 +1,11 @@
 # Source catalogue for the Latter-Day Saints corpus.
-# Five works in the nested shape {book: {heading, chapter: {verse: text}}}.
-# Converter: lds_nested (Phase 2).
+# Three distinctively-LDS works in the nested shape
+# {book: {heading, chapter: {verse: text}}}. Converter: lds_nested (Phase 2).
 #
-# The two KJV-based works (Old/New Testament) are the LDS 2013 EDITION of the KJV,
-# a distinct edition from the Protestant KJV (editorial/orthographic differences),
-# so they carry the version label "KJV (LDS 2013 edition)" — not the same version
-# as Protestant Christian's "KJV". OT and NT share (work, version, language) and
-# merge into one document downstream.
+# The LDS 2013 edition of the KJV (Old/New Testament) is intentionally NOT a target:
+# its text is the Protestant KJV, so keeping it would ask the same questions twice
+# (issue #27, Q3). The committable LDS texts are the three below, all composed in
+# English.
 provenance:
   retrieved_from: Ben Crowder LDS scripture reference compilations (2013 edition)
   fetch_method: working-group Box drop ("Phase I / raw JSON")
@@ -23,6 +22,8 @@ targets:
     tradition: [The Church of Jesus Christ of Latter-Day Saints]
     license: open
     license_detail: LDS 2013 edition; reference compilation by Ben Crowder
+    requested_as: ["Book of Mormon"]
+    canonical_language: en
   - payload: doctrine-and-covenants-reference-2013-edition-ben-crowder.json
     converter: lds_nested
     work: Doctrine and Covenants
@@ -32,6 +33,8 @@ targets:
     tradition: [The Church of Jesus Christ of Latter-Day Saints]
     license: open
     license_detail: LDS 2013 edition; reference compilation by Ben Crowder
+    requested_as: ["Doctrine and Covenants", "D&C"]
+    canonical_language: en
   - payload: pearl-of-great-price-reference-2013-edition-ben-crowder.json
     converter: lds_nested
     work: Pearl of Great Price
@@ -41,21 +44,5 @@ targets:
     tradition: [The Church of Jesus Christ of Latter-Day Saints]
     license: open
     license_detail: LDS 2013 edition; reference compilation by Ben Crowder
-  - payload: old-testament-reference-KJV-ben-crowder.json
-    converter: lds_nested
-    work: The Bible
-    version: KJV (LDS 2013 edition)
-    language: en
-    document_type: scripture
-    tradition: [The Church of Jesus Christ of Latter-Day Saints]
-    license: public-domain
-    license_detail: KJV Old Testament as published in the LDS 2013 edition; reference compilation by Ben Crowder
-  - payload: new-testament-reference-KJV-ben-crowder.json
-    converter: lds_nested
-    work: The Bible
-    version: KJV (LDS 2013 edition)
-    language: en
-    document_type: scripture
-    tradition: [The Church of Jesus Christ of Latter-Day Saints]
-    license: public-domain
-    license_detail: KJV New Testament as published in the LDS 2013 edition; reference compilation by Ben Crowder
+    requested_as: ["Pearl of Great Price"]
+    canonical_language: en

@@ -25,6 +25,8 @@ targets:
     tradition: [Judaism]
     license: open
     license_detail: CC-BY-NC — Sefaria, William Davidson Edition (Koren Noe / Steinsaltz)
+    requested_as: ["Talmud", "Babylonian Talmud", "Talmud Bavli", "Gemara"]
+    canonical_language: he
   # Canonical Aramaic only — exclude the one "Vocalized Aramaic" Shevuot variant,
   # which is a different edition (would collide with the standard Shevuot).
   - payload: Talmud Bavli/**/*- he - William Davidson Edition - Aramaic.json
@@ -36,3 +38,5 @@ targets:
     tradition: [Judaism]
     license: open
     license_detail: CC-BY-NC — Sefaria, William Davidson Edition (Koren Noe / Steinsaltz)
+    requested_as: ["Talmud", "Babylonian Talmud", "Talmud Bavli", "Gemara"]
+    canonical_language: he

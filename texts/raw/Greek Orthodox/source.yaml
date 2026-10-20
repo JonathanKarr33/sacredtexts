@@ -23,3 +23,5 @@ targets:
     license_detail: >-
       TLG corpus extracts (licensed); Rahlfs Septuagint / Nestle-Aland editions
       copyrighted; payload held back from this public repo
+    requested_as: ["Septuagint", "LXX", "Greek New Testament"]
+    canonical_language: grc

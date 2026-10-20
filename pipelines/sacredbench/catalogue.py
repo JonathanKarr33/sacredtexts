@@ -20,6 +20,15 @@ record cannot describe that, so each tradition directory carries one committed
         tradition: ["Protestant Christian"]   # a bare string is accepted too
         license: public-domain                 # public-domain | open | restricted
         license_detail: "KJV — public domain"  # optional: the real upstream string, verbatim
+        requested_as: ["King James Version", "KJV", "KJV Bible"]  # names people actually use (>=1)
+        canonical_language: en                 # the language the text was composed in
+
+``requested_as`` is the non-empty list of names a person would use for this edition; ``generate``
+renders ``<edition>`` as a seeded uniform choice from it. ``canonical_language`` is the language the
+text was composed in; a text is in the default (original-language) question pool only when
+``language == canonical_language``. Both are catalogue facts, not ``Document`` facts, and reach
+``generate`` through ``text_metadata`` (a ``(work, version, language)``-keyed map), since a
+standardized ``Document`` carries neither.
 
 ``license`` is the three-value gate. ``restricted`` targets (copyrighted
 translations whose payloads are git-ignored and local-only) are excluded from
@@ -58,8 +67,18 @@ _TARGET_REQUIRED = (
     "document_type",
     "tradition",
     "license",
+    "requested_as",
+    "canonical_language",
 )
-_TARGET_STR_FIELDS = ("payload", "converter", "work", "version", "language", "document_type")
+_TARGET_STR_FIELDS = (
+    "payload",
+    "converter",
+    "work",
+    "version",
+    "language",
+    "document_type",
+    "canonical_language",
+)
 _PROVENANCE_REQUIRED = ("retrieved_from", "fetch_method", "fetch_date")
 
 
@@ -112,12 +131,19 @@ class Target:
     tradition: tuple[str, ...]
     license: str
     provenance: Provenance
+    requested_as: tuple[str, ...]  # names a person uses for this edition (>=1); seeded choice at generate
+    canonical_language: str  # language the text was composed in; in default pool iff language == this
     license_detail: str | None = None
 
     @property
     def slug(self) -> str:
         """Filesystem-safe id for the target's standardized output directory."""
         return _slugify(f"{self.work}-{self.version}-{self.language}")
+
+    @property
+    def text_key(self) -> tuple[str, str, str]:
+        """The ``(work, version, language)`` tuple that groups documents into one text."""
+        return (self.work, self.version, self.language)
 
     def standardized_dir(self, standardized_root: Path = STANDARDIZED_ROOT) -> Path:
         return standardized_root / self.source_id / self.slug
@@ -194,6 +220,15 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
             raise CatalogueError(
                 f"{where}: targets[{i}] unknown license {license_!r} (allowed: {', '.join(LICENSES)})"
             )
+        requested_as = t["requested_as"]
+        if not (
+            isinstance(requested_as, list)
+            and requested_as
+            and all(isinstance(x, str) and x.strip() for x in requested_as)
+        ):
+            raise CatalogueError(
+                f"{where}: targets[{i}].requested_as must be a non-empty list of non-empty strings"
+            )
         detail = t.get("license_detail")
         if detail is not None and not isinstance(detail, str):
             raise CatalogueError(f"{where}: targets[{i}].license_detail must be a string")
@@ -214,19 +249,26 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
                 tradition=tuple(tradition),
                 license=license_,
                 provenance=provenance,
+                requested_as=tuple(requested_as),
+                canonical_language=t["canonical_language"],
                 license_detail=detail,
             )
         )
-    # Targets that share a standardized directory (slug) must agree on license, or
-    # license recovery by path would be ambiguous and could expose restricted text.
-    by_slug: dict[str, set[str]] = {}
+    # Targets that share a standardized directory (slug) must agree on the facts that
+    # are recovered by path/text-key, or that recovery would be ambiguous: license
+    # (a collision could expose restricted text) and the text metadata (requested_as /
+    # canonical_language) that generate looks up by the (work, version, language) key.
+    by_slug: dict[str, set[tuple[str, tuple[str, ...], str]]] = {}
     for t in targets:
-        by_slug.setdefault(t.slug, set()).add(t.license)
-    for slug, licenses in by_slug.items():
-        if len(licenses) > 1:
+        by_slug.setdefault(t.slug, set()).add(
+            (t.license, t.requested_as, t.canonical_language)
+        )
+    for slug, facts in by_slug.items():
+        if len(facts) > 1:
             raise CatalogueError(
                 f"{where}: targets sharing standardized slug {slug!r} disagree on "
-                f"license {sorted(licenses)} — they would collide in one directory"
+                f"license / requested_as / canonical_language {sorted(facts)} — "
+                "they would collide in one directory"
             )
     return Source(
         source_id=source_id,
@@ -254,6 +296,49 @@ def discover_catalogue(raw_root: Path = RAW_ROOT) -> list[Source]:
 
 def all_targets(sources: list[Source]) -> list[Target]:
     return [t for s in sources for t in s.targets]
+
+
+@dataclass(frozen=True)
+class TextMeta:
+    """Per-text catalogue facts that ``generate`` needs but a ``Document`` does not carry."""
+
+    requested_as: tuple[str, ...]  # names a person uses; <edition> is a seeded choice from these
+    canonical_language: str  # in the default pool iff a text's language == this
+
+
+def text_metadata(sources: list[Source]) -> dict[tuple[str, str, str], TextMeta]:
+    """Map ``(work, version, language)`` -> :class:`TextMeta` for every catalogue text.
+
+    This is the channel by which ``requested_as`` / ``canonical_language`` reach
+    ``generate``: a standardized ``Document`` carries no catalogue facts (and license
+    recovery is a *path* filter that discards the path->doc association), so generation
+    looks these up by the ``(work, version, language)`` tuple its documents are grouped
+    on. Targets that share this tuple have already been forced to agree on both fields by
+    ``load_source``'s slug-agreement check, so the mapping is unambiguous.
+    """
+    meta: dict[tuple[str, str, str], TextMeta] = {}
+    for t in all_targets(sources):
+        meta[t.text_key] = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language)
+    return meta
+
+
+def metadata_for_text(
+    meta: dict[tuple[str, str, str], TextMeta], work: str, version: str, language: str
+) -> TextMeta:
+    """Look up one text's metadata, **fail-closed**.
+
+    Raises ``CatalogueError`` when the ``(work, version, language)`` tuple is absent — a
+    standardized document with no catalogue entry is a bug or a stray artifact, never a
+    pass-through (same discipline as ``filter_standardized_paths``).
+    """
+    key = (work, version, language)
+    try:
+        return meta[key]
+    except KeyError:
+        raise CatalogueError(
+            f"no catalogue text_metadata for (work, version, language)={key!r} — "
+            "a standardized document maps to no catalogue target (fail-closed)"
+        ) from None
 
 
 def select_targets(sources: list[Source], include_restricted: bool = False) -> list[Target]:
