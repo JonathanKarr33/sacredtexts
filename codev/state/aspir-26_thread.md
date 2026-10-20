@@ -73,3 +73,21 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   KJV targets (21 total), starting values from #27.
 - Rebuttal written. Next: porch done → advance to IMPLEMENT. Phase 1 = catalogue metadata
   (requested_as/canonical_language + text_metadata map); build on merged main.
+
+### IMPLEMENT Phase 1 COMPLETE (catalogue metadata) — 2026-10-20
+- Architect decision: #27 verbatim → English Bibles IN (canonical=en), 9 hadith, encyclicals
+  out, drop 2 LDS-KJV targets. Pool = 17 texts, 476 questions, ~1904 cells. Spec/plan census +
+  counts + budget updated (separate commit).
+- catalogue.py: requested_as + canonical_language (required, validated); Target.text_key;
+  TextMeta + text_metadata((w,v,l)->TextMeta) fail-closed map (the real channel — license is a
+  path filter, can't feed a name to the renderer); slug-agreement extended; docstring/example.
+- 6 source.yaml updated with #27 values; 2 LDS-KJV targets removed (21 targets; pool=17 verified
+  via a real-corpus test).
+- Tests: catalogue 40 green incl. new validation/text_metadata/slug-agreement/pool=17; fixed
+  test_schema_convert _target helper; removed obsolete real-LDS-KJV export test (merge/roundtrip
+  still covered synthetically). Full pipeline suite 335 passed; gate green.
+- Commit 519f387 (amended to drop an accidental Co-Authored-By trailer — Waleed CLAUDE.md forbids).
+- FOLLOW-UP for architect: the two LDS-KJV payload JSONs (old/new-testament-reference-KJV-
+  ben-crowder.json) are still committed but now orphaned (no target). Left in place; asked whether
+  to delete.
+- Next: Phase 2 (generation reshape). Will run /compact-style context awareness; porch next.
