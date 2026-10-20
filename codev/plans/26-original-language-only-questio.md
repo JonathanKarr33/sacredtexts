@@ -44,51 +44,72 @@ A), leading-stance window before `normalize()`.
 
 ## Phase Breakdown
 
-### Phase 1: Catalogue metadata — original_language / ask_as / citation_hint
+### Phase 1: Catalogue metadata — per-target naming / inclusion / citation fields
 
-**Dependencies**: None
+**Dependencies**: None.
+**⚠️ HOLD-GATE (architect, 2026-10-20):** the exact field schema is **being revised by Waleed** and is
+**PENDING the final field table on issue #26**. Do **not** begin this phase's implementation (or edit
+any `source.yaml`) until that table lands. If porch hands this phase before the table arrives, STOP at
+the phase boundary and ping the architect — do not guess the schema.
+
+**Direction so far (not final):** `ask_as: str` → **`requested_as: [names people actually use]`** (e.g.
+`["King James Version", "KJV", "KJV Bible"]`); `original_language: bool` → likely **`canonical_language`**
+(the text's own language(s)), with inclusion **derived** as `language ∈ canonical_language` (so no
+separate boolean); `citation_hint` likely unchanged. The field **names/arity may change**; what does
+**not** change is everything below the schema line — the validation pattern, the metadata *channel*,
+and the inclusion *predicate shape*.
 
 #### Objective
 
-Make the three new per-target fields a validated, fail-fast part of the catalogue contract and
-available to generation through the same recovery channel as `license`, so every later phase can rely
-on them. Delivers: every committed `source.yaml` carries the fields; a missing or ill-typed field
-fails loading with the file and target named.
+Make the new per-target metadata a validated, fail-fast part of the catalogue contract and available to
+generation through a `(work, version, language)`-keyed map, so every later phase can rely on it.
+Delivers: every committed `source.yaml` carries the final fields; a missing or ill-typed field fails
+loading with the file and target named.
 
 #### Files to Create / Modify
 
-- `pipelines/sacredbench/catalogue.py` — add the three fields to `_TARGET_REQUIRED`; add a bool
-  validator for `original_language` (the existing `_TARGET_STR_FIELDS` loop covers `ask_as` /
-  `citation_hint` as non-empty strings); add them to the `Target` dataclass and the `Target(...)`
-  constructor; extend the standardized-path recovery (the `license_for_standardized_path` analog) so
-  the three fields reach `generate` fail-closed, with the slug-agreement check extended to them;
-  update the module docstring + annotated example YAML.
-- `texts/raw/*/source.yaml` (6 files, 23 targets) — add `original_language`, `ask_as`,
-  `citation_hint` to every target per the spec's census (OL column) and the baked mapping.
+- `pipelines/sacredbench/catalogue.py`:
+  - add each final field to `_TARGET_REQUIRED`; add a type validator per field (bool/str/list as the
+    final schema dictates). **Note:** string fields must be added to `_TARGET_STR_FIELDS` explicitly —
+    the current tuple does **not** contain the new fields, so the non-empty-string loop does not cover
+    them for free (a list-valued `requested_as` needs its own non-empty-list validator instead);
+  - add the fields to the `Target` dataclass and the `Target(...)` constructor;
+  - **the metadata channel is a `(work, version, language)`-keyed map, not a path filter** — this holds
+    regardless of the field names. `license` reaches generation only as a *path filter*
+    (`filter_standardized_paths` → `load_documents` discards the path→doc association), and `_build`
+    sees only a `Document` (no catalogue facts). So add a fail-closed
+    `text_metadata(sources) -> dict[(work, version, language), TextMeta]` keyed on the same tuple
+    converters stamp onto `doc.work/version/language` and that Phase 2 groups "texts" on; a doc whose
+    tuple is absent raises `CatalogueError`. The slug-agreement check extends to the new fields.
+  - update the module docstring + annotated example YAML.
+- `texts/raw/*/source.yaml` (6 files, 23 targets) — add the final fields to every target per the #26
+  field table (which will also fix the census mapping — e.g. `canonical_language` per text).
 - `pipelines/tests/test_catalogue.py` — new/extended tests.
 
 #### Deliverables
 
-- [ ] Three fields required + validated (bool for `original_language`); `Target` exposes them.
-- [ ] Recovery channel delivers the fields to standardized docs fail-closed; slug-agreement covers them.
-- [ ] All 23 targets in the 6 `source.yaml` files carry natural `ask_as` / `citation_hint` wording and
-      the correct `original_language` flag (per the spec census).
-- [ ] Docstring + example YAML document the three fields.
+- [ ] Each final field required + type-validated; `Target` exposes them; string/list fields get the
+      right validator (not assumed covered by `_TARGET_STR_FIELDS`).
+- [ ] `text_metadata()` returns a `(work, version, language)`-keyed map, fail-closed on an unmapped
+      tuple; slug-agreement covers the new fields.
+- [ ] All 23 targets in the 6 `source.yaml` files carry the final fields per the #26 table.
+- [ ] Docstring + example YAML document the fields.
 - [ ] Tests for this phase.
 
 #### Acceptance Criteria
 
-- [ ] Loading a target missing any of the three fails, naming file + `targets[i]`; a non-bool
-      `original_language` is rejected.
+- [ ] Loading a target missing any required field fails, naming file + `targets[i]`; an ill-typed field
+      is rejected.
 - [ ] A slug shared by two targets that disagree on a new field fails (slug-agreement).
+- [ ] `text_metadata()` raises `CatalogueError` for a `(work, version, language)` not in the catalogue.
 - [ ] Pipeline suite green; the real `source.yaml` trackable/payload-ignored test still passes.
 
 #### Test Plan
 
-Unit: field-presence fail-fast (parametrized over the three), non-bool rejection, slug-agreement on a
-disagreeing-fixture, fail-closed recovery when the path can't resolve. Regression: existing catalogue
-tests stay green. Manual: `uv --project pipelines run python -m sacredbench catalogue` (or the gate)
-loads all real sources.
+Unit: field-presence fail-fast (parametrized), type/empty rejection per field, slug-agreement on a
+disagreeing fixture, `text_metadata()` fail-closed on an unmapped tuple and correct keying on a
+shared-tuple fixture. Regression: existing catalogue tests stay green. Manual: the catalogue gate loads
+all real sources.
 
 ### Phase 2: Original-language selection, per-text quota, four-template generation
 
@@ -102,47 +123,90 @@ quota over exactly four templates, and natural-language prompts using `ask_as` /
 
 #### Files to Create / Modify
 
-- `pipelines/sacredbench/generate.py` — `TASKS` → the four kept names (retire `identify_version`,
-  `identify_source`); delete `_balanced_sample` and the per-task `quotas`/`per_task` machinery; add
-  `(work, version, language)` grouping into "texts"; add original-language default selection +
-  `--include-translations` (keep `--include-restricted`); add `--per-text` (default 20) with the
-  deterministic `N//4`+remainder split over the canonical template order; render the four templates
-  (with `display_citation` prefix-strip for `retrieve_quote`; `citation_hint` appended to
-  `cite_passage`); keep `verify_source` negative sampling + the existing deterministic negative share;
-  fail fast (naming text+template) when a template's share can't be filled; manifest records
-  `per_text`, `include_translations`, and the selected-texts list.
-- `pipelines/sacredbench/cli.py` — `generate` command: drop `--per-task` / `--quota`; add
-  `--per-text` / `--include-translations`; keep `--tasks` / `--negatives-share`.
-- `pipelines/tests/test_generate.py` — rewrite the retired-task and quota/balancing tests; add the new ones.
+- `pipelines/sacredbench/generate.py`:
+  - `TASKS` → the four kept names (retire `identify_version`, `identify_source` from `TASKS` and
+    `_build`); delete `_balanced_sample` and the per-task `quotas`/`per_task` machinery.
+  - group standardized docs into **texts by `(work, version, language)`**; take the Phase-1
+    `text_metadata` map as a `generate()` parameter and look up each text's metadata by that tuple.
+  - **selection predicate (flag matrix), schema-agnostic:** a text is selected iff
+    `(included_by_language OR include_translations) AND (not restricted OR include_restricted)`, where
+    `included_by_language` is the Phase-1 inclusion rule (final form `language ∈ canonical_language`;
+    bool field if the schema stays boolean). Consequences to test as a matrix: original+non-restricted
+    → default; original+restricted (TLG) → needs `--include-restricted` only; translation+non-restricted
+    → needs `--include-translations`; translation+restricted (NABRE) → needs **both** flags.
+  - `--per-text N` (default 20) split over the **active** task set (the four, or the `--tasks` subset):
+    `N // len(active)` per task plus one extra to the first `N % len(active)` in canonical order
+    (`retrieve_quote`, `complete_unit`, `cite_passage`, `verify_source`). So `--tasks retrieve_quote
+    --per-text 20` emits 20/text, not 5. Validate `--per-text >= len(active)` (fail-fast so every active
+    task gets ≥1); **15–30 is the documented recommended range for the committable set, not a hard CLI
+    clamp** — a hard clamp would break the budgeted Phase-6 smoke (`--per-text` small, one task) and the
+    tutorial demo, so it is a README/TUTORIAL note, not a Typer `min/max`.
+  - render the four templates using the text's metadata from the map: a name drawn from `requested_as`
+    (the primary/first entry unless the final schema says otherwise) as `{ask_as}`; `display_citation`
+    (stored citation with a leading work/name prefix stripped) for `retrieve_quote`; `citation_hint`
+    appended to `cite_passage`.
+  - **`verify_source` identity rewrite (spec Constraints; currently the opposite):** the question
+    belongs to the **asked** edition — `source` records the asked text, the prompt interpolates the
+    asked text's `requested_as` name (not a raw `neg_work`), and `expected` gains `true_version`
+    alongside `true_work`. Select negatives at **`(work, version, language)`** granularity (not the
+    current `work`-only `works`/`work_texts`), keeping the exact-contained exclusion, and apply a
+    **family exclusion** so a negative is never drawn from the **same family** as the asked text (define
+    family by `document_type` — the nine hadith collections are one family — because they share
+    variant-wording narrations that defeat exact-text exclusion and yield wrong "no" truth). Fail-fast
+    if a text cannot source enough cross-family negatives. Keep the existing deterministic negative
+    share (`int(verify_template_quota × negatives_share)`).
+  - fail fast (naming text+template) when a template's share can't be filled; manifest records
+    `per_text`, `include_translations`, and the selected-texts list.
+- `pipelines/sacredbench/cli.py` — `generate`: drop `--per-task` / `--quota`; add `--per-text` /
+  `--include-translations`; keep `--tasks` / `--negatives-share`.
+- `CODE_WALKTHROUGH.md` — **in this same commit**, update the pointer-guard entries coupled to the
+  symbols this phase deletes/changes (`test_code_walkthrough.py` requires `def _balanced_sample(` and
+  the `TASKS = (` shape in `_REQUIRED_SYMBOLS`) so the pointer-guard test stays green from this commit
+  on. Recipe prose polish not coupled to a deleted symbol stays in Phase 5.
+- `pipelines/tests/test_first_run_regression.py` — **named decision:** this guard calls
+  `run_generate(docs, per_task=…, quotas=…)` and re-asserts the committed first-run question-set digest;
+  the signature is removed and the 100-question `retrieve_quote`-only set is **not expressible** under
+  `--per-text` (no N yields 100 over 3 texts). Retire the **generation-invariance** half (regenerate →
+  same digest) with rationale (the generator's interface changed by design); **keep the re-score half**
+  (score committed answers → committed scores, byte-for-byte — unaffected, `retrieve_quote`-only). A new
+  generation-invariance anchor is re-established on the fresh Phase-6 run (digest-pinned there).
+- `pipelines/tests/test_generate.py` — rewrite retired-task + quota/balancing tests; add the new ones.
 
 #### Deliverables
 
-- [ ] Default selection = the 14 original-language non-restricted texts (grouped by tuple); 5/template
-      at `--per-text 20`.
-- [ ] `--include-translations` adds the `original_language:false` non-restricted texts;
-      `--include-restricted` unchanged (TLG local-only).
-- [ ] Deterministic non-multiple-of-4 split; fail-fast on an unfillable template share.
-- [ ] Prompts use `ask_as` (never `version`); no duplicated edition name (`display_citation`);
-      `cite_passage` appends `citation_hint`.
-- [ ] `identify_version` / `identify_source` gone from `TASKS` and `_build`; manifest fields added.
+- [ ] Default selection = the 14 included, non-restricted texts (grouped by tuple); 5/template at
+      `--per-text 20` over the four tasks.
+- [ ] Flag matrix holds (TLG needs `--include-restricted`; NABRE needs both flags).
+- [ ] `--per-text` split over the active task set; `--per-text >= len(active)` fail-fast; deterministic
+      remainder.
+- [ ] Prompts use a `requested_as` name (never the raw `version`); no duplicated edition name
+      (`display_citation`); `cite_passage` appends `citation_hint`.
+- [ ] `verify_source`: `source` = asked edition, `expected` gains `true_version`, prompt uses the asked
+      text's name, negatives at text granularity with family exclusion.
+- [ ] `identify_version` / `identify_source` gone from `TASKS` and `_build`; CODE_WALKTHROUGH
+      pointer-guard updated in this commit; first-run regression decision applied; manifest fields added.
 - [ ] Tests for this phase.
 
 #### Acceptance Criteria
 
-- [ ] Rendered `retrieve_quote` over a hadith text shows the edition once; over Qur'an/Talmud/BoM
+- [ ] Rendered `retrieve_quote` over a hadith/D&C text shows the edition once; over Qur'an/Talmud/BoM
       unchanged.
-- [ ] Generate with defaults over a fixture catalogue emits N/text, N/4 per template; `--per-text 18`
-      → deterministic remainder.
+- [ ] `--tasks retrieve_quote --per-text 20` → 20 questions/text; `--per-text 18` over four tasks →
+      deterministic remainder; `--per-text 3` over four tasks → fail-fast.
+- [ ] A `verify_source` negative aggregates under the asked text (its `source`), never the passage's
+      true source; no negative is same-family as the asked text.
+- [ ] Pipeline suite **and** pointer-guard test green; first-run **re-score** regression still
+      byte-for-byte.
 - [ ] Question-set digest machinery unchanged; manifest records the new fields.
-- [ ] Pipeline suite green.
 
 #### Test Plan
 
-Unit: selection by `original_language`/restricted; `--include-translations`; per-text split incl.
-non-multiple-of-4; display_citation no-duplication for a work-prefixed vs bare-citation fixture;
-`citation_hint` appended; fail-fast naming text+template; `verify_source` negatives (cross-text,
-excluded-when-contained); manifest fields; retired tasks rejected/absent. Determinism: same seed →
-identical output.
+Unit: selection flag matrix (4 combinations); grouping by tuple; per-text split over 1/2/4-task
+subsets incl. non-multiple and fail-fast floor; `display_citation` no-duplication (work-prefixed vs
+bare fixture); `citation_hint` appended; `verify_source` source=asked / `true_version` / name-rendered
+/ text-granularity negatives / family exclusion / fail-fast on insufficient cross-family pool; manifest
+fields; retired tasks absent. Determinism: same seed → identical output. Regression: pointer-guard
+green; first-run re-score green.
 
 ### Phase 3: Scoring — leading-stance yes/no (#23), retire tasks, per-text summary
 
