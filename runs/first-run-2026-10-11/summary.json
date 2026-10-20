@@ -540,14 +540,14 @@
   "claude-haiku": {
    "provider": "anthropic",
    "model": "claude-haiku-5-5",
-   "api_model": "claude-haiku-5-5",
+   "tools": [],
    "endpoint": "api.anthropic.com",
    "served_by": null
   },
   "gemma-3-4b": {
    "provider": "openai",
    "model": "google/gemma-3-4b-it",
-   "api_model": "google/gemma-3-4b-it",
+   "tools": [],
    "endpoint": "openrouter.ai",
    "served_by": [
     "DeepInfra"
@@ -556,7 +556,7 @@
   "gpt-oss-20b": {
    "provider": "openai",
    "model": "openai/gpt-oss-20b",
-   "api_model": "openai/gpt-oss-20b",
+   "tools": [],
    "endpoint": "openrouter.ai",
    "served_by": [
     "AkashML",
@@ -573,7 +573,7 @@
   "llama-3.1-8b": {
    "provider": "openai",
    "model": "meta-llama/llama-3.1-8b-instruct",
-   "api_model": "meta-llama/llama-3.1-8b-instruct",
+   "tools": [],
    "endpoint": "openrouter.ai",
    "served_by": [
     "DeepInfra",

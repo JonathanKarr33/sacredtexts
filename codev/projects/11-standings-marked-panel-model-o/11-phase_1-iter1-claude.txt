@@ -1,0 +1,37 @@
+I'll start by reading the changed implementation files.I've read the implementation, run the pipeline suite, and run the project test gate. Findings:
+
+**Phase 1 scope check (plan § Phase 1)**
+
+| Deliverable | Status |
+|---|---|
+| `cli.py` emits `{provider, model (raw), tools, endpoint, price_in, price_out}` | ✅ `cli.py:347-348`; marker + `api_model` removed, comment rewritten to the Approach-B rationale |
+| `score.py` written entry `== {provider, model, tools, endpoint, served_by}` with synthesised entries defaulting `tools: []` | ✅ `score.py:424-433`; `p.get("tools") or []` covers the `set(usage) \| set(panel)` synthesis path |
+| `summary_markdown` gains a `tools` column | ✅ `score.py:487-497` — header, separator widened to 6, `", ".join(...) or "—"`, heading text updated |
+| Tests cover **both** score.py and cli.py emission | ✅ `test_panel_tools_field_distinguishes_arms_and_dedupes_bare_model` (score_file) and `test_cli_score_panel_emits_tools_field_and_raw_model` (CliRunner over collect-written fingerprinted answers — correctly uses the positional `answers` arg and genuinely reaches cli.py's inline panel build behind the fingerprint cross-check) |
+| No committed artifact touched | ✅ `runs/**` untouched; `git status` clean apart from builder scratch files |
+
+**Verification I ran**
+- `uv --project pipelines run pytest`: 290 passed, 1 skipped.
+- `bash .codev/checks/test.sh`: green (dispatcher correctly routes to the pipelines lane only, since `apps/viewer` is untouched).
+- Greenness is genuinely preserved, not accidental: `test_tutorial_run.py:50` uses a **subset** (`<=`) key-set check including `api_model`, and reads the still-old committed `summary.json` — so the deliberate Phase-1/Phase-2 split holds. `test_score.py:112-113` only asserts `provider`/`served_by`, so it's shape-agnostic.
+- Determinism claim verified upstream: `config.py:80` returns `tuple(sorted(set(tools)))`, so `list(m.tools)` is sorted — spec's "serialised deterministically" is satisfied without new code.
+- No unseen `api_model` consumer: only `cli.py`/`score.py` (now clean), the two pipeline tests, the committed runs, and the docs. `audit.py` doesn't inspect `panel` at all.
+- `test_code_walkthrough.py` passes because it validates pointer *resolution* and symbol existence, not prose — so `CODE_WALKTHROUGH.md:339`'s now-false marker claim doesn't red the gate (Phase 3 scope, as planned).
+
+**Non-blocking comments**
+
+1. **Key-set assertion is single-entry.** `test_phase2_tools.py:266` asserts `set(p["haiku"]) == {...}` but not for `haiku-search`. The spec's secret-free criterion is per-entry; a one-line loop over `p.values()` would close it. Related: the CLI test (the path that actually carries `price_in`/`price_out` into `score_file`) asserts only the absence of `api_model` — adding the `==` key-set check there would pin the price-stripping at the real emission site rather than relying on the hand-built-dict test.
+2. **Weak md cell assertion.** `assert "| — |" in notools_row` also matches the `served_by` em-dash, so it would pass even if the `tools` cell were missing. The paired `"web_search" not in notools_row` plus the `"| tools |"` header check make this adequate in practice; a positional split on `|` would make it exact.
+3. **No defensive sort in `score.py`.** `p.get("tools") or []` passes through whatever order it's given. Safe today (config sorts), and the plan puts the defensive sort in `aggregate.ts` in Phase 2 — just noting the pipeline side trusts its caller.
+4. **Intentional transient doc skew.** After this commit, `CODE_WALKTHROUGH.md:339`, `TUTORIAL.md:199`, `arch-critical.md:9` and `runs/tutorial-2026-10-11/README.md:17` describe a marker the code no longer emits. The plan explicitly defers these to Phase 2/3, so this is plan-aligned — but if this phase were ever reviewed as a standalone commit, the walkthrough line is the one that reads most like a live instruction to restore the marker.
+
+Nothing here blocks Phase 2.
+
+---
+VERDICT: APPROVE
+SUMMARY: Phase 1 is complete and plan-faithful — raw `panel.model` + real `tools` list, `api_model` dropped, md `tools` column, both score.py and cli.py emission paths tested, full gate green with no committed artifact touched.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking. Minor: exact panel key-set asserted for only one of the two entries (and not at the CLI emission path, which is where `price_in`/`price_out` stripping actually matters); `"| — |"` md assertion also matches the `served_by` cell; `score.py` does not defensively sort `tools` (relies on `config.py:80`); marker prose in `CODE_WALKTHROUGH.md`/`TUTORIAL.md`/`arch-critical.md`/run `README.md` is transiently false until Phase 2/3, as the plan intends.

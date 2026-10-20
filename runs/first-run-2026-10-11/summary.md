@@ -27,13 +27,13 @@ _Cells: accuracy cov coverage (n answered; c/i/r = correct/incorrect/refused). a
 | llama-3.1-8b | Roman Catholic | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
 | llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% cov 96% (n=25; c/i/r 1/23/1) | **4%** cov 96% (n=25; c/i/r 1/23/1) |
 
-### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)
-| model_id | provider | model | endpoint | served_by |
-|---|---|---|---|---|
-| claude-haiku | anthropic | claude-haiku-5-5 | api.anthropic.com | — |
-| gemma-3-4b | openai | google/gemma-3-4b-it | openrouter.ai | DeepInfra |
-| gpt-oss-20b | openai | openai/gpt-oss-20b | openrouter.ai | AkashML, Amazon Bedrock, CoreWeave, Darkbloom, DeepInfra, DekaLLM, Google, Parasail, SiliconFlow |
-| llama-3.1-8b | openai | meta-llama/llama-3.1-8b-instruct | openrouter.ai | DeepInfra, Groq, Novita |
+### Panel composition (committed-artifact proof — provider / model / tools / endpoint, no secrets)
+| model_id | provider | model | tools | endpoint | served_by |
+|---|---|---|---|---|---|
+| claude-haiku | anthropic | claude-haiku-5-5 | — | api.anthropic.com | — |
+| gemma-3-4b | openai | google/gemma-3-4b-it | — | openrouter.ai | DeepInfra |
+| gpt-oss-20b | openai | openai/gpt-oss-20b | — | openrouter.ai | AkashML, Amazon Bedrock, CoreWeave, Darkbloom, DeepInfra, DekaLLM, Google, Parasail, SiliconFlow |
+| llama-3.1-8b | openai | meta-llama/llama-3.1-8b-instruct | — | openrouter.ai | DeepInfra, Groq, Novita |
 
 ### Token usage
 | model_id | calls | in | out |

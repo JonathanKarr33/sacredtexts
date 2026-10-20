@@ -1,0 +1,38 @@
+I'll verify the plan against the actual codebase before judging it.I read the plan, the spec, and the actual code in the aspir-11 worktree. Verification notes first, then issues.
+
+**What I verified as correct**
+
+- **Phase 1's "full gate stays green" claim holds.** `pipelines/tests/test_tutorial_run.py:50` uses `set(entry) <= {...api_model...}` and `assert entry["api_model"]` against the *committed* artifact, which Phase 1 doesn't touch. `test_code_walkthrough.py` only checks pointer-line-in-range + a `_REQUIRED_SYMBOLS` list that contains no marker symbol, so the stale `cli.py:349` prose survives Phases 1–2 without reddening. And `.codev/checks/test.sh` maps only `pipelines` in Phase 1, so the viewer lane isn't even invoked.
+- **The 7-row arithmetic is right.** `runs/first-run-2026-10-11/summary.json` panel = `claude-haiku` (anthropic, bare `claude-haiku-5-5`) + 3 openrouter models; 4 tutorial arms + 3 non-colliding = 7. ✓
+- **The migration is viable, and more cleanly than the plan assumes.** The committed answers' fingerprints are exactly `anthropic|claude-haiku-5-5||`, `…||web_search`, `anthropic|claude-opus-5-5||`, `…||web_search` — a precise match for `configs/models.example.yaml`, so the score-time cross-check will pass. And that config is **deliberately unpriced**, so re-scoring won't introduce `cost_usd` (which would otherwise have broken `assert "cost" not in json.dumps(summary).lower()` and forced the fallback). Expect the diff to be panel + `generated_at` only, as predicted.
+- `aggregate.test.ts` / `StandingsPage.test.tsx` fixtures omit `tools` already, so with `tools?` optional they keep passing under the missing ⇒ `[]` rule — the plan's "verify by running the suite" is the right posture.
+
+**Issues**
+
+1. **The migration command won't run as written.** `answers` is a positional `typer.Argument` (`cli.py` `score`), not `--answers`. Correct: `score runs/tutorial-2026-10-11/answers.jsonl --scores-out <TMP>/scores.jsonl --summary-out <TMP>/summary.json --summary-md <TMP>/summary.md --questions runs/tutorial-2026-10-11/questions.jsonl --config configs/models.example.yaml`.
+
+2. **Phase 1's stated test doesn't match the file it edits, and the version it describes will fail.** The test listed for modification (`test_phase2_tools.py:232–260`) hand-builds the panel dict and calls `score_file` — it exercises **score.py only**, never `cli.py`. The Test Plan says it will "run the `cli.py` panel-build path", but that path is inline in the Typer command behind the fingerprint cross-check, so synthetic `_answer()` rows with no `panel_fingerprint` raise `ScoreError` ("no panel fingerprint") before any panel is built. The working recipe is `test_score_config_drift_from_answers_refused` (same file, ~106–137): monkeypatch `collect_mod.complete`, run `collect` to write fingerprinted answers, then `CliRunner().invoke(app, ["score", str(answers), …])`. If the builder just edits the dict, **`cli.py`'s new emission ships with zero coverage** and the Phase-2 migration is the first thing to exercise it.
+
+3. **A claimed mitigation isn't in any deliverable.** The risk table says "`test_tutorial_run.py` reads `summary.md` and pins the `tools` column" — today that file touches `summary.md` only in the secret-regex scan. Add it explicitly to Phase 2: assert the committed `summary.md` panel table has a `tools` column with `web_search` on the `-search` rows. That is the actual JSON/MD-skew guard.
+
+4. **Typecheck is outside the gate.** `pnpm -C apps/viewer test` is `vitest run`; `check-types` (`tsc --noEmit`) is a separate script the dispatcher never calls. Phase 2 adds `PanelEntry.tools` and `StandingRow.tools` — add `pnpm -C apps/viewer check-types` to Phase 2 acceptance or type breakage ships silently.
+
+5. **Falsified *code/UI* text is missing from the file lists.** `aggregate.ts`'s `StandingRow.key` doc comment and the `aggregate()` docstring both state the key is `${provider}\u0000${model}`; `StandingsPage.tsx`'s header comment (lines 9–10) and its **user-visible** blurb ("keyed on … provider + model", ~line 98) say the same. These belong in Phase 2, not the Phase 3 doc sweep. Same for `runs/tutorial-2026-10-11/README.md:17`: leaving it to Phase 3 means the Phase-2 commit has a run directory whose `summary.json` carries `tools` while its own README describes the marker mechanism.
+
+6. **Phase 3's grep gate is ambiguous.** `grep -rn "no-tools\|\[web_search\]\|api_model"` will legitimately still hit `configs/models.example.yaml` (`tools: [web_search]` is valid config), `TUTORIAL.md:144` (config reference — the plan already flags it as probably fine), and `codev/reviews/8-*` (intentionally preserved). List the allowed survivors so the acceptance check isn't self-failing.
+
+Approach, phase ordering, risk register, and spec coverage are otherwise sound — the "migration + viewer key + committed-run tests land together" argument is correct and I couldn't find a cheaper decomposition that keeps the gate green.
+
+---
+VERDICT: COMMENT
+SUMMARY: Approach, phasing, and spec coverage are sound and I verified the green-gate and 7-row claims against the code; four concrete corrections needed (wrong CLI flag, a Phase-1 test path that can't run as described, an unimplemented md-skew assertion, typecheck outside the gate).
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Migration command uses `--answers`; `answers` is a positional argument in `cli.py score`.
+- Phase 1's test plan claims to exercise `cli.py`'s panel build, but the file it edits (`test_phase2_tools.py:232–260`) only calls `score_file` with a hand-built dict, and the CLI path requires fingerprinted answers (follow `test_score_config_drift_from_answers_refused`). Without this, `cli.py`'s new emission is untested.
+- The risk table's JSON/MD-skew mitigation ("`test_tutorial_run.py` pins the `tools` column") is not in any Phase 2 deliverable — that test currently only secret-scans `summary.md`.
+- `pnpm -C apps/viewer test` is `vitest run` only; `check-types` is not in `.codev/checks/test.sh`, so add it to Phase 2 acceptance given the new type fields.
+- Falsified code/UI text not listed: `aggregate.ts` key docstrings, `StandingsPage.tsx` header + user-visible "provider + model" blurb (belong in Phase 2), and `runs/tutorial-2026-10-11/README.md:17` (leaving it to Phase 3 makes the Phase-2 commit self-contradictory).
+- Phase 3's `grep` acceptance will hit legitimate survivors (`models.example.yaml`, `TUTORIAL.md:144`, Spec-8 review) — name the allowed exceptions.

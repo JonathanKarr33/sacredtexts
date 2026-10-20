@@ -1,0 +1,102 @@
+I'll start by reading the diff and the key project files.Now let me read the actual implementation files.I have a complete picture. Let me verify one last thing about the untracked files.## Review — PR #22 (Spec 11, `panel.tools` / Approach B)
+
+I read the spec, the plan, every changed source and test file on disk, both sides of each file that `main` has since touched, and I independently verified the committed-run migration. I did **not** run the test suite (the tree is live and the gate itself changed on `main` — see finding 6); everything below is from reading.
+
+### The implementation itself is strong
+
+The pipeline change is exactly the minimal shape the spec chose: `cli.py` emits `{provider, model (raw), tools, endpoint, price_in, price_out}`, `score.py` writes `{provider, model, tools, endpoint, served_by}` with `p.get("tools") or []` covering the synthesised-entry path, `summary_markdown` gains the column. No marker, no `api_model`, `_panel_fingerprint` and the scoring contract untouched.
+
+Test quality is above average and the tests are not vacuous:
+- `test_phase2_tools.py` asserts the key-set with `==` (not `⊆`), derives the arm keys and compares them against the first-run tuple, and slices the markdown by section before indexing cell 4 — so `served_by`'s `—` can't accidentally satisfy the tools assertion.
+- `test_cli_score_panel_emits_tools_field_and_raw_model` closes the real gap the plan identified: `cli.py`'s panel build sits behind the fingerprint cross-check, so it genuinely needed the collect→CliRunner route rather than a hand-built dict.
+- `tutorialRun.test.ts` derives first-run's key from its **actual** committed panel entry rather than a hand-copied literal, then proves equality — that's the right way to assert a collision.
+- The three new `aggregate.test.ts` cases cover the distinct-tools, missing-`tools`-⇒-`[]`, and unsorted-tools paths; remove the `.sort()` in `aggregate.ts:66` and the third one fails. Not vacuous.
+
+I verified the migration independently (`git show main:…/summary.json` vs. the working copy): only `panel` and `generated_at` differ; `models`, `by_tradition`, and `usage` are byte-identical, and `scores.jsonl`/`answers.jsonl`/`questions.jsonl` aren't in the diff at all. The temp-dir procedure was honoured. `first-run-2026-10-11/` is untouched.
+
+### Blocker: the branch is 18 commits behind `main`, and the gap is semantic
+
+`gh pr view 22` reports `mergeable: CONFLICTING`, `mergeStateStatus: DIRTY`. That alone is a PR-ready failure, but the content of the gap matters more than the conflict markers:
+
+**1. Issue #7 shipped on `main` and a careless rebase will revert it.** `[Air #7] feat: resolve run recency from generated_at, not directory mtime` merged via PR #17. `main`'s `aggregate.ts` replaced `StandingRow.mtimeMs` with `recencyMs` and computes `runRecencyMs({generatedAt, runId, mtimeMs})` (new `lib/recency.ts`). This branch's `aggregate.ts` is a whole-file edit of the **pre-#7** version. Resolving that conflict "ours" silently un-ships a merged feature. Same hazard in `StandingsPage.tsx` (`main`: `row.recencyMs` + `recencyDate` import; branch: `row.mtimeMs` + a local `runDate`), `aggregate.test.ts`, and `tutorialRun.test.ts`. The tools key must be re-applied **on top of** the recency code.
+
+**2. The PR adds user-facing prose that `main` has already falsified.** `TUTORIAL.md` gains: *"git does not preserve mtimes, so on an mtime tie the lexicographically-smaller run id wins (making recency calendar-accurate is issue #7, out of scope here)."* Issue #7 is merged. Same stale claim in the `tutorialRun.test.ts:115–119` comment and in the review doc. These need rewriting on rebase, not just conflict resolution.
+
+**3. Post-rebase the behaviour is better than the PR claims, and no test will notice.** first-run has **no** `generated_at` → recency falls back to the run-id date `2026-10-11T00:00Z`. The tutorial's `generated_at` is `2026-10-12T17:01Z` → genuinely newer. So the tutorial really does supersede first-run's bare haiku row in a fresh clone, and the `mtimeMs: 1 / 2` injection in `tutorialRun.test.ts` becomes **inert** — `runRecencyMs` never reaches mtime for either run. The test still passes, but for a reason its comment disclaims. Update the comment and make the directional assertion mean something again.
+
+**4. The migration bumped a field that is now load-bearing.** `generated_at` moved `2026-10-12T01:20:16` → `2026-10-12T17:01:53` (the regeneration time). At spec-writing time that was correctly judged "additive, the viewer ignores it". Under #7 it *is* the recency key. Consequences: the viewer will label the run "dated 2026-10-12" though its id says `2026-10-11`, and the committed timestamp now records when the panel was migrated rather than when the run executed. Benign-to-beneficial, but worth a conscious decision — preserving the original timestamp during the panel migration is a one-line edit and keeps the artifact honest. Not a correctness bug; architect's call.
+
+**5. Both prose targets were rewritten wholesale by Issue #19** (`TUTORIAL.md` 381 lines, `CODE_WALKTHROUGH.md` 580 lines), so the branch edits the superseded text:
+   - `main`'s `TUTORIAL.md` standings section (lines 235–238) is now three plain sentences in #19's deliberately simplified single-track style and **no longer mentions the marker at all**. The right rebase action there is a small edit or none — not re-inserting this branch's 11-line paragraph about mtime ties and issue numbers. (That also matches the project's documented docs preference for simple, non-engineer-accessible recipes.)
+   - `main`'s `CODE_WALKTHROUGH.md` **does** still assert the marker, relocated to lines 255–259 and citing `cli.py:349` — a line this PR empties. So that correction is still genuinely needed, at the new location.
+
+**6. `main` tightened the gate after this branch diverged.** `.codev/checks/test.sh` now maps `CODE_WALKTHROUGH.md` into the pipelines lane so `pipelines/tests/test_code_walkthrough.py` (the `file:line` pointer/symbol guard) runs whenever the doc changes. The branch's green-gate claim predates that. The branch's `score.py:430` pointer is currently accurate (I checked — line 430 is `"tools": p.get("tools") or []`), but it will drift if aspir-15's `score.py` work lands first.
+
+### Minor, non-blocking
+
+- `StandingsPage.tsx:133` renders the tool set as `[web_search]`. Cosmetic and tested, but it reads like the data marker the PR is removing; a `· web_search` tag would be less confusable. The spec left the wording open.
+- `StandingsPage.test.tsx`'s `.not.toContain("[")` is a whole-row assertion — any future bracket anywhere in that row breaks it. Fine today.
+- `.builder-*` files and `.claude/hooks/` are untracked and **not** gitignored (`git check-ignore` matches nothing). Keep them out of the commit — explicit-path `git add` already protects you.
+
+### Bottom line
+
+The code, tests, and migration I would approve as-is. What blocks the PR is that it can't merge and would ship prose `main` has falsified. Rebase onto `fb7b5ae`, re-apply the tools key on top of `recency.ts` (do not clobber `recencyMs`), re-target the two doc edits at #19's rewritten text, drop the issue-#7-is-out-of-scope language, and re-run the gate — which will now also exercise the walkthrough pointer guard.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Implementation and tests are solid and spec-aligned, but the branch is 18 commits behind main, reports CONFLICTING, and its new docs/comments are falsified by the now-merged Issue #7 and the #19 doc rewrite.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- PR is `mergeable: CONFLICTING / DIRTY`; branch is 18 commits behind `main`.
+- `main` shipped Issue #7 (`recency.ts`, `StandingRow.recencyMs`, `runRecencyMs`); this branch rewrites the pre-#7 `aggregate.ts`/`StandingsPage.tsx` — a careless conflict resolution silently reverts a merged feature.
+- New `TUTORIAL.md` prose (and the `tutorialRun.test.ts:115–119` comment) asserts Issue #7 is unshipped and recency is mtime-based — false on `main`.
+- `TUTORIAL.md` / `CODE_WALKTHROUGH.md` were rewritten by Issue #19; the branch edits superseded text. `main`'s TUTORIAL standings section no longer mentions the marker (so a small edit, not the 11-line paragraph); `main`'s CODE_WALKTHROUGH still does, at lines 255–259 citing `cli.py:349`.
+- Post-rebase, `tutorialRun.test.ts`'s injected mtimes become inert (recency resolves via `generated_at`/run-id date), so the directional-supersession assertion no longer tests what its comment says.
+- The migration bumped `generated_at` (01:20 → 17:01), which under Issue #7 is now the load-bearing recency key — consider preserving the original run timestamp. Non-blocking, architect's call.
+- `main` added `CODE_WALKTHROUGH.md` → pipelines lane in `.codev/checks/test.sh`, so the pointer guard will run post-rebase; the branch's green-gate claim predates it.
+
+PR_SUMMARY: |
+  ## Summary
+  Replaces Spec 8's `panel.model` tools *marker* (`[no-tools]` / `[web_search]`) with a real
+  `panel.tools` field and makes the viewer's standings key incorporate it — the Approach B that
+  Spec 8 deferred. `panel.model` returns to the raw API model id and the now-redundant
+  `api_model` field is dropped. Same-model/same-tools runs finally dedupe, so first-run's bare
+  `claude-haiku-5-5` standings row is supersedable instead of orphaned beside
+  `claude-haiku-5-5 [no-tools]` forever.
+
+  ## Key Changes
+  - **Pipeline** (`cli.py`, `score.py`): each panel entry carries a sorted `tools` list and a raw
+    unmarked `model`; the synthesised-entry path defaults `tools` to `[]`; the written key-set is
+    exactly `{provider, model, tools, endpoint, served_by}` (secret-free); `summary_markdown`'s
+    panel-composition table gains a `tools` column so the two arms stay distinguishable in the
+    human-readable proof.
+  - **Viewer** (`localResults.ts`, `aggregate.ts`, `StandingsPage.tsx`): standings key becomes
+    `${provider}\u0000${model}\u0000${sortedTools}` with a missing `tools` defaulting to `[]`;
+    `StandingRow` carries `tools`; the row subtext surfaces the tool set so search-on and
+    search-off remain visually distinct.
+  - **Committed evidence**: `runs/tutorial-2026-10-11/` migrated to the new panel shape
+    (regenerated into a fresh temp dir, `scores.jsonl` verified byte-identical, then copied in) —
+    only `panel` and `generated_at` differ. `runs/first-run-2026-10-11/` untouched.
+  - **Docs**: `arch-critical.md`, `arch.md`, `CODE_WALKTHROUGH.md`, `TUTORIAL.md`,
+    `apps/viewer/README.md`, and the tutorial run's `README.md` corrected; the marker-orphan
+    lesson routed into `lessons-learned.md`. Spec 8's historical artifacts left as records.
+
+  ## Test Plan
+  - `.codev/checks/test.sh` (viewer vitest + pipeline pytest + copyright audit).
+  - `pnpm -C apps/viewer check-types` (not in the dispatcher gate — run explicitly).
+  - Marker-era assertions inverted to assert the collision/dedupe: 4 distinct tool-arm keys plus
+    one shared haiku-no-tools key ⇒ **7** standings rows across both committed runs (was 8).
+  - New coverage: CLI-level panel emission, synthesised-entry `tools` default, sorted-tools key,
+    missing-`tools`-⇒-`[]`, and a `summary.json` ↔ `summary.md` skew guard.
+  - Manual: `pnpm -C apps/viewer dev` → `/standings`, confirm 7 rows and that `haiku` vs.
+    `haiku-search` are distinguishable.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-11_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

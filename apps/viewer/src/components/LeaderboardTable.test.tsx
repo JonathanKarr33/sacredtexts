@@ -116,8 +116,8 @@ describe("LeaderboardTable", () => {
       },
       by_tradition: {},
       panel: {
-        "x-on": { provider: "anthropic", model: "claude-z [web_search]", endpoint: "e", served_by: null },
-        "x-off": { provider: "anthropic", model: "claude-z [no-tools]", endpoint: "e", served_by: null },
+        "x-on": { provider: "anthropic", model: "claude-z", tools: ["web_search"], endpoint: "e", served_by: null },
+        "x-off": { provider: "anthropic", model: "claude-z", tools: [], endpoint: "e", served_by: null },
       },
     };
     await renderTable(paired);

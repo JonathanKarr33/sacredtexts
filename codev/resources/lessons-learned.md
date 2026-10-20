@@ -53,6 +53,17 @@ Seeded from Spec 1 (Phase 1 benchmark).
   moved, preserve `panel`/`usage` verbatim (a keyless re-score nulling them is the scar), and surface
   the moved numbers to the architect before writing prose. Spec 15 did exactly two such rebaselines.
 
+- **A marker baked into an identity string to force non-collision orphans the
+  pre-existing bare rows.** Spec 8 encoded tool-use into `panel.model`
+  (`[no-tools]`/`[web_search]`) to keep search-on/off distinct *without* a viewer change;
+  but the marked key could then never collide with an earlier run's bare
+  `claude-haiku-5-5`, so a stale row sat beside it forever. Promote the dimension to a
+  real field (`panel.tools`) and have the consumer's standings key incorporate it
+  (`(provider, model, tools)`) so same-model/same-tools rows dedupe and legacy bare rows
+  become supersedable (Spec 11, Approach B — the shape Spec 8 deferred). Lesson: don't
+  encode a new identity dimension as a string marker to dodge a consumer change; the
+  marker you add to separate two arms also wrongly separates two runs that should merge.
+
 ## Live runs & providers
 
 - **Reasoning models can return empty content** when `max_tokens` is exhausted by

@@ -56,7 +56,8 @@ describe.skipIf(!present)("committed first run renders through the viewer", () =
     // Spec 15 phase 3: the run has refused cells, distinct from wrong and missing
     expect(run.results.some((r) => r.refused)).toBe(true);
     expect(run.results.every((r) => !(r.refused && r.missing))).toBe(true);
-    // first-run's panel models carry no [web_search]/[no-tools] marker, so there is no on/off pair —
+    // first-run's panel models are four distinct raw ids each with empty tools (Approach B), so no two
+    // share a (provider, model) key and there is no on/off pair —
     // the contrast affordance degrades gracefully to nothing (never fires on first-run).
     expect(searchContrast(run.summary)).toEqual([]);
   });

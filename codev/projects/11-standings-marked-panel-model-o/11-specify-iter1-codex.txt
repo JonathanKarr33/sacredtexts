@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The panel/tools design is sound, but the spec does not ensure its claimed committed-run supersession and conflicts with evidence-handling guidance.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Actual `/standings` supersession is not guaranteed. The viewer determines recency from run-directory `mtimeMs`; both committed run directories currently have identical mtimes, so the tie-break selects `first-run-2026-10-11`, not the tutorial. A test injecting mtimes `1` and `2` does not validate the real user path. Specify a reliable recency source or qualify the supersession criterion accordingly.
+- The chosen regeneration approach conflicts with `lessons-critical.md`, which says never rerun `score` over committed evidence. Require all generated outputs to go to a fresh temporary run/location, verify them there, and only then replace the intended `summary.json` panel data.
+- `arch-critical.md` and `lessons-learned.md` explicitly prescribe markers in `panel.model`. This feature makes that always-on guidance false, but updating those governance documents is absent from the success criteria. Include the required documentation update so future agents are not instructed to restore Approach A.

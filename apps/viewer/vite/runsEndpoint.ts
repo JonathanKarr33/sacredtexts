@@ -4,8 +4,9 @@
 // stray client import cannot pull fs/path into the browser bundle.
 //
 // It exposes:
-//   listRuns(runsDir)      — the run index: [{id, mtimeMs}] for each subdir with a
-//                            readable summary.json, newest first.
+//   listRuns(runsDir)      — the run index: [{id, mtimeMs, generatedAt?}] for each subdir
+//                            with a readable summary.json, newest first BY RECENCY (not
+//                            mtime alone — see listRuns / recency.ts, Issue #7).
 //   resolveRunFile(dir,rel)— confined single-file resolution (realpath + symlink reject).
 //   createRunsHandler(dir) — a Connect middleware mounting both at /runs (dev server).
 //
@@ -16,14 +17,34 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
+// Pure, browser-safe recency helper from src/ — safe to import here (node → src is fine; the
+// banned direction is src → this node-only module, which pulls fs into the browser bundle).
+import { runRecencyMs } from "../src/lib/recency";
 
 export interface RunIndexEntry {
   id: string;
   mtimeMs: number;
+  /** `summary.generated_at`, if the run's summary.json carries a string one — surfaced so
+   * the client can order by it (recency, Issue #7) without fetching every summary. */
+  generatedAt?: string;
+}
+
+/** `generated_at` from a run's summary.json if present as a string, else undefined. Never
+ * throws: a missing/unreadable/malformed summary yields undefined (recency then falls back). */
+function readGeneratedAt(summaryPath: string): string | undefined {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(summaryPath, "utf8")) as unknown;
+    const g = (parsed as { generated_at?: unknown })?.generated_at;
+    return typeof g === "string" ? g : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Immediate subdirectories of `runsDir` that contain a readable `summary.json`, newest
- * first (mtime desc, id asc as a stable tiebreak). A nonexistent root returns []. */
+ * first. Ordering is by recency (`summary.generated_at` → run-id date → dir mtime, Issue #7;
+ * id asc as a stable tiebreak), NOT mtime alone, which collapses in a fresh clone. A
+ * nonexistent root returns []. */
 export function listRuns(runsDir: string): RunIndexEntry[] {
   let root: string;
   try {
@@ -50,12 +71,19 @@ export function listRuns(runsDir: string): RunIndexEntry[] {
       const ls = fs.lstatSync(summary);
       if (ls.isSymbolicLink() || !ls.isFile()) continue;
       fs.accessSync(summary, fs.constants.R_OK); // require it to be readable, not just present
-      out.push({ id: e.name, mtimeMs: fs.statSync(dir).mtimeMs });
+      // Read generated_at for recency. A missing/malformed summary still lists the run (same
+      // runs as before) — generatedAt just stays undefined, so recency falls back to the id.
+      out.push({ id: e.name, mtimeMs: fs.statSync(dir).mtimeMs, generatedAt: readGeneratedAt(summary) });
     } catch {
       /* missing / unreadable summary.json — skip */
     }
   }
-  out.sort((a, b) => b.mtimeMs - a.mtimeMs || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  out.sort(
+    (a, b) =>
+      runRecencyMs({ generatedAt: b.generatedAt, runId: b.id, mtimeMs: b.mtimeMs }) -
+        runRecencyMs({ generatedAt: a.generatedAt, runId: a.id, mtimeMs: a.mtimeMs }) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
   return out;
 }
 

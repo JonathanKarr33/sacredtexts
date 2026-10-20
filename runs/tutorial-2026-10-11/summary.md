@@ -23,13 +23,13 @@ _Cells: accuracy cov coverage (n answered; c/i/r = correct/incorrect/refused). a
 | opus-search | Protestant Christian | 100% cov 100% (n=33; c/i/r 33/0/0) | **100%** cov 100% (n=33; c/i/r 33/0/0) |
 | opus-search | Sunni Islam | 100% cov 100% (n=33; c/i/r 33/0/0) | **100%** cov 100% (n=33; c/i/r 33/0/0) |
 
-### Panel composition (committed-artifact proof — provider / model / endpoint, no secrets)
-| model_id | provider | model | endpoint | served_by |
-|---|---|---|---|---|
-| haiku | anthropic | claude-haiku-5-5 [no-tools] | api.anthropic.com | — |
-| haiku-search | anthropic | claude-haiku-5-5 [web_search] | api.anthropic.com | — |
-| opus | anthropic | claude-opus-5-5 [no-tools] | api.anthropic.com | — |
-| opus-search | anthropic | claude-opus-5-5 [web_search] | api.anthropic.com | — |
+### Panel composition (committed-artifact proof — provider / model / tools / endpoint, no secrets)
+| model_id | provider | model | tools | endpoint | served_by |
+|---|---|---|---|---|---|
+| haiku | anthropic | claude-haiku-5-5 | — | api.anthropic.com | — |
+| haiku-search | anthropic | claude-haiku-5-5 | web_search | api.anthropic.com | — |
+| opus | anthropic | claude-opus-5-5 | — | api.anthropic.com | — |
+| opus-search | anthropic | claude-opus-5-5 | web_search | api.anthropic.com | — |
 
 ### Token usage
 | model_id | calls | in | out |

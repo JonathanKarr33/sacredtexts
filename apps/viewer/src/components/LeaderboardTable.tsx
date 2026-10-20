@@ -45,6 +45,12 @@ export function LeaderboardTable({ summary, runId }: { summary: Summary; runId: 
         <span className="font-medium">coverage</span> is how often it answers — read the pair
         together. Local only — from the run's <code>summary.json</code>.
       </p>
+      {summary.evaluators && summary.evaluators.length > 0 && (
+        <p className="mt-1 text-xs text-default-400">
+          Scored by evaluator{summary.evaluators.length === 1 ? "" : "s"}:{" "}
+          <span className="font-medium">{summary.evaluators.join(" + ")}</span>
+        </p>
+      )}
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full border-collapse text-sm">

@@ -37,6 +37,11 @@ export interface Usage {
 export interface PanelEntry {
   provider: string;
   model: string;
+  // The tools setting (e.g. ["web_search"]) is part of panel identity (Approach B): the
+  // standings key incorporates it, so search-on/off stay distinct rows while a no-tools
+  // entry keys identically to a bare run of the same model. Absent on pre-Approach-B runs
+  // (e.g. first-run-2026-10-11) → the aggregator defaults a missing value to [].
+  tools?: string[];
   endpoint: string;
   // Nullable in the real data (e.g. the anthropic-hosted model reports served_by: null).
   served_by: string[] | null;
@@ -47,6 +52,13 @@ export interface Summary {
   by_tradition?: Record<string, Record<string, Record<string, Cell>>>; // model -> tradition -> task -> Cell
   usage?: Usage;
   panel?: Record<string, PanelEntry>;
+  // ISO-8601 UTC timestamp score.py stamps at summarise time: the mtime-independent recency
+  // signal (Issue #7). Absent on pre-Issue-#7 runs; recency then falls back to the run id.
+  generated_at?: string;
+  // The named graders that scored this run (Spec 15, `score --evaluator`; default ["strict",
+  // "containment"]). Preserved so the viewer can show the scoring contract and flag a cross-run
+  // comparison of runs scored under DIFFERENT evaluator selections. Absent on pre-Spec-15 runs.
+  evaluators?: string[];
 }
 
 export interface ScoreMetrics {
@@ -151,6 +163,13 @@ export function parseSummary(obj: unknown): Summary {
     by_tradition: s.by_tradition ?? {},
     usage: s.usage,
     panel: s.panel,
+    // Carried through for recency (Issue #7); only trusted when it is actually a string.
+    generated_at: typeof s.generated_at === "string" ? s.generated_at : undefined,
+    // Evaluator provenance (Spec 15): only trusted when it is an array of strings.
+    evaluators:
+      Array.isArray(s.evaluators) && s.evaluators.every((e) => typeof e === "string")
+        ? (s.evaluators as string[])
+        : undefined,
   };
 }
 

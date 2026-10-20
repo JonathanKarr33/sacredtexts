@@ -1,0 +1,24 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The feature is well implemented in isolation, but the branch conflicts with current main and would regress the newly merged recency behavior.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The branch is 18 commits behind `main`; a read-only `git merge-tree` check found conflicts in key files including `aggregate.ts`, its tests, `StandingsPage.tsx`, `TUTORIAL.md`, and `CODE_WALKTHROUGH.md`. The PR is not currently integration-ready.
+- Main now resolves recency using `generated_at` → run-id date → mtime, while this branch still uses mtime alone and documents Issue #7 as outstanding. Rebase and preserve both tools-aware identity and main’s `runRecencyMs` behavior, then update the tutorial, review document, PR description, and tests accordingly.
+- The reported green test run predates integration with current main. Re-run the complete gate after resolving conflicts, especially the aggregate, standings-page, and committed tutorial-run tests.
+
+PR_SUMMARY: |
+  ## Summary
+  Promotes tool configuration from markers embedded in `panel.model` to a first-class `panel.tools` field. Standings then deduplicate by `(provider, model, tools)`, allowing legacy no-tools rows to be superseded while keeping search-enabled arms distinct.
+
+  ## Key Changes
+  - Emits raw model IDs and deterministic tool lists while removing redundant `api_model`.
+  - Updates viewer aggregation and display to key and label standings by tool configuration.
+  - Migrates the committed tutorial evidence and updates relevant tests and documentation.
+  - Must be rebased so these changes compose with main’s generated-at-based recency implementation.
+
+  ## Test Plan
+  - Rebase onto current `main` and resolve all merge conflicts without dropping `runRecencyMs`.
+  - Run `.codev/checks/test.sh`.
+  - Verify seven standings rows across the committed runs, distinct search-on/off rows, and the tutorial run winning the shared no-tools identity through generated-at recency.

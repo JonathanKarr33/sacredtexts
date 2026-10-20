@@ -73,14 +73,17 @@ describe("searchContrast (search on/off pairing, Spec 15 phase 3)", () => {
       solo: { retrieve_quote: { n: 100, accuracy: 0.5, coverage: 1.0 }, _overall: { n: 100, accuracy: 0.5, coverage: 1.0 } },
     },
     by_tradition: {},
+    // Approach B: the model id is raw and the tool arm is `panel.tools` (non-empty = ON, empty = OFF).
+    // m-on/m-off share the raw model `claude-x` and differ only by tools → they pair; `solo` (claude-y)
+    // has only an OFF arm → dropped.
     panel: {
-      "m-on": { provider: "anthropic", model: "claude-x [web_search]", endpoint: "e", served_by: null },
-      "m-off": { provider: "anthropic", model: "claude-x [no-tools]", endpoint: "e", served_by: null },
-      solo: { provider: "anthropic", model: "claude-y [no-tools]", endpoint: "e", served_by: null }, // unpaired
+      "m-on": { provider: "anthropic", model: "claude-x", tools: ["web_search"], endpoint: "e", served_by: null },
+      "m-off": { provider: "anthropic", model: "claude-x", tools: [], endpoint: "e", served_by: null },
+      solo: { provider: "anthropic", model: "claude-y", tools: [], endpoint: "e", served_by: null }, // unpaired
     },
   };
 
-  it("pairs the on/off arms of a base model and drops an unpaired arm", () => {
+  it("pairs the on/off arms (by tools) of a shared model and drops an unpaired arm", () => {
     const pairs = searchContrast(summary);
     expect(pairs.map((p) => p.base)).toEqual(["claude-x"]); // 'claude-y' has no web_search arm
     expect(pairs[0]!.on.modelId).toBe("m-on");

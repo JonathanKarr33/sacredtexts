@@ -59,4 +59,38 @@ describe("fetchRunIndex", () => {
     if (!result.ok) return;
     expect(result.runs).toEqual([{ id: "ok", mtimeMs: 0 }]);
   });
+
+  it("orders by generated_at, not mtime — a fresh clone's collapsed mtimes cannot mislead (Issue #7)", async () => {
+    // Every run shares the checkout mtime (100). By mtime+id-asc the id-smallest "a-run"
+    // would rank newest; its generated_at is actually the OLDEST, so it must rank last.
+    const result = await fetchRunIndex(
+      indexFetcher({
+        textBody: JSON.stringify([
+          { id: "a-run", mtimeMs: 100, generatedAt: "2026-10-10T00:00:00+00:00" },
+          { id: "c-run", mtimeMs: 100, generatedAt: "2026-10-12T00:00:00+00:00" },
+          { id: "b-run", mtimeMs: 100, generatedAt: "2026-10-11T00:00:00+00:00" },
+        ]),
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runs.map((r) => r.id)).toEqual(["c-run", "b-run", "a-run"]);
+    // runs[0] — the leaderboard's default "most recent run" — is the truly newest one.
+    expect(result.runs[0]!.id).toBe("c-run");
+    expect(result.runs[0]!.generatedAt).toBe("2026-10-12T00:00:00+00:00");
+  });
+
+  it("orders by the run-id date when generated_at is absent (collapsed mtimes)", async () => {
+    const result = await fetchRunIndex(
+      indexFetcher({
+        textBody: JSON.stringify([
+          { id: "alpha-2026-10-11", mtimeMs: 100 },
+          { id: "beta-2026-10-12", mtimeMs: 100 },
+        ]),
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runs.map((r) => r.id)).toEqual(["beta-2026-10-12", "alpha-2026-10-11"]);
+  });
 });

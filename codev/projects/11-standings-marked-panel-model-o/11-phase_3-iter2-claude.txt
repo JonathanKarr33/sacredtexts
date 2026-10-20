@@ -1,0 +1,40 @@
+I'll review Phase 3 (doc corrections) by reading the actual files.I read all four Phase 3 target docs from disk, verified the claims against the code they describe, re-ran the walkthrough pointer test, and checked the plan's grep gate.
+
+## What I verified as correct
+
+**`arch-critical.md:9`** — rewritten accurately: tools in `_panel_fingerprint` (still true, `collect.py`), real `panel.tools` list, raw `model`, key `provider\u0000model\u0000sortedTools` with missing ⇒ `[]`. Matches `aggregate.ts:66-67` exactly (`[...(p?.tools ?? [])].sort()`, joined into the third segment). Hot-tier cap respected: still 10 facts, 21 lines total, one line each — the skill's cap is line-based (≈10 facts + ≈12-topic map, ≤35 lines), so compliant.
+
+**`CODE_WALKTHROUGH.md:335-345`** — the restored pointer `score.py:430` is exactly `"tools": p.get("tools") or [],` (I counted the lines). `test_code_walkthrough.py` passes (93 tests), `_REQUIRED_SYMBOLS` untouched and none of its entries referenced marker code.
+
+**`arch.md:78-80, 101-108`** — panel description matches `score.py`'s emitted key-set; `tools` sorted claim is backed by `config.py`'s `tuple(sorted(set(...)))`. "Newest run per `(provider, model, tools)` identity" now matches `aggregate.ts`.
+
+**`TUTORIAL.md:196-207`** — the iter-1 blocking issue is genuinely fixed and the numbers check out against the real data: first-run's panel is `claude-haiku-5-5` (collides) + gemma/gpt-oss/llama (3 non-overlapping) + 4 tutorial arms = **7**. No winner is claimed; the mtime/id-ascending caveat matches `aggregate.ts:85` (`runId < prev.runId`, and `first-run-…` < `tutorial-…`). The "`web_search` tag after the raw model name" claim matches `StandingsPage.tsx:132-133` (`{provider} / {model} [web_search]`).
+
+**Grep gate** — `grep -rn "no-tools\|\[web_search\]\|api_model"` over the four docs returns only the permitted `TUTORIAL.md:144` (valid config). Spec 8's historical artifacts are untouched; repo-wide grep shows no other non-historical doc carrying marker language.
+
+## The one gap
+
+`apps/viewer/README.md:44-47` still says standings is "keyed on the run panel's **`(provider, model)`** identity (so a model renamed between runs still dedupes to one row)". This PR's own viewer change falsifies that sentence. It matters more than a typical stale README because `arch-critical.md:12` instructs agents to "read `apps/viewer/README.md` before touching it" — so it is the designated entry point for viewer work, and a future agent reading it is told the key is 2-tuple, which is precisely the regression vector Phase 3 exists to close (same class of defect Spec 11 is cleaning up from Spec 8). It is a one-sentence fix: key is `(provider, model, tools)`, missing `tools` ⇒ `[]`, so search-on/off stay distinct while same-model/same-tools runs dedupe. (`README.md:13-14`'s "`panel` (provider/model/endpoint)" is a loose summary that already omitted `served_by` — I would not touch it.)
+
+I acknowledge this file is not in the spec's enumerated falsified-doc list or the plan's Phase 3 file list. I don't think it was deliberately excluded — the spec's Current State survey simply never looked at `apps/viewer/README.md`. If the architect prefers to hold the enumeration strictly, this is a legitimate "defer to PR review" item rather than a rework; but it's cheaper to fix now than to have it merge.
+
+## Non-blocking nits
+
+- `CODE_WALKTHROUGH.md:341-343` — the edit left a ragged half-line ("Tools / are validated — and / fail-fast…"); re-wrap the paragraph.
+- `arch.md:104-108` — same ragged wrap ("because the / key incorporates"), and the sentence now runs long with two em-dash clauses plus a trailing "— Spec 11, Approach B, which required the viewer change)". Readable but worth one re-flow pass; also the one line at 94 cols is the file's new max (was 92).
+- `TUTORIAL.md:205` — "on a **same-date** tie" conflates calendar date with exact `mtimeMs` equality. The tie in `aggregate.ts` is on equal `mtimeMs`; in a fresh clone the two dirs' mtimes are checkout times that may differ arbitrarily, so neither run is guaranteed. "on an mtime tie" would be strictly accurate. The 7-row claim holds either way, so this doesn't falsify anything.
+- `arch-critical.md:9` is now the hot file's longest line (453 → 547 chars). Within the line-based cap, but density is creeping; "(Spec 11, Approach B)" could go.
+
+I was not asked to edit anything and did not — all findings above come from reading the files.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The four enumerated Phase 3 docs are accurate and the iter-1 TUTORIAL fix is correct, but `apps/viewer/README.md` still asserts the now-false `(provider, model)` standings key — and arch-critical directs agents to read it before viewer work.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `apps/viewer/README.md:44-47` states standings is keyed on the panel's `(provider, model)` identity — falsified by this PR's `aggregate.ts` change to `(provider, model, tools)`. Authoritative for viewer work per `arch-critical.md:12`; one-sentence fix.
+- Nit: ragged re-wraps left in `CODE_WALKTHROUGH.md:341-343` and `arch.md:104-108`.
+- Nit: `TUTORIAL.md:205` says "same-date tie" where the code ties on exact `mtimeMs`; "mtime tie" is the precise wording.
+- Nit: `arch-critical.md:9` grew 453→547 chars (within the line-based hot cap, but now the file's longest fact).

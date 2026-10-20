@@ -4,9 +4,11 @@
 // summaries; StandingsPage does the fetching and rendering.
 
 import { type Cell, type Summary } from "./localResults";
+import { runRecencyMs } from "./recency";
 
-/** One run's parsed summary, tagged with the run id and its directory mtime (the
- * most-recent-wins key). */
+/** One run's parsed summary, tagged with the run id and its directory mtime. Recency (the
+ * most-recent-wins key) is derived from `summary.generated_at` → run-id date → `mtimeMs`
+ * (Issue #7) — never the mtime alone, which collapses in a fresh clone. */
 export interface RunSummary {
   runId: string;
   mtimeMs: number;
@@ -15,17 +17,21 @@ export interface RunSummary {
 
 /** One model's current standing: its result from the most recent run that includes it. */
 export interface StandingRow {
-  /** Identity key: `${provider}\u0000${model}` from the source run's `panel`, or the bare
-   * `model_id` when that run has no panel entry (graceful fallback — see `aggregate`). */
+  /** Identity key: `${provider}\u0000${model}\u0000${sortedTools}` from the source run's
+   * `panel` (tools missing ⇒ `[]`), or the bare `model_id` when that run has no panel
+   * entry (graceful fallback — see `aggregate`). */
   key: string;
   /** The model's display id (the `summary.models` key) in the source run. */
   modelId: string;
   /** Panel identity, or null when this row is keyed on `model_id` only (panel absent). */
   provider: string | null;
   model: string | null;
-  /** The run this standing is taken from, and its mtime. */
+  /** The panel entry's tools setting (`[]` when absent), part of the standings identity. */
+  tools: string[];
+  /** The run this standing is taken from, and its resolved recency (epoch-ms; the
+   * most-recent-wins key and the displayed date — see `runRecencyMs`). */
   runId: string;
-  mtimeMs: number;
+  recencyMs: number;
   /** The "_overall" cell and per-task cells from the source run. */
   overall: Cell | undefined;
   byTask: Record<string, Cell | undefined>;
@@ -33,12 +39,17 @@ export interface StandingRow {
 
 /**
  * Roll every run up into current standings: one row per model, keyed on the panel
- * `(provider, model)` identity (architect-binding requirement 6 — so a model renamed in
- * its `summary.models` key across runs still dedupes to one row). For each key the row is
- * taken from the run with the greatest `mtimeMs`; an exact mtime tie is broken by run id
- * ascending — the SAME ordering the run index uses (`listRuns`/`fetchRunIndex` sort mtime
- * desc, id asc), so standings and the leaderboard's "most recent run" default never
- * disagree about which of two equal-mtime runs is the newest.
+ * `(provider, model, tools)` identity (architect-binding requirement 6 — so a model
+ * renamed in its `summary.models` key across runs still dedupes to one row, while the same
+ * model run with vs. without tools stays two rows). Tools are sorted into the key (and a
+ * missing `tools` field defaults to `[]`), so a hand-written summary can't produce an
+ * order-dependent key and a bare pre-Approach-B run dedupes against an explicit no-tools
+ * run of the same model. For each key the row is taken from the run with the greatest
+ * recency (`runRecencyMs`: generated_at → run-id date → mtime — never mtime alone, which
+ * collapses in a fresh clone, Issue #7); an exact recency tie is broken by run id ascending
+ * — the SAME ordering the run index uses (`listRuns`/`fetchRunIndex` sort recency desc, id
+ * asc), so standings and the leaderboard's "most recent run" default never disagree about
+ * which of two equally-recent runs is newest.
  *
  * A run that carries no `panel` entry for a model falls back to keying on the bare
  * `model_id`: the model still appears from that run, it simply cannot dedupe against a
@@ -53,10 +64,12 @@ export interface StandingRow {
 export function aggregate(runs: RunSummary[]): { tasks: string[]; rows: StandingRow[] } {
   const best = new Map<string, StandingRow>();
   for (const { runId, mtimeMs, summary } of runs) {
+    const recencyMs = runRecencyMs({ generatedAt: summary.generated_at, runId, mtimeMs });
     const panel = summary.panel ?? {};
     for (const [modelId, cells] of Object.entries(summary.models)) {
       const p = panel[modelId];
-      const key = p ? `${p.provider}\u0000${p.model}` : modelId;
+      const tools = [...(p?.tools ?? [])].sort();
+      const key = p ? `${p.provider}\u0000${p.model}\u0000${tools.join(",")}` : modelId;
       const byTask: Record<string, Cell | undefined> = {};
       for (const [t, c] of Object.entries(cells)) if (t !== "_overall") byTask[t] = c;
       const candidate: StandingRow = {
@@ -64,16 +77,21 @@ export function aggregate(runs: RunSummary[]): { tasks: string[]; rows: Standing
         modelId,
         provider: p?.provider ?? null,
         model: p?.model ?? null,
+        tools,
         runId,
-        mtimeMs,
+        recencyMs,
         overall: cells._overall,
         byTask,
       };
       const prev = best.get(key);
-      // Most recent wins; an exact mtime tie is broken by run id ASCENDING, matching the
-      // run index's newest-first order (mtime desc, id asc) so standings agree with the
+      // Most recent wins; an exact recency tie is broken by run id ASCENDING, matching the
+      // run index's newest-first order (recency desc, id asc) so standings agree with the
       // leaderboard default on which tied run is "most recent".
-      if (!prev || mtimeMs > prev.mtimeMs || (mtimeMs === prev.mtimeMs && runId < prev.runId)) {
+      if (
+        !prev ||
+        recencyMs > prev.recencyMs ||
+        (recencyMs === prev.recencyMs && runId < prev.runId)
+      ) {
         best.set(key, candidate);
       }
     }

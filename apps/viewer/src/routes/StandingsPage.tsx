@@ -4,10 +4,11 @@ import { CenteredSpinner } from "../components/Loading";
 import { formatCell, formatCoverage, loadSummary } from "../lib/localResults";
 import { fetchRunIndex } from "../lib/runIndex";
 import { aggregate, type RunSummary } from "../lib/aggregate";
+import { recencyDate } from "../lib/recency";
 
 // The `/standings` view: cross-run "current standings" (Spec 2 requirement 6). For each
 // model it shows its MOST RECENT result across every run under `runs/` — one row per model,
-// keyed on the panel `(provider, model)` identity, taken from the latest run that
+// keyed on the panel `(provider, model, tools)` identity, taken from the latest run that
 // benchmarked it, with the source run's id/date and a link into that run's leaderboard
 // (`/?run=<id>`). Unlike the leaderboard (one selected run), this loads EVERY run's
 // `summary.json` and rolls them up via the pure `aggregate` helper.
@@ -40,12 +41,6 @@ async function loadAllRunSummaries(fetcher: typeof fetch): Promise<LoadState> {
   }
   failed.sort(); // stable display order (parallel loads finish in any order)
   return { status: "ready", runs: loaded, failed };
-}
-
-/** A run's index date, from its directory mtime, as a stable ISO calendar day
- * (timezone-independent). Callers guard the no-mtime (0) case. */
-function runDate(mtimeMs: number): string {
-  return new Date(mtimeMs).toISOString().slice(0, 10);
 }
 
 export function StandingsPage() {
@@ -89,19 +84,42 @@ export function StandingsPage() {
   }
 
   const { tasks, rows } = rollup!;
+  // Evaluator provenance (Spec 15): standings may mix runs scored under DIFFERENT grader
+  // selections (e.g. `--evaluator strict` vs the default containment), which makes accuracy not
+  // directly comparable. Collect the distinct contracts present and flag a heterogeneous mix.
+  const contracts = new Map<string, string[]>();
+  for (const r of state.runs) {
+    const ev = r.summary.evaluators;
+    if (ev && ev.length > 0) contracts.set(ev.join(" + "), ev);
+  }
+  const heterogeneous = contracts.size > 1;
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Current standings</h1>
       <p className="mt-1 text-sm text-default-500">
         Each model's most recent result across all {state.runs.length} run
         {state.runs.length === 1 ? "" : "s"} under <code>runs/</code>, keyed on the panel's
-        provider + model. When a model was benchmarked in several runs, the newest wins.
+        provider, model, and tools setting. When a model was benchmarked in several runs,
+        the newest wins.
       </p>
       {state.failed.length > 0 && (
         <p role="status" className="mt-2 text-sm text-warning">
           {state.failed.length} run{state.failed.length === 1 ? "" : "s"} could not be read and{" "}
           {state.failed.length === 1 ? "is" : "are"} omitted — standings may be out of date:{" "}
           {state.failed.join(", ")}.
+        </p>
+      )}
+      {heterogeneous && (
+        <p role="status" className="mt-2 text-sm text-warning">
+          ⚠ These standings mix runs scored under <strong>different evaluator contracts</strong> (
+          {[...contracts.keys()].join("; ")}) — accuracy is only directly comparable within the same
+          contract.
+        </p>
+      )}
+      {!heterogeneous && contracts.size === 1 && (
+        <p className="mt-1 text-xs text-default-400">
+          All runs scored by evaluator{[...contracts.values()][0]!.length === 1 ? "" : "s"}:{" "}
+          <span className="font-medium">{[...contracts.keys()][0]}</span>.
         </p>
       )}
 
@@ -130,6 +148,7 @@ export function StandingsPage() {
                   {row.provider && row.model && (
                     <div className="text-xs text-default-400">
                       {row.provider} / {row.model}
+                      {row.tools.length > 0 && ` · ${row.tools.join(", ")}`}
                     </div>
                   )}
                 </td>
@@ -143,7 +162,7 @@ export function StandingsPage() {
                     {row.runId}
                   </Link>
                   <div className="text-xs text-default-400">
-                    {row.mtimeMs ? `indexed ${runDate(row.mtimeMs)}` : "date unknown"}
+                    {row.recencyMs ? `dated ${recencyDate(row.recencyMs)}` : "date unknown"}
                   </div>
                 </td>
               </tr>

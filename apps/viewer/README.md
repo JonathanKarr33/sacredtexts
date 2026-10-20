@@ -12,7 +12,7 @@ A run lives in `runs/<id>/` and the viewer loads four artifacts
 
 - `summary.json` — per-model × task (and × tradition) accuracy **and coverage** (plus the
   correct/incorrect/refused counts), token `usage`, and the model `panel` (provider, model
-  incl. its `[web_search]`/`[no-tools]` tools marker, endpoint, and `served_by`).
+  (raw id), the `tools` list, endpoint, and `served_by`).
 - `scores.jsonl` — per-question metrics (exact / normalized / token-F1 / contains_reference /
   correct) plus the `outcome` (correct / incorrect / refused).
 - `answers.jsonl` — each model's answer plus the prompt and expected text.
@@ -49,8 +49,9 @@ pnpm -C apps/viewer dev          # then open the printed URL
   `missing` / `refused` / `wrong`).
 - **Standings** (`/standings`, linked in the header) is the cross-run view: one row per
   model showing its **most recent** result across all runs, keyed on the run panel's
-  `(provider, model)` identity (so a model renamed between runs still dedupes to one row),
-  with the source run's id and date linking back into that run's leaderboard.
+  `(provider, model, tools)` identity (a missing `tools` ⇒ `[]`), so search-on/off stay
+  distinct rows while two runs of the same model with the same tools dedupe to one, with
+  the source run's id and date linking back into that run's leaderboard.
 - The dev server exposes the repo's (gitignored) `runs/` at `/runs/` via a dev-only Vite
   middleware (`serveRuns` in `vite.config.ts`, logic in `vite/runsEndpoint.ts`), including
   a `/runs/_index` run index. Symlinked run directories are intentionally omitted from the

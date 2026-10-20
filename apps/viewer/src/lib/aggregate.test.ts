@@ -105,12 +105,90 @@ describe("aggregate — current standings rollup", () => {
     expect(tasks).toEqual(["complete_unit", "retrieve_quote"]);
   });
 
-  it("breaks an exact mtime tie by run id ascending — matching the run index's newest-first order", () => {
-    // listRuns/fetchRunIndex sort mtime desc, id asc, so among equal-mtime runs the smaller
+  it("keys on tools: same (provider, model) with different tools stays two rows", () => {
+    // Approach B: the on/off arms of one model are distinct standings identities.
+    const off = runSummary("run-a", 1, { m: { _overall: { n: 1, accuracy: 0.3 } } }, {
+      m: { provider: "anthropic", model: "claude-haiku-5-5", tools: [], endpoint: "e", served_by: null },
+    });
+    const on = runSummary("run-b", 2, { m: { _overall: { n: 1, accuracy: 0.6 } } }, {
+      m: { provider: "anthropic", model: "claude-haiku-5-5", tools: ["web_search"], endpoint: "e", served_by: null },
+    });
+    const { rows } = aggregate([off, on]);
+    expect(rows).toHaveLength(2);
+    const byTools = Object.fromEntries(rows.map((r) => [r.tools.join(","), r]));
+    expect(byTools[""]!.runId).toBe("run-a");
+    expect(byTools["web_search"]!.runId).toBe("run-b");
+  });
+
+  it("dedupes same (provider, model, tools) across runs, and treats missing tools as []", () => {
+    // run-a's entry omits `tools` entirely; run-b sets it to the explicit empty list. They
+    // must key identically (missing ⇒ []) and dedupe to the newer run's row.
+    const noField = runSummary("run-a", 1, { m: { _overall: { n: 1, accuracy: 0.2 } } }, {
+      m: { provider: "anthropic", model: "claude-haiku-5-5", endpoint: "e", served_by: null },
+    });
+    const emptyList = runSummary("run-b", 2, { m: { _overall: { n: 1, accuracy: 0.9 } } }, {
+      m: { provider: "anthropic", model: "claude-haiku-5-5", tools: [], endpoint: "e", served_by: null },
+    });
+    const { rows } = aggregate([noField, emptyList]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.runId).toBe("run-b"); // newer wins the shared key
+    expect(rows[0]!.tools).toEqual([]);
+  });
+
+  it("sorts tools into the key so order in the panel entry doesn't fork the row", () => {
+    const a = runSummary("run-a", 1, { m: { _overall: { n: 1, accuracy: 0.2 } } }, {
+      m: { provider: "p", model: "x", tools: ["a", "b"], endpoint: "e", served_by: null },
+    });
+    const b = runSummary("run-b", 2, { m: { _overall: { n: 1, accuracy: 0.8 } } }, {
+      m: { provider: "p", model: "x", tools: ["b", "a"], endpoint: "e", served_by: null },
+    });
+    const { rows } = aggregate([a, b]);
+    expect(rows).toHaveLength(1); // same tool-set, different order → one identity
+    expect(rows[0]!.tools).toEqual(["a", "b"]); // key carries the sorted set
+  });
+
+  it("breaks an exact recency tie by run id ascending — matching the run index's newest-first order", () => {
+    // No dates/generated_at → recency falls back to mtime; equal mtime ties, so the smaller
     // id is "most recent"; standings must agree (run-a wins, regardless of input order).
     const a = runSummary("run-a", 5, { claude: { _overall: { n: 1, accuracy: 0.2 } } }, ANTHROPIC);
     const b = runSummary("run-b", 5, { claude: { _overall: { n: 1, accuracy: 0.8 } } }, ANTHROPIC);
     expect(aggregate([a, b]).rows[0]!.runId).toBe("run-a");
     expect(aggregate([b, a]).rows[0]!.runId).toBe("run-a");
+  });
+
+  it("sources the standing from the run with the newer generated_at even when mtimes collapse (Issue #7)", () => {
+    // The fresh-clone bug: both runs share the checkout mtime. By mtime+id-asc the OLDER,
+    // id-smaller run ("a-older") would wrongly win and report its stale accuracy. The newer
+    // generated_at must decide instead — the id tiebreak must NOT get a chance to fire.
+    const olderNewerId = runSummary(
+      "z-run-2026-10-10", // id sorts LAST, so id-asc alone could not rescue it
+      42,
+      { claude: { _overall: { n: 1, accuracy: 0.9 } } },
+      ANTHROPIC,
+    );
+    olderNewerId.summary.generated_at = "2026-10-12T00:00:00+00:00"; // the actually-newer run
+    const newerOlderId = runSummary(
+      "a-run-2026-10-10", // id sorts FIRST (would win a naive mtime+id-asc tiebreak)
+      42, // same collapsed mtime
+      { claude: { _overall: { n: 1, accuracy: 0.1 } } },
+      ANTHROPIC,
+    );
+    newerOlderId.summary.generated_at = "2026-10-11T00:00:00+00:00"; // the older run
+    for (const order of [[olderNewerId, newerOlderId], [newerOlderId, olderNewerId]]) {
+      const { rows } = aggregate(order);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.runId).toBe("z-run-2026-10-10"); // newer generated_at wins over id-asc
+      expect(rows[0]!.overall?.accuracy).toBe(0.9);
+      expect(rows[0]!.recencyMs).toBe(Date.parse("2026-10-12T00:00:00+00:00"));
+    }
+  });
+
+  it("falls back to the run-id date for recency when generated_at is absent (collapsed mtimes)", () => {
+    // Neither run has generated_at (pre-Issue-#7 evidence); both share the checkout mtime.
+    // The id date must order them — the Oct-12 run wins over the id-smaller Oct-11 run.
+    const oct11 = runSummary("alpha-2026-10-11", 7, { claude: { _overall: { n: 1, accuracy: 0.1 } } }, ANTHROPIC);
+    const oct12 = runSummary("beta-2026-10-12", 7, { claude: { _overall: { n: 1, accuracy: 0.8 } } }, ANTHROPIC);
+    expect(aggregate([oct11, oct12]).rows[0]!.runId).toBe("beta-2026-10-12");
+    expect(aggregate([oct12, oct11]).rows[0]!.runId).toBe("beta-2026-10-12");
   });
 });

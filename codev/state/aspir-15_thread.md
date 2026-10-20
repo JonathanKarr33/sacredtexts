@@ -541,3 +541,41 @@ wrinkle wasn't covered, and force-pushing published history + opening the PR (a 
 architect calls. HELD for direction: (A) force-push the stripped history then open the PR, or (B) open
 the PR from current history (9 cosmetic trailers on early commits), strip skipped. NOT force-pushing or
 opening the PR unilaterally.
+
+### Co-Authored-By strip + PR — architect approved Option A (21:05), executed
+- Committed thread + remaining consult artifacts (72490ec); refreshed backup/pre-trailer-strip to tip.
+- filter-branch stripped the 9 trailered commits (merge-base origin/main..HEAD). VERIFIED:
+  `git diff backup/pre-trailer-strip HEAD` EMPTY (content byte-identical), 0 Co-Authored-By remaining,
+  77 commits preserved. Gate green on stripped tip (346/1). Force-pushed (--force-with-lease):
+  origin/builder/aspir-15 99c5221 → 6aa702a.
+- **PR #24 opened**: https://github.com/faithfamilytechnologynetwork/sacredtexts/pull/24 (base main).
+  No attribution lines in commits or PR body (global CLAUDE.md). backup/pre-trailer-strip KEPT — delete
+  ONLY after merge (architect instruction).
+- Next: porch record PR, architect integration review + pr-gate approval, then merge → verify phase.
+
+## 2026-10-20 — Round-1 integration (merge of origin/main after #22 landed) — IN PROGRESS, merge NOT committed
+Architect check-in (2026-10-20) requested a status line; reported. MERGE_HEAD present (one conflict pass
+done). State of the ruling's items:
+- **searchContrast re-key** ✓ — now keys on panel.tools (non-empty=on / empty=off), pairs on
+  (provider, model); marker regex + 'base'-strip removed. Synthetic fixtures (leaderboard.test,
+  LeaderboardTable.test) updated to tools shape; tutorialRun.test non-empty real-run assertion kept.
+- **doc sweep** ✓ — no file reinstates the [web_search]/[no-tools] marker as current reality:
+  pipelines/README + viewer/README panel lines → panel.tools wording; arch-critical took #22's panel
+  line (my scoring line kept); TUTORIAL + CODE_WALKTHROUGH taken from main (--theirs) and my Spec-15
+  content re-folded onto main's single-track structure w/ pointers re-derived to MERGED score.py
+  (score_answer:225, _SUBMETRICS:128, normalize:133, strip:105, token_f1:144, _single:207,
+  score_file:344, summary_markdown:606, _with_outcome:288; explorer.ts:52/40). lessons-learned:58 is
+  #22's own "marker was wrong→panel.tools" lesson, left as correct history.
+- **evaluators provenance** CODE ✓ — localResults Summary.evaluators + parseSummary carry it;
+  LeaderboardTable run-level badge; StandingsPage heterogeneous-contract banner (distinct contracts
+  across loaded runs) + single-contract subtext. **TWO-RUN TEST STILL PENDING (A.4).**
+- **Approach-B summary.json**: tutorial ✓ (auto-merge combined #22 panel [tools, no api_model, raw
+  model] + my outcome/coverage). **first-run NOT reconciled**: still has api_model (my side; main's
+  first-run panel has NO api_model, NO tools) → my merge reverted #22 there. NEEDS: re-run rebaseline
+  feeding main's Approach-B panel so first-run drops api_model (+ tools:[]), keeps my outcome/coverage.
+- **suites GREEN as-is**: viewer 154 / check-types 0 / pipeline 325 pass+1 skip; SHA oracle + byte
+  guards hold (scores.jsonl untouched by panel shape).
+REMAINING before mergeable: (1) reconcile first-run summary.json to no-api_model; (2) add two-run
+evaluator-provenance viewer test; (3) re-gate (viewer lane esp.) + re-verify oracle; then commit the
+merge (NO force-push/merge without architect go-ahead). Asked architect to confirm proceeding.
+backup/pre-trailer-strip still exists (pre-merge tip). PR #24 open.
