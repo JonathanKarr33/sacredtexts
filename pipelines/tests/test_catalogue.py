@@ -465,25 +465,46 @@ def test_target_exposes_requested_as_and_canonical_language(tmp_path):
     assert kjv.text_key == ("The Bible", "KJV", "en")
 
 
-def test_text_metadata_keyed_by_work_version_language(tmp_path):
+def test_text_metadata_nominal_view(tmp_path):
     raw = _fixture_tree(tmp_path)
-    sources = cat.discover_catalogue(raw)
-    meta = cat.text_metadata(sources)
-    assert ("The Bible", "KJV", "en") in meta
+    meta = cat.text_metadata(cat.discover_catalogue(raw))
+    assert meta[("The Bible", "KJV", "en")].canonical_language == "en"
     enc = meta[("Papal Encyclicals", "Vatican English", "en")]
     assert enc.requested_as == ("papal encyclicals", "the encyclicals")
     assert enc.canonical_language == "la"
-    # look-up helper returns the same object
-    got = cat.metadata_for_text(meta, "The Bible", "NABRE", "en")
-    assert got.canonical_language == "en"
 
 
-def test_metadata_for_text_fail_closed(tmp_path):
-    raw = _fixture_tree(tmp_path)
-    meta = cat.text_metadata(cat.discover_catalogue(raw))
+def test_text_metadata_conflicting_tuple_across_sources_fails(tmp_path):
+    """Two source.yaml files declaring the same (work, version, language) with different
+    metadata is a global conflict — the per-file slug-agreement check cannot catch it."""
+    raw = tmp_path / "texts" / "raw"
+    _write(raw / "A" / "source.yaml", PROV + _TARGET)
+    _write(
+        raw / "B" / "source.yaml",
+        PROV + _TARGET.replace("requested_as: [Wname, W]", "requested_as: [Different]"),
+    )
+    sources = cat.discover_catalogue(raw)
     with pytest.raises(cat.CatalogueError) as e:
-        cat.metadata_for_text(meta, "No", "Such", "text")
-    assert "fail-closed" in str(e.value)
+        cat.text_metadata(sources)
+    assert "ambiguous metadata" in str(e.value)
+
+
+def test_metadata_for_standardized_path_resolves_by_path(tmp_path):
+    """The generation channel recovers metadata by PATH, so it works even for a document
+    whose (work, version, language) differs from its target's — the encyclicals case
+    (convert_encyclicals re-stamps work=title/version)."""
+    raw = _fixture_tree(tmp_path)
+    sources = cat.discover_catalogue(raw)
+    std = tmp_path / "texts" / "standardized"
+    enc_t = next(t for t in cat.all_targets(sources) if t.work == "Papal Encyclicals")
+    # a document whose work is a specific encyclical title (NOT the target's nominal work)
+    doc = _std_doc(enc_t.standardized_dir(std) / "humanae-vitae.json", work="Humanae Vitae")
+    tm = cat.metadata_for_standardized_path(doc, sources, std)
+    assert tm is not None
+    assert tm.requested_as == ("papal encyclicals", "the encyclicals")
+    assert tm.canonical_language == "la"
+    # a path under no target directory is unresolved (callers fail closed on None)
+    assert cat.metadata_for_standardized_path(_std_doc(std / "stray.json"), sources, std) is None
 
 
 def test_slug_agreement_covers_canonical_language(tmp_path):
@@ -495,7 +516,8 @@ def test_slug_agreement_covers_canonical_language(tmp_path):
     y = _write(tmp_path / "texts" / "raw" / "X" / "source.yaml", body)
     with pytest.raises(cat.CatalogueError) as e:
         cat.load_source(y, tmp_path / "texts" / "raw")
-    assert "disagree on" in str(e.value) and "canonical_language" in str(e.value)
+    # the message names the field that actually differs, not all three
+    assert "disagree on canonical_language" in str(e.value)
 
 
 def test_real_catalogue_default_pool_is_seventeen():

@@ -255,20 +255,22 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
             )
         )
     # Targets that share a standardized directory (slug) must agree on the facts that
-    # are recovered by path/text-key, or that recovery would be ambiguous: license
-    # (a collision could expose restricted text) and the text metadata (requested_as /
-    # canonical_language) that generate looks up by the (work, version, language) key.
-    by_slug: dict[str, set[tuple[str, tuple[str, ...], str]]] = {}
+    # are recovered by path, or that recovery would be ambiguous: license (a collision
+    # could expose restricted text) and the text metadata (requested_as / canonical_language)
+    # that generation recovers per standardized path. The error names the fields that differ.
+    by_slug: dict[str, list[Target]] = {}
     for t in targets:
-        by_slug.setdefault(t.slug, set()).add(
-            (t.license, t.requested_as, t.canonical_language)
-        )
-    for slug, facts in by_slug.items():
-        if len(facts) > 1:
+        by_slug.setdefault(t.slug, []).append(t)
+    for slug, group in by_slug.items():
+        differing = [
+            field
+            for field in ("license", "requested_as", "canonical_language")
+            if len({getattr(t, field) for t in group}) > 1
+        ]
+        if differing:
             raise CatalogueError(
                 f"{where}: targets sharing standardized slug {slug!r} disagree on "
-                f"license / requested_as / canonical_language {sorted(facts)} — "
-                "they would collide in one directory"
+                f"{' / '.join(differing)} — they would collide in one directory"
             )
     return Source(
         source_id=source_id,
@@ -307,38 +309,66 @@ class TextMeta:
 
 
 def text_metadata(sources: list[Source]) -> dict[tuple[str, str, str], TextMeta]:
-    """Map ``(work, version, language)`` -> :class:`TextMeta` for every catalogue text.
+    """A catalogue-wide ``(work, version, language)`` -> :class:`TextMeta` view.
 
-    This is the channel by which ``requested_as`` / ``canonical_language`` reach
-    ``generate``: a standardized ``Document`` carries no catalogue facts (and license
-    recovery is a *path* filter that discards the path->doc association), so generation
-    looks these up by the ``(work, version, language)`` tuple its documents are grouped
-    on. Targets that share this tuple have already been forced to agree on both fields by
-    ``load_source``'s slug-agreement check, so the mapping is unambiguous.
+    **Conflict-detecting across sources.** ``load_source``'s slug-agreement check runs
+    per ``source.yaml``; ``discover_catalogue`` never cross-checks, so two *different*
+    files could declare the same ``(work, version, language)`` with different metadata.
+    This raises ``CatalogueError`` on such a global conflict rather than silently letting
+    the last target win.
+
+    This is a *nominal* view keyed on each target's own tuple. It is **not** the channel
+    generation uses to resolve a standardized document, because converters such as
+    ``encyclicals`` re-stamp ``work``/``version`` per document, so an emitted document's
+    tuple need not appear here — use :func:`metadata_for_standardized_path` for that.
     """
     meta: dict[tuple[str, str, str], TextMeta] = {}
     for t in all_targets(sources):
-        meta[t.text_key] = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language)
+        tm = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language)
+        prev = meta.get(t.text_key)
+        if prev is not None and prev != tm:
+            raise CatalogueError(
+                f"catalogue targets share (work, version, language)={t.text_key!r} across "
+                "sources but disagree on requested_as / canonical_language — ambiguous metadata"
+            )
+        meta[t.text_key] = tm
     return meta
 
 
-def metadata_for_text(
-    meta: dict[tuple[str, str, str], TextMeta], work: str, version: str, language: str
-) -> TextMeta:
-    """Look up one text's metadata, **fail-closed**.
+def metadata_for_standardized_path(
+    path: Path, sources: list[Source], standardized_root: Path = STANDARDIZED_ROOT
+) -> TextMeta | None:
+    """Per-document ``requested_as`` / ``canonical_language``, recovered from the path.
 
-    Raises ``CatalogueError`` when the ``(work, version, language)`` tuple is absent — a
-    standardized document with no catalogue entry is a bug or a stray artifact, never a
-    pass-through (same discipline as ``filter_standardized_paths``).
+    This is the channel generation uses: a standardized ``Document`` carries no catalogue
+    facts, and ``license`` reaches generation only as a *path* filter (which discards the
+    path->doc association), so a name cannot travel with the document. Recovery is by path,
+    exactly like :func:`license_for_standardized_path` — the deepest target
+    ``standardized_dir`` that contains ``path`` wins. Keying by path (not by the document's
+    ``(work, version, language)``) is what makes this robust to converters such as
+    ``encyclicals`` that re-stamp ``work``/``version`` per document: every encyclical file
+    still lives under the one encyclicals target directory and resolves to its metadata.
+
+    Returns ``None`` when the path is under no target directory; callers fail closed on
+    ``None`` (same discipline as ``filter_standardized_paths``). An equal-depth tie between
+    two targets with *different* metadata raises ``CatalogueError`` rather than guessing.
     """
-    key = (work, version, language)
-    try:
-        return meta[key]
-    except KeyError:
-        raise CatalogueError(
-            f"no catalogue text_metadata for (work, version, language)={key!r} — "
-            "a standardized document maps to no catalogue target (fail-closed)"
-        ) from None
+    resolved = Path(path).resolve()
+    best_depth = -1
+    best: TextMeta | None = None
+    for t in all_targets(sources):
+        target_dir = t.standardized_dir(standardized_root).resolve()
+        if resolved == target_dir or target_dir in resolved.parents:
+            depth = len(target_dir.parts)
+            tm = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language)
+            if depth > best_depth:
+                best_depth, best = depth, tm
+            elif depth == best_depth and best is not None and tm != best:
+                raise CatalogueError(
+                    f"{path}: two catalogue targets' standardized directories at equal depth "
+                    "disagree on text metadata — ambiguous"
+                )
+    return best
 
 
 def select_targets(sources: list[Source], include_restricted: bool = False) -> list[Target]:
