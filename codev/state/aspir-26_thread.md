@@ -26,3 +26,50 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
 ### Next
 - Explorer agent gathering catalogue.py/generate.py/score.py/tests/docs facts.
 - Then draft spec, signal SPEC_DRAFTED (porch runs 3-way consult).
+
+### Spec drafted + committed (iter 1)
+- Wrote spec `codev/specs/26-original-language-only-questio.md`. Baked decisions (Waleed's 3
+  + four verbatim templates + 3 metadata fields + retire identify_version/identify_source +
+  fold #23) encoded in Constraints. Recommended per-text even-split with fail-fast (Approach 1).
+- Committed `[Spec 26] Initial specification draft` (no Co-Authored-By; Waleed CLAUDE.md
+  overrides the attribution reminder).
+- `porch done 26` → checks green → porch handed 2-way consult (codex + claude; gemini excluded,
+  can't see worktree). Both running in background. Await completion → incorporate → porch next.
+
+### Spec review complete → advanced to PLAN
+- codex + claude both REQUEST_CHANGES (19 points total, 0 baked-decision objections). All
+  accepted — clarifications/defect fixes. Key: (B1) retrieve_quote duplicated edition name for
+  10/14 texts (hadith/D&C citations are work-prefixed) → display_citation strip rule; (B2)
+  refused/coverage depend on unmerged PR #24 → split responsibility + degraded fallback; plus
+  per-text split determinism, metadata-via-license-channel, model-keyed per-text summary,
+  cite_passage Arabic digit gap, template-4 variant-hadith negatives.
+- Rebuttal written + committed. `porch done 26` → ADVANCED TO plan.
+- **Open cross-project item for architect:** PR #24 (Spec 15) sequencing. Expected: #24 merges
+  before Spec 26 scoring; builder merges origin/main + integrates. Degraded fallback documented
+  if it doesn't. Flagging to architect.
+
+### Architect decision on #24 (2026-10-20) + PLAN drafted
+- Architect main: PR #24 fully reviewed, at human pr gate, merges before scoring. DROP the
+  degraded fallback (project rule: fail fast, never implement fallbacks). If #24 not merged at
+  scoring phase → STOP + ping; no parsed:null path. Plan on Spec 15 contract as base.
+- Amended spec + plan to match (removed degraded mode; Phase 3 builds on Spec 15 contract;
+  stop-and-ping hard dependency). Committed both.
+- Plan = 6 phases: (1) catalogue metadata, (2) generation reshape, (3) scoring/#23 on Spec 15,
+  (4) viewer retirement, (5) docs, (6) committed live run. `porch done` → checks green → plan
+  2-way consult (codex+claude) running in background. Await → rebuttal → advance to implement.
+
+### PLAN consult + architect finalization + merge (2026-10-20)
+- Plan 2-way consult: codex + claude both REQUEST_CHANGES, all accepted. claude's deepest
+  (verified vs test suite): pointer-guard red across phases → coupled doc edits ride with the
+  code commit; first-run-regression signature break → keep re-score, retire gen-invariance;
+  metadata channel can't feed a name → (work,version,language)-keyed text_metadata map;
+  verify_source identity flip; family-exclusion negatives (cross-work is a no-op for 9 hadith).
+  codex: _TARGET_STR_FIELDS error, flag matrix, --tasks denominator, by_text key, range.
+- MID-REVIEW: architect posted FINAL #26 field table + confirmed PR #24 MERGED (@1324755).
+  Merged origin/main (clean — brought graders.py/outcomes.py/score.py outcome layer +
+  rebaseline oracle). Rewrote plan+spec to final schema: 2 fields (requested_as:[names],
+  canonical_language), equality inclusion, citation_hint DROPPED → template 3 by-example,
+  default 28 (7/template, 392 questions), seeded requested_as recorded in source, remove 2 LDS
+  KJV targets (21 total), starting values from #27.
+- Rebuttal written. Next: porch done → advance to IMPLEMENT. Phase 1 = catalogue metadata
+  (requested_as/canonical_language + text_metadata map); build on merged main.
