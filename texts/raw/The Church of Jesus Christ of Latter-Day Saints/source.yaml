@@ -6,6 +6,9 @@
 # its text is the Protestant KJV, so keeping it would ask the same questions twice
 # (issue #27, Q3). The committable LDS texts are the three below, all composed in
 # English.
+# The two KJV payloads (old-testament-/new-testament-reference-KJV-ben-crowder.json)
+# remain on disk but are deliberately uncatalogued — the Protestant KJV target covers
+# the same text.
 provenance:
   retrieved_from: Ben Crowder LDS scripture reference compilations (2013 edition)
   fetch_method: working-group Box drop ("Phase I / raw JSON")
