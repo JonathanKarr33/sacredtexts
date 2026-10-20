@@ -87,12 +87,17 @@ export function StandingsPage() {
   // Evaluator provenance (Spec 15): standings may mix runs scored under DIFFERENT grader
   // selections (e.g. `--evaluator strict` vs the default containment), which makes accuracy not
   // directly comparable. Collect the distinct contracts present and flag a heterogeneous mix.
-  const contracts = new Map<string, string[]>();
+  // Treat an absent/empty `evaluators` (a pre-Spec-15 run) as its OWN distinct contract — otherwise a
+  // legacy run mixed with a Spec-15 run would collapse to a single contract and falsely claim "all runs
+  // scored by …". That mix IS heterogeneous and must trip the banner.
+  const UNKNOWN_CONTRACT = "unknown (pre-Spec-15)";
+  const contracts = new Set<string>();
   for (const r of state.runs) {
     const ev = r.summary.evaluators;
-    if (ev && ev.length > 0) contracts.set(ev.join(" + "), ev);
+    contracts.add(ev && ev.length > 0 ? ev.join(" + ") : UNKNOWN_CONTRACT);
   }
   const heterogeneous = contracts.size > 1;
+  const singleContract = contracts.size === 1 ? [...contracts][0]! : null;
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Current standings</h1>
@@ -112,14 +117,18 @@ export function StandingsPage() {
       {heterogeneous && (
         <p role="status" className="mt-2 text-sm text-warning">
           ⚠ These standings mix runs scored under <strong>different evaluator contracts</strong> (
-          {[...contracts.keys()].join("; ")}) — accuracy is only directly comparable within the same
+          {[...contracts].join("; ")}) — accuracy is only directly comparable within the same
           contract.
         </p>
       )}
-      {!heterogeneous && contracts.size === 1 && (
+      {singleContract && singleContract !== UNKNOWN_CONTRACT && (
         <p className="mt-1 text-xs text-default-400">
-          All runs scored by evaluator{[...contracts.values()][0]!.length === 1 ? "" : "s"}:{" "}
-          <span className="font-medium">{[...contracts.keys()][0]}</span>.
+          All runs scored by evaluators: <span className="font-medium">{singleContract}</span>.
+        </p>
+      )}
+      {singleContract === UNKNOWN_CONTRACT && (
+        <p className="mt-1 text-xs text-default-400">
+          No evaluator provenance recorded (pre-Spec-15 runs).
         </p>
       )}
 

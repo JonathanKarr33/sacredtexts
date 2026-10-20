@@ -248,4 +248,31 @@ describe("StandingsPage — evaluator provenance (Spec 15)", () => {
     expect(screen.queryByText(/different evaluator contracts/i)).toBeNull();
     expect(screen.getByText(/All runs scored by evaluators:/i).textContent).toContain("strict + containment");
   });
+  it("flags a legacy run (no evaluators) mixed with a Spec-15 run as heterogeneous", () => {
+    const summaries: Record<string, Summary> = {
+      "run-legacy": {
+        models: { a: { retrieve_quote: cell(0.5), _overall: cell(0.5) } },
+        by_tradition: {},
+        panel: { a: ANTH("model-a") },
+        // no `evaluators` → pre-Spec-15 run
+      },
+      "run-spec15": {
+        models: { b: { retrieve_quote: cell(0.9), _overall: cell(0.9) } },
+        by_tradition: {},
+        panel: { b: ANTH("model-b") },
+        evaluators: ["strict", "containment"],
+      },
+    };
+    vi.stubGlobal("fetch", standingsFetcher([{ id: "run-spec15", mtimeMs: 2 }, { id: "run-legacy", mtimeMs: 1 }], summaries));
+    renderApp("/standings");
+    return screen.findByText("Current standings").then(() => {
+      const warn = screen.getByRole("status");
+      expect(warn.textContent).toMatch(/different evaluator contracts/i);
+      expect(warn.textContent).toContain("unknown (pre-Spec-15)");
+      expect(warn.textContent).toContain("strict + containment");
+      // the false "all runs scored by ..." subtext must NOT appear
+      expect(screen.queryByText(/All runs scored by evaluators:/i)).toBeNull();
+    });
+  });
+
 });

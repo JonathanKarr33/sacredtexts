@@ -128,6 +128,17 @@ Applied in this PR:
   plan` replays old iterations and can reach implement with no fresh consult — run a manual consult;
   and the implement loop force-advances at the ceiling — verify that's what happened.
 
+## Integration with main (#22)
+
+Merged `origin/main` (merge commit `ab83e98`) after PR #22 (Approach-B panel) landed first — this PR
+is the second merger. `searchContrast` re-keyed on `panel.tools` (non-empty = search-on, paired on
+`(provider, model)`); first-run `summary.json` panel reconciled to Approach-B (`api_model` → `tools:
+[]`, panel/usage from main's summary, score/outcome recomputed from the existing `answers.jsonl`,
+`scores.jsonl` byte-identical); evaluator provenance carried through `parseSummary` with a leaderboard
+badge and a standings heterogeneous-contract banner (absent `evaluators` counts as its own
+pre-Spec-15 contract). Post-integration suites: **pipeline 325 passed + 1 skipped, viewer 156**,
+check-types clean, copyright audit clean, both scores re-derive byte-identical.
+
 ## Flaky Tests
 
 None introduced. One pre-existing pytest **skip** remains: the first-run generation-invariance test

@@ -579,3 +579,24 @@ REMAINING before mergeable: (1) reconcile first-run summary.json to no-api_model
 evaluator-provenance viewer test; (3) re-gate (viewer lane esp.) + re-verify oracle; then commit the
 merge (NO force-push/merge without architect go-ahead). Asked architect to confirm proceeding.
 backup/pre-trailer-strip still exists (pre-merge tip). PR #24 open.
+
+## 2026-10-20 — Round-1 integration COMMITTED + pushed (architect-authorized both fixes)
+Merge commit **ab83e98** (parents 1dea658 origin/main + ee3eb19 my stripped tip). Plain push
+fast-forwarded 1dea658..ab83e98 (no force). PR #24 not merged.
+- first-run panel reconciled to Approach-B: fed main's committed panel/usage, recomputed only
+  score/outcome from existing answers.jsonl (no collect, no keyless pass). Diff = ONLY the 4 panel
+  api_model→tools:[] lines (generated_at preserved); tutorial summary.json unchanged (already clean).
+- scores.jsonl BIT-FOR-BIT identical for BOTH runs (explicit cmp + byte guards + SHA oracle all pass).
+- evaluator provenance: code + two-run StandingsPage heterogeneous-contract test + single-contract
+  subtext test (156 viewer).
+- Full gate GREEN on the integrated branch: dispatcher both lanes (viewer 156 / pipeline 325+1 skip,
+  confirmed viewer lane executed), audit exit 0, check-types 0.
+Pinged architect with merge SHA + counts + bit-for-bit confirmation. Awaiting round-2 fresh-clone review.
+
+## 2026-10-20 — round-2 review APPROVE (codex+claude HIGH); folded 1 non-blocking finding + PR-body refresh
+- PR #24 body updated (gh pr edit): counts 346/134→325+1skip/156 + an "Integration with main (#22)" paragraph.
+- StandingsPage heterogeneity bug (claude): absent/empty evaluators now counts as a distinct
+  "unknown (pre-Spec-15)" contract (Set, not Map-of-nonempty) → a legacy+Spec-15 mix trips the banner
+  instead of falsely reading one contract. Single-contract subtext handles the unknown case. +test
+  (legacy no-evaluators + Spec-15 fixture). Viewer 157 / check-types 0.
+- Review doc: added the Integration-with-main note + current counts (it had no literal 346/134).
