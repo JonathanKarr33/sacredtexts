@@ -10,9 +10,11 @@ run's artifacts directly — no GitHub data layer, no backend API.
 A run lives in `runs/<id>/` and the viewer loads four artifacts
 (`pipelines/sacredbench score` output):
 
-- `summary.json` — per-model × task (and × tradition) accuracy, token `usage`, and the
-  model `panel` (provider/model/endpoint).
-- `scores.jsonl` — per-question metrics (exact / normalized / token-F1 / correct).
+- `summary.json` — per-model × task (and × tradition) accuracy **and coverage** (plus the
+  correct/incorrect/refused counts), token `usage`, and the model `panel` (provider, model
+  (raw id), the `tools` list, endpoint, and `served_by`).
+- `scores.jsonl` — per-question metrics (exact / normalized / token-F1 / contains_reference /
+  correct) plus the `outcome` (correct / incorrect / refused).
 - `answers.jsonl` — each model's answer plus the prompt and expected text.
 - `questions.jsonl` — the authoritative question roster, so a model's **un-answered**
   questions show as missing cells.
@@ -30,17 +32,21 @@ pnpm -C apps/viewer dev          # then open the printed URL
 ```
 
 - `/` shows the **leaderboard** for the most-recent run under `runs/`: models ranked by
-  overall accuracy, per-task and per-tradition columns, and per-model token totals. A run
-  selector switches between the runs present; the selection lives in the URL as a bare run
-  id (`/?run=<id>`), so a view is shareable and survives refresh. If `runs/` is empty you
-  get an informative empty state; if a selected run can't be loaded you get a localized
-  error while the selector and other runs stay usable.
+  overall accuracy, with a **coverage** column of equal weight beside it (accuracy = right
+  *when it answers*; coverage = how often it answers — the rest refused), per-task and
+  per-tradition columns, per-model token totals, and — when a run has search-on/off arms of
+  the same model — a **"Search on vs off"** contrast (accuracy + coverage per arm, with the
+  Δaccuracy). A run selector switches between the runs present; the selection lives in the URL
+  as a bare run id (`/?run=<id>`), so a view is shareable and survives refresh. If `runs/` is
+  empty you get an informative empty state; if a selected run can't be loaded you get a
+  localized error while the selector and other runs stay usable.
 - Clicking a model (or a task / tradition cell) opens the **error explorer**
-  (`/run/$runId/model/$modelId`): every question for that model with pass / fail / missing
-  status, and for each one the prompt, the expected text, the model's answer, and the
-  per-metric scores (exact / normalized / token-F1) side by side. Filter by task, tradition,
-  correct/incorrect, and failure mode (missing cell vs wrong answer); the filters live in the
-  URL (`?task=&tradition=&correct=&mode=`).
+  (`/run/$runId/model/$modelId`): every question for that model with its outcome — correct /
+  incorrect / **refused** / missing — and for each one the prompt, the expected text, the
+  model's answer, and the per-metric scores (exact / normalized / token-F1) side by side.
+  Filter by task, tradition, correctness, and failure mode (missing cell / **refused** / wrong
+  answer); the filters live in the URL (`?task=&tradition=&correct=&mode=`, where `mode` is
+  `missing` / `refused` / `wrong`).
 - **Standings** (`/standings`, linked in the header) is the cross-run view: one row per
   model showing its **most recent** result across all runs, keyed on the run panel's
   `(provider, model, tools)` identity (a missing `tools` ⇒ `[]`), so search-on/off stay

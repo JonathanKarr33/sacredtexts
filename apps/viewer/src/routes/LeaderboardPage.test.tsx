@@ -193,7 +193,8 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
     renderApp("/");
     expect(await screen.findByText("Leaderboard")).toBeInTheDocument();
 
-    // ranking (main table): claude-haiku (0.24) first, the two 0.0 models last (id tiebreak)
+    // ranking (main table): claude-haiku (0.5556, refusal-excluded) first, the two 0.0 models last
+    // (id tiebreak). Order is unchanged by the phase-3 rebaseline — only the accuracy values moved.
     const mainTable = screen.getAllByRole("table")[0]!;
     const dataRows = within(mainTable).getAllByRole("row").slice(1); // drop header
     const order = dataRows.map((r) => within(r).getAllByRole("cell")[0]!.textContent);
@@ -211,7 +212,10 @@ describe.skipIf(!present)("LeaderboardPage — committed run gate", () => {
     expect(screen.getAllByText("Protestant Christian").length).toBe(4);
     expect(screen.getAllByText("Roman Catholic").length).toBe(4);
     expect(screen.getAllByText("The Church of Jesus Christ of Latter-Day Saints").length).toBe(4);
-    // the LDS cell at 72% for claude-haiku
-    expect(screen.getAllByText("72% (n=25)").length).toBeGreaterThan(0);
+    // the LDS cell for claude-haiku now 95% (Spec 15 phase 3: accuracy excludes refusals — of 25
+    // LDS cells, 5 refused, 19 correct, 1 incorrect → 19/20 graded; n stays the answered count 25)
+    expect(screen.getAllByText("95% (n=25)").length).toBeGreaterThan(0);
+    // the new coverage column renders beside accuracy (claude-haiku: 45% answered, 55 refused)
+    expect(screen.getAllByText("45% (55 refused)").length).toBeGreaterThan(0);
   });
 });

@@ -1,0 +1,12 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The core approach is sound, but the plan omits contradictory documentation and lacks an executable, artifact-safe rebaseline procedure.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The rebaseline procedure is underspecified and cannot preserve the first-run summary through the stated CLI path. `configs/models.example.yaml` can reproduce the tutorial panel, but the first-run config is absent and its answers have no `panel_fingerprint`. Calling `score_file()` without config drops `panel` and roster fields; passing the old panel would also add `api_model`, changing its shape. Specify an exact temporary-output/programmatic procedure that derives rosters, copies the committed first-run panel intentionally, verifies usage/panel preservation, and never hand-edits `scores.jsonl`.
+- The claim that “only accuracy figures move … plus `generated_at`” contradicts the required new `contains_reference` fields in `summary.json`. The expected-diff validation must explicitly allow the new submetric, changed headline/by-tradition accuracies, and timestamp while requiring all other fields to remain unchanged.
+- Documentation coverage is incomplete. `runs/first-run-2026-10-11/README.md` explicitly says the headline requires the whole answer and “nothing else,” so it will become false. The `score.py` module docstring says the same. Both should be updated alongside `CODE_WALKTHROUGH.md` and the tutorial README.
+- The implementation guidance references an `acc[sm] += …` aggregation path that does not exist. Current code uses explicit `acc["exact"]`, `acc["normalized"]`, and `acc["token_f1"]` updates, while `acc[sm]` is only read during summary construction. State whether to add an explicit `contains_reference` update or deliberately refactor to a generic loop.
+- The plan repeatedly refers to “five other task branches,” but the repository has four non-retrieval tasks: `verify_source`, `identify_version`, `cite_passage`, and `identify_source`. Correct the count and require unchanged-dict assertions for all four.
+- Make the +20/+1 evidence validation mandatory rather than “may live in a test or be shown.” Rebaselining artifacts makes the byte-for-byte guards circular, so a separate before/after validation is needed to prove only the pre-registered cells changed.

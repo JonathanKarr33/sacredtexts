@@ -1,0 +1,8 @@
+---
+VERDICT: COMMENT
+SUMMARY: Phase 1 correctly implements and rebaselines the containment-based scoring contract; only minor test/comment cleanup remains.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `test_contains_reference_rebaseline.py` does not itself pin the planned first-run `_overall == 0.25` and LDS tradition accuracy `0.76`; those values are covered by viewer tests, but the mandatory validation test’s stated coverage is incomplete.
+- `LeaderboardPage.test.tsx:196` still describes claude-haiku accuracy as `0.24`; update the stale comment to `0.25`.

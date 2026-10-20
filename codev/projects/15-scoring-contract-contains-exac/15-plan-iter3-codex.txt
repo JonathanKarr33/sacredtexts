@@ -1,0 +1,9 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The implementation approach is sound, but the plan still lacks a durable pre-change validation oracle and would leave active guidance contradicting the adopted headline contract.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The mandatory “pre/post projection” test is not executable as described after `scores.jsonl` is replaced: no source for the pre-change projection is identified. Specify a durable oracle, such as pinned hashes/fixtures derived from the original per-row metric projection, then compare the regenerated projection and exact 21-cell difference against it.
+- `codev/resources/lessons-learned.md` actively says “don’t reshape the headline contract,” yet Phase 2 intentionally leaves that instruction unchanged while updating other docs to say containment is adopted. If the PR gate confirms adoption, this must be updated in the same PR; if the decision is reversed, the newly updated docs/artifacts must be reverted together. A post-PR MAINTAIN follow-up would leave merged guidance contradictory.
+- Minor precision issue: “all nine guards” is inconsistently enumerated as three named pipeline guards plus five viewer suites. Name the new pinned-validation test file and list the exact nine checks so implementation and acceptance are unambiguous.

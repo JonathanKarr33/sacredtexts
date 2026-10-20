@@ -10,7 +10,8 @@
 - **A client-side GitHub data layer** is unauthenticated (60/hr per IP): SHA-pin the tree, fetch content via `raw`, poll gently, serve stale + banner on 403 (ported with apps/viewer — details in `apps/viewer/README.multibrowser.md`).
 - **HeroUI v3 is provider-less** — don't add a v2-era provider to the viewer.
 - Gemini's per-phase impl/review consult can't see the worktree → per-phase consult is `["codex","claude"]` (set in `.codev/config.json`).
-- **Never re-run `collect`/`score`/`generate` over committed run evidence** — write to a fresh `runs/<id>/`. Collect resume-skips every cell (zero calls) and a keyless score overwrites the committed panel/usage proof with nulls.
+- **Never re-run `collect`/`score`/`generate` over committed run evidence** — write to a fresh `runs/<id>/`. Collect resume-skips every cell (zero calls) and a keyless score overwrites the committed panel/usage proof with nulls. **Exception: a deliberate scoring-contract change** rebaselines committed `scores.jsonl` on purpose — do it once, panel/usage fed back verbatim, witnessed by a projection-SHA oracle + a pre-registered flip/refused set (`test_contains_reference_rebaseline.py`); surface the moved numbers to the architect first.
+- **`porch rollback <id> plan` replays the OLD plan's iterations** (counter not reset) → a re-scoped plan can reach implement with **no fresh consult**. Run a manual `consult` over the re-scoped plan and fold it before implementing. porch's implement loop also **force-advances** at `max_iterations` (3) with the last rebuttal as disposition — verify that's what happened, don't assume a clean pass.
 
 ## Map of lessons-learned.md (consult when…)
 - **Scoring & evaluation** — designing/changing a scoring contract or interpreting scores.

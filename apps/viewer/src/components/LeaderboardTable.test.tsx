@@ -102,6 +102,38 @@ describe("LeaderboardTable", () => {
     expect(screen.queryByText("By tradition")).toBeNull();
   });
 
+  it("renders the coverage column and the search on/off contrast for a run with paired arms", async () => {
+    const paired: Summary = {
+      models: {
+        "x-on": {
+          retrieve_quote: { n: 100, accuracy: 0.8, coverage: 0.65, correct: 52, incorrect: 13, refused: 35 },
+          _overall: { n: 100, accuracy: 0.8, coverage: 0.65, correct: 52, incorrect: 13, refused: 35 },
+        },
+        "x-off": {
+          retrieve_quote: { n: 100, accuracy: 0.71, coverage: 0.66, correct: 47, incorrect: 19, refused: 34 },
+          _overall: { n: 100, accuracy: 0.71, coverage: 0.66, correct: 47, incorrect: 19, refused: 34 },
+        },
+      },
+      by_tradition: {},
+      panel: {
+        "x-on": { provider: "anthropic", model: "claude-z", tools: ["web_search"], endpoint: "e", served_by: null },
+        "x-off": { provider: "anthropic", model: "claude-z", tools: [], endpoint: "e", served_by: null },
+      },
+    };
+    await renderTable(paired);
+    // coverage column renders beside accuracy, with the refused count
+    expect(screen.getAllByText("65% (35 refused)").length).toBeGreaterThan(0);
+    // the search on/off contrast section is visible and names the base model
+    expect(screen.getByText("Search on vs off")).toBeInTheDocument();
+    expect(screen.getByText("claude-z")).toBeInTheDocument();
+    expect(screen.getByText("+9 pt")).toBeInTheDocument(); // 80% on − 71% off
+  });
+
+  it("omits the search on/off contrast when the run has no panel pairs", async () => {
+    await renderTable(summary); // the base fixture has no panel
+    expect(screen.queryByText("Search on vs off")).toBeNull();
+  });
+
   it("renders a null-overall model as 'n/a' without crashing", async () => {
     await renderTable({ models: { x: { _overall: { n: 0, accuracy: null } } }, by_tradition: {} });
     // The model still appears, ranked last, and its null-overall cell formats as "n/a".

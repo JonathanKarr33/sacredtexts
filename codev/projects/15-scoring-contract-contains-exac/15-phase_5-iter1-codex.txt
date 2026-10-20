@@ -1,0 +1,10 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Phase 5 is substantially complete, but several documentation statements contradict the implementation or committed evidence.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `TUTORIAL.md:95-96` says a future separate-pass grader is selected through `score --evaluator`, but `graders.py:102-106` explicitly rejects non-inline graders. Document that such graders run through their own resumable pass.
+- Several figures are factually wrong: `TUTORIAL.md:104` calls the 100%→97% change “a point”; `runs/tutorial-2026-10-11/README.md:77` says “74 correct Talmud cells” despite only 34 Talmud cells; lines 84-87 say 265/266 refusals are below 0.3, while the committed scores show 267/268.
+- Legacy contract wording remains in phase-scoped documentation/docstrings: `CODE_WALKTHROUGH.md:241-242` and `score.py:1-2` claim every answer gets both tiers, while evaluator selection controls emitted retrieval metrics. `TUTORIAL.md:158` also describes default scoring without mentioning containment, despite containment determining the default headline.

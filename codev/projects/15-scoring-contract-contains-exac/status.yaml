@@ -1,0 +1,147 @@
+id: '15'
+title: scoring-contract-contains-exac
+protocol: aspir
+phase: review
+plan_phases:
+  - id: phase_1
+    title: Containment headline + one-shot rebaseline (DONE)
+    status: complete
+  - id: phase_2
+    title: Named-grader registry + score --evaluator CLI (provable no-op)
+    status: complete
+  - id: phase_3
+    title: Refused outcome + coverage + second rebaseline
+    status: complete
+  - id: phase_4
+    title: 'Viewer: four outcome categories + coverage + search-on/off contrast'
+    status: complete
+  - id: phase_5
+    title: Documentation sync for the evaluator/outcome contract
+    status: complete
+current_plan_phase: null
+gates:
+  pr:
+    status: approved
+    approved_at: '2026-10-20T23:11:46.683Z'
+  verify-approval:
+    status: pending
+iteration: 1
+build_complete: true
+history:
+  - iteration: 1
+    plan_phase: phase_3
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter1-codex.txt
+      - model: claude
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter1-claude.txt
+  - iteration: 2
+    plan_phase: phase_3
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter2-codex.txt
+      - model: claude
+        verdict: COMMENT
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter2-claude.txt
+  - iteration: 3
+    plan_phase: phase_3
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter3-codex.txt
+      - model: claude
+        verdict: COMMENT
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_3-iter3-claude.txt
+  - iteration: 1
+    plan_phase: phase_4
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_4-iter1-codex.txt
+      - model: claude
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_4-iter1-claude.txt
+  - iteration: 1
+    plan_phase: phase_5
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter1-codex.txt
+      - model: claude
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter1-claude.txt
+  - iteration: 2
+    plan_phase: phase_5
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter2-codex.txt
+      - model: claude
+        verdict: COMMENT
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter2-claude.txt
+  - iteration: 3
+    plan_phase: phase_5
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter3-codex.txt
+      - model: claude
+        verdict: COMMENT
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-15/codev/projects/15-scoring-contract-contains-exac/15-phase_5-iter3-claude.txt
+started_at: '2026-10-12T16:17:31.163Z'
+updated_at: '2026-10-20T23:11:46.683Z'
+pr_ready_for_human: false
+force_advanced:
+  phase: phase_5
+  iteration: 3
+  max_iterations: 3
+  rebuttal_file: 15-phase_5-iter3-rebuttals.md
+  at: '2026-10-12T21:00:01.564Z'
+context_refreshes:
+  - boundary: enter:implement
+    at: '2026-10-12T17:38:16.216Z'
+    acknowledged_at: '2026-10-12T17:38:52.276Z'
+  - boundary: plan-phase:phase_2
+    at: '2026-10-12T17:41:03.264Z'
+    acknowledged_at: '2026-10-12T17:41:10.028Z'
+  - boundary: plan-phase:phase_3
+    at: '2026-10-12T17:55:31.998Z'
+    acknowledged_at: '2026-10-12T17:57:14.240Z'
+  - boundary: plan-phase:phase_4
+    at: '2026-10-12T19:55:55.535Z'
+    acknowledged_at: '2026-10-12T19:56:08.611Z'
+  - boundary: plan-phase:phase_5
+    at: '2026-10-12T20:22:44.332Z'
+    acknowledged_at: '2026-10-12T20:23:12.193Z'
+  - boundary: enter:review
+    at: '2026-10-12T21:00:03.431Z'
+    acknowledged_at: '2026-10-12T21:00:34.515Z'
+pr_history:
+  - phase: review
+    pr_number: 24
+    branch: builder/aspir-15
+    created_at: '2026-10-12T21:07:48.498Z'

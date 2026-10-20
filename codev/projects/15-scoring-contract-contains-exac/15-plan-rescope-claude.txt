@@ -1,0 +1,89 @@
+I'll review the plan against the actual codebase. Let me start by locating the files it references.I read the actual source, the committed run evidence, and the existing guards — and ran read-only analysis over `runs/*/answers.jsonl`. I made no changes to the tree.
+
+## What's good
+
+The plan's spine is right. The ordering argument (grader seam → outcome layer → viewer → docs) is correct and well-justified: Phase 2 as a provable no-op is a genuinely clever way to keep the evidence story clean, and it is *verifiable* — `test_first_run_regression.py:33` calls `score_file(answers, out)` with no grader argument and asserts byte-identity, so a default-preserving refactor is caught immediately. Approach 1 maps cleanly onto the six frozen decisions, refusal is correctly kept out of `--evaluator`, and the #21 separate-pass seam is expressible without being built. Phase 1 is real and done.
+
+## The blocking problem: Phase 3 is far larger than the plan thinks
+
+The plan frames the refused rebaseline as a peer of Phase 1's "+20, +1". It isn't. Scanning the committed answers with a *leading-sentence-only* decline pattern:
+
+| run | model | n | declines | acc now | acc w/ refusals excluded |
+|---|---|---|---|---|---|
+| first-run | claude-haiku | 100 | ~55 | 25% | **56%** |
+| first-run | llama-3.1-8b | 100 | ~17 | 1% | 1% |
+| tutorial | haiku | 100 | ~34 | 47% | **71%** |
+| tutorial | haiku-search | 100 | ~35 | 52% | **80%** |
+| tutorial | opus | 100 | ~34 | 66% | **100%** |
+| tutorial | opus-search | 100 | ~25 | 74% | **99%** |
+
+Three consequences the plan does not address:
+
+**1. It re-inverts the sign it exists to fix.** The spec's problem statement is "the headline inverts the sign of search gains" (haiku 47% vs haiku-search 40% → 52% under containment, a 5-point gain). Exclude refusals and **opus 100% ranks above opus-search 99%** — search-on looks worse again, and "opus scores 100%" is a false headline for a model that declined a third of the benchmark. Decision #2 is baked and I'm not challenging it; the fix is to implement it honestly: the summary and the leaderboard must carry an **answer rate / coverage** figure `(correct+incorrect)/n` adjacent to every accuracy, and the ranking semantics must be documented. Phase 4 says "refused count/rate per model," which is in the right direction, but the plan treats it as a viewer nicety rather than the thing that keeps accuracy from lying. Phase 3 should emit coverage in `summary.json` and `summary.md`, not just the three raw counts.
+
+**2. Phase 5's prose instructions are written against figures that will have moved by ~30 points.** Phase 5 says "rebaselined figures" and "do NOT alter the correct 8 of 34 / 24 of 33 contains counts" — fine — but the *narrative* (search gain, the tutorial's headline story) changes direction. Worth surfacing the Phase-3 numbers to the architect before Phase 5 writes prose.
+
+**3. A real conservativeness trap exists in the evidence.** Two `opus-search` cells currently score **correct** while opening with a decline ("I couldn't confirm… / my searches didn't bring up…") and then delivering the text. A matcher that fires on the opening sentence would convert two correct answers into refusals. The plan's test list covers "wrapped exact" and "near-miss" negatives but not **"decline-prefixed answer that nevertheless delivers the reference."** That case should be a named, pre-registered unit test — and it argues for a shape rule like *decline phrase AND no `contains_reference` hit* rather than phrase-matching alone.
+
+## Unresolved contract decision that breaks an existing guard
+
+Phase 3 says refusal "short-circuits grading" and the plan is silent on whether a refused cell still emits `exact` / `normalized` / `token_f1` / `contains_reference`. This is not cosmetic:
+
+- `test_contains_reference_rebaseline.py::test_similarity_projection_unchanged` hashes the `(exact, normalized, token_f1)` projection across **all** cells against a SHA frozen from the *pre-containment* committed scores. Drop those keys on ~130 refused cells and the hash breaks. The plan's answer — "capture a **fresh** pre-change projection oracle (now over the containment-era committed scores)" — **discards the phase-1 anchor** and makes the witness chain self-referential.
+- Keep emitting the submetrics (let `outcome` decide the *headline*, not the metric fields) and the existing oracle survives untouched, as do `test_contains_reference_invariants`' two invariants (a refusal has `normalized == contains_reference == 0`, so `correct == normalized` still holds). That is a strictly stronger evidence position for one line of design. I'd make it the plan's stated decision.
+- Either way, `_SUBMETRICS` denominators need a ruling: `score.py:372` computes `acc[sm]/acc["n"]`. If refusals stay in `n`, every submetric average gets diluted by cells that were never graded. Pick one and pin it.
+- `EXPECTED_ACCURACY` (0.52/0.47/0.74/0.66) and `test_first_run_overall_and_lds_tradition_pinned` (0.25, 0.76) will all move. The plan says "extend the oracle" but doesn't flag that these pins change.
+
+## Phase 2: the headline rule under a grader subset is undefined
+
+The plan says "headline stays `normalized OR contains_reference`" — for the default set. But `--evaluator strict` is explicitly selectable, and nothing states what `correct` means then. Worse, there's a concrete latent bug: `score.py:334` seeds the accumulator with `"contains_reference": 0` and `summary` iterates the static `_SUBMETRICS`, so `score --evaluator strict` would emit **`contains_reference: 0.0`** into `summary.json` — a wrong number, not an absent one. Phase 2 needs (a) a stated headline rule under subsets (e.g. OR over selected graders' verdicts) and (b) `_SUBMETRICS` derived from the selected grader set rather than a module constant.
+
+## Phase 4: file list is incomplete
+
+The named files exist, but the ones that actually hold the correct/incorrect taxonomy are missing:
+
+- `apps/viewer/src/lib/explorer.ts` — `FailureMode`, `ExplorerFilters.correct` (binary `"correct" | "incorrect"`), `filterQuestions`, `questionStats`. This is the primary edit site and isn't named (the plan says "explorer lib").
+- `apps/viewer/src/components/ExplorerFilters.tsx` and `routes/ExplorerPage.tsx` — the URL contract is `?task=&tradition=&correct=&mode=`; adding `refused` changes it.
+- `routes/StandingsPage.tsx` / `lib/aggregate.ts` — standings ranks on `overall?.accuracy` straight from `summary.json`, so the denominator change silently moves cross-run standings *values*. The plan's "no standings-key drift" covers keys, not values.
+- **Four display categories, not three.** Missing roster cells already have `correct: false` and render as `mode=missing`; the plan never says how `missing` and `refused` coexist.
+- **Search-on/off pairing mechanism is unspecified.** The only signal is the `[web_search]` / `[no-tools]` marker inside `summary.panel[id].model` (the viewer's `PanelEntry` has no `api_model` field). Pairing means stripping that marker to find the base model. Also: `panel` is only emitted when a run config was supplied, and **first-run has no on/off pair at all** — so the contrast affordance needs a no-pairs fallback, and the acceptance criterion "a test fails if the contrast is absent" needs to not fire on first-run.
+
+## Smaller notes
+
+- Phase 3 has no **calibration step**. The spec's open question #1 requires deriving the matcher from the committed answers; the plan says "pre-register the refused set" without saying how it's derived. Make it an explicit first task of Phase 3 (survey both `answers.jsonl`, classify by hand, freeze the set), because the set is ~130 cells, not 21.
+- History rewrite: 9 of 28 commits on this branch carry `Co-Authored-By`. "One non-interactive pass" is fine, but name the command and keep a backup ref (`git branch backup/pre-trailer-strip`) before rewriting — and do it only after all phases are committed.
+- `verify_source` refusals ("I can't verify") currently parse to `None` → incorrect. In-spec to become `refused`; worth one line so the builder doesn't treat provenance as purely additive.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Sound phasing and a clever no-op Phase 2, but Phase 3 under-sizes the refused rebaseline by ~10×, leaves the refused-cell metrics/denominator contract undefined (breaking the phase-1 durable oracle), and omits the coverage metric needed to stop refusal-exclusion from re-inverting the search story the spec exists to fix.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Phase 3 blast radius is ~25–55 declines per 100-cell model (≈130 cells across both runs), not a handful: accuracy moves 25%→56%, 66%→100%, 74%→99%. Plan must size this, and surface the new figures before Phase 5 writes prose.
+- Excluding refusals re-inverts the search signal (opus 100% > opus-search 99%) and makes "100%" a false headline. Decision #2 is baked, so implement it honestly: emit answer-rate/coverage `(correct+incorrect)/n` in `summary.json`/`summary.md` and show it beside every accuracy in the viewer; document ranking semantics.
+- Undefined: does a refused cell still emit `exact`/`normalized`/`token_f1`/`contains_reference`? Dropping them breaks `test_similarity_projection_unchanged`'s pre-containment SHA; the plan's "fresh oracle" discards the phase-1 anchor. Recommend keeping the submetrics and letting `outcome` decide only the headline. Also rule on whether `_SUBMETRICS` denominators (`score.py:372`) exclude refusals.
+- Real conservativeness trap in the evidence: two `opus-search` cells open with a decline and still deliver the reference (currently scored correct). Add this as a pre-registered negative test; consider "decline phrase AND no containment hit" rather than phrase-matching alone.
+- Phase 2 doesn't define the headline rule under a grader subset, and `--evaluator strict` would emit a bogus `contains_reference: 0.0` into `summary.json` because `_SUBMETRICS` is a static constant and the accumulator is pre-seeded (`score.py:334`).
+- Phase 4 file list omits the actual taxonomy sites: `lib/explorer.ts`, `components/ExplorerFilters.tsx`, `routes/ExplorerPage.tsx` (URL `?correct=` contract), and `StandingsPage`/`aggregate.ts` whose accuracy values move. Also unaddressed: how `refused` coexists with the existing `missing` mode; the on/off pairing key (the `[web_search]`/`[no-tools]` marker in `panel[].model`); and the no-pair fallback for first-run.
+- Phase 3 needs an explicit refusal-calibration task (survey both `answers.jsonl`, hand-classify, freeze the set) before the matcher is written.
+- Minor: back up the branch ref before the `Co-Authored-By` history rewrite (9 of 28 commits affected); state that `verify_source` declines move from incorrect to refused.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/projects/15-scoring-contract-contains-exac/15-plan-rescope-codex.txt
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.
+
+
+---
+
+## ⚠️ REPOSITORY MOVED during the claude review (#1649).
+A consultant reviews the commit in front of it; it must never commit, or switch refs.
+  - HEAD: 7af757a6ae1f4162f81e603350d8f27e4b64c379 -> 5055ad5083760fd0263d28ad1f17ef6554999d04
+The files on disk may look untouched and still not be the ones this review describes.
+Check `git reflog` and `git status` before trusting this review or shipping the branch.

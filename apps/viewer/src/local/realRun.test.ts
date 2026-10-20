@@ -7,6 +7,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { loadRun } from "../lib/localResults";
+import { searchContrast } from "../lib/leaderboard";
 
 const runDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..", "runs/first-run-2026-10-11");
 const present = existsSync(resolve(runDir, "summary.json"));
@@ -45,5 +46,19 @@ describe.skipIf(!present)("committed first run renders through the viewer", () =
     // served_by is nullable in the real data: anthropic-hosted → null, openrouter → array
     expect(run.summary.panel?.["claude-haiku"]?.served_by).toBeNull();
     expect(Array.isArray(run.summary.panel?.["gpt-oss-20b"]?.served_by)).toBe(true);
+  });
+
+  it("carries the refused outcome and has no search on/off contrast (no-pair fallback)", async () => {
+    const base = "/runs/first-run-2026-10-11";
+    const run = await loadRun(base, diskFetcher(base));
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+    // Spec 15 phase 3: the run has refused cells, distinct from wrong and missing
+    expect(run.results.some((r) => r.refused)).toBe(true);
+    expect(run.results.every((r) => !(r.refused && r.missing))).toBe(true);
+    // first-run's panel models are four distinct raw ids each with empty tools (Approach B), so no two
+    // share a (provider, model) key and there is no on/off pair —
+    // the contrast affordance degrades gracefully to nothing (never fires on first-run).
+    expect(searchContrast(run.summary)).toEqual([]);
   });
 });

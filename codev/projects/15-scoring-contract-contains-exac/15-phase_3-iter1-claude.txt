@@ -1,0 +1,60 @@
+I'll start by reading the key implementation files for phase 3.I read the phase-3 implementation, the committed evidence, and ran both test lanes read-only. No files in the tree were modified.
+
+## What I verified independently
+
+**The second rebaseline is exactly as pre-registered.** Diffing `runs/*/scores.jsonl` against `7dc9f72` (pre-phase-3) row by row: all 800 rows show `(added={'outcome'}, removed=(), changed=())` — zero metric values moved, key order stable (`exact, normalized, token_f1, contains_reference, correct, outcome`). `summary.json`: `panel` and `usage` blocks byte-identical in both runs; the only cell-key additions are `correct/incorrect/refused/coverage/refused_rate` plus the top-level `evaluators` stamp. The phase-1 SHA oracle passes unchanged, as the plan required. 335 pipeline tests + 125 viewer tests green.
+
+**The refused set is not circular — I attacked it three ways and it holds.** The pinned set is only as good as the hand survey behind it, so:
+- Swept all 800 cells for non-refused/non-correct answers with decline-like leading language using a *broader* cue list than `outcomes.py` uses. Three suspects total, all correct non-refusals: two gpt-oss hallucinated verses that happen to contain "I will not" / "not able" inside the delivered text, and one opus-search deliver-then-caveat with its cue at position 71.
+- `gemma-3-4b: 0` refusals looked suspicious for a 4B model; its 27 `token_f1==0` incorrect cells are hallucinated Hebrew/BoM text, not declines. Genuine zero.
+- Refused cells separate cleanly from incorrect ones by `token_f1`: first-run refused = 139/139 below 0.3; tutorial refused = 126/127 below 0.3, while `incorrect` holds all 47 high-F1 near-misses. That's the signature of real declines, not of a matcher eating attempts.
+- `LEADING_WINDOW` sensitivity: refused count is 139 / 126–128 for windows {30, 45, 60, 80, 120, ∞}. The 60 isn't load-bearing (±1 cell), so there's no hidden fragility in the choice.
+
+## One real bug
+
+`_with_outcome` (score.py:284) runs `classify_refusal` **unconditionally**, and `classify_refusal` drops the "did-not-deliver" half for `cite_passage` / `identify_source` / `identify_version` (outcomes.py:111, `return True`). So a decline-prefixed but **correct** provenance answer is flipped to refused and its headline is zeroed. Demonstrated:
+
+```
+score_answer('identify_source', "I can't verify, but it is from Jude, Jude 1:3.", …)
+→ {'work_found': 1, 'citation_found': 1, 'correct': 0, 'outcome': 'refused'}   # correct was 1
+```
+
+This contradicts the spec's own conservative rule ("a decline-prefixed answer that still delivers … is an answer, not a refusal"), its success criterion *"Provenance tasks keep their correct/incorrect scoring; they gain only the universal `refused` outcome"*, and its Test Scenario "Provenance untouched". Nothing in `test_score.py` / `test_outcomes.py` covers a hedged-but-correct provenance answer.
+
+Fix is one line in `_with_outcome` — gate on the verdict:
+
+```python
+if not metrics["correct"] and classify_refusal(answer, task, expected):
+```
+
+This is **provably a no-op on the committed evidence**: it can only remove cells with `correct == 1` from the refused set, and `test_outcome_exclusive_and_refused_keeps_submetrics` already asserts every refused row has `correct == 0`. So no third rebaseline — just the fix plus a unit test (hedged-correct `cite_passage` / `identify_source`).
+
+## Document, don't change
+
+One refused cell is a genuine judgment call: tutorial `haiku-search / retrieve_quote-e2d74279aaf0` — "I couldn't retrieve the full QUL text … from memory the Uthmani text of 4:176 is ⟨text⟩" (476 normalized chars, `token_f1` 0.68). It's refused under the frozen rule, so it leaves the denominator; counting it incorrect would put haiku-search at 78.8% instead of 80%. It is the *only* refused cell above `token_f1` 0.5 in 266 — so the rule is well calibrated, but this belongs in the phase-5 run-README prose next to the 1/21 hedge caveat, so the refusal exclusion isn't overstated as clean.
+
+## Nits
+
+- `_normalized_cues()` re-normalizes ~75 cues on every `leading_decline()` call; `functools.lru_cache` is free.
+- `summary.md` now emits `cov 45%` with no legend; the TUTORIAL/README sentence is phase-5, but a one-line footer in `summary_markdown` would make the artifact self-describing.
+- `formatCell` (localResults.ts:388) renders a null-accuracy cell as bare `"n/a"`, dropping `n` — so tutorial's all-refused Judaism rows lose `n=34` in the viewer. Phase-4 territory; flagging so it isn't lost.
+- The deviation (viewer committed-run fixtures updated in phase_3 rather than phase_4) was the right call — the dispatcher diffs the whole branch, so the viewer lane runs on every `porch done`, and rebaseline+fixtures must be one commit. Well reasoned and documented in the thread.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Rebaseline and refusal calibration are rigorous and independently verified clean, but the outcome layer lets a decline cue override a correct verdict on three provenance tasks — a one-line, zero-rebaseline fix plus a test.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `_with_outcome` runs refusal classification unconditionally and `classify_refusal` returns `True` on a leading cue alone for `cite_passage`/`identify_source`/`identify_version`, so a hedged-but-correct provenance answer is flipped to `outcome="refused"` with `correct` forced 1→0 (verified: `identify_source("I can't verify, but it is from Jude, Jude 1:3.")`). Violates the spec's "provenance keeps correct/incorrect" criterion and its own "decline-prefixed but delivers is an answer" rule. Fix: `if not metrics["correct"] and classify_refusal(...)` — provably a no-op on both committed runs, so no third rebaseline — and add a unit test for hedged-but-correct provenance answers.
+- Document (phase 5, no code change): tutorial `haiku-search / retrieve_quote-e2d74279aaf0` is refused yet delivers a from-memory attempt (`token_f1` 0.68); it is the only refused cell above 0.5 F1 in 266, and excluding it buys haiku-search ~1pt (80% vs 78.8%). Belongs beside the 1/21 hedge caveat so the refusal exclusion isn't overstated.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-15_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

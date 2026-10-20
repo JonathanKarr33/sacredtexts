@@ -1,0 +1,46 @@
+I'll start by reading the key implementation files.I've independently verified the rebaseline, run both test lanes, and probed the scoring behavior. Here's my review.
+
+## What I verified independently
+
+**Rebaseline is additive-only (clean).** I diffed the committed `scores.jsonl` against the pre-phase-3 commit (`e0e7ded`) for both runs: `added keys: {'outcome'}`, **0 changed prior values, 0 `correct` flips**, and `outcome` is last in every metrics dict. The phase-1 projection oracle and the 1/20 flip set are genuinely untouched — not just asserted by the builder's own test, but confirmed against git history.
+
+**Summaries are internally consistent.** I recomputed every `(model, task)` cell from `scores.jsonl` outcomes: all 8 cells match `summary.json` on `n/correct/incorrect/refused/accuracy/coverage/refused_rate`, and every submetric average matches the graded-cell denominator (the plan's ruling). No cell schema keys were removed; `_overall` and `by_tradition` carry the same shape.
+
+**Refusal calibration holds up under an independent scan.** I scanned both `answers.jsonl` with a *broader* decline regex than the committed cue set over the leading 140 chars of every `incorrect` cell. The 7 hits are all genuine non-refusals: 4 are scripture prose containing "I will not…"/"we do not have…", 3 are deliver-then-caveat Qur'an/Talmud cells (verse first, caveat after) — exactly the design intent. Zero new false negatives. On the other side, the highest-`token_f1` refused cells are all real declines; only one exceeds 0.5 (`haiku-search/e2d74279aaf0`, 0.68), which the builder has already flagged for phase 5.
+
+**Both lanes green**: 340 pipeline tests + 1 skip; 125 viewer tests. The viewer fixture updates are honest value moves with explanatory comments, not weakened assertions.
+
+**Iteration-2 fixes are all present and real**: `_outcome_cell` for zero-answer cells (verified `vs["refused"] == 0` ≠ `missing`), the `"i can neither"` cue with the set re-pinned by count+SHA, windowed `leading_decline`, `lru_cache`. I also confirmed the containment half of `classify_refusal` is load-bearing and *is* test-covered — `test_decline_prefixed_but_delivers_is_not_refused` calls `classify_refusal` directly, so deleting the half breaks a test (I resolved this by reading, not by mutating the tree).
+
+## One real finding: the iteration-2 `parse_yes_no` fix over-corrected
+
+Codex's iter-2 issue was legitimate, but the fix swapped a narrow false positive for a broader false-negative class. `parse_yes_no` now returns `None` whenever **both** tokens appear *anywhere* in the normalized answer. Probed live:
+
+```
+'Yes, there is no doubt that this passage is from John 1:1.' → None → incorrect
+'Yes. No other work contains this wording.'                 → None → incorrect
+```
+
+Both are unambiguous leading commitments that previously scored correct. "no" is a common English word ("no doubt", "no other", "there is no"), so this class is plausibly *more* frequent in real answers than the ambiguous-decline case it fixed. It also contradicts the module docstring's own contract (line 29: "parsed **leading** Yes/No equals expected"; line 43 still says "uses the first Yes/No token" — now stale).
+
+This matters beyond the committed evidence: `verify_source` false-premise negatives are a core part of the Phase-1 question (`generate.py:51`, `--negatives-share`), so a future run will hit it.
+
+**Suggested narrower rule**, which still kills codex's case: keep "first token wins," but return `None` only when the tokens are adjacent in an explicit non-commitment idiom — `yes or no` / `yes/no` / `yes and no`. That's a one-line regex pre-check plus two tests (`"Yes, there is no doubt…"` → `"yes"`; `"…whether the answer is yes or no"` → `None`). Zero rebaseline impact either way.
+
+I did not modify anything to test this — the probe ran `score_answer`/`parse_yes_no` read-only on throwaway inputs in `/tmp`.
+
+## Minor notes (phase 5, not blockers)
+
+- **Refused cells that offer a reconstruction.** 75 of the 268 refused cells (34 first-run, 41 tutorial) explicitly continue with "from memory"/"best reconstruction" after declining. Under the frozen rule these are correctly refusals, and the `token_f1` distribution shows the attempts are far from the reference (only 1 above 0.5) — so this isn't a calibration bug. But it's the honest framing for the phase-5 prose: `opus` reaching 100% accuracy is partly because 34 cells where it declined-then-reconstructed are excluded rather than scored wrong. One sentence beside the coverage explanation would cover it; the builder's existing note only covers the single >0.5 cell.
+- `score.py:43` ("first Yes/No token") goes stale once the above is fixed — the plan already schedules docstrings for phase 5.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase 3's refused-outcome layer, coverage reporting, and second rebaseline are complete and independently verified clean (additive-only diff, consistent summaries, zero refusal false positives/negatives in the evidence); one cheap verify_source parsing regression from the iter-2 fix should be narrowed before the PR.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `parse_yes_no` now returns `None` whenever "yes" and "no" both appear anywhere in the answer, so unambiguous commitments like "Yes, there is no doubt that this is from John 1:1." are scored incorrect (verified by live probe). Narrow it to explicit non-commitment idioms ("yes or no", "yes/no", "yes and no") and add the two regression tests. No committed-evidence impact, but `verify_source` false-premise negatives are core to Phase 1, so fix before the PR.
+- `score.py:43` docstring still claims verify_source "uses the first Yes/No token" — stale; phase-5 docstring sync should catch it.
+- Phase-5 prose note: 75 of 268 refused cells declined *then* offered a from-memory reconstruction; excluding them (correct under the frozen rule) is part of why `opus` reads 100%. Worth one sentence beside the coverage explanation, alongside the already-noted 0.68 cell and the 1/21 hedge.

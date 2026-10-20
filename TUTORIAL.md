@@ -167,9 +167,13 @@ can't accidentally mix things up.
 ## 7. Score — grade the answers
 
 This compares each answer to the known-correct passage and produces the scoreboard. It
-is free and uses no AI. Every answer is graded three ways — an exact match, a "normalised"
-match (ignoring differences like vowel marks and punctuation so a vocalised Arabic verse
-still matches its plain form), and a word-overlap similarity score — and a human-readable
+is free and uses no AI. An answer counts as correct when it **contains** the exact passage (a
+verbatim quote still counts when the model wraps it in a citation); an exact-string match, a
+"normalised" match (ignoring differences like vowel marks and punctuation so a vocalised Arabic
+verse still matches its plain form), and a word-overlap score are reported alongside. A model that
+declines is marked **refused** and set aside, so the scoreboard shows **accuracy** (right when it
+answers) with **coverage** (how often it answers) beside it. Two graders run by default — strict and
+containment; add `--evaluator strict` (or `containment`) to score by one alone. A human-readable
 summary is written out.
 
 ```bash
@@ -204,11 +208,15 @@ cat runs/tutorial-2026-10-11/summary.md
 ```
 
 The shipped run's [`README.md`](runs/tutorial-2026-10-11/README.md) explains the headline
-finding: under the strict "exact text and nothing else" rule, web search looks like it
-barely helps — but that is partly because a searching model tends to **wrap** the correct
-quote in extra words ("According to Sefaria…", a link), which the strict rule marks wrong.
-Counting how often the exact passage *appears anywhere* in the answer shows web search
-actually retrieves **more** correct scripture, most dramatically for the Aramaic Talmud.
+finding. An answer counts as **correct** when it contains the exact passage — a verbatim quote
+wrapped in extra words ("According to Sefaria…", a link) still counts — and a model that **declines**
+("I can't reliably reproduce that line") is marked **refused** and set aside, not counted wrong. So
+each model gets two numbers you read together: **accuracy** (how often it's right *when it answers*)
+and **coverage** (how often it answers at all). That pairing is the real story — web search mostly
+converts refusals into correct retrievals, most dramatically for the Aramaic Talmud, where the
+search-on model goes from refusing every line to retrieving about a quarter of them. It also means a
+model can show "100%" only because it stayed silent most of the time, which is exactly why coverage
+sits right beside accuracy.
 
 ## 8. View — see the results in your browser
 
@@ -225,14 +233,16 @@ which run is newest, add `?run=tutorial-2026-10-11` to the address.
 
 What you can look at:
 
-- The **leaderboard** (`/`) ranks the four contestants by accuracy, with columns per
-  scripture, and shows each model's token totals.
+- The **leaderboard** (`/`) ranks the four contestants by accuracy, with a **coverage** column of
+  equal weight beside it, columns per scripture, each model's token totals, and — for a run with the
+  same model tried with and without search — a **"Search on vs off"** comparison.
 - A **run selector** lets you switch between runs (your own and the shipped examples);
   your choice is saved in the address so you can share or reload it.
-- Click any model (or a scripture cell) to open the **error explorer** — every question
-  with its pass / fail status, the prompt, the expected passage, the model's answer, and
-  the three scores side by side. This is where you can see the "correct but wrapped in
-  extra words" answers that the strict rule marked wrong.
+- Click any model (or a scripture cell) to open the **error explorer** — every question with its
+  outcome (correct / incorrect / **refused** / missing), the prompt, the expected passage, the
+  model's answer, and the three scores side by side, filterable by outcome. This is where the
+  "correct but wrapped in extra words" answers show as correct under the containment rule, and a
+  declined answer shows a neutral **refused** label rather than a red "wrong".
 - **Standings** (link in the header) shows each model's most recent result across all
   runs. Because web-search-on and web-search-off count as different contestants, the four
   tutorial entries stay as four separate rows — but the plain (no-search) `claude-haiku-5-5`

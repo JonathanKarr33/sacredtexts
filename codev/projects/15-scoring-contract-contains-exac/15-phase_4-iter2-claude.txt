@@ -1,0 +1,40 @@
+I'll review the phase_4 viewer implementation. Let me start by reading the key files.Reviewed phase_4 (viewer) against the plan and spec, reading all changed viewer sources and tests from disk, and verified the iteration-1 must-fixes are really in the tree.
+
+## Verification of iteration-1 fixes
+
+| Iter-1 finding | Status |
+|---|---|
+| Refused rows rendered the red "wrong" badge | **Fixed** — `QuestionList.tsx:23-25` adds a neutral `refused` branch *before* the wrong fallback; `QuestionList.test.tsx:58-68` asserts `refused` present and `wrong` absent, with the decline text still shown as the answer. |
+| Contrast UI had no render coverage | **Fixed** — `LeaderboardTable.test.tsx:105-135`: paired-arm fixture renders "Search on vs off", names `claude-z`, shows `65% (35 refused)` and `+9 pt`; plus a no-panel test asserting the section is omitted. |
+| `mode=refused` / refused filter path untested at render level | **Fixed** — `ExplorerPage.test.tsx:171-181` drives `?mode=refused` over the *committed* first-run and gets `Showing 55 of 100`. |
+| `searchContrast` paired on base name alone | **Fixed** — `leaderboard.ts:75` keys on `${provider}\u0000${base}`, `base` kept for display. |
+
+## Independent checks
+
+- `pnpm vitest run`: **17 files / 134 tests pass**. `pnpm check-types`: clean.
+- Four-category exclusivity is real at both the lib and data level: `failureMode` orders missing → refused → wrong (`explorer.ts:16-21`), `refused` is only set on answered rows (`localResults.ts:196`), and `tutorialRun.test.ts:150-156` pins 52+13+35+0 = 100 against the actual committed artifacts.
+- No-pair fallback is genuinely asserted on real data: first-run's panel entries carry no `[web_search]`/`[no-tools]` marker (confirmed by reading `runs/first-run-2026-10-11/summary.json`), and `realRun.test.ts` asserts `searchContrast(...) === []`.
+- Coverage column has real-data render coverage too: `LeaderboardPage.test.tsx:218` asserts `45% (55 refused)` on the committed run, matching `summary.json` (`coverage: 0.45, refused: 55`).
+- Phase-4 commits touch only `apps/viewer/**` plus process docs — no scope bleed into phase 5 or the pipeline.
+
+## Non-blocking observations
+
+1. **`result=incorrect` now means "not correct"** (`explorer.ts:44-45`): for claude-haiku it returns 75 rows (20 wrong + 55 refused), while `summary.json` says `incorrect: 20`. The badges and the mode filter disambiguate, and `explorer.test.ts:76` documents the intent, but the shared word "incorrect" now denotes two different things across the pipeline and the UI. Relabeling the option to "not correct" (or excluding refused from it) would close the last gap between the viewer and the three-outcome contract. Cheap, and arguably what the plan's "`ExplorerFilters.correct` (today binary)" bullet was pointing at.
+2. **One assertion in the new refused render test is vacuous**: `getAllByText("refused").length > 0` (`ExplorerPage.test.tsx:180`) is already satisfied by the `<option value="refused">` and the legend `<span>refused</span>` — it would pass even if every badge said "wrong". The badge is genuinely covered by the `QuestionList` unit test, so this is a test-strength nit, not a hole; scoping it to the list (or asserting ≥ 55) would make it carry weight.
+3. **Standings coverage column has no render test** (`StandingsPage.tsx:118,140`); `StandingsPage.test.tsx` is unchanged this phase. It's a one-line passthrough of the unit-tested `formatCoverage`, so risk is low — but it's the same class of gap that was flagged for the contrast UI in iter 1.
+4. `searchContrast` silently overwrites if two entries share `(provider, base, arm)` — can't happen in the committed runs; worth a `??=` if you touch it again.
+5. Cosmetic: the contrast cells render `71% acc · 66% (34 refused) cov`, which reads a bit cramped; and there's no coverage delta beside `Δ accuracy` even though the opus pair's story (−3 pt accuracy for +10 pt coverage) is exactly the one coverage exists to tell. Both values are visible, so the acceptance criterion holds.
+
+Phase 4's deliverables are all met: four distinguishable outcomes + refused filter with the URL contract extended (`router.tsx:50-53`), coverage beside accuracy at equal visual weight on leaderboard and standings, the search-on/off contrast visible with a tested no-pair fallback, and the committed-run fixtures updated to the moved accuracy/coverage values.
+
+---
+VERDICT: APPROVE
+SUMMARY: Both iter-1 must-fixes are genuinely in the tree, 134 viewer tests and tsc are green, and all phase-4 deliverables (four outcomes, refused filter, coverage column, search contrast with no-pair fallback) are implemented and tested against the committed runs.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- None blocking.
+- Minor: the `result=incorrect` filter means "not correct" (includes 55 refused for claude-haiku vs `incorrect: 20` in summary.json) — consider relabeling to "not correct" or excluding refused.
+- Minor: `getAllByText("refused").length > 0` in `ExplorerPage.test.tsx:180` is satisfied by the filter option and legend, so it adds no badge coverage (the `QuestionList` unit test does cover it).
+- Minor: the new standings coverage column has no render-level test; `searchContrast` would silently overwrite a duplicate `(provider, base, arm)` entry.

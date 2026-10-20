@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Prior findings are fixed, but two user-facing READMEs still describe the superseded scoring and viewer contracts.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `pipelines/README.md:90-94` still says retrieval uses “normalized-exact (+ exact/token-F1).” It should document selected named graders, the default containment headline, `--evaluator`, refused outcomes, and accuracy with coverage.
+- `apps/viewer/README.md:37-45` still describes only pass/fail/missing and correct/incorrect filtering. The implemented viewer has correct/incorrect/refused/missing, a refused filter, coverage/refused leaderboard data, and search-on/off contrast; the README should match.

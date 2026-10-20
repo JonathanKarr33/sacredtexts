@@ -6,23 +6,28 @@
 
 import type { QuestionResult } from "./localResults";
 
-/** A failure's mode: a missing cell (the model produced no answer for a roster question)
- * vs a wrong answer (answered, but scored incorrect). A correct answer is neither. */
-export type FailureMode = "missing" | "wrong";
+/** A failure's mode (Spec 15 — four outcome categories): a missing cell (the model produced no
+ * answer for a roster question), a refused answer (it answered but declined), or a wrong answer
+ * (answered, scored incorrect). A correct answer is none of these. */
+export type FailureMode = "missing" | "refused" | "wrong";
 
-/** Classify a result's failure mode, or null when it is not a failure (i.e. correct). */
+/** Classify a result's failure mode, or null when it is not a failure (i.e. correct). Refused and
+ * missing are checked before wrong so each of the four categories is distinct. */
 export function failureMode(r: QuestionResult): FailureMode | null {
   if (r.correct) return null;
-  return r.missing ? "missing" : "wrong";
+  if (r.missing) return "missing";
+  if (r.refused) return "refused";
+  return "wrong";
 }
 
 /** The explorer's composing filter state — the URL search params, all optional. */
 export interface ExplorerFilters {
   task?: string;
   tradition?: string;
-  /** Restrict to correct or incorrect answers (a missing cell counts as incorrect). */
+  /** Restrict to correct, or to any non-correct answer. The `mode` filter narrows a non-correct
+   * answer to one of missing / refused / wrong. */
   correct?: "correct" | "incorrect";
-  /** Restrict failures to one mode; composes with the other filters by AND. */
+  /** Restrict failures to one mode (missing / refused / wrong); composes with the others by AND. */
   mode?: FailureMode;
 }
 
@@ -62,15 +67,18 @@ export interface QuestionStats {
   total: number;
   correct: number;
   wrong: number;
+  refused: number;
   missing: number;
 }
 
-/** Counts over a result set: total, correct, wrong-answer, and missing-cell. */
+/** Counts over a result set: total, correct, wrong-answer, refused, and missing-cell (the four
+ * Spec 15 outcome categories; a cell is exactly one of correct/wrong/refused/missing). */
 export function questionStats(results: QuestionResult[]): QuestionStats {
-  const stats: QuestionStats = { total: results.length, correct: 0, wrong: 0, missing: 0 };
+  const stats: QuestionStats = { total: results.length, correct: 0, wrong: 0, refused: 0, missing: 0 };
   for (const r of results) {
     if (r.correct) stats.correct++;
     else if (r.missing) stats.missing++;
+    else if (r.refused) stats.refused++;
     else stats.wrong++;
   }
   return stats;

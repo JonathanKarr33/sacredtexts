@@ -1,0 +1,11 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The core metric is feasible, but the scoring contract, reporting surface, and optional scope remain materially unresolved or inconsistent.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- **Resolve the headline contract before planning.** The spec defers whether `correct` changes until the PR gate, while also requiring `contains_reference` to be purely additive and not change any existing metric value. Those positions conflict. Choose either diagnostic-only containment with `correct` unchanged, or headline adoption, and define expected overall/by-tradition effects.
+- **The claimed reporting behavior is inaccurate.** `_SUBMETRICS` adds fields to `summary.json`; it does not create visible columns in `summary.md` or the viewer. `summary_markdown()` renders only task accuracy, the leaderboard uses `formatCell()`, and the question view hardcodes `exact`, `normalized`, and `token_f1`. Specify which user-visible surfaces must show `contains_reference` and include the necessary viewer/Markdown acceptance tests—or narrow the desired state to JSON-only reporting.
+- **Convert open design questions into decisions.** Word-bounded containment and inclusion of `complete_unit` are already asserted by Success Criteria but remain listed as open. Likewise, the judge pilot should be explicitly out of scope for this PR rather than left to builder discretion.
+- **Define the empty-normalized-reference behavior.** An empty expected value would make a boundary regex match every answer unless explicitly rejected or scored as `contains_reference = 0`.
+- **Document both run deltas.** Direct inspection confirms the tutorial claim (`239` contained versus `219` normalized, a 20-cell delta), but the first run also has a one-cell delta (`26` versus `25`). The rebaseline criteria should state that both deltas are reviewed, especially if headline adoption remains possible.

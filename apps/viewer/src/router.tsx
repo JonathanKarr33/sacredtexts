@@ -47,7 +47,10 @@ const explorerRoute = createRoute({
     tradition: typeof search.tradition === "string" && search.tradition ? search.tradition : undefined,
     correct:
       search.correct === "correct" || search.correct === "incorrect" ? search.correct : undefined,
-    mode: search.mode === "missing" || search.mode === "wrong" ? search.mode : undefined,
+    mode:
+      search.mode === "missing" || search.mode === "refused" || search.mode === "wrong"
+        ? search.mode
+        : undefined,
   }),
 });
 

@@ -89,11 +89,15 @@ export function ExplorerFilters({
           value={value.mode ?? ALL}
           onChange={(e) => {
             const v = e.target.value;
-            onChange({ ...value, mode: v === "missing" || v === "wrong" ? v : undefined });
+            onChange({
+              ...value,
+              mode: v === "missing" || v === "refused" || v === "wrong" ? v : undefined,
+            });
           }}
         >
           <option value={ALL}>all</option>
           <option value="missing">missing cell</option>
+          <option value="refused">refused</option>
           <option value="wrong">wrong answer</option>
         </select>
       </label>

@@ -202,25 +202,45 @@ from `_qid()` (`pipelines/sacredbench/generate.py:92`).
 
 ### 3. Grade the task — `score_answer`
 
-Add a branch to `score_answer()` (`pipelines/sacredbench/score.py:201`) returning your
-task's metrics dict, including the headline `correct` flag. Every answer is graded on
-three sub-metrics — exact, normalized, and word-overlap — selected per task in
-`_SUBMETRICS` (`pipelines/sacredbench/score.py:108`).
+Add a branch to `score_answer()` (`pipelines/sacredbench/score.py:225`) returning your
+task's metrics dict, including the headline `correct` flag and the `outcome` stamped by
+`_with_outcome` (`pipelines/sacredbench/score.py:288`). For the text-retrieval tasks the sub-metrics
+and the headline come from the **selected graders** (recipe below); the other tasks' fixed
+sub-metrics live in `_SUBMETRICS` (`pipelines/sacredbench/score.py:128`).
 
-> Existing tasks show the range of rules: `retrieve_quote` passes on a *normalized* match;
-> others require the answer to *be* a specific label, or a single extracted citation to
-> equal the expected one (`_single_citation_correct`,
-> `pipelines/sacredbench/score.py:183`).
+> Existing tasks show the range of rules: `retrieve_quote`/`complete_unit` pass on the OR of the
+> selected graders' verdicts (default `normalized OR contains_reference`, Spec 15 — a verbatim quote
+> wrapped in a citation counts); others require the answer to *be* a specific label, or a single
+> extracted citation to equal the expected one (`_single_citation_correct`,
+> `pipelines/sacredbench/score.py:207`). **Refusal is an OUTCOME, not a grader**: a leading decline
+> that doesn't deliver the answer is `refused` (excluded from `accuracy = correct/(correct+incorrect)`,
+> with `coverage` reported beside it), via `outcomes.classify_refusal` + `_with_outcome`.
+
+#### Adding an evaluator (a named grader)
+
+Graders decide correct-vs-incorrect for the text-retrieval tasks and are selectable by name on
+`score --evaluator`. Register one in `GRADERS` (`pipelines/sacredbench/graders.py:49`) as a `Grader`
+(`pipelines/sacredbench/graders.py:33`): its `name`, the `metric_keys` it owns (only the canonical
+primitives `score.py` computes — enforced at import, so a stray key fails loudly), and a
+`verdict(metrics) -> bool`. `resolve_evaluators` (`pipelines/sacredbench/graders.py:86`) and
+`submetrics_for` (`pipelines/sacredbench/graders.py:111`) pick it up and the headline becomes the OR
+of the selected verdicts. **`Grader.default` defaults to `True`** (`pipelines/sacredbench/graders.py:37`)
+— a new inline grader joins the default headline (and reshapes committed `scores.jsonl`) unless you
+pass `default=False`. A paid / separate-pass grader (the future Jev judge, issue #21) is a descriptor
+with `inline=False` and **no verdict callable** — `score` never runs it inline; its own resumable pass
+merges its `metric_keys`. Do not make refusal a grader; it is an outcome that short-circuits whichever
+graders run.
 
 ### 4. Know the matching backbone — `_SUBMETRICS` / `normalize`
 
-The comparison engine is `normalize()` (`pipelines/sacredbench/score.py:115`), which runs
+The comparison engine is `normalize()` (`pipelines/sacredbench/score.py:133`), which runs
 three passes **in a fixed order**: Unicode folding, then `strip_script_marks()`
-(`pipelines/sacredbench/score.py:87`) which removes Arabic/Hebrew vowel marks *only within
+(`pipelines/sacredbench/score.py:105`) which removes Arabic/Hebrew vowel marks *only within
 those scripts* (so a vocalised verse matches its plain form), then the
 punctuation/case/whitespace pass. The word-overlap metric is `token_f1`
-(`pipelines/sacredbench/score.py:126`), explicitly a **v1 stand-in** for a future
-semantic metric — the designated slot if your task needs similarity scoring.
+(`pipelines/sacredbench/score.py:144`), explicitly a **v1 stand-in** for a future
+semantic metric — the designated slot if your task needs similarity scoring (a judge-based grader
+arrives as the separate-pass seam, issue #21).
 
 > **Do not reorder those passes, and do not casually change `normalize()`.** English text
 > is byte-for-byte unchanged by design, and the shipped English run was scored under the
@@ -229,14 +249,22 @@ semantic metric — the designated slot if your task needs similarity scoring.
 > (`pipelines/tests/test_first_run_regression.py:32`), which re-scores the committed
 > answers and asserts the committed scores reproduce exactly. A new task should *add*
 > evidence, not perturb the old — don't route around this test.
+>
+> **Sanctioned exception:** a deliberate scoring-contract change (e.g. Spec 15's containment headline
+> + refused outcome) *does* reshape committed `scores.jsonl` on purpose. Do it once, with a durable
+> projection-SHA oracle + an exact pre-registered flip/refused set
+> (`pipelines/tests/test_contains_reference_rebaseline.py`) witnessing that only the intended fields
+> moved, panel/usage fed back verbatim (a keyless re-score nulling them is the scar), and the moved
+> numbers surfaced to the architect first.
 
 ### 5. What flows through for free — and what NOT to touch
 
-The summary rollup (`score_file`, `pipelines/sacredbench/score.py:235`;
-`summary_markdown`, `pipelines/sacredbench/score.py:452`) keys on `(model, task)` and is
-task-generic, so your task appears without extra work. The viewer's filters derive from
-the data too (`explorerTasks`, `apps/viewer/src/lib/explorer.ts:47`; `filterQuestions`,
-`apps/viewer/src/lib/explorer.ts:35`), so a new task shows up there with no code change.
+The summary rollup (`score_file`, `pipelines/sacredbench/score.py:344`;
+`summary_markdown`, `pipelines/sacredbench/score.py:606`) keys on `(model, task)` and is
+task-generic, so your task appears without extra work. It reports the three-outcome split +
+`coverage` beside accuracy and stamps `summary["evaluators"]` (the graders that scored the run). The
+viewer's filters derive from the data too (`explorerTasks`, `apps/viewer/src/lib/explorer.ts:52`;
+`filterQuestions`, `apps/viewer/src/lib/explorer.ts:40`), so a new task shows up there with no code change.
 The viewer is HeroUI-v3 and provider-less — read
 [`apps/viewer/README.md`](apps/viewer/README.md) before touching it.
 
@@ -245,7 +273,8 @@ The viewer is HeroUI-v3 and provider-less — read
 - **The shipped run evidence.** Never re-run `generate`/`collect`/`score` over
   `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`. Write to a fresh
   `runs/<id>/` (see [`TUTORIAL.md`](TUTORIAL.md)). A `collect` there resume-skips every
-  cell; a keyless `score` overwrites the committed proof with nulls.
+  cell; a keyless `score` overwrites the committed proof with nulls. (The *only* exception is a
+  deliberate, oracle-witnessed contract rebaseline — see the sanctioned exception under step 4.)
 - **The regression guard** in `test_first_run_regression.py` (step 4).
 
 ### 6. Preserve the evidence-integrity invariants

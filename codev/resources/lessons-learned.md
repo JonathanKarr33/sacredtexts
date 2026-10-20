@@ -5,13 +5,15 @@ Seeded from Spec 1 (Phase 1 benchmark).
 
 ## Scoring & evaluation
 
-- **A strict exact-text `retrieve_quote` headline conflates two very different
-  failures.** `correct = normalize(answer) == normalize(expected)` ("exact text and
-  nothing else") marks both an honest refusal and a confident fabrication as 0. In the
-  first run gpt-oss-20b mostly refuses while gemma/llama fabricate — the same score,
-  opposite behaviour. Report the **abstention-vs-hallucination split** (deferred to
-  Spec 2; the contract is gated). `token_f1` alongside the headline surfaces the
-  near-misses (claude-haiku: 17 correct-text answers lost to the "nothing else" rule).
+- **Refusal is an OUTCOME, not a wrong answer — don't let a strict headline conflate it
+  with fabrication.** `correct = normalize(answer) == normalize(expected)` alone marks both an
+  honest refusal and a confident fabrication 0 (first run: gpt-oss-20b mostly refuses, gemma/llama
+  fabricate — same score, opposite behaviour). Spec 15 makes this a first-class `outcome` ∈
+  correct/incorrect/refused: a declined cell is `refused` and **excluded from accuracy**
+  (`accuracy = correct/(correct+incorrect)`), with **coverage** (how often it answered) reported
+  beside every accuracy so a high-accuracy/low-coverage model isn't misread (opus 100%/cov66% vs
+  opus-search 97%/cov76%). Detection is deterministic (a leading decline cue AND the reference not
+  delivered); `token_f1` is a diagnostic, never the refusal detector.
 - **Citation scoring must resist containment and false-negatives.** A single-candidate
   boundary-equality check (multi-candidate hedge → 0), with the extractor chosen by the
   ground-truth citation *shape*, and spans asserting the expected citation collapsed to
@@ -25,20 +27,31 @@ Seeded from Spec 1 (Phase 1 benchmark).
   run well past basic harakat — U+06D6–U+06ED, superscript alef U+0670, …, many mid-word),
   not from a spec. Pin a Latin byte-for-byte invariance snapshot: an over-eager global
   delete (e.g. soft-hyphen) silently regresses committed English answers.
-- **The strict `retrieve_quote` headline penalises correct-but-wrapped retrieval.** A
-  web-search model that returns the exact quote *plus* a citation/URL/caveat scores 0
-  under "the quote and nothing else," so the headline can look flat/down while the model
-  actually retrieves *more* correct scripture. The honest search-on/off cut is **whether
-  the normalised reference is contained in the answer**, not `token_f1` (a short quote
-  diluted by an English caveat lands ~0.45, not near 1.0). Report the contains-exact
-  numbers in the run README; don't reshape the headline contract to chase them.
+- **A containment headline rescues correct-but-wrapped retrieval — adopt it as a deliberate
+  contract change, don't report it on the side.** A web-search model returns the exact quote *plus*
+  a citation/URL/caveat; under "the quote and nothing else" it scored 0, so the strict headline
+  looked flat/down while the model retrieved *more* correct scripture. Spec 15 adopts
+  `correct = normalized OR contains_reference` for the text-retrieval tasks (containment confined to
+  them — provenance anti-evasion intact), so the lift sits in the accuracy column. The reliable
+  signal is **word-bounded containment of the normalised reference**, not `token_f1` (a short quote
+  diluted by an English caveat lands ~0.45). Caveat: containment has **no anti-hedge rule** (unlike
+  `cite_passage`/`identify_source`), so a verse that is the model's secondary hedge guess still
+  counts correct — document the few such cells rather than special-casing them.
 - **Web retrieval surfaces real orthographic variance the normaliser can't fold.** A
   correct āyah can come back in a *different* Uthmani Unicode encoding (U+06E1 vs U+0652,
   Arabic Extended-A tanwīn U+08F0–08F2, U+0657, yeh/alef-maksura) that `normalize()` does
   not fold to exact equality (token_f1 up to 0.95, `correct`=0) — present in search-OFF
-  answers too, so it is *not* a tool artifact. Future refinement: fold these, or add a
-  pipeline-level `contains_reference` submetric — deferred because either reshapes
-  `scores.jsonl` and breaks the byte-for-byte re-score regression guard.
+  answers too, so it is *not* a tool artifact. Spec 15 shipped the additive `contains_reference`
+  submetric rather than folding these encodings (folding risked the Latin byte-for-byte invariance);
+  the encoding near-miss stays visible as a `normalized=0` / `contains_reference=0` / high-`token_f1`
+  **incorrect** cell.
+- **A scoring-contract change is a SANCTIONED, evidenced rebaseline — not a forbidden re-score.**
+  The byte-for-byte re-score guards exist to catch an *accidental* disturbance of committed numbers;
+  a deliberate contract change (containment headline, refused outcome) reshapes `scores.jsonl` on
+  purpose. Do it **once, with a durable projection-SHA oracle + an exact pre-registered flip/refused
+  set** (`test_contains_reference_rebaseline.py`) so a reviewer can see only the intended fields
+  moved, preserve `panel`/`usage` verbatim (a keyless re-score nulling them is the scar), and surface
+  the moved numbers to the architect before writing prose. Spec 15 did exactly two such rebaselines.
 
 - **A marker baked into an identity string to force non-collision orphans the
   pre-existing bare rows.** Spec 8 encoded tool-use into `panel.model`
@@ -96,6 +109,16 @@ Seeded from Spec 1 (Phase 1 benchmark).
   including non-blocking COMMENTs, so nothing is silently dropped between iterations.
 - **Derive formats from the real reference data, not its docs** (BoM heading-as-verse,
   encyclical `paragraph: null`, Talmud daf offsets).
+- **`porch rollback <id> plan` REPLAYS the old plan's iteration history — it does not reset the
+  counter.** After a rollback, each `porch done` bumps the iteration (2→3…) and `porch next` returns
+  "Fix issues from iteration N" with **no consult task**, because the old plan's iterN review files
+  still exist on disk. Net trap: a freshly re-scoped plan can advance plan→implement **without a
+  fresh multi-agent consult**. Mitigation (Spec 15): run a manual `consult` (codex+claude) over the
+  re-scoped plan, commit its outputs + a rebuttal, and fold the findings before implementing — don't
+  trust the replayed green. Also note porch's implement loop has a `max_iterations` safety ceiling
+  (3) that **force-advances** a phase that keeps drawing REQUEST_CHANGES, recording the last rebuttal
+  as the disposition — fine when the residual is a documented out-of-scope item, but verify that's
+  what happened rather than assuming the phase passed cleanly.
 
 ## Map
 - (This cold archive pairs with `lessons-critical.md`'s hot tier; demote hot entries

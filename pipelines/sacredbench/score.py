@@ -1,5 +1,5 @@
-"""Scoring: strict exactness AND graded similarity, per answer (the group's open
-question — Nancy leans toward testing both, so every answer gets both).
+"""Scoring: per answer, the metrics the SELECTED graders emit plus always-on diagnostics.
+The default graders are ``strict`` + ``containment`` (Spec 15: ``normalized OR contains_reference``).
 
 Metrics emitted per answer:
 
@@ -12,12 +12,28 @@ Metrics emitted per answer:
 - ``token_f1``    bag-of-words F1 between normalised answer and expected text
                   (0..1) — the v1 "semantic similarity" stand-in; embedding- or
                   judge-based semantic scoring is a later, pluggable metric
+- ``contains_reference``  (retrieve_quote / complete_unit ONLY) the normalised reference
+                  appears word-bounded inside the normalised answer (0/1) — catches a
+                  correct-but-wrapped retrieval (bracketed quote + a citation/caveat) that
+                  strict ``normalized`` scores 0. A strict superset of ``normalized``.
 - ``correct``     the per-task headline judgment (see below)
+- ``outcome``     (Spec 15) ``correct`` / ``incorrect`` / ``refused`` — a declined answer is
+                  ``refused`` (``correct`` forced 0) and EXCLUDED from accuracy; see
+                  ``_with_outcome`` and ``outcomes.classify_refusal``. Accuracy is then
+                  ``correct/(correct+incorrect)`` and ``score_file`` reports ``coverage`` beside it.
+
+For the text-retrieval tasks the reported sub-metrics and the headline are set by the SELECTED
+graders (``graders.py``, chosen via ``score --evaluator``; default ``strict`` + ``containment``).
 
 Per-task headline rule (the spec's contract — designed to resist evasive answers so
 that containment alone cannot game provenance honesty, within the SCOPE noted below):
 
-- retrieve_quote / complete_unit : ``normalized`` match (exact + token-F1 alongside)
+- retrieve_quote / complete_unit : OR of the selected graders' verdicts — default
+                                   ``normalized`` OR ``contains_reference`` (Spec 15: a
+                                   verbatim quote wrapped in brackets/notes IS a correct
+                                   retrieval; exact + token-F1 reported alongside).
+                                   Containment is confined to these two text-retrieval
+                                   tasks — the provenance tasks below never use it.
 - verify_source                  : parsed leading Yes/No equals expected
 - identify_version               : the answer, normalised, EQUALS the version label
                                    (exact + normalized reported) — an evasive
@@ -36,7 +52,9 @@ reported number; tracked for the Spec 2 scoring-contract revision):
   is substring containment — both are gameable by negation ("it is NOT from X");
   since every corpus embeds the work in the citation, the work check collapses into
   the citation check. These tasks must be hardened before any verify_source /
-  identify_source number is reported.
+  identify_source number is reported — tracked as **issue #23 (PAPER GATE)**. (A leading
+  decline on verify_source is already classified ``refused`` by the outcome layer; the gap
+  is negation-evasion on a NON-declining answer, which no committed run exercises.)
 """
 
 from __future__ import annotations
@@ -104,10 +122,10 @@ def strip_script_marks(text: str) -> str:
         )
     )
 
-# Similarity sub-metrics reported per task (the spec's per-task contract table).
+# Fixed sub-metrics for the NON-graded tasks. The text-retrieval tasks (retrieve_quote /
+# complete_unit) derive their submetric set from the selected graders (see graders.submetrics_for),
+# so they are intentionally absent here.
 _SUBMETRICS = {
-    "retrieve_quote": ("exact", "normalized", "token_f1"),
-    "complete_unit": ("exact", "normalized", "token_f1"),
     "identify_version": ("exact", "normalized"),
 }
 
@@ -135,6 +153,10 @@ def token_f1(answer: str, expected: str) -> float:
 
 
 def parse_yes_no(answer: str) -> str | None:
+    """The leading Yes/No verdict (first token), or None. Deliberately simple: a DECLINE to verify
+    is handled by the outcome layer (a leading decline cue → ``refused``, Spec 15), not here, so this
+    needs only to read a committed verdict. Hardening against negation/evasion on NON-declining
+    answers remains the deferred verify_source gap noted in the module docstring."""
     m = re.search(r"\b(yes|no)\b", normalize(answer))
     return m.group(1) if m else None
 
@@ -174,8 +196,10 @@ def _citation_candidates(answer: str, expected_citation: str) -> set[str]:
 
 
 def _bounded_equal(answer: str, expected: str) -> bool:
-    """The full normalized expected citation appears with word boundaries (so
-    ``Jude 1:3`` does not match ``Jude 1:30``), not mere substring containment."""
+    """The full normalized ``expected`` appears with word boundaries (so ``Jude 1:3`` does
+    not match ``Jude 1:30``), not mere substring containment. Despite the citation-flavoured
+    name this is word-bounded normalised CONTAINMENT, reused by ``score_answer`` to compute
+    ``contains_reference`` for the text-retrieval tasks (caller guards the empty case)."""
     ne = normalize(expected)
     return re.search(r"(?<!\w)" + re.escape(ne) + r"(?!\w)", normalize(answer)) is not None
 
@@ -198,38 +222,123 @@ def _single_citation_correct(answer: str, expected_citation: str) -> tuple[int, 
     return int(_bounded_equal(answer, expected_citation)), n
 
 
-def score_answer(task: str, answer: str, expected: dict) -> dict:
-    """Score one model answer. Returns the metrics dict described in the module docstring."""
+def score_answer(task: str, answer: str, expected: dict, graders: "list | None" = None) -> dict:
+    """Score one model answer. Returns the metrics dict described in the module docstring.
+
+    For the text-retrieval tasks the reported submetric fields and the headline are determined by
+    the selected ``graders`` (a list of ``graders.Grader``; ``None`` ⇒ the default deterministic
+    set): each grader contributes its ``metric_keys`` and the headline ``correct`` is the OR of the
+    selected graders' verdicts. ``token_f1`` is an always-on diagnostic. The default set
+    ``{strict, containment}`` emits ``exact``/``normalized``/``token_f1``/``contains_reference`` with
+    ``correct = normalized OR contains_reference`` — identical to the frozen phase-1 contract."""
     if task in ("retrieve_quote", "complete_unit"):
+        from .graders import GraderError, resolve_evaluators, submetrics_for
+
+        if graders is None:
+            graders = resolve_evaluators(None)
+        elif not graders:
+            raise GraderError("empty grader list passed to score_answer")
         target = expected["text"]
-        exact = int(answer.strip() == target.strip())
-        norm = int(normalize(answer) == normalize(target))
-        f1 = token_f1(answer, target)
-        return {"exact": exact, "normalized": norm, "token_f1": round(f1, 4), "correct": norm}
+        # all primitives are computed; only the selected graders' fields (+ always-on token_f1)
+        # are emitted. contains_reference reuses _bounded_equal (word-bounded normalised
+        # containment); the bool(normalize(target)) guard stops an empty reference (whose escaped
+        # regex matches everywhere) from scoring 1. Containment is confined to these two
+        # text-retrieval tasks — the provenance branches below never see it.
+        computed = {
+            "exact": int(answer.strip() == target.strip()),
+            "normalized": int(normalize(answer) == normalize(target)),
+            "token_f1": round(token_f1(answer, target), 4),
+            "contains_reference": int(bool(normalize(target)) and _bounded_equal(answer, target)),
+        }
+        metrics = {k: computed[k] for k in submetrics_for(graders)}  # canonical order
+        metrics["correct"] = int(any(g.verdict(computed) for g in graders))
+        return _with_outcome(metrics, task, answer, expected)
     if task == "verify_source":
         parsed = parse_yes_no(answer)
         correct = int(parsed == expected["answer"])
-        return {"parsed": parsed, "expected": expected["answer"], "correct": correct}
+        return _with_outcome(
+            {"parsed": parsed, "expected": expected["answer"], "correct": correct},
+            task, answer, expected,
+        )
     if task == "identify_version":
         # the answer must BE the version label (exact/normalized), so an evasive
         # "KJV or WEB" or "not the KJV, it's the ASV" does not score correct
         version = expected["version"]
         exact = int(answer.strip() == version)
         norm = int(normalize(answer) == normalize(version))
-        return {"exact": exact, "normalized": norm, "correct": norm}
+        return _with_outcome({"exact": exact, "normalized": norm, "correct": norm}, task, answer, expected)
     if task == "cite_passage":
         correct, n = _single_citation_correct(answer, expected["citation"])
-        return {"correct": correct, "n_candidates": n}
+        return _with_outcome({"correct": correct, "n_candidates": n}, task, answer, expected)
     if task == "identify_source":
         work_found = int(_contains(answer, expected["work"]))
         citation_ok, n = _single_citation_correct(answer, expected["citation"])
-        return {
-            "work_found": work_found,
-            "citation_found": citation_ok,
-            "n_candidates": n,
-            "correct": int(work_found and citation_ok),
-        }
+        return _with_outcome(
+            {
+                "work_found": work_found,
+                "citation_found": citation_ok,
+                "n_candidates": n,
+                "correct": int(work_found and citation_ok),
+            },
+            task, answer, expected,
+        )
     raise ScoreError(f"unknown task {task!r}")
+
+
+def _with_outcome(metrics: dict, task: str, answer: str, expected: dict) -> dict:
+    """Stamp ``outcome`` ∈ {correct, incorrect, refused} onto a metrics dict (Spec 15, decision #2).
+
+    Refusal is an OUTCOME, not a grader: a declined cell short-circuits the headline (``correct`` is
+    forced to 0) and is reported as ``refused`` so it is excluded from accuracy. All submetrics the
+    grader(s) already computed are kept unchanged — a refused text-retrieval cell still carries its
+    exact/normalized/token_f1/contains_reference (preserving the phase-1 projection oracle). For a
+    non-refused cell the outcome is simply correct-vs-incorrect per the headline verdict."""
+    from .outcomes import classify_refusal
+
+    # A decline-prefixed answer that still DELIVERS the right result (a hedged-but-correct citation,
+    # "I can't verify, but it's Jude 1:3") is an ANSWER, not a refusal — so for the tasks whose
+    # correctness is a DELIVERED result, refusal only applies when the headline is not already
+    # correct. verify_source is different: its "answer" is the verdict itself, so a leading decline
+    # ("I can't verify whether …") is a refusal regardless of any incidental Yes/No token the
+    # first-token parser may have matched — otherwise an explicit decline could score correct.
+    refused = classify_refusal(answer, task, expected) and (task == "verify_source" or not metrics["correct"])
+    if refused:
+        metrics["correct"] = 0  # headline skipped for a declined verify_source (no-op elsewhere)
+        metrics["outcome"] = "refused"
+    else:
+        metrics["outcome"] = "correct" if metrics["correct"] else "incorrect"
+    return metrics
+
+
+def _outcome_cell(acc: dict, submetric_keys: tuple[str, ...]) -> dict:
+    """Build a summary cell with the three-outcome split + coverage (Spec 15, decision #2).
+
+    - ``accuracy = correct/(correct+incorrect)`` — refusals EXCLUDED (``None`` when nothing was
+      graded, i.e. every answered cell was refused); "how often it's right *when it answers*".
+    - ``coverage = (correct+incorrect)/n`` — "how often it answers" (the honest companion that
+      stops an all-but-one-refused model's 100% from being read as a clean sweep).
+    - ``refused_rate = refused/n``; ``correct``/``incorrect``/``refused`` are the raw counts.
+
+    Submetric averages are taken over the GRADED cells (correct+incorrect), never ``n`` — a refusal
+    is not graded, so it must not dilute the diagnostic averages. ``missing`` (roster cells that
+    produced no answer) is added by the caller and stays distinct from ``refused`` (answered, declined).
+    """
+    n = acc["n"]
+    refused = acc.get("refused", 0)
+    correct = acc["correct"]
+    graded = n - refused
+    cell = {
+        "n": n,
+        "accuracy": round(correct / graded, 4) if graded else None,
+        "coverage": round(graded / n, 4) if n else None,
+        "correct": correct,
+        "incorrect": graded - correct,
+        "refused": refused,
+        "refused_rate": round(refused / n, 4) if n else None,
+    }
+    for sm in submetric_keys:
+        cell[sm] = round(acc[sm] / graded, 4) if graded else None
+    return cell
 
 
 def score_file(
@@ -237,6 +346,7 @@ def score_file(
     expected_tradition: dict[tuple[str, str, str], int] | None = None,
     panel: dict[str, dict] | None = None,
     expected_digest: str | None = None,
+    evaluators: "list[str] | None" = None,
 ) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
@@ -286,13 +396,25 @@ def score_file(
                 "question set than they were collected for; point --questions at the matching set"
             )
 
+    # resolve the grader selection ONCE (default = deterministic set); it drives both the emitted
+    # text-retrieval submetric fields and which submetrics the summary aggregates.
+    from .graders import resolve_evaluators, submetrics_for
+
+    graders = resolve_evaluators(evaluators)
+    text_submetrics = submetrics_for(graders)  # canonical-ordered keys for retrieve_quote/complete_unit
+
+    def _task_submetrics(task: str) -> tuple[str, ...]:
+        if task in ("retrieve_quote", "complete_unit"):
+            return text_submetrics
+        return _SUBMETRICS.get(task, ())  # fixed for identify_version; () for the others
+
     scores_path.parent.mkdir(parents=True, exist_ok=True)
     per_cell: dict[tuple[str, str], dict] = {}  # (model_id, task) -> accumulators
     per_trad: dict[tuple[str, str, str], dict] = {}  # (model_id, tradition, task) -> {n, correct}
     usage: dict[str, dict] = {}  # model_id -> {calls, in, out, model, served_by{host:count}}
     with open(scores_path, "w", encoding="utf-8") as out:
         for d in rows:
-            metrics = score_answer(d["task"], d["answer"], d["question"]["expected"])
+            metrics = score_answer(d["task"], d["answer"], d["question"]["expected"], graders)
             out.write(
                 json.dumps(
                     {
@@ -305,15 +427,23 @@ def score_file(
                 )
                 + "\n"
             )
+            # accumulator seeded from THIS task's selected submetrics (canonical order), so a
+            # subset selection never leaves a stale key (e.g. `--evaluator strict` must not emit a
+            # spurious contains_reference:0.0 into the summary) and the summary loop reads acc[sm].
+            sm_keys = _task_submetrics(d["task"])
             acc = per_cell.setdefault(
                 (d["model_id"], d["task"]),
-                {"n": 0, "correct": 0, "exact": 0, "normalized": 0, "token_f1": 0.0},
+                {"n": 0, "correct": 0, "refused": 0, **{k: 0 for k in sm_keys}},
             )
+            refused = metrics.get("outcome") == "refused"
             acc["n"] += 1
             acc["correct"] += metrics["correct"]
-            acc["exact"] += metrics.get("exact", 0)
-            acc["normalized"] += metrics.get("normalized", 0)
-            acc["token_f1"] += metrics.get("token_f1", 0.0)
+            acc["refused"] += int(refused)
+            # submetrics accumulate over GRADED cells only (refusals are never graded, so they must
+            # not dilute the diagnostic averages); the per-cell values are still emitted on refused rows.
+            if not refused:
+                for sm in sm_keys:
+                    acc[sm] += metrics[sm]  # sm_keys derives from the same selection ⇒ present (fail loud if not)
             # token usage for cost accounting (recorded per answer row by collect)
             u = d.get("usage") or {}
             um = usage.setdefault(
@@ -327,9 +457,12 @@ def score_file(
                 um["served_by"][host] = um["served_by"].get(host, 0) + 1
             # tradition breakdown: count this observation once PER listed tradition
             for trad in d.get("question", {}).get("source", {}).get("tradition", []) or []:
-                tacc = per_trad.setdefault((d["model_id"], trad, d["task"]), {"n": 0, "correct": 0})
+                tacc = per_trad.setdefault(
+                    (d["model_id"], trad, d["task"]), {"n": 0, "correct": 0, "refused": 0}
+                )
                 tacc["n"] += 1
                 tacc["correct"] += metrics["correct"]
+                tacc["refused"] += int(refused)
 
     expected = expected or {}
     summary: dict = {"models": {}, "by_tradition": {}}
@@ -338,12 +471,10 @@ def score_file(
     all_cells = set(per_cell) | set(expected)
     for (model_id, task) in sorted(all_cells):
         acc = per_cell.get((model_id, task))
-        if acc:
-            cell = {"n": acc["n"], "accuracy": round(acc["correct"] / acc["n"], 4)}
-            for sm in _SUBMETRICS.get(task, ()):
-                cell[sm] = round(acc[sm] / acc["n"], 4)
-        else:
-            cell = {"n": 0, "accuracy": None}  # no data (not a 0% score)
+        # a fully-missing (expected-but-unanswered) cell gets the same three-outcome schema via a
+        # zero accumulator (accuracy/coverage/refused_rate → None, counts → 0), so summary consumers
+        # see one shape; `missing` below stays distinct from `refused` (answered-then-declined).
+        cell = _outcome_cell(acc or {"n": 0, "correct": 0, "refused": 0}, _task_submetrics(task))
         if (model_id, task) in expected:
             cell["expected_n"] = expected[(model_id, task)]
             cell["missing"] = max(expected[(model_id, task)] - cell["n"], 0)
@@ -351,13 +482,18 @@ def score_file(
     # _overall from RAW counts (not a lossy round(accuracy*n) reconstruction)
     for model_id in summary["models"]:
         cells = [acc for (m, _), acc in per_cell.items() if m == model_id]
-        total_n = sum(c["n"] for c in cells)
-        total_correct = sum(c["correct"] for c in cells)
-        ov = {"n": total_n, "accuracy": round(total_correct / total_n, 4) if total_n else None}
+        ov = _outcome_cell(
+            {
+                "n": sum(c["n"] for c in cells),
+                "correct": sum(c["correct"] for c in cells),
+                "refused": sum(c["refused"] for c in cells),
+            },
+            (),
+        )
         exp_total = sum(v for (m, _), v in expected.items() if m == model_id)
         if exp_total:
             ov["expected_n"] = exp_total
-            ov["missing"] = max(exp_total - total_n, 0)
+            ov["missing"] = max(exp_total - ov["n"], 0)
         summary["models"][model_id]["_overall"] = ov
     # per-model x tradition x task (each observation counted once per listed
     # tradition, so a tradition's n can exceed the overall count); overall-once
@@ -367,24 +503,27 @@ def score_file(
     all_trad_cells = set(per_trad) | set(expected_tradition)
     for (model_id, trad, task) in sorted(all_trad_cells):
         tacc = per_trad.get((model_id, trad, task))
-        if tacc:
-            cell = {"n": tacc["n"], "accuracy": round(tacc["correct"] / tacc["n"], 4)}
-        else:
-            cell = {"n": 0, "accuracy": None}
+        # tradition cells report outcomes, not submetrics; a fully-missing one uses the same schema
+        cell = _outcome_cell(tacc or {"n": 0, "correct": 0, "refused": 0}, ())
         if (model_id, trad, task) in expected_tradition:
             cell["expected_n"] = expected_tradition[(model_id, trad, task)]
             cell["missing"] = max(expected_tradition[(model_id, trad, task)] - cell["n"], 0)
         summary["by_tradition"].setdefault(model_id, {}).setdefault(trad, {})[task] = cell
     for model_id, trads in summary["by_tradition"].items():
         for trad, tasks in trads.items():
-            raw = [per_trad.get((model_id, trad, t), {"n": 0, "correct": 0}) for t in tasks]
-            tn = sum(c["n"] for c in raw)
-            tc = sum(c["correct"] for c in raw)
-            ov = {"n": tn, "accuracy": round(tc / tn, 4) if tn else None}
+            raw = [per_trad.get((model_id, trad, t), {"n": 0, "correct": 0, "refused": 0}) for t in tasks]
+            ov = _outcome_cell(
+                {
+                    "n": sum(c["n"] for c in raw),
+                    "correct": sum(c["correct"] for c in raw),
+                    "refused": sum(c["refused"] for c in raw),
+                },
+                (),
+            )
             exp_total = sum(v for (m, tr, _), v in expected_tradition.items() if m == model_id and tr == trad)
             if exp_total:
                 ov["expected_n"] = exp_total
-                ov["missing"] = max(exp_total - tn, 0)
+                ov["missing"] = max(exp_total - ov["n"], 0)
             tasks["_overall"] = ov
 
     # Token usage totals (cost accounting). Prices are NOT invented: a cost appears
@@ -431,6 +570,10 @@ def score_file(
                 "endpoint": p.get("endpoint"),
                 "served_by": sorted(um.get("served_by", {})) or None,
             }
+    # Evaluator provenance (Spec 15, decision #5): which named graders decided the headline for the
+    # text-retrieval cells in THIS summary, in selection order. The default set is {strict, containment};
+    # a `--evaluator` subset is recorded here so a summary is self-describing about its scoring contract.
+    summary["evaluators"] = [g.name for g in graders]
     # Additive run timestamp (Issue #7 pipeline half): a committed, mtime-independent
     # recency signal. The current viewer ignores it; it never affects scoring.
     summary["generated_at"] = datetime.now(timezone.utc).isoformat()
@@ -438,13 +581,23 @@ def score_file(
 
 
 def _cell_str(c: dict | None) -> str:
-    """Render one table cell: '—' if absent, 'miss N' if expected-but-unanswered,
-    'acc% (n=N)' otherwise, with a '−missing' suffix when some cells are missing."""
+    """Render one table cell: '—' if absent, 'miss N' if expected-but-unanswered, otherwise
+    'acc% cov cov% (n=N; c/i/r C/I/R)' — accuracy is right-when-it-answers (n/a if all refused),
+    coverage sits beside it, and the correct/incorrect/refused counts are shown so the three-outcome
+    split (and refused_rate = R/N) is readable from summary.md itself. '−missing' flags unanswered
+    roster cells (distinct from refused)."""
     if c is None:
         return "—"
     if c["n"] == 0:
         return f"miss {c['missing']}" if c.get("missing") else "—"
-    s = f"{c['accuracy']:.0%} (n={c['n']})"
+    acc = "n/a" if c.get("accuracy") is None else f"{c['accuracy']:.0%}"
+    s = acc
+    if c.get("coverage") is not None:
+        s += f" cov {c['coverage']:.0%}"
+    if "correct" in c:  # scored cell: spec requires correct/incorrect/refused in summary.md
+        s += f" (n={c['n']}; c/i/r {c['correct']}/{c['incorrect']}/{c['refused']})"
+    else:
+        s += f" (n={c['n']})"
     if c.get("missing"):
         s += f" −{c['missing']}"
     return s
@@ -464,10 +617,20 @@ def summary_markdown(summary: dict) -> str:
         row = [model_id] + [_cell_str(cells.get(t)) for t in tasks]
         ov = cells["_overall"]
         overall = "**n/a**" if ov["accuracy"] is None else f"**{ov['accuracy']:.0%}**"
+        if ov.get("coverage") is not None:
+            overall += f" cov {ov['coverage']:.0%}"
+        if "correct" in ov:
+            overall += f" (c/i/r {ov['correct']}/{ov['incorrect']}/{ov['refused']})"
         if ov.get("missing"):
             overall += f" −{ov['missing']}"
         row.append(overall)
         lines.append("| " + " | ".join(row) + " |")
+    lines += [
+        "",
+        "_Cells: accuracy cov coverage (n answered; c/i/r = correct/incorrect/refused). "
+        "accuracy = correct/(correct+incorrect) — refusals excluded; coverage = (correct+incorrect)/n; "
+        "refused_rate = refused/n. `−N` = roster cells that produced no answer (distinct from refused)._",
+    ]
 
     by_trad = summary.get("by_tradition") or {}
     if by_trad:
@@ -479,7 +642,9 @@ def summary_markdown(summary: dict) -> str:
                 row = [model_id, trad] + [_cell_str(cells.get(t)) for t in tasks]
                 ov = cells["_overall"]
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
-                row.append(f"**{acc}** (n={ov['n']})")
+                cov = "" if ov.get("coverage") is None else f" cov {ov['coverage']:.0%}"
+                cir = f"; c/i/r {ov['correct']}/{ov['incorrect']}/{ov['refused']}" if "correct" in ov else ""
+                row.append(f"**{acc}**{cov} (n={ov['n']}{cir})")
                 lines.append("| " + " | ".join(row) + " |")
 
     panel = summary.get("panel") or {}

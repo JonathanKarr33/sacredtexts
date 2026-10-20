@@ -26,81 +26,69 @@ accuracy table, the panel composition, and token totals.
   tokens), so pricing the panel would understate true cost — `summary.json` carries
   token totals only, no `cost_usd`.
 
-## The contrast — what the run actually shows
+## The contrast — accuracy with coverage
 
-The benchmark exists to compare parametric recall (tools off) against tool-assisted
-retrieval (tools on). The **headline** (`retrieve_quote` requires the whole answer to be
-the exact reference text and *nothing else*) looks flat-to-down for web search:
+The benchmark compares parametric recall (tools off) against tool-assisted retrieval
+(tools on). Under the adopted scoring contract (Spec 15) a text-retrieval answer is
+**correct** when it *contains* the exact (normalised) reference — a verbatim quote wrapped
+in a citation ("According to Sefaria…", a source URL, an explanatory caveat) counts — and a
+model that **declines** ("I can't reliably reproduce that line") is scored **refused** and
+excluded from accuracy rather than counted wrong. So each model has two headline numbers:
 
-| model        | headline overall | Judaism | Protestant Christian | Sunni Islam |
-|--------------|------------------|---------|----------------------|-------------|
-| opus         | 66%              | 0%      | 100%                 | 100%        |
-| opus-search  | 66%              | 3%      | 100%                 | 97%         |
-| haiku        | 47%              | 0%      | 85%                  | 58%         |
-| haiku-search | 40%              | 0%      | 85%                  | 36%         |
+- **accuracy** = correct / (correct + incorrect) — how often it's right *when it answers*;
+- **coverage** = (correct + incorrect) / n — how often it answers (the remainder refused).
 
-**But the headline hides the actual result, and the committed data inverts the naive
-reading.** Counting instead how often an answer *contains* the exact (normalised)
-reference text anywhere in it tells the real story:
+| model        | accuracy | coverage | correct | incorrect | refused |
+|--------------|----------|----------|---------|-----------|---------|
+| opus         | 100%     | 66%      | 66      | 0         | 34      |
+| opus-search  | 97%      | 76%      | 74      | 2         | 24      |
+| haiku-search | 80%      | 65%      | 52      | 13        | 35      |
+| haiku        | 71%      | 66%      | 47      | 19        | 34      |
 
-| model        | headline `correct` | **contains exact reference** | scored 0 yet contains it |
-|--------------|--------------------|------------------------------|--------------------------|
-| opus         | 66 / 100           | 66 / 100                     | 0                        |
-| opus-search  | 66 / 100           | **74 / 100**                 | **8**                    |
-| haiku        | 47 / 100           | 47 / 100                     | 0                        |
-| haiku-search | 40 / 100           | **52 / 100**                 | **12**                   |
+**Read together, accuracy and coverage tell the search story a single number would hide.**
+`opus` answers only 66% of the time but is never wrong when it does — reported as accuracy
+alone, its "100%" outranks opus-search's 97% while concealing that it stayed silent on a
+third of the roster. Coverage is why that reading is wrong: **opus-search answers more (76%)
+at near-perfect accuracy (97%)** — web search converts refusals into correct retrievals
+rather than lifting a strict-match rate. `haiku`: web search lifts accuracy **71% → 80%**
+while holding coverage (~66%).
 
-So **web search retrieves *more* correct scripture, not less** (opus 66→74, haiku 47→52),
-and **20 of 400 cells score 0 while containing the exact reference text — every one of
-them a search-on cell** (opus-search 8, haiku-search 12). For these 20 cells the mechanism
-is not orthography and not fabrication (they contain the exact reference by definition): a
-search-enabled model tends to **wrap** the retrieved quote in
-citation/attribution prose ("According to Sefaria…", a source URL, an explanatory caveat),
-and the deliberately strict "and nothing else" headline scores that wrapper as wrong. The
-search-off entries, answering from memory, emit the bare quote and so match the headline
-more often.
+Two per-tradition cuts show where the retrieval comes from (contains-exact counts, unchanged
+from the original analysis):
 
-Two concrete cuts make this unmistakable:
+- **Talmud (Aramaic).** opus-search contains the exact reference in **8 of 34** cells (~24%)
+  vs. **0 of 34** for opus-off — web search lifted Aramaic Talmud retrieval from *nothing*.
+  (opus-off **refused all 34** Talmud cells rather than guess — Judaism accuracy `null`, coverage
+  0% — so search converted a total abstention into 8 correct retrievals at 29% coverage.)
+- **Qur'an.** haiku-search contains the exact reference in **24 of 33** cells vs. **19 of 33**
+  for haiku-off — more correct retrieval with search. The remaining Qur'an misses are
+  **orthographic/encoding variants** (the correct āyah in a different Uthmani encoding that
+  `normalize` does not fold to exact equality), *not* wrong scripture and *not* a web-search
+  artifact: haiku-*off*'s own Qur'an misses are the same non-exact encoding variants.
 
-- **Talmud (the clearest case).** The headline shows ~0% for all four entries, but
-  **opus-search contains the exact Aramaic reference in 8 of 34 cells (~24%) vs. 0 of 34
-  for opus-off.** Web search lifted Aramaic Talmud retrieval from *nothing* to ~24%; the
-  headline hid the entire lift because opus-search cited its source around the quote.
-- **Qur'an.** haiku-search contains the exact reference in **24 of 33** cells vs. **19 of
-  33** for haiku-off — more correct retrieval with search — yet its headline falls to 12
-  of 33 because 12 of those contained answers wrap the quote in prose. Its **21 headline misses
-  split into 12 wrappers** (contain the exact reference) **and 9 orthographic/encoding
-  variants** — the correct āyah in a different Uthmani encoding that `normalize` does not
-  fold to exact equality (several of those 9 also wrapped in English prose); none are wrong
-  scripture. That orthographic near-miss is *not* a web-search artifact: all 14 of
-  haiku-*off*'s own Qur'an misses are the same non-exact encoding variants, with zero
-  wrappers. (The "exactly one genuine text difference" figure belongs to the narrower
-  off-correct→on-wrong **regression** subset of 11 questions — 10 wrappers + 1 — not to all
-  misses.)
+Before the adopted headline, these wrapped-but-verbatim retrievals scored 0 under the strict
+"the quote and nothing else" rule; the contract revision (Spec 15) makes containment the
+headline, so the lift above is now in the accuracy column rather than hidden beneath it.
 
-The one opus right→wrong item (`retrieve_quote-642fbf516c7a`) is in this same bucket: the
-quoted āyah is `normalize`-equal to the reference and scores 0 only for a trailing English
-disclaimer — a wrapper penalty on a verbatim-correct retrieval, not sampling noise.
+## Reading the scores (caveats)
 
-This is the scoring contract working **exactly as designed** — the Spec-1 `retrieve_quote`
-rule is intentionally "the quote and nothing else," and surfacing the wrapper-vs-retrieval
-gap is the benchmark's job, not a defect. The headline rule is unchanged; the right way to
-read the search-on/off comparison is the **contains-exact-reference** and **`exact`** cuts
-above (recomputable from the committed `answers.jsonl` + `scores.jsonl`), per-tradition
-accuracy in `summary.md`, and the viewer error explorer.
-
-## Reading the scores (important caveat)
-
-The `retrieve_quote` headline is deliberately strict: the whole answer must be the exact
-reference text and **nothing else**. `exact` / `normalized` / `token_f1` are reported
-alongside in `scores.jsonl` so the strictness is visible. Note that **`token_f1` is *not*
-a reliable wrapper detector here**: across the 20 wrapped-but-correct cells a short
-Arabic/Aramaic quote diluted by an English caveat lands at a median `token_f1` of ~0.45
-(range 0.16–0.99), not near 1.0 — so "low headline + high `token_f1`" does not surface the
-wrapped-but-correct cases. The reliable cut is **whether the normalised reference text is
-contained in the answer** (the
-"contains exact reference" column above); that, not `token_f1`, is what separates a
-correctly-retrieved-but-wrapped answer from wrong scripture.
+- **`token_f1` is not a wrapper/decline detector.** A short Arabic/Aramaic quote diluted by
+  an English caveat lands at a median `token_f1` ~0.45, not near 1.0, so "low headline + high
+  `token_f1`" does not surface wrapped-but-correct cases. The reliable signal is **whether the
+  normalised reference is contained in the answer** (`contains_reference` in `scores.jsonl`).
+- **Containment has no anti-hedge rule.** One of opus-search's 8 correct Talmud cells —
+  `retrieve_quote-4ad4392645da` (Ketubot 8a:8) — is a two-candidate hedge whose *expected*
+  verse is the model's **secondary** guess; containment counts it correct (~1 pt on
+  opus-search's accuracy). `cite_passage`/`identify_source` have an anti-hedge rule;
+  text-retrieval does not.
+- **One refused cell is a from-memory reconstruction, not a clean decline.** haiku-search
+  `retrieve_quote-e2d74279aaf0` declined ("I couldn't retrieve the full QUL text to verify")
+  then offered a from-memory Uthmani reconstruction (`token_f1` 0.68 — the only refused cell
+  above 0.5 across 268). Under the deterministic refusal rule it is `refused` (excluded from
+  accuracy); counting it incorrect would put haiku-search at 78.8% rather than 80%. The rule
+  is well-calibrated (**267 of the 268** refused cells across both runs sit below `token_f1` 0.3 —
+  this is the only one above), but it is a judgment call worth naming so the refusal exclusion isn't
+  read as perfectly clean.
 
 ## Copyright / licensing
 

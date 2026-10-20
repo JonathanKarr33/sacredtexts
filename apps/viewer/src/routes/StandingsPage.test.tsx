@@ -192,13 +192,87 @@ describe.skipIf(!present)("StandingsPage — committed run gate", () => {
     const order = dataRows.map((r) => within(r).getAllByRole("link")[0]!.textContent);
     expect(order).toEqual(["claude-haiku", "llama-3.1-8b", "gemma-3-4b", "gpt-oss-20b"]);
 
-    // panel identity is shown, and claude-haiku's overall is its leaderboard value
+    // panel identity is shown, and claude-haiku's overall is its leaderboard value (Spec 15 phase 3:
+    // accuracy excludes the 55 refusals → 25 correct / 45 graded = 56%, up from the phase-1 25%/100)
     // (retrieve_quote is the only task, so the task cell and the overall cell both read it)
     expect(screen.getByText("anthropic / claude-haiku-5-5")).toBeInTheDocument();
-    expect(within(dataRows[0]!).getAllByText("24% (n=100)").length).toBeGreaterThan(0);
+    expect(within(dataRows[0]!).getAllByText("56% (n=100)").length).toBeGreaterThan(0);
     // every row links back into the source run
     expect(within(dataRows[0]!).getByRole("link", { name: "first-run-2026-10-11" }).getAttribute("href")).toContain(
       "run=first-run-2026-10-11",
     );
   });
+});
+
+describe("StandingsPage — evaluator provenance (Spec 15)", () => {
+  const ANTH = (model: string) => ({ provider: "anthropic", model, tools: [], endpoint: "e", served_by: null });
+  const cell = (acc: number) => ({ n: 2, accuracy: acc, coverage: 1.0, correct: 2, incorrect: 0, refused: 0 });
+
+  it("flags standings that mix runs scored under different evaluator contracts", async () => {
+    const summaries: Record<string, Summary> = {
+      "run-strict": {
+        models: { a: { retrieve_quote: cell(0.5), _overall: cell(0.5) } },
+        by_tradition: {},
+        panel: { a: ANTH("model-a") },
+        evaluators: ["strict"],
+      },
+      "run-default": {
+        models: { b: { retrieve_quote: cell(0.9), _overall: cell(0.9) } },
+        by_tradition: {},
+        panel: { b: ANTH("model-b") },
+        evaluators: ["strict", "containment"],
+      },
+    };
+    vi.stubGlobal("fetch", standingsFetcher([{ id: "run-default", mtimeMs: 2 }, { id: "run-strict", mtimeMs: 1 }], summaries));
+    renderApp("/standings");
+    expect(await screen.findByText("Current standings")).toBeInTheDocument();
+    // the heterogeneous-contract warning names both contracts (role=status is the banner <p>)
+    const warn = screen.getByRole("status");
+    expect(warn.textContent).toMatch(/different evaluator contracts/i);
+    expect(warn.textContent).toContain("strict");
+    expect(warn.textContent).toContain("strict + containment");
+  });
+
+  it("shows a single-contract subtext (no warning) when all runs share evaluators", async () => {
+    const summaries: Record<string, Summary> = {
+      "run-1": {
+        models: { a: { retrieve_quote: cell(0.5), _overall: cell(0.5) } },
+        by_tradition: {},
+        panel: { a: ANTH("model-a") },
+        evaluators: ["strict", "containment"],
+      },
+    };
+    vi.stubGlobal("fetch", standingsFetcher([{ id: "run-1", mtimeMs: 1 }], summaries));
+    renderApp("/standings");
+    expect(await screen.findByText("Current standings")).toBeInTheDocument();
+    expect(screen.queryByText(/different evaluator contracts/i)).toBeNull();
+    expect(screen.getByText(/All runs scored by evaluators:/i).textContent).toContain("strict + containment");
+  });
+  it("flags a legacy run (no evaluators) mixed with a Spec-15 run as heterogeneous", () => {
+    const summaries: Record<string, Summary> = {
+      "run-legacy": {
+        models: { a: { retrieve_quote: cell(0.5), _overall: cell(0.5) } },
+        by_tradition: {},
+        panel: { a: ANTH("model-a") },
+        // no `evaluators` → pre-Spec-15 run
+      },
+      "run-spec15": {
+        models: { b: { retrieve_quote: cell(0.9), _overall: cell(0.9) } },
+        by_tradition: {},
+        panel: { b: ANTH("model-b") },
+        evaluators: ["strict", "containment"],
+      },
+    };
+    vi.stubGlobal("fetch", standingsFetcher([{ id: "run-spec15", mtimeMs: 2 }, { id: "run-legacy", mtimeMs: 1 }], summaries));
+    renderApp("/standings");
+    return screen.findByText("Current standings").then(() => {
+      const warn = screen.getByRole("status");
+      expect(warn.textContent).toMatch(/different evaluator contracts/i);
+      expect(warn.textContent).toContain("unknown (pre-Spec-15)");
+      expect(warn.textContent).toContain("strict + containment");
+      // the false "all runs scored by ..." subtext must NOT appear
+      expect(screen.queryByText(/All runs scored by evaluators:/i)).toBeNull();
+    });
+  });
+
 });

@@ -1,0 +1,54 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The scoring work is thorough, but the branch must be rebased and reconciled with current main before integration.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- **Blocking integration conflict:** The branch is 64 commits behind `origin/main`. A read-only `git merge-tree` check shows conflicts in `cli.py`, `score.py`, `localResults.ts`, `StandingsPage.tsx`, committed run summaries, and documentation. Current main emits raw `panel.model` plus structured `panel.tools`, while this branch emits `[web_search]`/`[no-tools]` markers in `panel.model` (`pipelines/sacredbench/cli.py:355-363`) and parses those markers in `searchContrast()` (`apps/viewer/src/lib/leaderboard.ts:51-72`). Rebase and adapt the contrast to structured `panel.tools`, preserving main’s tools-aware standings identity and `generated_at` recency behavior. Rerun both suites afterward; the recorded 346 pipeline and 134 viewer passes only validate the pre-rebase tree.
+- **Commit-history readiness:** The PR contains 79 commits, including dozens of `chore(porch)` commits that do not follow the required `[Spec 15][Phase: ...]` format and add substantial process noise. Clean or squash the history according to the project’s integration policy before merging.
+
+PR_SUMMARY: |
+  ## Summary
+  Revises the benchmark scoring contract so contained reference text counts as correct and honest refusals are represented separately from incorrect answers. It also introduces selectable named graders, accuracy-with-coverage reporting, and corresponding viewer and documentation updates.
+
+  ## Key Changes
+  - Add strict and containment graders selectable through `score --evaluator`.
+  - Classify answers as correct, incorrect, or refused while retaining diagnostic metrics.
+  - Report coverage and refusal counts alongside accuracy.
+  - Add refused filtering and search-on/off comparison to the viewer.
+  - Rebaseline committed run evidence with pinned regression oracles.
+
+  ## Test Plan
+  - Rebase onto current `main` and resolve the structured-tools and recency integrations.
+  - Run `uv --project pipelines run pytest pipelines`.
+  - Run `pnpm -C apps/viewer test` and `pnpm -C apps/viewer check-types`.
+  - Run the copyright audit and committed-run regression/oracle tests.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the codex review (#1649).
+A consultant reviews the tree; it must never write to it. 43 paths changed while this lane was running:
+  - .codev/checks/test.sh
+  - CODE_WALKTHROUGH.md
+  - TUTORIAL.md
+  - apps/viewer/README.md
+  - apps/viewer/src/lib/aggregate.test.ts
+  - apps/viewer/src/lib/aggregate.ts
+  - apps/viewer/src/lib/localResults.ts
+  - apps/viewer/src/lib/recency.test.ts
+  - apps/viewer/src/lib/recency.ts
+  - apps/viewer/src/lib/runIndex.test.ts
+  - apps/viewer/src/lib/runIndex.ts
+  - apps/viewer/src/local/tutorialRun.test.ts
+  - apps/viewer/src/routes/StandingsPage.test.tsx
+  - apps/viewer/src/routes/StandingsPage.tsx
+  - apps/viewer/vite/runsEndpoint.test.ts
+  - apps/viewer/vite/runsEndpoint.ts
+  - codev/plans/11-standings-marked-panel-model-o.md
+  - codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter1-rebuttals.md
+  - codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter2-context.md
+  - codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter2-rebuttals.md
+  … and 23 more
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

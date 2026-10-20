@@ -98,7 +98,7 @@ export function ExplorerPage() {
         <>
           <p className="mt-3 text-sm text-default-600">
             {stats.total} question{stats.total === 1 ? "" : "s"} · {stats.correct} correct ·{" "}
-            {stats.wrong} wrong · {stats.missing} missing
+            {stats.wrong} wrong · {stats.refused} refused · {stats.missing} missing
           </p>
 
           <div className="mt-4">
@@ -112,9 +112,10 @@ export function ExplorerPage() {
 
           <p className="mt-4 text-xs text-default-400">
             <span className="font-medium">missing</span> = the model produced no answer for a
-            roster question (a missing cell); <span className="font-medium">wrong</span> = it
-            answered but scored incorrect. Per-metric <code>n/a</code> means the task emits no
-            such similarity score.
+            roster question (a missing cell); <span className="font-medium">refused</span> = it
+            answered but declined to give the text (excluded from accuracy);{" "}
+            <span className="font-medium">wrong</span> = it answered but scored incorrect. Per-metric{" "}
+            <code>n/a</code> means the task emits no such similarity score.
           </p>
 
           <p className="mt-2 text-sm text-default-500">

@@ -30,6 +30,7 @@ function q(partial: Partial<QuestionResult>): QuestionResult {
     task: "retrieve_quote",
     correct: false,
     missing: false,
+    refused: false,
     prompt: "p",
     answer: "a",
     expected: "e",
@@ -42,10 +43,13 @@ function q(partial: Partial<QuestionResult>): QuestionResult {
 }
 
 describe("explorer — classification", () => {
-  it("classifies correct (no failure), wrong, and missing", () => {
+  it("classifies correct (no failure), wrong, refused, and missing", () => {
     expect(failureMode(q({ correct: true }))).toBeNull();
     expect(failureMode(q({ correct: false, missing: false }))).toBe("wrong");
     expect(failureMode(q({ correct: false, missing: true }))).toBe("missing");
+    expect(failureMode(q({ correct: false, refused: true }))).toBe("refused");
+    // refused is distinct from wrong even though both are answered-and-not-correct
+    expect(failureMode(q({ correct: false, refused: false }))).toBe("wrong");
   });
 });
 
@@ -55,6 +59,7 @@ describe("explorer — filters compose", () => {
     q({ question_id: "b", correct: false, missing: false, task: "retrieve_quote", tradition: ["Judaism"] }),
     q({ question_id: "c", correct: false, missing: true, task: "identify_version", tradition: ["Roman Catholic"] }),
     q({ question_id: "d", correct: false, missing: false, task: "identify_version", tradition: ["Judaism", "Roman Catholic"] }),
+    q({ question_id: "e", correct: false, refused: true, task: "retrieve_quote", tradition: ["Judaism"] }),
   ];
 
   it("filters by task", () => {
@@ -67,11 +72,13 @@ describe("explorer — filters compose", () => {
 
   it("filters by correct / incorrect", () => {
     expect(filterQuestions(results, { correct: "correct" }).map((r) => r.question_id)).toEqual(["a"]);
-    expect(filterQuestions(results, { correct: "incorrect" }).map((r) => r.question_id)).toEqual(["b", "c", "d"]);
+    // incorrect = any non-correct (wrong b/d, missing c, refused e); mode narrows further
+    expect(filterQuestions(results, { correct: "incorrect" }).map((r) => r.question_id)).toEqual(["b", "c", "d", "e"]);
   });
 
-  it("filters failures by mode — missing distinct from wrong", () => {
+  it("filters failures by mode — missing, refused, wrong all distinct", () => {
     expect(filterQuestions(results, { mode: "missing" }).map((r) => r.question_id)).toEqual(["c"]);
+    expect(filterQuestions(results, { mode: "refused" }).map((r) => r.question_id)).toEqual(["e"]);
     expect(filterQuestions(results, { mode: "wrong" }).map((r) => r.question_id)).toEqual(["b", "d"]);
   });
 
@@ -88,8 +95,8 @@ describe("explorer — filters compose", () => {
     expect(explorerTraditions(results)).toEqual(["Judaism", "Roman Catholic"]);
   });
 
-  it("counts total / correct / wrong / missing", () => {
-    expect(questionStats(results)).toEqual({ total: 4, correct: 1, wrong: 2, missing: 1 });
+  it("counts total / correct / wrong / refused / missing", () => {
+    expect(questionStats(results)).toEqual({ total: 5, correct: 1, wrong: 2, refused: 1, missing: 1 });
   });
 });
 

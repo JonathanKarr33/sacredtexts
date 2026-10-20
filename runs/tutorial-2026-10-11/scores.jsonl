@@ -1,400 +1,400 @@
-{"question_id": "retrieve_quote-071853620554", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-071853620554", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-071853620554", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-078edd9593f1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-078edd9593f1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-078edd9593f1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-071853620554", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-078edd9593f1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3953, "correct": 0}}
-{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9804, "correct": 0}}
-{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9804, "correct": 0}}
-{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0659, "correct": 0}}
-{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8571, "correct": 0}}
-{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4375, "correct": 0}}
-{"question_id": "retrieve_quote-1e51194b8420", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1e51194b8420", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1e51194b8420", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1e51194b8420", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8409, "correct": 0}}
-{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-219c7089a034", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0526, "correct": 0}}
-{"question_id": "retrieve_quote-219c7089a034", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-219c7089a034", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4615, "correct": 0}}
-{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-306eba2557dd", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-306eba2557dd", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-306eba2557dd", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-219c7089a034", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5647, "correct": 0}}
-{"question_id": "retrieve_quote-306eba2557dd", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-314f17eea849", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-314f17eea849", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-314f17eea849", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-314f17eea849", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9583, "correct": 0}}
-{"question_id": "retrieve_quote-349b0b401f72", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-36f1323297a6", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-349b0b401f72", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-349b0b401f72", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-36f1323297a6", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-36f1323297a6", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-36f1323297a6", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-388d6a43c431", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-388d6a43c431", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-388d6a43c431", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-388d6a43c431", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-426b067ca02a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-426b067ca02a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-426b067ca02a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-349b0b401f72", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2192, "correct": 0}}
-{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-426b067ca02a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-45651f54c099", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-45651f54c099", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0672, "correct": 0}}
-{"question_id": "retrieve_quote-45651f54c099", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-45651f54c099", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4ad4392645da", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-4ad4392645da", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-4ad4392645da", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9647, "correct": 0}}
-{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9302, "correct": 0}}
-{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5424, "correct": 0}}
-{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0455, "correct": 0}}
-{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-500c010644e8", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-500c010644e8", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-500c010644e8", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-500c010644e8", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-4ad4392645da", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.1585, "correct": 0}}
-{"question_id": "retrieve_quote-528c5b83569e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-528c5b83569e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-528c5b83569e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9333, "correct": 0}}
-{"question_id": "retrieve_quote-528c5b83569e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9333, "correct": 0}}
-{"question_id": "retrieve_quote-532054786a83", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-532054786a83", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-532054786a83", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-532054786a83", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9859, "correct": 0}}
-{"question_id": "retrieve_quote-571bf774a203", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-571bf774a203", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-571bf774a203", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9348, "correct": 0}}
-{"question_id": "retrieve_quote-571bf774a203", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-57dc6798483f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-57dc6798483f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-58fb82e85077", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-58fb82e85077", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-57dc6798483f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-58fb82e85077", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-58fb82e85077", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5bb956d31356", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5bb956d31356", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5bb956d31356", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5bb956d31356", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-57dc6798483f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-60993d0becf0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8333, "correct": 0}}
-{"question_id": "retrieve_quote-60993d0becf0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-60993d0becf0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-60993d0becf0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8333, "correct": 0}}
-{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8462, "correct": 0}}
-{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3607, "correct": 0}}
-{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0625, "correct": 0}}
-{"question_id": "retrieve_quote-732d66e552f2", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4706, "correct": 0}}
-{"question_id": "retrieve_quote-732d66e552f2", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-732d66e552f2", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-732d66e552f2", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.96, "correct": 0}}
-{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3871, "correct": 0}}
-{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9744, "correct": 0}}
-{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-8586e176e947", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.331, "correct": 0}}
-{"question_id": "retrieve_quote-8586e176e947", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-8586e176e947", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-8e686f815d74", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-8e686f815d74", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-8e686f815d74", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-8e686f815d74", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8824, "correct": 0}}
-{"question_id": "retrieve_quote-92410f8c7263", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-92410f8c7263", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-92410f8c7263", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-92410f8c7263", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-8586e176e947", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3846, "correct": 0}}
-{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.96, "correct": 0}}
-{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-a46d44780948", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a46d44780948", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a46d44780948", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a46d44780948", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.963, "correct": 0}}
-{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0282, "correct": 0}}
-{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b33e7e040058", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b33e7e040058", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b33e7e040058", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b3756de2e493", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b3756de2e493", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0903, "correct": 0}}
-{"question_id": "retrieve_quote-b3756de2e493", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b3756de2e493", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-b70583402f8f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-b70583402f8f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.6923, "correct": 0}}
-{"question_id": "retrieve_quote-b70583402f8f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.7692, "correct": 0}}
-{"question_id": "retrieve_quote-b70583402f8f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5714, "correct": 0}}
-{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5714, "correct": 0}}
-{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-b33e7e040058", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2458, "correct": 0}}
-{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2353, "correct": 0}}
-{"question_id": "retrieve_quote-bfc73949934a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bfc73949934a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bfc73949934a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-bfc73949934a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c211a13b8670", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c211a13b8670", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9231, "correct": 0}}
-{"question_id": "retrieve_quote-c211a13b8670", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4333, "correct": 0}}
-{"question_id": "retrieve_quote-c211a13b8670", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5714, "correct": 0}}
-{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c82629e69637", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-c82629e69637", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-c82629e69637", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-c8c976663324", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-c8c976663324", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-c8c976663324", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c8c976663324", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-c82629e69637", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0381, "correct": 0}}
-{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2295, "correct": 0}}
-{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9474, "correct": 0}}
-{"question_id": "retrieve_quote-d751702142f7", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-d751702142f7", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-d751702142f7", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-d751702142f7", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9762, "correct": 0}}
-{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2255, "correct": 0}}
-{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0385, "correct": 0}}
-{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.6806, "correct": 0}}
-{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.96, "correct": 0}}
-{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.6275, "correct": 0}}
-{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ede3826cae25", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ede3826cae25", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ede3826cae25", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ede3826cae25", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4478, "correct": 0}}
-{"question_id": "retrieve_quote-eec71d77817a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-eec71d77817a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.1294, "correct": 0}}
-{"question_id": "retrieve_quote-eec71d77817a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-eec71d77817a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2697, "correct": 0}}
-{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4444, "correct": 0}}
-{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9167, "correct": 0}}
-{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9167, "correct": 0}}
-{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0123, "correct": 0}}
-{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9286, "correct": 0}}
-{"question_id": "retrieve_quote-fc128826873d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fc128826873d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fc128826873d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9388, "correct": 0}}
-{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4643, "correct": 0}}
-{"question_id": "retrieve_quote-fc128826873d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.95, "correct": 0}}
-{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.95, "correct": 0}}
-{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "correct": 1}}
-{"question_id": "retrieve_quote-fe52da70f661", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-fe52da70f661", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-fe52da70f661", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "correct": 0}}
-{"question_id": "retrieve_quote-fe52da70f661", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0904, "correct": 0}}
+{"question_id": "retrieve_quote-071853620554", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-071853620554", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-071853620554", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-078edd9593f1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-078edd9593f1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-078edd9593f1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-071853620554", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-078edd9593f1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-07ca676a80ab", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3953, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9804, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-1a300cb3672a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9804, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-08af7bf1398f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0659, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8571, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-183810ed9bc0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-1d74fc87541b", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4375, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1e51194b8420", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1e51194b8420", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1e51194b8420", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1e51194b8420", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8409, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-20b8ab3d4b4e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-1f01005bcbbd", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-219c7089a034", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0526, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-219c7089a034", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-219c7089a034", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-25ae2e85e747", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4615, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-306eba2557dd", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-306eba2557dd", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-26e65eae5f38", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-306eba2557dd", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-219c7089a034", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5647, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-306eba2557dd", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-314f17eea849", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-314f17eea849", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-314f17eea849", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-314f17eea849", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9583, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-349b0b401f72", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-36f1323297a6", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-349b0b401f72", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-349b0b401f72", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-36f1323297a6", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-36f1323297a6", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-36f1323297a6", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-388d6a43c431", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-388d6a43c431", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-388d6a43c431", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-388d6a43c431", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-426b067ca02a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-426b067ca02a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-426b067ca02a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-349b0b401f72", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2192, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-426b067ca02a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-45651f54c099", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-45651f54c099", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-42f510ea6c7d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0672, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-45651f54c099", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-45651f54c099", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4ad4392645da", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4ad4392645da", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4ad4392645da", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9647, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-4b11b1b0feb2", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9302, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5424, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4c99a8581f81", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4c6f201c7192", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0455, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4cce4912dd7b", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4d2039a9d0fd", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-500c010644e8", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-500c010644e8", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-500c010644e8", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-500c010644e8", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-4ad4392645da", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.1585, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-528c5b83569e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-528c5b83569e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-528c5b83569e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9333, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-528c5b83569e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9333, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-532054786a83", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-532054786a83", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-532054786a83", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-532054786a83", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5384ab60ec95", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9859, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-571bf774a203", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-571bf774a203", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-571bf774a203", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9348, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-571bf774a203", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-57dc6798483f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-57dc6798483f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-58fb82e85077", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-58fb82e85077", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-57dc6798483f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-58fb82e85077", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-58fb82e85077", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5bb956d31356", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5bb956d31356", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5bb956d31356", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5bb956d31356", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5c645a8301ad", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-5fd972af06b9", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-57dc6798483f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-60993d0becf0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8333, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-60993d0becf0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-60993d0becf0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-60993d0becf0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8333, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-647b9dca72d5", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-649e180ea7c4", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8462, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-66d7a26e7e93", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3607, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-6d1ad5fd4bee", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0625, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-732d66e552f2", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-642fbf516c7a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4706, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-732d66e552f2", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-732d66e552f2", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-732d66e552f2", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.96, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77d51f1fd8a1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-77bcd8c4be1e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3871, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7a6e2e1bf085", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7c4d9a37b9c2", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9744, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-7e9b7e2b1d58", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-83c30aa648d7", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-8586e176e947", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-81d89ab2a113", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.331, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-8586e176e947", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-8586e176e947", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-8e686f815d74", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-8e686f815d74", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-8e686f815d74", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-8e686f815d74", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.8824, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-92410f8c7263", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-92410f8c7263", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-92410f8c7263", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-91c4ddd54da1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-92410f8c7263", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-8586e176e947", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.3846, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-98dd7af93ecf", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.96, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a090fa4a9d00", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a038a9bc8f06", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a46d44780948", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a46d44780948", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a46d44780948", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a46d44780948", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.963, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-a8df3e43d35d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0282, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-a2396fc4bea3", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b33e7e040058", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b33e7e040058", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b33e7e040058", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b3756de2e493", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b3756de2e493", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b1a04c81d33f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0903, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b3756de2e493", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b3756de2e493", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-b70583402f8f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-b70583402f8f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.6923, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-b70583402f8f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.7692, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-b70583402f8f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5714, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-bc5b4ea5420d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5714, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-b33e7e040058", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2458, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-bcb8c9ebf1b5", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bb2aca3787b1", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2353, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bfc73949934a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bfc73949934a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bfc73949934a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c1287a9fb1d9", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-bfc73949934a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c211a13b8670", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c211a13b8670", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9231, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-c211a13b8670", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4333, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c211a13b8670", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.5714, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c557e75e3df0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c6782fbb06a0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c82629e69637", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-c82629e69637", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-c82629e69637", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-c8c976663324", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-c8c976663324", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-c8c976663324", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-cddf3dd8581f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c8c976663324", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-c82629e69637", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0381, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-d0239d95ae29", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2295, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-d63ebdf6832f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9474, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-d751702142f7", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-d751702142f7", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-d751702142f7", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-d751702142f7", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e03ad4201b4d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9762, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e0ecfa5852e7", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-d4c3bda0b400", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2255, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-de9d77a6c963", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0385, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.6806, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-e2d74279aaf0", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.96, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e9cc4538d8b8", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-eaccaad849b8", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-e9045b3e5dec", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.6275, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ede3826cae25", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ede3826cae25", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ede3826cae25", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ede3826cae25", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-ed21c10a072e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4478, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-eec71d77817a", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eec71d77817a", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eaf381cf82d3", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.1294, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eec71d77817a", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-eec71d77817a", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.2697, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-f0c6eb9da8cc", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4444, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9167, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-f4e378e5065d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9167, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f0ffc67a458e", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0123, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9286, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-fc128826873d", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fc128826873d", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 1, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fc128826873d", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.9388, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-fb0ce4da6218", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.4643, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-fc128826873d", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-f143cc3f6c63", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.95, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fd566a54bc82", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.95, "contains_reference": 0, "correct": 0, "outcome": "incorrect"}}
+{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fd8b8082473f", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 1, "token_f1": 1.0, "contains_reference": 1, "correct": 1, "outcome": "correct"}}
+{"question_id": "retrieve_quote-fe52da70f661", "model_id": "opus", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-fe52da70f661", "model_id": "haiku", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-fe52da70f661", "model_id": "haiku-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
+{"question_id": "retrieve_quote-fe52da70f661", "model_id": "opus-search", "task": "retrieve_quote", "metrics": {"exact": 0, "normalized": 0, "token_f1": 0.0904, "contains_reference": 0, "correct": 0, "outcome": "refused"}}
