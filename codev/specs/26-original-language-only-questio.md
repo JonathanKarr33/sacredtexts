@@ -1,4 +1,4 @@
-# Specification: Original-language-only question set — four templates, per-text quota, ask_as/citation_hint metadata
+# Specification: Original-language-only question set — four templates, per-text quota, requested_as/canonical_language metadata
 
 <!--
 SPEC vs PLAN BOUNDARY:
@@ -50,8 +50,8 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   this quote from? Name the work and the citation."
 - **Catalogue.** Each `source.yaml` target carries `payload, converter, work, version, language,
   document_type, tradition[], license (+ license_detail)`. `catalogue.py` fail-fasts on any missing
-  required field, naming the file and target index. There is **no** `original_language`, `ask_as`,
-  or `citation_hint` field; whether an edition is original-language vs translation is only implied
+  required field, naming the file and target index. There is **no** `requested_as` or
+  `canonical_language` field; whether an edition is original-language vs translation is only implied
   in prose comments (and TUTORIAL even miscalls KJV an "original language").
 - **Scoring.** `parse_yes_no` returns the first `\b(yes|no)\b` anywhere in the normalized answer.
   score.py's own docstring flags this as a known gap that must be hardened before any
@@ -59,74 +59,76 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   **pre-Spec-15**: no `refused` outcome, no `coverage`, no grader registry.
 - **Summary.** `summary.md`/`summary.json` render models×tasks, a by-tradition table, panel
   composition, and token usage. There is **no per-text table**.
-- **Texts.** Six `source.yaml` files enumerate **23 catalogue targets**. Full census with the
-  `original_language` (OL) each will carry:
+- **Texts.** Six `source.yaml` files enumerate **21 catalogue targets** (after removing the two
+  `KJV (LDS 2013 edition)` targets per the #26 field table). Full census with `canonical_language` and
+  whether each is included (`language == canonical_language`); starting values on issue #27:
 
-  | tradition | work | version | lang | license | OL |
-  |---|---|---|---|---|---|
-  | Sunni Islam | The Qur'an | Uthmani (QUL) | ar | public-domain | **true** |
-  | Sunni Islam | Sahih al-Bukhari / Muslim / Abi Dawud / at-Tirmidhi / an-Nasa'i / Ibn Majah / Muwatta Malik / Musnad Ahmad / al-Darimi (9) | sunnah.com Arabic | ar | public-domain | **true** (×9) |
-  | Judaism | Talmud Bavli | Davidson Aramaic | he | open | **true** |
-  | Judaism | Talmud Bavli | Davidson English | en | open | false |
-  | LDS | Book of Mormon | 2013 | en | open | **true** |
-  | LDS | Doctrine and Covenants | 2013 | en | open | **true** |
-  | LDS | Pearl of Great Price | 2013 | en | open | **true** |
-  | LDS | The Bible | KJV (LDS 2013) | en | public-domain | false (×2 targets, OT+NT, share one slug) |
-  | Protestant | The Bible | KJV / ASV (1901) / WEB (3) | en | public-domain | false (×3) |
-  | Roman Catholic | Papal Encyclicals | Vatican English | en | open | false (composed in Latin) |
-  | Roman Catholic | The Bible | NABRE | en | restricted | false |
-  | Greek Orthodox | Septuagint & Greek NT | TLG | grc | restricted | **true** |
+  | tradition | work | version | lang | canon_lang | license | included |
+  |---|---|---|---|---|---|---|
+  | Sunni Islam | The Qur'an | Uthmani (QUL) | ar | ar | public-domain | **yes** |
+  | Sunni Islam | Sahih al-Bukhari / Muslim / Abi Dawud / at-Tirmidhi / an-Nasa'i / Ibn Majah / Muwatta Malik / Musnad Ahmad / al-Darimi (9) | sunnah.com Arabic | ar | ar | public-domain | **yes** (×9) |
+  | Judaism | Talmud Bavli | Davidson Aramaic | he | he | open | **yes** |
+  | Judaism | Talmud Bavli | Davidson English | en | he | open | no |
+  | LDS | Book of Mormon | 2013 | en | en | open | **yes** |
+  | LDS | Doctrine and Covenants | 2013 | en | en | open | **yes** |
+  | LDS | Pearl of Great Price | 2013 | en | en | open | **yes** |
+  | Protestant | The Bible | KJV / ASV (1901) / WEB (3) | en | (he/grc) | public-domain | no (×3) |
+  | Roman Catholic | Papal Encyclicals | Vatican English | en | la | open | no (composed in Latin) |
+  | Roman Catholic | The Bible | NABRE | en | (he/grc) | restricted | no |
+  | Greek Orthodox | Septuagint & Greek NT | TLG | grc | grc | restricted | **yes** |
 
-  **Default selection (`original_language: true` & non-restricted) = 14 texts:** Qur'an + 9 hadith +
-  Talmud Aramaic + Book of Mormon + D&C + Pearl of Great Price. Original-language **but restricted**:
-  TLG Greek (local-only, `--include-restricted`). Translations added by `--include-translations`:
-  Talmud English, KJV/ASV/WEB, the LDS KJV pair, Papal Encyclicals (NABRE stays restricted).
+  (`canonical_language` exact values come from the #27 table; the Bible translations' source languages
+  are shown indicatively.) **Default selection (`language == canonical_language` & non-restricted) = 14
+  texts:** Qur'an + 9 hadith + Talmud Aramaic + Book of Mormon + D&C + Pearl of Great Price.
+  Included **but restricted**: TLG Greek (local-only, `--include-restricted`). Translations added by
+  `--include-translations`: Talmud English, KJV/ASV/WEB, Papal Encyclicals (NABRE stays restricted).
 
 ## Desired State
 
 - **Default selection is original-language-only.** `generate` with no extra flags emits questions
-  only for targets flagged `original_language: true` and not `restricted`. `--include-translations`
-  opts the translations back in; `--include-restricted` keeps its existing meaning (TLG stays
-  local-only, audit gate unchanged).
-- **One text = one `(work, version, language)` group, 15–30 questions each (default 20),** split as
-  evenly as possible over exactly four templates (exactly 5 each at the default 20). A "text" is the
-  set of standardized documents sharing `(work, version, language)` — **not** a single catalogue
-  target: e.g. the LDS KJV Old/New-Testament pair shares one `(work, version, language)` and one slug,
-  and the Talmud Aramaic single target yields dozens of per-tractate documents. Grouping is on the
-  tuple. For `--per-text N` that is not a multiple of 4, the split is deterministic: `N // 4` per
-  template plus one extra to the first `N % 4` templates in the fixed canonical order
-  (`retrieve_quote`, `complete_unit`, `cite_passage`, `verify_source`). The per-task quota and the
-  tradition-balanced sampler are gone — replaced, not kept alongside. Generation fails fast (naming the
-  text and the template) when a text cannot fill a template's share.
-- **The three new fields reach generation the way `license` does.** `generate` consumes standardized
-  `Document`s, which (correctly, unchanged) carry no catalogue facts — `license` is recovered from the
-  standardized path via the catalogue, fail-closed, with a slug-agreement check. `original_language`,
-  `ask_as`, and `citation_hint` travel the **same catalogue-recovery channel**: fail-closed if
-  recovery fails, and all targets sharing a slug must agree on the three fields (slug-agreement),
-  exactly as `license` does today.
-- **Exactly four templates, rendered in natural language** using new metadata so prompts read the
-  way a person would ask (`ask_as` for the edition, `citation_hint` appended to the "where" prompt).
-  **The rendered prompt strings below are the authoritative contract** (they feed the question-set
-  digest); Waleed's four-line shorthand in Constraints conveys intent, and where the shorthand and
-  the rendered form differ in punctuation/wording (e.g. template 2's `?` vs `:`), the rendered string
-  here governs.
+  only for texts where `language == canonical_language` (the equality inclusion rule) and not
+  `restricted`. `--include-translations` opts the translations back in; `--include-restricted` keeps
+  its existing meaning (TLG stays local-only, audit gate unchanged).
+- **One text = one `(work, version, language)` group, 15–30 questions each (default 28 → 7 per
+  template),** split as evenly as possible over the active templates. A "text" is the set of
+  standardized documents sharing `(work, version, language)` — **not** a single catalogue target (the
+  Talmud Aramaic single target yields dozens of per-tractate documents; grouping is on the tuple). For
+  a `--per-text N` not divisible by the active-task count, the split is deterministic: `N // len(active)`
+  per task plus one extra to the first `N % len(active)` in the canonical order (`retrieve_quote`,
+  `complete_unit`, `cite_passage`, `verify_source`). The per-task quota and the tradition-balanced
+  sampler are gone — replaced, not kept alongside. Generation fails fast (naming the text and the
+  template) when a text cannot fill a template's share.
+- **The two new fields reach generation through a `(work, version, language)`-keyed map.** `generate`
+  consumes standardized `Document`s, which (correctly, unchanged) carry no catalogue facts; `license`
+  reaches generation only as a path *filter* (`load_documents` discards the path→doc link), which
+  structurally cannot feed a name into the prompt renderer. So `requested_as` and `canonical_language`
+  travel a fail-closed `text_metadata` map keyed on `(work, version, language)` (a doc whose tuple is
+  absent raises `CatalogueError`), with slug-agreement across targets sharing a slug.
+- **Exactly four templates, rendered in natural language.** `<edition>` is a **seeded uniform choice**
+  from the text's `requested_as` list, recorded in `question.source.requested_as`. **The rendered
+  prompt strings below are the authoritative contract** (they feed the question-set digest); Waleed's
+  four-line shorthand in Constraints conveys intent, and where they differ in punctuation/wording the
+  rendered string here governs.
 
   | task | rendered prompt | expected |
   |---|---|---|
-  | `retrieve_quote` | *What is the text of {ask_as} {display_citation}? Reply with the exact text of that {unit_type} and nothing else.* | `{text}` |
-  | `complete_unit` | *Please complete this quote from {ask_as}: "{first half}" Reply with only the remaining words.* | `{remainder, full_text}` |
-  | `cite_passage` | *Where in {ask_as} can I find this quote? "{text}" Answer with the citation only ({citation_hint}).* | `{citation}` |
-  | `verify_source` | *Is the following text from {ask_as}? "{text}" Answer Yes or No.* | `{yes/no, true_work, true_version}` |
+  | `retrieve_quote` | *What is the text of {edition} {display_citation}? Reply with the exact text of that {unit_type} and nothing else.* | `{text}` |
+  | `complete_unit` | *Please complete this quote from {edition}: "{first half}" Reply with only the remaining words.* | `{remainder, full_text}` |
+  | `cite_passage` | *Where in {edition} can I find this quote? "{text}" Answer with the citation only, in the same form as: {example_citation}.* | `{citation}` |
+  | `verify_source` | *Is the following text from {edition}? "{text}" Answer Yes or No.* | `{yes/no, true_work, true_version}` |
+
+  **Template 3 shows the citation form by example** — `{example_citation}` is an exemplar citation from
+  a **different seeded entry of the same text** (replacing the dropped `citation_hint`), so the model
+  answers in the scored shape; this requires ≥2 entries per text (fail-fast otherwise).
 
   **No duplicated edition name.** Stored citations for the nine hadith collections
   (`convert.py` → `"Sahih al-Bukhari 1"`) and Doctrine and Covenants (`"Doctrine and Covenants 1:1"`)
   are work-prefixed — 10 of the 14 in-scope texts. `retrieve_quote` therefore renders a
-  **`display_citation`**: the stored `citation` with a leading `work`/`ask_as` prefix stripped, so the
-  edition name appears exactly once (*"What is the text of Sahih al-Bukhari 1?"*, not *"…Sahih
+  **`display_citation`**: the stored `citation` with a leading `work`/edition-name prefix stripped, so
+  the edition name appears exactly once (*"What is the text of Sahih al-Bukhari 1?"*, not *"…Sahih
   al-Bukhari Sahih al-Bukhari 1?"*). The stored `citation` and all scored ground truth are unchanged;
-  `cite_passage`'s expected answer is still the full stored citation (and `citation_hint` steers the
-  model to that work-prefixed shape). Qur'an (`7:70`), Talmud (`Chullin 26b:12`), Book of Mormon /
-  Pearl of Great Price (`Alma 32:21`) are not work-prefixed and render unchanged.
+  `cite_passage`'s expected answer is still the full stored citation. Qur'an (`7:70`), Talmud
+  (`Chullin 26b:12`), Book of Mormon / Pearl of Great Price (`Alma 32:21`) render unchanged.
 
   `identify_version` and `identify_source` are retired from code, scoring, **and the viewer**
   (`apps/viewer` has task-specific handling at `localResults.ts`, `explorer.test.ts`,
@@ -134,12 +136,12 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 
 - **Prompt and answer language.** The four prompt templates are in **English**; 11 of the 14 in-scope
   texts are Arabic/Hebrew, so for templates 1–2 the *answer* is expected in the source script (Arabic
-  for Qur'an/hadith, Aramaic for Talmud), scored by the script-aware `normalize()`. For
-  `cite_passage`, `citation_hint` steers the model to answer the citation in the Latin-script/colon
-  shape the scorer extracts (see the cite_passage scoring risk below).
-- **Catalogue carries three new required per-target fields** — `original_language` (bool), `ask_as`
-  (str), `citation_hint` (str) — validated like the existing required fields, fail-fast with
-  file+target named, with `original_language` required to be a real bool. Every committed
+  for Qur'an/hadith, Aramaic for Talmud), scored by the script-aware `normalize()`. For `cite_passage`,
+  the by-example exemplar steers the model to answer the citation in the Latin-script/colon shape the
+  scorer extracts (see the cite_passage scoring risk below).
+- **Catalogue carries two new required per-target fields** — `requested_as` (list[str], ≥1) and
+  `canonical_language` (str) — validated like the existing required fields, fail-fast with
+  file+target named. The two `KJV (LDS 2013 edition)` targets are removed. Every committed
   `source.yaml` is updated. The `Document` interchange format is unchanged (these are catalogue
   facts, not document facts).
 - **`verify_source` scoring is hardened (closes #23).** `parse_yes_no` takes the **leading** stance
@@ -168,18 +170,19 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 
 ## Success Criteria
 
-- [ ] Every committed `source.yaml` carries `original_language`, `ask_as`, `citation_hint` on every
-      target; a missing one fails `catalogue` loading with the file and target index named, and a
-      non-bool `original_language` is rejected.
-- [ ] `generate` with defaults selects exactly the `original_language: true`, non-restricted texts
-      (14, grouped by `(work, version, language)`) and emits N questions per text split over the four
-      templates — exactly N/4 per template when N is a multiple of 4 (5 each at N=20 → ~280
-      questions), else the deterministic `N//4` + remainder-to-first-`N%4` allocation;
-      `--include-translations` additionally includes the `original_language: false`, non-restricted
-      texts.
-- [ ] Rendered prompts use `ask_as`, never the raw `version` string; `cite_passage` appends
-      `citation_hint`; and **no prompt duplicates the edition name** — `retrieve_quote` over the 9
-      hadith collections and D&C renders the edition once (via `display_citation`).
+- [ ] Every committed `source.yaml` carries `requested_as` (≥1) and `canonical_language` on every
+      target; a missing or ill-typed one fails `catalogue` loading with the file and target index named;
+      the two `KJV (LDS 2013 edition)` targets are removed (21 targets total).
+- [ ] `generate` with defaults selects exactly the included (`language == canonical_language`),
+      non-restricted texts (14, grouped by `(work, version, language)`) and emits N questions per text
+      split over the active templates — exactly N/4 per template when N divides evenly (7 each at the
+      default N=28 → 392 questions), else the deterministic `N // len(active)` + remainder allocation;
+      `--include-translations` additionally includes the excluded, non-restricted texts.
+- [ ] Prompts render `<edition>` as a seeded choice from `requested_as` (recorded in
+      `question.source.requested_as`), never the raw `version`; `cite_passage` shows the citation form
+      by example from a different seeded entry; and **no prompt duplicates the edition name** —
+      `retrieve_quote` over the 9 hadith collections and D&C renders the edition once (via
+      `display_citation`).
 - [ ] `identify_version` and `identify_source` are absent from `TASKS`, `_build`, `score.py`, the
       viewer (`apps/viewer`), and the docs (TUTORIAL / CODE_WALKTHROUGH / module docstrings).
 - [ ] `parse_yes_no` uses leading-stance parsing; the adversarial cases all classify correctly:
@@ -201,44 +204,51 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 
 ## Constraints
 
-**Baked decisions (from Waleed via issue #26, 2026-10-20 — fixed; not relitigated here):**
+**Baked decisions (from Waleed via issue #26 — fixed; not relitigated here). The metadata/quota
+specifics below reflect the architect's FINAL field table posted on #26 (2026-10-20), which supersedes
+the original issue-body wording (`ask_as`/`original_language`/`citation_hint`, default 20):**
 
 1. **Original languages only, no translations.** A text is in scope only when the edition we hold is
-   in the language it was composed in. Default selection = `original_language: true` & non-restricted;
+   in the language it was composed in. Inclusion is **derived**: a text is original-language iff
+   `language == canonical_language` (equality). Default selection = included & non-restricted;
    `--include-translations` opts the rest in.
-2. **15–30 questions per text, default 20**, where one text = one `(work, version, language)` target —
-   replacing per-tradition balancing. Split evenly over the four templates (5 each at 20). Fail fast
-   when a text can't fill its quota.
+2. **15–30 questions per text, default 28** (→ 7 per template over the four templates), where one text =
+   one `(work, version, language)` group — replacing per-tradition balancing. Split evenly over the
+   active templates. Fail fast when a text can't fill its quota.
 3. **Exactly four templates, verbatim shapes from Waleed:**
    1. What is the text of \<edition\> \<citation\>?
    2. Please complete this quote from \<edition\>? \<excerpt\>
-   3. Where in \<edition\> can I find this quote? \<text\>
+   3. Where in \<edition\> can I find this quote? \<text\> — the citation **form is shown by example**
+      (an exemplar citation from a different seeded entry of the same text), not by a hint string.
    4. Is \<text\> from \<edition\>?
-4. **Metadata, three new required per-target fields** (fail-fast if missing):
-   - `original_language` (bool) — this edition is in the language the text was composed in. Mapping:
-     Qur'an Uthmani → true; KJV/ASV/WEB/NABRE → false; Talmud Aramaic → true, Talmud English → false;
-     the nine hadith collections → true; Book of Mormon / D&C / Pearl of Great Price (2013) → true
-     (composed in English); Papal Encyclicals (Vatican English) → false; TLG Greek → true.
-   - `ask_as` (str) — how a person names this edition; rendered as `<edition>` (e.g. `the Qur'an`,
-     `Sahih al-Bukhari`, `the Talmud (Aramaic)`, `the Book of Mormon`, `the King James Bible`).
-   - `citation_hint` (str) — how a person says a citation; appended to template 3 (e.g.
-     `surah:ayah, e.g. 7:70`; `tractate, daf and line, e.g. Chullin 26b:12`; `the hadith number as
-     on sunnah.com, e.g. Sahih al-Bukhari 1234`; `book chapter:verse, e.g. Alma 32:21`).
-5. **Retire `identify_version` and `identify_source`** from `TASKS`, `_build`, `score.py`, and docs.
-   `identify_version` needs ≥2 editions of one work and is dead under original-language-only;
+   `<edition>` is rendered by a **seeded uniform choice** from the text's `requested_as` list, recorded
+   in `question.source.requested_as`.
+4. **Metadata, exactly two new required per-target fields** (fail-fast if missing):
+   - `requested_as` (list[str], ≥1) — the names people actually use for this edition; `<edition>` is a
+     seeded choice from this list (e.g. `["King James Version", "KJV", "KJV Bible"]`;
+     `["Qur'an", "Koran", "Quran"]`).
+   - `canonical_language` (str) — the language the text was composed in; inclusion = `language ==
+     canonical_language`.
+   - `citation_hint` is **dropped**; template 3 shows the citation form by example instead.
+   - Starting values for every target are the table on **issue #27**. **Remove the two
+     `KJV (LDS 2013 edition)` targets** from the LDS `source.yaml` (→ 21 targets).
+5. **Retire `identify_version` and `identify_source`** from `TASKS`, `_build`, `score.py`, the viewer,
+   and docs. `identify_version` needs ≥2 editions of one work and is dead under original-language-only;
    template 3 (`cite_passage`) subsumes `identify_source`.
 6. **Fold in #23:** `parse_yes_no` takes the leading stance (first sentence / first 60 chars after
-   stripping quotes). Close #23 when it lands.
+   stripping quotes). Close the #23 PAPER GATE when it lands.
 
 **Other constraints:**
 
 - The `Document` interchange format and the question-set digest machinery are unchanged.
 - **`verify_source` question identity.** A `verify_source` question (positive or negative) belongs to
-  the **asked edition** — the one named by `ask_as` in the prompt — and aggregates under that text in
-  the per-text summary, because the task tests whether the model knows what is in *that* edition. The
-  question's source metadata records the asked edition; for a negative, `expected` additionally
-  records the passage's true source (`true_work`, `true_version`). This resolves the ambiguity that a
-  negative passage is physically drawn from a different text.
+  the **asked edition** — the one named by the seeded `requested_as` choice in the prompt — and
+  aggregates under that text in the per-text summary, because the task tests whether the model knows
+  what is in *that* edition. The question's `source` records the asked edition; for a negative,
+  `expected` additionally records the passage's true source (`true_work`, `true_version`). Negatives are
+  selected at `(work, version, language)` granularity with a **family exclusion** (never attribute a
+  passage from the same family — e.g. another of the nine hadith collections — since shared
+  variant-wording narrations defeat exact-text exclusion and would make the "no" truth wrong).
 - **Authoritative prompt strings.** Where Waleed's four-line shorthand (baked decision 3) and the
   rendered template strings in Desired State differ in punctuation or wording, the Desired-State
   rendered strings govern (they feed the digest and the acceptance tests). The shorthand conveys
@@ -259,30 +269,19 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 
 ## Assumptions
 
-- **Dependency on Spec 15 / PR #24 (OPEN, not merged at spec time).** Spec 15 establishes the
-  containment headline, the `refused` outcome, `coverage`, and the named-grader framework — the
-  headline for templates 1–2, which Spec 26 does **not** change. Per issue #26: build on `main` and
-  merge `origin/main` when #24 lands; conflicts are expected in TUTORIAL.md / CODE_WALKTHROUGH.md /
-  score.py docstrings. #23's hardening (leading-stance `parse_yes_no`) sits on top of whatever
-  `parse_yes_no` exists at merge time. This worktree's current score.py is pre-Spec-15.
-  - **Split of responsibility:** the leading-stance `parse_yes_no` (returning yes / no / `None`) is
-    independent of Spec 15 and lands in this project regardless. The `refused` **outcome**, `coverage`,
-    and the per-text table's coverage/refused columns are Spec 15 machinery that Spec 26 consumes, not
-    reimplements.
-  - **Confirmed path (architect, 2026-10-20):** PR #24 is fully reviewed and at the human pr gate; it
-    merges before Spec 26 reaches scoring. Spec 26 **plans on the Spec 15 contract as its base**
-    (correct/incorrect/refused outcomes, accuracy + coverage, named graders); the builder merges
-    `origin/main` and integrates at the scoring phase. A `None` from `parse_yes_no` is classified
-    `refused` by that layer.
-  - **If #24 has not merged when Spec 26 reaches scoring:** the builder **STOPs at the scoring phase
-    boundary and pings the architect** — it does **not** build a `parsed: null` / no-outcome fallback
-    (project rule: fail fast, never implement fallbacks). There is no degraded mode.
+- **Spec 15 / PR #24 is MERGED (architect, 2026-10-20, `origin/main` @ 1324755).** Spec 15 establishes
+  the named-grader framework and the always-on **refused** outcome + `coverage` — the headline for
+  templates 1–2, which Spec 26 does **not** change. The builder merged `origin/main` before Phase 1, so
+  `graders.py` / `outcomes.py` / `score.py`'s `_with_outcome` are the base. The leading-stance
+  `parse_yes_no` (returning yes / no / `None`) closes the #23 PAPER GATE on top of that contract; a
+  `None` is classified `refused` by the existing outcome layer. There is **no fallback** — if the Spec
+  15 base were ever absent, the builder STOPs and pings (fail fast, never implement fallbacks).
 - **`--tasks` and `--negatives-share` are retained;** only `--per-task` and `--quota` are removed.
-  `--tasks` subsets the four templates (the tutorial generates `retrieve_quote` only) and the per-text
-  split then applies over the selected subset. `--negatives-share` keeps its default 0.5 and governs
-  the `verify_source` yes/no mix via the existing deterministic formula.
-- The 14 committable original-language texts each hold enough qualifying passages to fill 20
-  questions across the four templates (hadith/Qur'an/Talmud-Aramaic/LDS pools are large). If a text
+  `--tasks` subsets the four templates and the per-text split then applies over the selected subset at
+  `N // len(active)` (so `--tasks retrieve_quote --per-text 28` = 28/text). `--negatives-share` keeps
+  its default 0.5 and governs the `verify_source` yes/no mix via the existing deterministic formula.
+- The 14 included original-language texts each hold enough qualifying passages to fill 28 questions
+  across the four templates (and ≥2 entries per text for `cite_passage`'s target+exemplar). If a text
   cannot, generation fails fast and the architect decides (lower the default, or exclude that text).
 - `complete_unit` and `verify_source` keep their existing pool-gating semantics (minimum word counts,
   negative-eligibility exclusion) unless they conflict with the four-template reshape.
@@ -296,9 +295,9 @@ recording with alternatives:
 
 ### Approach 1 (recommended): Per-text even split with deterministic remainder and fail-fast
 
-For each selected text, request `per_text // 4` items per template, plus one extra to the first
-`per_text % 4` templates in the fixed canonical order so any `--per-text` in 15–30 is well-defined
-(exactly 5 each at the default 20). A template that cannot supply its share fails the whole run fast
+For each selected text, request `per_text // len(active)` items per active template, plus one extra to
+the first `per_text % len(active)` in the fixed canonical order so any `--per-text` in 15–30 is
+well-defined (exactly 7 each at the default 28 over four tasks). A template that cannot supply its share fails the whole run fast
 (naming the text and template). **Pros:** simplest, deterministic (the split feeds the digest), makes
 thin corpora visible immediately; matches the issue's "fail fast when a text can't fill its quota" and
 honors the full 15–30 range without restricting to multiples of 4. **Cons:** one weak template on one
@@ -325,11 +324,11 @@ marks the sentence boundary.
 
 ### Citation composition: avoiding a duplicated edition name
 
-`retrieve_quote` renders `{ask_as} {citation}`, but 10 of 14 in-scope texts store work-prefixed
+`retrieve_quote` renders `{edition} {citation}`, but 10 of 14 in-scope texts store work-prefixed
 citations (hadith `"Sahih al-Bukhari 1"`, D&C `"Doctrine and Covenants 1:1"`), which would read
 *"…Sahih al-Bukhari Sahih al-Bukhari 1?"*. **Approach A (recommended):** derive a `display_citation`
-by stripping a leading `work`/`ask_as` prefix from the stored citation at render time; stored citation
-and scored ground truth untouched. **Pros:** no data migration, digest for `cite_passage`/scoring
+by stripping a leading `work`/edition-name prefix from the stored citation at render time; stored
+citation and scored ground truth untouched. **Pros:** no data migration, digest for `cite_passage`/scoring
 unchanged, one code path. **Cons:** a render-time string rule to get right (and test). **Approach B
 (rejected):** a per-target `citation_display` catalogue field — more metadata to maintain and keep in
 sync for little gain. **Approach C (rejected):** change the stored citation format in `convert.py` —
@@ -344,17 +343,17 @@ requirement* is the spec contract.
   If #24 has not merged at the scoring phase boundary, STOP and ping the architect — no fallback.
 - **Critical** — Is `ANTHROPIC_API_KEY` present in `sacredtexts/.env` for the live panel? If not, the
   run step is deferred and reported, per the baked constraint.
-- **Important** — Exact `ask_as` / `citation_hint` wording for each of the 14 committable texts (and
-  the translations/TLG for completeness). The issue gives representative examples; the builder fills
-  the rest to read naturally and to match the citation shape the scorer expects. Non-blocking:
-  catalogue validation only requires the fields to be present non-empty strings.
-- **Important** — Does any committable text have fewer than 20 qualifying passages for some template
-  (e.g. short-unit filters on `complete_unit`)? Resolved empirically at generate time via fail-fast.
+- **RESOLVED (architect #26/#27 tables)** — `requested_as` lists and `canonical_language` values for
+  every target: the starting values are the table on issue #27. The builder uses those; catalogue
+  validation requires `requested_as` non-empty list and `canonical_language` non-empty string.
+- **Important** — Does any committable text have fewer than 28 qualifying passages for some template
+  (or <2 entries for `cite_passage`'s target+exemplar)? Resolved empirically at generate time via
+  fail-fast.
 - **Important** — `cite_passage` ground truth is now majority-Arabic (hadith numbers, Qur'an
   `surah:ayah`), but the scorer's citation extraction (`_NUM_CITE`) expects a Latin-script leading
-  word and `normalize()` does not fold Arabic-Indic digits (٧ ≠ 7). Does `citation_hint`'s
-  Latin/colon steer suffice, or must `normalize()`/the citation extractor fold Arabic-Indic digits?
-  (See the cite_passage risk.) Shapes the scoring work; verify empirically in the live/smoke run.
+  word and `normalize()` does not fold Arabic-Indic digits (٧ ≠ 7). Does template 3's by-example
+  exemplar (Latin/colon shape) suffice, or must `normalize()`/the citation extractor fold Arabic-Indic
+  digits? (See the cite_passage risk.) Shapes the scoring work; verify empirically in the live/smoke run.
 - **Important** — Template-4 negatives use exact normalized-text exclusion, which won't catch
   variant-wording narrations shared across the 9 hadith collections, risking a wrong "no" ground
   truth. Restrict negatives to cross-work/cross-family pairs, or accept and document the limitation
@@ -368,33 +367,38 @@ requirement* is the spec contract.
 ## Test Scenarios
 
 **Catalogue validation**
-- A `source.yaml` missing `original_language` (or `ask_as`, or `citation_hint`) fails loading, naming
-  the file and `targets[i]`.
-- `original_language: "true"` (string) or a non-bool is rejected as not a bool.
-- A valid target with all three fields loads and exposes them on `Target`.
-- **Metadata channel:** the three fields recover from the standardized path the way `license` does —
-  fail-closed when recovery fails, and the slug-agreement check fires when two targets share a slug
-  but disagree on a field (e.g. an LDS-KJV-pair-shaped fixture).
+- A `source.yaml` missing `requested_as` or `canonical_language` fails loading, naming the file and
+  `targets[i]`.
+- A non-list / empty-list / empty-element `requested_as`, or an empty `canonical_language`, is rejected.
+- A valid target with both fields loads and exposes them on `Target`.
+- **Metadata channel:** `text_metadata()` returns a `(work, version, language)`-keyed map, fail-closed
+  (`CatalogueError`) on an unmapped tuple, and the slug-agreement check fires when two targets share a
+  slug but disagree on a field.
 
 **Selection & quota**
-- Default generate over the full catalogue selects exactly the 14 original-language, non-restricted
-  texts (grouped by `(work, version, language)`); counts 5 per template per text at `--per-text 20`.
-- A non-multiple-of-4 `--per-text` (e.g. 18) produces the deterministic `N//4`+remainder split.
-- `--include-translations` adds the `original_language: false` non-restricted texts; `--tasks
-  retrieve_quote` restricts to one template and the per-text split applies over that subset.
+- Default generate over the full catalogue selects exactly the 14 included
+  (`language == canonical_language`), non-restricted texts (grouped by `(work, version, language)`);
+  counts 7 per template per text at `--per-text 28`.
+- A `--per-text` not divisible by the active-task count (e.g. 18 over four tasks) produces the
+  deterministic `N // len(active)`+remainder split; `--per-text` below `len(active)` fails fast.
+- `--include-translations` adds the excluded non-restricted texts; `--tasks retrieve_quote --per-text
+  28` emits 28/text over the single active template.
 - `--include-restricted` behaviour unchanged; TLG only appears with it and stays local-only.
 - A text that cannot fill its per-template share fails fast, naming the text and template.
 - Manifest records `per_text`, `include_translations`, and the selected-texts list; digest unchanged.
 
 **Prompt rendering**
-- Each template's rendered prompt uses `ask_as` (never the raw `version`); `cite_passage` ends with
-  the text's `citation_hint`.
+- Each template's rendered prompt renders `<edition>` as a seeded `requested_as` choice (never the raw
+  `version`), recorded in `question.source.requested_as`; `cite_passage` ends with an exemplar citation
+  from a different seeded entry of the same text (fail-fast when a text has <2 entries).
 - **No duplicated edition name:** `retrieve_quote` over a work-prefixed-citation text (hadith, D&C)
   renders the edition exactly once (`display_citation`); over a bare-citation text (Qur'an, Talmud,
   Book of Mormon) renders unchanged. Stored citation and `cite_passage` ground truth are untouched.
 - `complete_unit` splits the unit and asks for the remainder; `verify_source` negatives attribute a
-  real passage from a different in-scope text, excluding passages also present in the attributed text,
-  at the deterministic negative share.
+  real passage from a different in-scope text (selected at `(work, version, language)` granularity, with
+  family exclusion so never from the same family as the asked text), excluding passages also present in
+  the attributed text, at the deterministic negative share; `source` records the asked edition and
+  `expected` gains `true_version`.
 
 **Scoring (leading stance, #23)**
 - The leading window is taken from the **raw answer before `normalize()`** (a punctuation-bearing
@@ -409,12 +413,12 @@ requirement* is the spec contract.
   references them.
 
 **cite_passage over Arabic ground truth**
-- A correct Latin-script, colon/number citation matching `citation_hint`'s steer scores correct.
+- A correct Latin-script, colon/number citation matching the by-example exemplar's shape scores correct.
 - An Arabic-Indic-digit answer (e.g. `صحيح البخاري ١`) exposes the scorer's digit-folding gap —
-  asserted per the resolution chosen in Open Questions (hint-steer accepted, or digit folding added).
+  asserted per the resolution chosen in Open Questions (example-steer accepted, or digit folding added).
 
 **End-to-end / evidence**
-- A fresh `runs/original-<date>/` generates ~280 questions, runs the tutorial panel, scores, and the
+- A fresh `runs/original-<date>/` generates 392 questions, runs the tutorial panel, scores, and the
   scores re-derive bit-for-bit from the committed answers.
 - Copyright audit gate green on the committed run (no restricted-derived artifact).
 - Viewer renders the new run (per-text table present in summary).
@@ -423,15 +427,14 @@ requirement* is the spec contract.
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| PR #24 (Spec 15) merges mid-flight and conflicts in score.py / docs | High | Medium | Build on `main`; merge `origin/main` when #24 lands; expect conflicts in TUTORIAL / CODE_WALKTHROUGH / score.py docstrings; reconcile leading-stance parsing onto #24's `parse_yes_no`. |
-| PR #24 does not merge before Spec 26 scoring (refused/coverage unavailable) | Low | Medium | Architect-confirmed #24 is at the human pr gate and merges before scoring. If not merged at the scoring phase boundary, STOP and ping the architect — no fallback (fail fast, never implement fallbacks). |
-| `retrieve_quote` duplicates the edition name for 10/14 texts (work-prefixed citations) | High (if unaddressed) | High | `display_citation` strips the leading work/ask_as prefix at render; test the no-duplication contract for a hadith and a bare-citation text. |
-| `cite_passage` ground truth is majority-Arabic but the scorer expects Latin-script/colon and doesn't fold Arabic-Indic digits — 25% of the benchmark mis-scores | Medium | High | `citation_hint` steers answers to the Latin/colon shape; consider folding Arabic-Indic digits in `normalize()`/extractor; verify in the live/smoke run; add as a test scenario. |
-| Template-4 negatives: variant-wording narrations shared across 9 hadith collections yield a wrong "no" ground truth (exact-match exclusion misses them) | Medium | Medium | Prefer cross-work/cross-family negatives; document the residual shared-narration limitation as accepted for the first run; the #23 hardening protects against gaming but not wrong truth. |
-| A committable text can't fill 20 questions for some template | Medium | Medium | Fail fast naming text+template; architect decides default or exclusion. Surface via `afx send`. |
+| Spec 15 base / #24 (MERGED @ 1324755) | Low | Medium | `origin/main` merged before Phase 1; scoring builds on the named-grader + refused-outcome contract directly. No fallback. |
+| `retrieve_quote` duplicates the edition name for 10/14 texts (work-prefixed citations) | High (if unaddressed) | High | `display_citation` strips the leading work/edition-name prefix at render; test the no-duplication contract for a hadith and a bare-citation text. |
+| `cite_passage` ground truth is majority-Arabic but the scorer expects Latin-script/colon and doesn't fold Arabic-Indic digits — 25% of the benchmark mis-scores | Medium | High | Template 3's by-example exemplar steers answers to the Latin/colon shape; consider folding Arabic-Indic digits in `normalize()`/extractor; verify in the live/smoke run; test scenario. |
+| verify_source negatives: variant-wording narrations shared across 9 hadith collections yield a wrong "no" ground truth (exact-match exclusion misses them) | Medium | Medium | Family exclusion by `document_type` (never pair two hadith collections) — cross-*work* alone is a no-op since the 9 are distinct works; fail-fast on insufficient cross-family pool; #23 hardening protects gaming, not wrong truth. |
+| A committable text can't fill 28 questions for some template (or <2 entries for `cite_passage`) | Medium | Medium | Fail fast naming text+template; architect decides default or exclusion. Surface via `afx send`. |
 | `ANTHROPIC_API_KEY` absent → live run blocked (web_search is Anthropic-only) | Medium | Medium | Stop at live-run step, report to architect; do not substitute OpenRouter. Deliver everything else. |
 | Re-running score/collect over committed evidence nulls the panel/usage proof | Low | High | Always write to a fresh `runs/original-<date>/`; never target committed runs. |
-| `ask_as`/`citation_hint` wording drifts from the scored citation shape | Medium | Low | Derive wording from real reference data and the scorer's citation regexes; verify with the live/smoke run. |
+| `requested_as` names or the by-example citation shape drift from the scored shape | Medium | Low | Starting values from #27; derive wording from real reference data and the scorer's citation regexes; verify with the live/smoke run. |
 | Leading-stance window too narrow/wide, mis-scoring real answers | Low | Medium | Encode the adversarial cases as tests; use first-sentence/first-60-chars as specified. |
 
 ## References
