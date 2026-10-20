@@ -27,8 +27,8 @@ gates:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 3
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -42,5 +42,17 @@ history:
         verdict: REQUEST_CHANGES
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_1-iter1-claude.txt
+  - iteration: 2
+    plan_phase: phase_1
+    build_output: ''
+    reviews:
+      - model: codex
+        verdict: COMMENT
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_1-iter2-codex.txt
+      - model: claude
+        verdict: REQUEST_CHANGES
+        file: >-
+          /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_1-iter2-claude.txt
 started_at: '2026-10-20T22:41:46.537Z'
-updated_at: '2026-10-20T23:49:53.077Z'
+updated_at: '2026-10-20T23:56:44.658Z'
