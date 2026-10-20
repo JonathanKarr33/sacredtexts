@@ -158,9 +158,8 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   text** — mirroring the existing `by_tradition` structure (`summary.json` → `by_text[model_id][text]`,
   markdown rendered per model), since the committed run is a multi-model panel and pooling across
   models would be meaningless. Per-tradition balance no longer holds (9 of 14 committable texts are
-  hadith collections). `coverage` = `(correct + incorrect) / n` and `refused` are Spec 15 outcomes
-  (see dependency); if Spec 15 is not yet integrated when scoring is built, see the degraded fallback
-  in Assumptions.
+  hadith collections). `coverage` = `(correct + incorrect) / n` and `refused` are Spec 15 outcomes,
+  which Spec 26 builds on as its base (architect-confirmed #24 merges before scoring; see dependency).
 - **A fresh committed run** demonstrates the new question set end to end, with a README, scores
   re-deriving bit-for-bit from answers.
 - **Docs reflect the change:** TUTORIAL (four templates, `--per-text`), CODE_WALKTHROUGH (Recipe A
@@ -195,7 +194,7 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 - [ ] The manifest records `per_text`, `include_translations`, and the list of selected texts;
       the question-set digest machinery is unchanged.
 - [ ] `summary.md`/`summary.json` include a per-text table keyed by model then text (text, n,
-      accuracy, and — once Spec 15 is integrated — coverage, refused).
+      accuracy, coverage, refused — on the Spec 15 outcome contract, which #24 lands before scoring).
 - [ ] A fresh `runs/original-<date>/` is committed with a README; scores re-derive bit-for-bit from
       the committed answers.
 - [ ] Pipeline + viewer test suites are green; the copyright audit gate is green.
@@ -270,14 +269,14 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
     independent of Spec 15 and lands in this project regardless. The `refused` **outcome**, `coverage`,
     and the per-text table's coverage/refused columns are Spec 15 machinery that Spec 26 consumes, not
     reimplements.
-  - **Expected path:** PR #24 merges before Spec 26 reaches its scoring phase; the builder merges
-    `origin/main` and integrates. Because this sequencing is a cross-project coordination call, the
-    builder surfaces the dependency to the architect rather than deciding it (see Open Questions).
-  - **Degraded fallback (if #24 has not merged when Spec 26 reaches scoring and the architect directs
-    shipping without it):** do **not** duplicate Spec 15's outcomes machinery. The per-text table
-    ships with text / n / accuracy only; a `None` from `parse_yes_no` is recorded as `parsed: null`
-    (not `refused`); coverage/refused columns and full #23 closure follow once Spec 15 lands. Per #23,
-    no `verify_source` accuracy number is published in that degraded mode.
+  - **Confirmed path (architect, 2026-10-20):** PR #24 is fully reviewed and at the human pr gate; it
+    merges before Spec 26 reaches scoring. Spec 26 **plans on the Spec 15 contract as its base**
+    (correct/incorrect/refused outcomes, accuracy + coverage, named graders); the builder merges
+    `origin/main` and integrates at the scoring phase. A `None` from `parse_yes_no` is classified
+    `refused` by that layer.
+  - **If #24 has not merged when Spec 26 reaches scoring:** the builder **STOPs at the scoring phase
+    boundary and pings the architect** — it does **not** build a `parsed: null` / no-outcome fallback
+    (project rule: fail fast, never implement fallbacks). There is no degraded mode.
 - **`--tasks` and `--negatives-share` are retained;** only `--per-task` and `--quota` are removed.
   `--tasks` subsets the four templates (the tutorial generates `retrieve_quote` only) and the per-text
   split then applies over the selected subset. `--negatives-share` keeps its default 0.5 and governs
@@ -340,10 +339,9 @@ requirement* is the spec contract.
 
 ## Open Questions
 
-- **Critical** — Will Spec 15 / PR #24 merge before Spec 26's implementation reaches scoring, and in
-  what order should the branches integrate? (The issue bakes the answer: build on `main`, merge
-  `origin/main` when #24 lands. Surface to architect if #24's shape changes `parse_yes_no` or the
-  summary structure in a way that conflicts.)
+- **Critical — RESOLVED (architect, 2026-10-20).** Spec 15 / PR #24 is fully reviewed and at the human
+  pr gate; it merges before Spec 26 reaches scoring. Spec 26 plans on the Spec 15 contract as its base.
+  If #24 has not merged at the scoring phase boundary, STOP and ping the architect — no fallback.
 - **Critical** — Is `ANTHROPIC_API_KEY` present in `sacredtexts/.env` for the live panel? If not, the
   run step is deferred and reported, per the baked constraint.
 - **Important** — Exact `ask_as` / `citation_hint` wording for each of the 14 committable texts (and
@@ -405,8 +403,8 @@ requirement* is the spec contract.
   the incidental "no" in "no way" is not a stance), so a false-premise "no" is not gamed into correct.
 - `"No, that is from Sahih Muslim"` → no.
 - `"Yes."` → yes.
-- A decline cue with no stance → `None` (classified `refused` where Spec 15's outcome layer exists;
-  `parsed: null` in the degraded fallback).
+- A decline cue with no stance → `None` (classified `refused` by the Spec 15 outcome layer, which is
+  the base for the scoring phase).
 - Retired tasks: scoring `identify_version`/`identify_source` is removed; no test (pipeline or viewer)
   references them.
 
@@ -426,7 +424,7 @@ requirement* is the spec contract.
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | PR #24 (Spec 15) merges mid-flight and conflicts in score.py / docs | High | Medium | Build on `main`; merge `origin/main` when #24 lands; expect conflicts in TUTORIAL / CODE_WALKTHROUGH / score.py docstrings; reconcile leading-stance parsing onto #24's `parse_yes_no`. |
-| PR #24 does not merge before Spec 26 scoring (refused/coverage unavailable) | Medium | Medium | Surface sequencing to architect; do not reimplement Spec 15. Degraded fallback (Assumptions): per-text table = text/n/accuracy, `parsed: null`, no verify_source number published. |
+| PR #24 does not merge before Spec 26 scoring (refused/coverage unavailable) | Low | Medium | Architect-confirmed #24 is at the human pr gate and merges before scoring. If not merged at the scoring phase boundary, STOP and ping the architect — no fallback (fail fast, never implement fallbacks). |
 | `retrieve_quote` duplicates the edition name for 10/14 texts (work-prefixed citations) | High (if unaddressed) | High | `display_citation` strips the leading work/ask_as prefix at render; test the no-duplication contract for a hadith and a bare-citation text. |
 | `cite_passage` ground truth is majority-Arabic but the scorer expects Latin-script/colon and doesn't fold Arabic-Indic digits — 25% of the benchmark mis-scores | Medium | High | `citation_hint` steers answers to the Latin/colon shape; consider folding Arabic-Indic digits in `normalize()`/extractor; verify in the live/smoke run; add as a test scenario. |
 | Template-4 negatives: variant-wording narrations shared across 9 hadith collections yield a wrong "no" ground truth (exact-match exclusion misses them) | Medium | Medium | Prefer cross-work/cross-family negatives; document the residual shared-narration limitation as accepted for the first run; the #23 hardening protects against gaming but not wrong truth. |
