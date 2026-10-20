@@ -10,6 +10,7 @@ function q(partial: Partial<QuestionResult>): QuestionResult {
     task: "retrieve_quote",
     correct: false,
     missing: false,
+    refused: false,
     prompt: "the prompt",
     answer: "the answer",
     expected: "the expected",
@@ -52,6 +53,18 @@ describe("QuestionList", () => {
     expect(screen.getByText("normalized")).toBeInTheDocument();
     expect(screen.getByText("token-F1")).toBeInTheDocument();
     expect(screen.getAllByText("n/a")).toHaveLength(3);
+  });
+
+  it("marks a refused cell as 'refused', not 'wrong' (Spec 15 — distinct from an incorrect answer)", () => {
+    render(
+      <QuestionList
+        results={[q({ question_id: "r", correct: false, refused: true, answer: "I can't reproduce that." })]}
+      />,
+    );
+    expect(screen.getByText("refused")).toBeInTheDocument();
+    expect(screen.queryByText("wrong")).not.toBeInTheDocument();
+    // the decline text is still shown as the model's answer
+    expect(screen.getByText("I can't reproduce that.")).toBeInTheDocument();
   });
 
   it("shows an empty-state line when nothing matches", () => {

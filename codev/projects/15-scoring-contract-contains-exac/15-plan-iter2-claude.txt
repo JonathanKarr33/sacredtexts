@@ -1,0 +1,35 @@
+I'll verify the plan's load-bearing claims against the actual codebase.Confirmed line numbers 46/231 and the five viewer suites. Now let me independently verify the pre-registered deltas (read-only, computing in /tmp).Deltas verified exactly. Now checking the tradition-cell claims and viewer fixture numbers.I verified the plan's load-bearing claims against the actual code. Summary of what I checked independently:
+
+**Verified correct:**
+- `_bounded_equal` (score.py:176) *is* word-bounded normalized containment — reusing it is the right call, and the `bool(normalize(target))` guard is genuinely needed.
+- The accumulator trap is real: `score_file` updates `exact`/`normalized`/`token_f1` explicitly (lines 312-316) and only *reads* `acc[sm]` at line 344 → `_SUBMETRICS`-only add raises `KeyError`.
+- `test_score.py:46` is the `retrieve_quote` whole-dict; `:231` is `identify_version` (`{"exact":1,"normalized":1,"correct":1}`). The plan's scoping is right.
+- `.codev/checks/test.sh` maps `runs/` → **pipelines lane only**. Editing `apps/viewer/` is indeed what makes vitest fire. Confirmed all five viewer suites read the committed runs.
+- first-run `answers.jsonl` has **no** `panel_fingerprint` (tutorial has `anthropic|claude-haiku-5-5||`) → `--config` fail-fasts at cli.py:327-331. The `[no-tools]` stamping is real (cli.py:349). Committed first-run panel entries lack `api_model`, so a rebaseline *will* add it — the plan pre-registers this correctly.
+- **Deltas recomputed from committed answers**: tutorial +20 (haiku-search 0.40→0.52, opus-search 0.66→0.74, both no-tools models 0), first-run +1 (claude-haiku 0.24→0.25, LDS cell 0.72→0.76). Exact match.
+- `test_normalize_nonlatin.py` uses field-access, not whole-dict asserts → correctly excluded from the guard count.
+- Viewer *source* needs no change: `ScoreMetrics` keys are optional and `metricOrNull` is key-typed, so an extra JSON key is inert.
+- The first-run README's "17 answers reproduce the verse" claim really is wrong — only **1** of them is contained. The plan's correction is justified.
+
+**Gaps worth closing (none approach-level):**
+
+1. **Serialization isn't pinned.** `cli.py` writes `json.dump(summary, f, indent=1)` plus a trailing `"\n"` (confirmed: committed `summary.json` is indent=1). The rebaseline procedure says "call `score_file()` programmatically" but never states the writer params. A builder using `indent=2` produces a whole-file whitespace diff and the "pre-registered honest diff" becomes unauditable.
+2. **CODE_WALKTHROUGH.md has 12 `score.py:N` pointers**, and Phase 1 edits the module docstring *and* `_SUBMETRICS` *and* `score_answer`/`score_file` — so `:115`, `:126`, `:183`, `:201`, `:235`, `:266`, `:452` all shift. `test_code_walkthrough.py` only checks in-range, so they go **silently stale**. Phase 2 says "check §4 task table"; it should say "re-derive every `score.py:N` pointer."
+3. **Key position unspecified** — say explicitly: append `contains_reference` after `token_f1` in `_SUBMETRICS` and place it before `correct` in the `score_answer` dict, so both diffs are append-only.
+4. **`StandingsPage.test.tsx:134`** pins `"24% (n=100)"` for first-run — deterministically breaking, left to "re-check if red". Naming it costs nothing.
+5. **Inherited factual drift**: opus-search's 8 flips are 7 Judaism + 1 Sunni Islam, so the spec's "all Qur'an" and the tutorial README's "Talmud … 8 of 34" are each off by one. And the plan's "18 high-F1 misses" is 17 at the ≥0.9 threshold the README uses (23 at ≥0.8) — only 1 contained either way.
+
+(I read the tree read-only and computed deltas in `/tmp`; I made no change to the worktree.)
+
+---
+VERDICT: COMMENT
+SUMMARY: Approach, deltas, nine-guard surface and rebaseline mechanics all independently verified correct; five small precision gaps (summary.json writer params, drifted CODE_WALKTHROUGH pointers, key ordering, one unnamed viewer pin, minor inherited figures) are worth closing before implementation but don't change the plan.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Rebaseline procedure omits the exact `summary.json` writer (`json.dump(..., indent=1)` + trailing newline, per cli.py:358-360); a different indent makes the pre-registered honest diff unauditable.
+- Phase 1 shifts nearly all 12 `score.py:N` pointers in CODE_WALKTHROUGH.md; `test_code_walkthrough.py` only validates in-range, so Phase 2 must re-derive them rather than "check §4".
+- Insert position for `contains_reference` in `_SUBMETRICS` and in the `score_answer` dict is unspecified — pin it (after `token_f1`, before `correct`) for an append-only diff.
+- `apps/viewer/src/routes/StandingsPage.test.tsx:134` (`"24% (n=100)"`) is a known-breaking pin not enumerated; it's in the "re-check" bucket.
+- Minor inherited figures to correct while in the docs: opus-search flips are 7 Judaism + 1 Sunni Islam (not "all Qur'an"; tutorial README's "Talmud 8 of 34" is 7), and the first-run high-F1 miss count is 17 (≥0.9) / 23 (≥0.8), not 18 — the "exactly 1 contained" conclusion holds.

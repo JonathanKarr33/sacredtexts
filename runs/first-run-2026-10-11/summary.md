@@ -1,37 +1,39 @@
 | model | retrieve_quote | overall |
 |---|---|---|
-| claude-haiku | 24% (n=100) | **24%** |
-| llama-3.1-8b | 1% (n=100) | **1%** |
-| gemma-3-4b | 0% (n=100) | **0%** |
-| gpt-oss-20b | 0% (n=100) | **0%** |
+| claude-haiku | 56% cov 45% (n=100; c/i/r 25/20/55) | **56%** cov 45% (c/i/r 25/20/55) |
+| llama-3.1-8b | 1% cov 80% (n=100; c/i/r 1/79/20) | **1%** cov 80% (c/i/r 1/79/20) |
+| gemma-3-4b | 0% cov 100% (n=100; c/i/r 0/100/0) | **0%** cov 100% (c/i/r 0/100/0) |
+| gpt-oss-20b | 0% cov 34% (n=100; c/i/r 0/34/66) | **0%** cov 34% (c/i/r 0/34/66) |
+
+_Cells: accuracy cov coverage (n answered; c/i/r = correct/incorrect/refused). accuracy = correct/(correct+incorrect) — refusals excluded; coverage = (correct+incorrect)/n; refused_rate = refused/n. `−N` = roster cells that produced no answer (distinct from refused)._
 
 ### By tradition (each observation counts once per listed tradition)
 | model | tradition | retrieve_quote | overall |
 |---|---|---|---|
-| claude-haiku | Judaism | 0% (n=25) | **0%** (n=25) |
-| claude-haiku | Protestant Christian | 24% (n=25) | **24%** (n=25) |
-| claude-haiku | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| claude-haiku | The Church of Jesus Christ of Latter-Day Saints | 72% (n=25) | **72%** (n=25) |
-| gemma-3-4b | Judaism | 0% (n=25) | **0%** (n=25) |
-| gemma-3-4b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
-| gemma-3-4b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| gemma-3-4b | The Church of Jesus Christ of Latter-Day Saints | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | Judaism | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| gpt-oss-20b | The Church of Jesus Christ of Latter-Day Saints | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | Judaism | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | Protestant Christian | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | Roman Catholic | 0% (n=25) | **0%** (n=25) |
-| llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% (n=25) | **4%** (n=25) |
+| claude-haiku | Judaism | n/a cov 0% (n=25; c/i/r 0/0/25) | **n/a** cov 0% (n=25; c/i/r 0/0/25) |
+| claude-haiku | Protestant Christian | 24% cov 100% (n=25; c/i/r 6/19/0) | **24%** cov 100% (n=25; c/i/r 6/19/0) |
+| claude-haiku | Roman Catholic | n/a cov 0% (n=25; c/i/r 0/0/25) | **n/a** cov 0% (n=25; c/i/r 0/0/25) |
+| claude-haiku | The Church of Jesus Christ of Latter-Day Saints | 95% cov 80% (n=25; c/i/r 19/1/5) | **95%** cov 80% (n=25; c/i/r 19/1/5) |
+| gemma-3-4b | Judaism | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
+| gemma-3-4b | Protestant Christian | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
+| gemma-3-4b | Roman Catholic | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
+| gemma-3-4b | The Church of Jesus Christ of Latter-Day Saints | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
+| gpt-oss-20b | Judaism | n/a cov 0% (n=25; c/i/r 0/0/25) | **n/a** cov 0% (n=25; c/i/r 0/0/25) |
+| gpt-oss-20b | Protestant Christian | 0% cov 80% (n=25; c/i/r 0/20/5) | **0%** cov 80% (n=25; c/i/r 0/20/5) |
+| gpt-oss-20b | Roman Catholic | 0% cov 8% (n=25; c/i/r 0/2/23) | **0%** cov 8% (n=25; c/i/r 0/2/23) |
+| gpt-oss-20b | The Church of Jesus Christ of Latter-Day Saints | 0% cov 48% (n=25; c/i/r 0/12/13) | **0%** cov 48% (n=25; c/i/r 0/12/13) |
+| llama-3.1-8b | Judaism | 0% cov 24% (n=25; c/i/r 0/6/19) | **0%** cov 24% (n=25; c/i/r 0/6/19) |
+| llama-3.1-8b | Protestant Christian | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
+| llama-3.1-8b | Roman Catholic | 0% cov 100% (n=25; c/i/r 0/25/0) | **0%** cov 100% (n=25; c/i/r 0/25/0) |
+| llama-3.1-8b | The Church of Jesus Christ of Latter-Day Saints | 4% cov 96% (n=25; c/i/r 1/23/1) | **4%** cov 96% (n=25; c/i/r 1/23/1) |
 
-### Panel (committed-artifact proof of the ≥3-model / ≥2-provider bar)
-| model_id | provider | model | endpoint | served_by |
-|---|---|---|---|---|
-| claude-haiku | anthropic | claude-haiku-5-5 | api.anthropic.com | — |
-| gemma-3-4b | openai | google/gemma-3-4b-it | openrouter.ai | DeepInfra |
-| gpt-oss-20b | openai | openai/gpt-oss-20b | openrouter.ai | AkashML, Amazon Bedrock, CoreWeave, Darkbloom, DeepInfra, DekaLLM, Google, Parasail, SiliconFlow |
-| llama-3.1-8b | openai | meta-llama/llama-3.1-8b-instruct | openrouter.ai | DeepInfra, Groq, Novita |
+### Panel composition (committed-artifact proof — provider / model / tools / endpoint, no secrets)
+| model_id | provider | model | tools | endpoint | served_by |
+|---|---|---|---|---|---|
+| claude-haiku | anthropic | claude-haiku-5-5 | — | api.anthropic.com | — |
+| gemma-3-4b | openai | google/gemma-3-4b-it | — | openrouter.ai | DeepInfra |
+| gpt-oss-20b | openai | openai/gpt-oss-20b | — | openrouter.ai | AkashML, Amazon Bedrock, CoreWeave, Darkbloom, DeepInfra, DekaLLM, Google, Parasail, SiliconFlow |
+| llama-3.1-8b | openai | meta-llama/llama-3.1-8b-instruct | — | openrouter.ai | DeepInfra, Groq, Novita |
 
 ### Token usage
 | model_id | calls | in | out |

@@ -1,0 +1,8 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Refusal filtering works, but refused rows are still visibly labeled as wrong in the explorer.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `apps/viewer/src/components/QuestionList.tsx:14-21` never checks `r.refused`; every refused result falls through to the red `wrong` badge. This violates the phase requirement that correct/incorrect/refused/missing be visibly distinguishable. Add a refused badge branch and a component or ExplorerPage test asserting that a refused row displays `refused`, not `wrong`.
+- Viewer tests could not be executed in the read-only review environment because Vite attempts to create `node_modules/.vite-temp`; the finding above is confirmed directly from the render path.

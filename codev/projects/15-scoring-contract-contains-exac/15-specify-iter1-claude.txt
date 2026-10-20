@@ -1,0 +1,65 @@
+I'll verify the spec's claims against the actual codebase before judging.I verified the spec's claims against the actual code and the committed run evidence. Most of it holds up — but three things don't.
+
+## Verified ✓
+
+- `_SUBMETRICS`, `normalize()` pass order, `_bounded_equal()`'s `(?<!\w)…(?!\w)` style, both regression guards (`test_first_run_regression.py:32`, `test_tutorial_run.py`) — all exactly as described.
+- Template compliance: every heading from `skeleton/protocols/spir/templates/spec.md` present, in order.
+- **The 20-cell evidence is real.** Re-computing word-bounded containment over `runs/tutorial-2026-10-11/answers.jsonl`: `+12` cells for `haiku-search`, `+8` for `opus-search`, `+0` for both no-tools models. The "all search-on" claim is exactly right.
+- Containment is a strict superset of `normalized` equality (so the "exceeds by exactly those cells" criterion is sound).
+
+## Issues
+
+**1. The summary surface the spec promises does not exist.** Desired State says a reader will "see 'strict match 55 %, exact-text-present 60 %' at a glance," and a criterion says `contains_reference` "renders as a summary column." Neither is achievable by adding a `_SUBMETRICS` line:
+
+- `summary_markdown()` → `_cell_str()` renders **only** `accuracy (n=N)`. The committed `runs/tutorial-2026-10-11/summary.md` shows `| haiku | 47% (n=100) |` — no `exact`/`normalized`/`token_f1` columns today.
+- Submetrics exist only inside `summary.json` cells.
+- The viewer's `LeaderboardPage.tsx` renders no submetrics at all; the explorer hard-codes exactly three (`localResults.ts:169` types the key as `"exact" | "normalized" | "token_f1"`; `QuestionList.tsx:85-87` renders three fixed `<Metric>` rows).
+
+So the Assumption "zero-code-change for the viewer" is true only as "won't break" — it **will not display**. Either scope in a `summary_markdown` submetric-column change (and optionally a 3-line viewer addition), or reword the criterion to "present in `summary.json`" and state plainly that no at-a-glance surface exists yet.
+
+Related mechanical trap: `score_file`'s accumulator is initialized with fixed keys (`{"n","correct","exact","normalized","token_f1"}`) and then read as `acc[sm]` for every `sm in _SUBMETRICS` — adding `contains_reference` to `_SUBMETRICS` alone raises `KeyError`. `CODE_WALKTHROUGH.md:256` ("a line to `_SUBMETRICS`") is misleading on this and should be corrected.
+
+**2. The 20 and 29 sets are not disjoint.** The Problem Statement says "A further **29**… These are **not** contained; they are a distinct, fuzzier failure mode." I computed the overlap: **4 of the 29 are contained**. The not-contained near-miss residue is **25**, not 29. This matters because the judge pilot's cell set should be `normalized==0 ∧ token_f1 high ∧ ¬contains_reference`.
+
+**3. The first run's delta is unstated.** `first-run-2026-10-11` has **1** wrapped-exact cell (`claude-haiku`, 24% → 25%). The spec quantifies only the tutorial run and its Latin-invariance scenario covers only *existing* keys. Pre-register `+1` so the rebaseline diff is predicted evidence rather than a surprise.
+
+## Comments
+
+- **Your problem statement undersells the finding.** Strict scoring doesn't just under-report search — it **inverts the sign** for haiku: `haiku-search` 40% vs `haiku` 47% (search looks like a regression) becomes 52% vs 47% under containment. That's a much sharper argument for the change than "+5pp."
+- **Sequencing risk on the deferred headline decision.** If the human picks `normalized OR contains_reference` at the PR gate *after* you've rebaselined, every `correct` value and the leaderboard ranks move → a second rebaseline + guard update. Either resolve the question before regenerating artifacts, or say explicitly that a flip triggers a second re-score.
+- **More guards affected than listed.** `test_score.py:46` and `:231` assert full metrics dicts by equality; they'll need updating too. The spec names only the two run guards.
+- **Degenerate-expected edge case:** `re.escape("")` matches anywhere, so an empty-normalizing expected text would yield `contains_reference=1` with `normalized=0`. Add a guard or state the assumption.
+- **Judge pilot licensing:** sending *expected* text from a `restricted` source (NABRE, TLG) to a third-party judge API is API egress the copyright audit gate doesn't cover (it checks committed artifacts). Worth one line if the pilot ever ships.
+- `runs/tutorial-2026-10-11/README.md` and `CODE_WALKTHROUGH.md` §5 already document this contains-exact finding (including the "median `token_f1` ~0.45 for wrapper cells" caution) — add them to References; §4/§5 will need updating.
+
+I did not modify anything in the worktree; all checks were read-only (re-scores computed in-memory, nothing written).
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core approach is right and the 20-cell evidence verifies exactly, but the promised summary surface doesn't exist in the code, and the 20/29 cell sets overlap by 4.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- "Renders as a summary column" / "at a glance" is unachievable: `summary_markdown`→`_cell_str` emits only `accuracy (n=N)`, the viewer leaderboard shows no submetrics, and the explorer hard-codes three (`localResults.ts:169`, `QuestionList.tsx:85-87`). Scope the surface change in, or reword the criterion.
+- Evidence error: the 20 contained and 29 high-`token_f1` cells overlap by 4 — "a further 29 … not contained" is false; the not-contained residue is 25. Affects the judge pilot's cell-set definition.
+- `first-run-2026-10-11`'s rebaseline delta (+1 cell, claude-haiku 24%→25%) is unstated; pre-register it as expected evidence.
+- Adding to `_SUBMETRICS` alone raises `KeyError` in `score_file`'s fixed-key accumulator; `CODE_WALKTHROUGH.md:256` is misleading and should be corrected.
+- `test_score.py:46`/`:231` assert whole metrics dicts and will break — the spec lists only the two run regression guards as affected.
+- Deferring the headline `correct` decision past the rebaseline forces a second rebaseline if the human adopts containment; resolve first or state the cost.The background search confirmed there's no project-local template override in the `sacredtexts` worktree — all hits were other repos. So the spec correctly resolves against the package skeleton at `/opt/homebrew/lib/node_modules/@cluesmith/codev/skeleton/protocols/spir/templates/spec.md`, which I already compared heading-by-heading. **Template compliance verified: all 13 headings present and in order.**
+
+My review stands unchanged.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Core approach is right and the 20-cell evidence verifies exactly, but the promised summary surface doesn't exist in the code, and the 20/29 cell sets overlap by 4.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- "Renders as a summary column" / "at a glance" is unachievable: `summary_markdown`→`_cell_str` emits only `accuracy (n=N)`, the viewer leaderboard shows no submetrics, and the explorer hard-codes three (`localResults.ts:169`, `QuestionList.tsx:85-87`). Scope the surface change in, or reword the criterion.
+- Evidence error: the 20 contained and 29 high-`token_f1` cells overlap by 4 — "a further 29 … not contained" is false; the not-contained residue is 25. Affects the judge pilot's cell-set definition.
+- `first-run-2026-10-11`'s rebaseline delta (+1 cell, claude-haiku 24%→25%) is unstated; pre-register it as expected evidence.
+- Adding to `_SUBMETRICS` alone raises `KeyError` in `score_file`'s fixed-key accumulator; `CODE_WALKTHROUGH.md:256` is misleading and should be corrected.
+- `test_score.py:46`/`:231` assert whole metrics dicts and will break — the spec lists only the two run regression guards as affected.
+- Deferring the headline `correct` decision past the rebaseline forces a second rebaseline if the human adopts containment; resolve first or state the cost.

@@ -1,0 +1,55 @@
+I'll start by reading the core implementation files.I verified everything independently — recomputed the oracle hashes from the pre-change blobs, diffed all 800 score rows pre/post, and ran both test lanes.
+
+## What I verified (all confirmed)
+
+**The pinned oracle is genuine, not circular.** I extracted `2e17d84^:runs/*/scores.jsonl` and recomputed the projection hash with the test's exact algorithm:
+- first-run → `0229fa15…a470` ✓ matches `PRECHANGE_PROJECTION_SHA256`
+- tutorial → `64e5b660…80f3` ✓ matches
+
+This is the single most important thing in the PR and it holds. The hash really was frozen from pre-change evidence, so `test_similarity_projection_unchanged` is a real witness over all 800 rows.
+
+**The honest diff holds exactly.** Row-by-row pre/post comparison of both `scores.jsonl`:
+- Key sets identical except `contains_reference` added — on every row, nothing removed.
+- `exact` / `normalized` / `token_f1` unchanged on all 800 rows (0 diffs).
+- `correct` flips: **20 tutorial** (12 haiku-search, 8 opus-search) + **1 first-run** — all 0→1, matching `FLIP_SET` exactly.
+- Superset property: `normalized=1 ∧ contains_reference=0` → 0 rows, both runs.
+- Summary deltas match pre-registration: haiku-search 0.40→0.52, opus-search 0.66→0.74, haiku/opus unmoved, claude-haiku 0.24→0.25, LDS 0.72→0.76; tutorial row order flips as pre-registered; first-run panel preserved verbatim with `api_model` + `generated_at` added (viewer ignores both — grepped, no `generated_at` reference in `apps/viewer/src`).
+
+**Code matches the plan precisely:** `_bounded_equal` reused (not rewritten), `bool(normalize(target))` empty guard present, `contains_reference` inserted before `correct`, `_SUBMETRICS` appended after `token_f1`, accumulator seeded **and** explicitly incremented, provenance branches and `test_score.py` `identify_version` dict untouched.
+
+**Both lanes green:** `.codev/checks/test.sh` → 125 viewer tests, 301 pytest passed / 1 skipped (the skip is the pre-existing `questions.jsonl.manifest` corpus-absent skip, unrelated). Re-ran after the in-flight edits: 9 rebaseline tests, 125 viewer. Both codex iter-1 issues (the `_overall`/LDS pins, the stale `0.24` comment) are already fixed in the working tree.
+
+## What I found that wasn't flagged
+
+**One of the 21 rescued cells is a genuine multi-candidate hedge, not a wrapped-exact retrieval.** I read all 21 flipped answers and measured the non-expected scripture residue. Twenty are clean; one is not:
+
+`opus-search / retrieve_quote-4ad4392645da` (Ketubot 8a:8) opens *"I couldn't confirm the exact text…"*, offers a **different** text as its primary guess (`לא דכולי עלמא חדא יצירה הואי…`), then adds *"It could also be the line just before it, [expected text]"*. Residue: 26 non-expected Hebrew tokens. The expected verse is the model's **secondary** guess inside a two-candidate hedge — and it now scores `correct = 1`.
+
+This is worth surfacing because of the asymmetry it creates: `cite_passage` / `identify_source` have an explicit anti-hedge rule ("a multi-candidate hedge scores 0"), and `retrieve_quote` under the new contract has none. The spec's risk table rates containment-gaming "Low probability", mitigated by "long expected quotes make incidental containment negligible" — this cell shows the real mechanism isn't incidental containment, it's *deliberate hedging*, and it's present in the evidence at 1/21 (~1 point on opus-search's 74%). Not a blocker and not out of spec — the spec decided the contract and routes confirmation to the human — but it is exactly the evidence the human needs at the PR gate, and Phase 2's run-README prose should not claim a cleaner story than this.
+
+**The rebaseline script exists nowhere on disk.** `scores.jsonl` is reproducible (`score_file`, byte-guarded); the summaries are only *pinned* at five accuracy values. The thread says "script in scratchpad, to be pasted in review" — I searched `codev/state/`, `tmp/`, and the project dir; it is not committed anywhere. Phase 1's acceptance criterion is "commit message / review … records the rebaseline script"; the commit message records the deltas but not the script. Paste it into `codev/state/aspir-15_thread.md` now, before a context refresh loses it — it's the only path to re-deriving the summaries.
+
+## Minor
+
+- `pnpm -C apps/viewer check-types` fails on `tutorialRun.test.ts:119-120` (`TS2532 Object is possibly 'undefined'` on `rows[0].overall`). **Pre-existing** — I diffed against `2e17d84^` and those lines are identical except the numeric literal; the +1 line shift from your added comment just moved the error's line numbers. `check-types` isn't in the gate. Not yours to fix, but worth knowing it's red.
+- The commit carries a `Co-Authored-By: Claude` trailer, which the user's global git preferences explicitly forbid. Worth stripping on the next commit in this branch.
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase 1 is correct and verified end-to-end — oracle hashes independently reproduced, honest diff holds exactly (21 flips, zero collateral), both lanes green; two evidence/documentation items to close before the PR gate.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- 1 of the 21 rescued cells (`opus-search / retrieve_quote-4ad4392645da`, Ketubot 8a:8) is a two-candidate hedge in which the expected text is the model's *secondary* guess (26 non-expected Hebrew tokens of residue), now scoring `correct=1`. Containment has no anti-hedge rule while `cite_passage`/`identify_source` do — document this asymmetry and the 1/21 rate as PR-gate evidence, and don't let Phase 2's run-README prose overstate how clean the rescue is.
+- The rebaseline script is not committed or saved anywhere (searched `codev/state/`, `tmp/`, project dir); the thread defers it to "scratchpad → review". Summary regeneration is the one artifact no committed test or script can reproduce. Paste it into `codev/state/aspir-15_thread.md` now, before context refresh.
+- Minor, pre-existing: `pnpm -C apps/viewer check-types` fails at `tutorialRun.test.ts:119-120` (identical lines pre-change; not in the test gate).
+- Minor: the implement commit carries a `Co-Authored-By` trailer that the project owner's git rules forbid.
+
+---
+
+## ⚠️ REPOSITORY MOVED during the claude review (#1649).
+A consultant reviews the commit in front of it; it must never commit, or switch refs.
+  - HEAD: 2901b7814a1f644c111e52ffb6a433b55b2e51d7 -> 142fc5ce194680f9448f55b2135f843584365b28
+The files on disk may look untouched and still not be the ones this review describes.
+Check `git reflog` and `git status` before trusting this review or shipping the branch.

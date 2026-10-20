@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CenteredSpinner } from "../components/Loading";
-import { formatCell, loadSummary } from "../lib/localResults";
+import { formatCell, formatCoverage, loadSummary } from "../lib/localResults";
 import { fetchRunIndex } from "../lib/runIndex";
 import { aggregate, type RunSummary } from "../lib/aggregate";
 import { recencyDate } from "../lib/recency";
@@ -84,6 +84,20 @@ export function StandingsPage() {
   }
 
   const { tasks, rows } = rollup!;
+  // Evaluator provenance (Spec 15): standings may mix runs scored under DIFFERENT grader
+  // selections (e.g. `--evaluator strict` vs the default containment), which makes accuracy not
+  // directly comparable. Collect the distinct contracts present and flag a heterogeneous mix.
+  // Treat an absent/empty `evaluators` (a pre-Spec-15 run) as its OWN distinct contract — otherwise a
+  // legacy run mixed with a Spec-15 run would collapse to a single contract and falsely claim "all runs
+  // scored by …". That mix IS heterogeneous and must trip the banner.
+  const UNKNOWN_CONTRACT = "unknown (pre-Spec-15)";
+  const contracts = new Set<string>();
+  for (const r of state.runs) {
+    const ev = r.summary.evaluators;
+    contracts.add(ev && ev.length > 0 ? ev.join(" + ") : UNKNOWN_CONTRACT);
+  }
+  const heterogeneous = contracts.size > 1;
+  const singleContract = contracts.size === 1 ? [...contracts][0]! : null;
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Current standings</h1>
@@ -100,6 +114,23 @@ export function StandingsPage() {
           {state.failed.join(", ")}.
         </p>
       )}
+      {heterogeneous && (
+        <p role="status" className="mt-2 text-sm text-warning">
+          ⚠ These standings mix runs scored under <strong>different evaluator contracts</strong> (
+          {[...contracts].join("; ")}) — accuracy is only directly comparable within the same
+          contract.
+        </p>
+      )}
+      {singleContract && singleContract !== UNKNOWN_CONTRACT && (
+        <p className="mt-1 text-xs text-default-400">
+          All runs scored by evaluators: <span className="font-medium">{singleContract}</span>.
+        </p>
+      )}
+      {singleContract === UNKNOWN_CONTRACT && (
+        <p className="mt-1 text-xs text-default-400">
+          No evaluator provenance recorded (pre-Spec-15 runs).
+        </p>
+      )}
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full border-collapse text-sm">
@@ -110,6 +141,7 @@ export function StandingsPage() {
                 <th key={t} className="py-1 pr-4">{t}</th>
               ))}
               <th className="py-1 pr-4">overall</th>
+              <th className="py-1 pr-4">coverage</th>
               <th className="py-1 pr-4">from run</th>
             </tr>
           </thead>
@@ -133,6 +165,7 @@ export function StandingsPage() {
                   <td key={t} className="py-1 pr-4">{formatCell(row.byTask[t])}</td>
                 ))}
                 <td className="py-1 pr-4 font-semibold">{formatCell(row.overall)}</td>
+                <td className="py-1 pr-4 font-semibold">{formatCoverage(row.overall)}</td>
                 <td className="py-1 pr-4 text-default-500">
                   <Link to="/" search={{ run: row.runId }} className="underline decoration-dotted">
                     {row.runId}

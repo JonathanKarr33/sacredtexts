@@ -40,6 +40,42 @@ export function leaderboardRows(summary: Summary): { tasks: string[]; rows: Lead
   return { tasks, rows };
 }
 
+/** A search-on/off contrast pair (Spec 15 phase 3): the two tool arms of the SAME (provider, model),
+ * one run with web search (non-empty `panel.tools`) and one without, so the tool-use effect is
+ * visible without a README. Only emitted when both arms are present. */
+export interface ContrastPair {
+  /** The raw model id the two arms share (Approach B: `panel.model` has no inline tools marker). */
+  base: string;
+  on: LeaderboardRow;
+  off: LeaderboardRow;
+}
+
+/** Pair the panel's models by (provider, model) to surface the search-on vs search-off contrast.
+ * The on/off signal is `panel[id].tools` (Approach B — a real list; the `model` is the raw API id,
+ * no inline marker): non-empty ⇒ search ON, empty/absent ⇒ OFF. Two arms of the same model share a
+ * (provider, model) key and differ only by tools, so they pair. Returns [] when the run has no
+ * `panel` (e.g. first-run) or no complete pair — the no-pair fallback, so the affordance degrades
+ * gracefully instead of inventing a contrast. */
+export function searchContrast(summary: Summary): ContrastPair[] {
+  const panel = summary.panel;
+  if (!panel) return [];
+  const rowByModel = new Map(leaderboardRows(summary).rows.map((r) => [r.modelId, r]));
+  const partial = new Map<string, { base: string; on?: LeaderboardRow; off?: LeaderboardRow }>();
+  for (const [modelId, entry] of Object.entries(panel)) {
+    const row = rowByModel.get(modelId);
+    if (!row) continue;
+    const arm: "on" | "off" = entry.tools && entry.tools.length > 0 ? "on" : "off";
+    const key = `${entry.provider}\u0000${entry.model}`;
+    const slot = partial.get(key) ?? { base: entry.model };
+    slot[arm] = row;
+    partial.set(key, slot);
+  }
+  const out: ContrastPair[] = [];
+  for (const { base, on, off } of partial.values()) if (on && off) out.push({ base, on, off });
+  out.sort((a, b) => (a.base < b.base ? -1 : a.base > b.base ? 1 : 0));
+  return out;
+}
+
 export interface TraditionRow {
   modelId: string;
   tradition: string;

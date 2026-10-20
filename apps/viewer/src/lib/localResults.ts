@@ -7,9 +7,18 @@
 export interface Cell {
   n: number;
   accuracy: number | null;
+  // Spec 15 phase 3: the three-outcome split + coverage. accuracy = correct/(correct+incorrect)
+  // (refusals excluded); coverage = (correct+incorrect)/n; refused_rate = refused/n. Optional so a
+  // pre-phase-3 summary (or a null-accuracy stub) still parses.
+  coverage?: number | null;
+  correct?: number;
+  incorrect?: number;
+  refused?: number;
+  refused_rate?: number | null;
   exact?: number;
   normalized?: number;
   token_f1?: number;
+  contains_reference?: number;
   expected_n?: number;
   missing?: number;
 }
@@ -46,13 +55,20 @@ export interface Summary {
   // ISO-8601 UTC timestamp score.py stamps at summarise time: the mtime-independent recency
   // signal (Issue #7). Absent on pre-Issue-#7 runs; recency then falls back to the run id.
   generated_at?: string;
+  // The named graders that scored this run (Spec 15, `score --evaluator`; default ["strict",
+  // "containment"]). Preserved so the viewer can show the scoring contract and flag a cross-run
+  // comparison of runs scored under DIFFERENT evaluator selections. Absent on pre-Spec-15 runs.
+  evaluators?: string[];
 }
 
 export interface ScoreMetrics {
   correct: number;
+  // Spec 15 phase 3: the always-on outcome on every answered cell.
+  outcome?: "correct" | "incorrect" | "refused";
   exact?: number;
   normalized?: number;
   token_f1?: number;
+  contains_reference?: number;
   [k: string]: unknown;
 }
 
@@ -89,6 +105,9 @@ export interface QuestionResult {
   // True when the model produced no answer row for a question that exists in the roster
   // (a "missing cell"), as opposed to a wrong answer.
   missing: boolean;
+  // True when the model answered but declined (outcome="refused", Spec 15) — distinct from both a
+  // wrong answer and a missing cell. A refused cell has correct=false and missing=false.
+  refused: boolean;
   prompt: string;
   answer: string;
   expected: string;
@@ -146,6 +165,11 @@ export function parseSummary(obj: unknown): Summary {
     panel: s.panel,
     // Carried through for recency (Issue #7); only trusted when it is actually a string.
     generated_at: typeof s.generated_at === "string" ? s.generated_at : undefined,
+    // Evaluator provenance (Spec 15): only trusted when it is an array of strings.
+    evaluators:
+      Array.isArray(s.evaluators) && s.evaluators.every((e) => typeof e === "string")
+        ? (s.evaluators as string[])
+        : undefined,
   };
 }
 
@@ -188,6 +212,7 @@ function answeredResult(s: ScoreRow | undefined, a: AnswerRow, fallbackTask: str
     task: s?.task ?? a.task ?? fallbackTask,
     correct: s?.metrics.correct === 1,
     missing: false,
+    refused: s?.metrics.outcome === "refused",
     prompt: a.question.prompt ?? "",
     answer: a.answer ?? "",
     expected: expectedText(s?.task ?? a.task, a.question.expected),
@@ -205,6 +230,7 @@ function missingResult(model_id: string, q: QuestionRow): QuestionResult {
     task: q.task,
     correct: false,
     missing: true,
+    refused: false,
     prompt: q.prompt ?? "",
     answer: "",
     expected: expectedText(q.task, q.expected),
@@ -264,6 +290,7 @@ export function joinResults(
         task: s.task,
         correct: s.metrics.correct === 1,
         missing: false,
+        refused: s.metrics.outcome === "refused",
         prompt: "",
         answer: "",
         expected: "",
@@ -391,11 +418,22 @@ export function rankedModels(summary: Summary): string[] {
 
 export function formatCell(cell: Cell | undefined): string {
   if (!cell) return "—"; // no cell at all for this model × column
-  // A cell with no observations has null accuracy (n === 0). The spec requires "n/a" for a
-  // null-accuracy cell (e.g. a null-overall or fully-missing model) rather than crashing or
-  // an ambiguous dash — annotated with the run's missing-cell count when it carries one
-  // (real `_overall` cells always do: `{n:0, accuracy:null, expected_n, missing}`).
-  if (cell.accuracy === null) return cell.missing ? `n/a (miss ${cell.missing})` : "n/a";
+  // A null-accuracy cell is either fully-missing (n === 0) or fully-refused (n > 0, every answered
+  // cell declined — Spec 15). The spec requires "n/a" rather than a crash or an ambiguous dash;
+  // annotate with the missing count (n === 0 cells carry `{expected_n, missing}`) or, for an
+  // all-refused cell, keep n and the refused count so the "n/a" isn't read as "no data".
+  if (cell.accuracy === null) {
+    if (cell.n > 0) return `n/a (n=${cell.n}; refused ${cell.refused ?? cell.n})`;
+    return cell.missing ? `n/a (miss ${cell.missing})` : "n/a";
+  }
   const miss = cell.missing ? ` −${cell.missing}` : "";
   return `${Math.round(cell.accuracy * 100)}% (n=${cell.n})${miss}`;
+}
+
+/** The coverage cell (Spec 15 phase 3): how often the model answered = (correct+incorrect)/n, with
+ * the refused count beside it. "—" when the cell carries no coverage (pre-phase-3 or no data). */
+export function formatCoverage(cell: Cell | undefined): string {
+  if (!cell || cell.coverage === null || cell.coverage === undefined) return "—";
+  const refused = cell.refused ?? 0;
+  return `${Math.round(cell.coverage * 100)}%${refused ? ` (${refused} refused)` : ""}`;
 }

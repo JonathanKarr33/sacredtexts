@@ -1,0 +1,10 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The implementation mechanics are largely sound, but the plan still omits active contradictory documentation and permits a non-independent rebaseline validation.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `TUTORIAL.md` still presents the old 40%/66% headline, calls it misleading, and says containment is merely an external analysis. Phase 2 promises to update every contradictory prose document but omits this primary user-facing tutorial.
+- `codev/resources/lessons-critical.md` and `lessons-learned.md` explicitly instruct maintainers not to reshape the headline contract and never to re-score committed evidence. These always-on instructions must be updated for the newly sanctioned contract and controlled rebaseline; deferring only `arch-critical.md` does not address them.
+- The mandatory validation may use aggregate values instead of the exact 21 pinned `(model_id, question_id)` pairs. Aggregates cannot prove the exact flip set or “nothing else moved,” because compensating changes can preserve totals. Require the explicit hard-coded cell set plus a pre/post projection check showing existing `exact`, `normalized`, and `token_f1` values are unchanged.
+- The “explicit” summary regeneration procedure is incomplete: `score_file()` only returns the summary and writes `scores.jsonl`. The plan should specify writing `summary.json` with the CLI’s `json.dump(..., indent=1)` format, writing `summary.md` through `summary_markdown()`, and passing the committed question-set digest while reconstructing the roster.

@@ -1,0 +1,38 @@
+I'll review Phase 5 (documentation sync). Let me start by locating the worktree and reading the relevant files.I've verified Phase 5's doc sync against the code and the committed run evidence. Summary of what I checked and found:
+
+## Verified correct
+
+**Deliverables present (all plan items for phase_5):**
+- `CODE_WALKTHROUGH.md` §2a **"add an evaluator" recipe** — matches `graders.py`: the `metric_keys ⊆ _CANONICAL_ORDER` import-time guard (`graders.py:62-67`), the `Grader.default = True` trap (`graders.py:37`), and the `inline=False` / verdict-less separate-pass descriptor whose inline selection fails fast (`resolve_evaluators`, `graders.py:102-106`). §2's "`_SUBMETRICS` fixes the sub-metrics for the NON-graded tasks (`identify_version`)" matches `score.py:128-130` exactly; §4's sanctioned-rebaseline exception and §5's #21 seam pointer are consistent.
+- **Pointers re-derived**: spot-checked `score.py:105/128/133/144/207/225/288/344/605`, `graders.py:33/37/49/86/111`, `cli.py:361` (the `marked = …` tools-marker line) — all land on the named symbol. `test_code_walkthrough.py` 101 passed; full pipeline suite **346 passed / 1 skipped**.
+- `TUTORIAL.md` grader sentence, the accuracy/coverage plain sentence, and every number recomputed from `summary.json`: haiku 71→80%, opus 100→97% (~3 pts), coverage 66→76%, Talmud 8/34 vs 0/34, Qur'an 24/33 vs 19/33. ✅
+- `runs/tutorial/README.md` caveats recomputed: 268 refused cells, **267 below token_f1 0.3**, the single outlier is `retrieve_quote-e2d74279aaf0` (haiku-search, 0.6806); "counting it incorrect → 78.8%" = 52/66 ✅; the hedge cell is one of opus-search's **8** correct Talmud cells ✅.
+- `runs/first-run/README.md`: 56%/45%, 1%/80%, 0%/34%, 0%/100%, declines 66 and 55, graded-cell token_f1 ~0.15 gemma / ~0.24 llama, and the strict 24 → 25 containment lift all reconcile with `summary.json`/`scores.jsonl` ✅. The "17 answers" cause fix is present.
+- `arch-critical.md` / `arch.md` / `lessons-critical.md` / `lessons-learned.md` all carry the Spec-15 contract, the sanctioned-rebaseline exception, and the porch rollback-replay quirk. `apps/viewer/README.md`'s `mode=missing/refused/wrong` matches `FailureMode` (`explorer.ts:12`), the explorer's exact/normalized/token-F1 trio matches `QuestionList.tsx:90-92`, and `served_by` in `panel` is real (`score.py:570`).
+- A repo-wide grep for stale contract phrasing turns up only historical spec/plan/review artifacts, which are correctly left immutable.
+
+## One factual error remaining
+
+`runs/tutorial-2026-10-11/README.md:59-60`, the Talmud parenthetical:
+
+> *(opus-off refuses most of its Talmud cells rather than guessing, which is why its Judaism accuracy is high-but-low-coverage.)*
+
+Against the committed evidence, `opus` (search-off) Judaism is `correct 0 / incorrect 0 / refused 34` — **accuracy `null`, coverage 0.0%**, rendered in `summary.md` as `n/a cov 0%`. So it refuses **all** 34 cells, not "most", and it has no accuracy number at all, let alone a high one. The "high accuracy, low coverage" shape actually describes **opus-search**'s Judaism row (80% @ 29% coverage). As written, a reader could infer opus-off is quietly good at Talmud when it answered zero Talmud cells.
+
+Suggested one-line replacement: *"(opus-off refuses all 34 of its Talmud cells rather than guessing — its Judaism accuracy is `n/a` at 0% coverage; opus-search answers 10 of them at 80% accuracy / 29% coverage.)"*
+
+## Nits (non-blocking)
+
+- `score.py:1-2` docstring lead reads garbled: *"default graders strict + containment test exactness AND containment; the group's open question"* — the trailing clause is a leftover from when the sentence was about the pluggable semantic metric.
+- `CODE_WALKTHROUGH.md` cites `filterQuestions` at `explorer.ts:40`; the definition is line 39 (the test intentionally doesn't pin exact lines, so harmless).
+
+---
+VERDICT: COMMENT
+SUMMARY: Phase-5 doc sync is complete and verified against recomputed run data with a green gate; one factual parenthetical in the tutorial run README misstates opus-off's Judaism accuracy (null/0% coverage, all 34 refused) and should be corrected.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- `runs/tutorial-2026-10-11/README.md:59-60` — "opus-off refuses most of its Talmud cells … its Judaism accuracy is high-but-low-coverage" contradicts the evidence: all 34 refused, accuracy `null`, coverage 0% (`summary.md` shows `n/a cov 0%`); the high-accuracy/low-coverage shape is opus-**search**'s (80% @ 29%).
+- Nit: `score.py:1-2` docstring lead sentence has a dangling "the group's open question" clause from the pre-Spec-15 wording.
+- Nit: `CODE_WALKTHROUGH.md` points `filterQuestions` at `explorer.ts:40`; the definition is line 39.

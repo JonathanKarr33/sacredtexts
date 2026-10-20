@@ -18,6 +18,11 @@ function StatusBadge({ r }: { r: QuestionResult }) {
   if (r.missing) {
     return <span className="rounded bg-warning-100 px-2 py-0.5 text-xs font-medium text-warning-700">missing</span>;
   }
+  // Refused (answered but declined) is distinct from a wrong answer — neutral, not the red "wrong"
+  // badge — because it is excluded from accuracy, not scored as incorrect (Spec 15 decision 2).
+  if (r.refused) {
+    return <span className="rounded bg-default-200 px-2 py-0.5 text-xs font-medium text-default-700">refused</span>;
+  }
   return <span className="rounded bg-danger-100 px-2 py-0.5 text-xs font-medium text-danger-700">wrong</span>;
 }
 

@@ -1,0 +1,101 @@
+I'll start by reading the spec, plan, and review documents, then examine the actual implementation files.Now let me read the plan, review document, and core implementation files.Now let me read the review document, the rebaseline test, and run the test suites.Now let me run both test lanes and examine the viewer changes.Found something important — the branch is 64 commits behind `main`. Let me assess the overlap.Found a significant inconsistency. Let me verify it carefully.The tree changed between my reads — let me check whether the builder is actively rebasing.I have a complete picture. Let me note one last type-fidelity detail before writing up.I did not modify anything in the tree. Note: a merge of `main` is **actively in progress** in this worktree — the tree changed under me mid-review (`score.py`'s panel block went from `api_model` to `tools` between two of my reads), and there are currently unresolved conflicts. My green test runs were against the pre-merge tree.
+
+## Review: PR #24 — Spec 15 scoring contract
+
+### What's strong
+
+**The scoring logic is well-built and genuinely spec-compliant.** I traced the six decisions through the code rather than trusting the PR body:
+
+- **`outcomes.classify_refusal`** is honestly conservative. The two-part rule (decline cue inside `LEADING_WINDOW` normalized chars **AND** reference-not-delivered) is correct, and the `LEADING_WINDOW + 64` slice margin is sound (longest normalized cue ≈ 23 chars, so a cue starting just inside the window is still found). The comment at `outcomes.py:117-121` explaining why the containment half is **not** redundant — under `--evaluator strict` a contained-but-not-normalized answer scores `correct=0`, so only that check stops a decline-prefixed correct retrieval being mislabelled — is exactly the kind of load-bearing reasoning that prevents a future "simplification" from reintroducing a bug.
+- **Denominators are right.** In `_outcome_cell`, `graded = n - refused` and `incorrect = graded - correct`; refused cells can never contribute to `correct` because `_with_outcome` gates refusal on `not metrics["correct"]` for delivered-result tasks and force-zeroes `correct` for `verify_source`. So `correct ≤ graded` holds structurally, not by luck.
+- **`graders.submetrics_for`** fixes the real latent bug the plan identified (spurious `contains_reference: 0.0` under `--evaluator strict`), and the import-time check that an inline grader only owns `_CANONICAL_ORDER` keys is a good fail-fast — it stops the Phase-5 "add an evaluator" recipe from walking a contributor into a silent metric drop plus a `KeyError`.
+- **The phase-1 projection SHA oracle surviving both rebaselines is the strongest integrity artifact in this PR.** Keeping submetrics on refused rows so `(exact, normalized, token_f1)` hashes identically is what makes "the second rebaseline added only `outcome`" a checkable claim rather than an assertion.
+- **Provenance refusal coverage is better than the review doc implies** — `test_score.py:179-187` pins the decline-prefixed-but-delivers negatives for `cite_passage`/`identify_source` and the ungated `verify_source` rule. Good.
+
+Test lanes (pre-merge): 346 passed / 1 skipped (pipelines), 134 passed (viewer).
+
+### Blocker: the `main` integration is unfinished and unverified
+
+The branch is **64 commits behind `main`**, and the aspir-11 collision the spec predicted ("second merger rebases") is real — 15 overlapping files. A merge is in flight right now with three unresolved conflicts:
+
+```
+UU CODE_WALKTHROUGH.md
+UU TUTORIAL.md
+UU apps/viewer/src/local/tutorialRun.test.ts
+```
+
+This isn't just a textual rebase. The semantic collision needs deliberate attention:
+
+1. **`main` replaced `panel[].api_model` with `panel[].tools`** in `score.py` and added a `tools` column to the `summary.md` panel table — and regenerated `runs/tutorial-2026-10-11/summary.{json,md}`, *the same committed evidence this PR rebaselined twice*. Git auto-merges those artifacts without conflict because the sides touched different JSON regions, but **a clean textual merge of a generated JSON artifact is not proof it matches what the merged generator emits.** After resolving, re-verify explicitly that the merged `score.py` reproduces the merged committed `summary.json`/`summary.md` — `test_tutorial_run.py`'s re-score guard and its JSON/MD skew guard (`test_committed_summary_md_panel_table_carries_tools_column`) are the two that will catch it.
+2. **Both test lanes must be re-run post-resolution.** My green results describe the pre-merge tree and carry no weight for the merged one.
+3. **`searchContrast` (`leaderboard.ts:53-84`) is now justified by a stale premise.** Its comment says "The only on/off signal is the `[web_search]`/`[no-tools]` marker on `panel[id].model` (PanelEntry has no api_model)" — post-merge, `panel[].tools` is a structured on/off signal. The marker parse still *works* (markers remain on `model`), so this is not a correctness bug, but the comment is wrong and the structured field is the more robust key. Worth fixing while you're in the file.
+
+### Minor (non-blocking)
+
+- **Latent type inaccuracy:** when a model×task is entirely refused, `_outcome_cell` emits `"exact": null` etc., but the viewer declares `Cell.exact?: number` (not `number | null`). I scanned both committed summaries — no such cell exists today, so this is latent only. Widening those three fields to `number | null` would match `formatMetric`'s existing signature.
+- `summary_markdown`'s ranking sorts on accuracy alone with no coverage tiebreak. That's what the spec asked for and the coverage column is adjacent, so it's defensible — just noting that "opus 100%/cov66% above opus-search 97%/cov76%" is a deliberate, documented consequence.
+
+### Process notes
+
+Commit hygiene is clean: 79 commits, all matching `[Spec 15]` or `chore(porch)`, **zero `Co-Authored-By` trailers**. The review document is unusually honest — it self-reports the two Phase-3/Phase-5 `max_iterations` force-advances, the Phase-3/Phase-4 fixture-ordering deviation, and the 1/21 Ketubot hedge rather than burying them. The 268-cell refused set pinned by per-model count *and* SHA is genuine pre-registration.
+
+Diff size (6,491/1,198 across 99 files) is large but mostly consult artifacts and regenerated evidence; the reviewable source surface is small and focused.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Scoring logic, tests, and evidence integrity are strong and spec-compliant, but the branch is 64 commits behind main with an unresolved in-flight merge whose generated-evidence reconciliation is unverified.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Merge of `main` is in progress and unresolved (`UU` on CODE_WALKTHROUGH.md, TUTORIAL.md, tutorialRun.test.ts); PR is not in a mergeable state.
+- aspir-11 on main replaced `panel[].api_model` with `panel[].tools` in `score.py` and regenerated `runs/tutorial-2026-10-11/summary.{json,md}` — the same evidence this PR rebaselined twice. The textual auto-merge of those generated artifacts must be verified against a fresh re-score, not trusted.
+- Both test lanes must be re-run after conflict resolution; the 346+134 green results are pre-merge only.
+- `searchContrast` (leaderboard.ts:53-84) justifies marker-parsing `panel[].model` with "PanelEntry has no api_model"; post-merge `panel[].tools` is the structured signal. Functional but stale.
+- Minor: all-refused cells emit `null` submetrics, but viewer `Cell.exact?: number` is not nullable (latent — no such cell in committed evidence).
+
+PR_SUMMARY: |
+  ## Summary
+  Revises the `retrieve_quote` scoring contract per the binding maintainer decisions on issue #15, so the headline stops hiding real search-retrieval gains and stops conflating honest refusals with fabrications. Containment becomes the text-retrieval headline, refusal becomes a first-class outcome excluded from accuracy, and graders become named and selectable. Shipped as five implement phases in one PR with two deliberate, oracle-witnessed rebaselines of the committed run evidence.
+
+  ## Key Changes
+  - **Containment headline** for `retrieve_quote`/`complete_unit`: `correct = normalized OR contains_reference`, so a verbatim quote wrapped in a citation counts. Confined to text-retrieval; provenance anti-evasion intact.
+  - **Refusal is an outcome, not a grader**: every answered cell is `correct`/`incorrect`/`refused`. A deterministic matcher (leading decline cue AND reference-not-delivered) short-circuits the headline; refusals are excluded from accuracy.
+  - **Named, selectable graders** (`strict`, `containment`) via `score --evaluator`, with submetric fields derived from the selection (fixing a spurious `contains_reference: 0.0` under `--evaluator strict`). A paid/separate-pass grader (#21) is expressible but never default and not inline-selectable.
+  - **Accuracy reported with coverage** everywhere — `accuracy = correct/(correct+incorrect)`, `coverage = (correct+incorrect)/n` — so a high-accuracy/low-coverage model isn't misread (opus 100%/cov66% vs opus-search 97%/cov76%).
+  - **Viewer**: four outcome categories plus a refused filter, a coverage column of equal weight, and a search-on/off contrast.
+  - **Docs**: an "add an evaluator" recipe plus re-derived pointers in CODE_WALKTHROUGH, TUTORIAL, run READMEs, and governance docs.
+
+  ## Test Plan
+  - `uv --project pipelines run python -m pytest pipelines/tests -q` → 346 passed, 1 pre-existing skip.
+  - `pnpm -C apps/viewer test` → 134 passed.
+  - Integrity: the phase-1 `(exact, normalized, token_f1)` projection SHA oracle is byte-identical across both rebaselines (the second adds only `outcome`); the pre-registered 268-cell refused set is pinned by per-model count and SHA in `test_contains_reference_rebaseline.py`; copyright audit clean.
+  - **Required before merge:** complete the in-flight `main` merge, then re-run both lanes and confirm the merged `score.py` reproduces the merged committed `runs/tutorial-2026-10-11/summary.{json,md}` (re-score guard + JSON/MD panel-skew guard).
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 43 paths changed while this lane was running:
+  - .codev/checks/test.sh
+  - CODE_WALKTHROUGH.md
+  - TUTORIAL.md
+  - apps/viewer/README.md
+  - apps/viewer/src/lib/aggregate.test.ts
+  - apps/viewer/src/lib/aggregate.ts
+  - apps/viewer/src/lib/localResults.ts
+  - apps/viewer/src/lib/recency.test.ts
+  - apps/viewer/src/lib/recency.ts
+  - apps/viewer/src/lib/runIndex.test.ts
+  - apps/viewer/src/lib/runIndex.ts
+  - apps/viewer/src/local/tutorialRun.test.ts
+  - apps/viewer/src/routes/StandingsPage.test.tsx
+  - apps/viewer/src/routes/StandingsPage.tsx
+  - apps/viewer/vite/runsEndpoint.test.ts
+  - apps/viewer/vite/runsEndpoint.ts
+  - codev/plans/11-standings-marked-panel-model-o.md
+  - codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter1-rebuttals.md
+  - codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter2-context.md
+  - codev/projects/11-standings-marked-panel-model-o/11-phase_3-iter2-rebuttals.md
+  … and 23 more
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

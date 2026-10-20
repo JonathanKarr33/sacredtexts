@@ -1,0 +1,61 @@
+I'll verify the plan against the actual codebase before judging it.I read the actual tree (score.py, cli.py, collect.py, both committed runs, the pytest guards, the viewer vitest suites, the test dispatcher) rather than relying on the spec's claims. The plan's core approach is right and its pre-registered deltas are **verified correct** — but it has two landing-blockers and one instruction that would cause a spec violation.
+
+## What I verified as sound
+
+- **The deltas are real.** I recomputed word-bounded normalized containment over both committed `answers.jsonl`: tutorial = **20 flips** (haiku-search 12, opus-search 8, no-tools 0 — so 40%→52%, 66%→74%); first-run = **1 flip** (claude-haiku 24%→25%). Exactly the pre-registered numbers.
+- **The implementation is even smaller than the plan says.** `_bounded_equal(answer, expected)` (`score.py:176`) *already is* word-bounded containment of normalized expected inside normalized answer — despite the name. `contains_reference = int(bool(normalize(target)) and _bounded_equal(answer, target))` is the whole change. Tell the builder to reuse it (and fix its misleading docstring) rather than re-writing the `(?<!\w)…(?!\w)` regex, as the plan's wording implies.
+- **The two-phase, single-rebaseline argument is correct** and the atomicity reasoning holds up.
+- **Phase 2's line anchors resolve** (`_SUBMETRICS` at `score.py:108`, walkthrough §4/§5 as described), and `test_code_walkthrough.py` only checks in-range pointers — the plan's "anchors break" risk is overstated, harmless.
+
+## Blockers
+
+**1. The viewer vitest suites pin the numbers you are about to change — and your test gate won't run them.**
+
+`.codev/checks/test.sh` maps `runs/` → the **pipelines** lane. A commit touching only `pipelines/` + `runs/` runs pytest only; vitest never fires. But these read the committed runs as fixtures and will break on main:
+
+| File | Assertion | After rebaseline |
+|---|---|---|
+| `apps/viewer/src/local/tutorialRun.test.ts:117` | order `["opus","opus-search","haiku","haiku-search"]` | becomes `["opus-search","opus","haiku-search","haiku"]` |
+| `…tutorialRun.test.ts:118-119` | `rows[0]=0.66`, `rows[3]=0.4` | `0.74` / `0.47` |
+| `…tutorialRun.test.ts:148` | `stats.correct === 40` | `52` |
+| `routes/ExplorerPage.test.tsx:152` + the "narrows to the 24 correct answers" test | `24 correct` | `25` |
+| `routes/LeaderboardPage.test.tsx:214` | `"72% (n=25)"` (claude-haiku LDS cell) | `76%` — the single flipped first-run cell is tradition `The Church of Jesus Christ of Latter-Day Saints` |
+
+So there are **nine** affected guards, not four. Phase 1 must enumerate and update these in the same atomic commit (which also makes the dispatcher run vitest). Corollary: the plan's "no viewer change → minimal conflict surface with `aspir-11`" claim is false; flag the viewer test files to the architect for merge coordination.
+
+**2. `first-run` summary.json cannot be regenerated through the CLI — by design.**
+
+`runs/first-run-2026-10-11/answers.jsonl` rows carry **no `panel_fingerprint`** (I checked; `collect.py:46` documents it: "first-run's rows carry a digest but no fingerprint"). So `score --config` raises `ScoreError` on every model id (`cli.py:325-331`), and re-collecting is forbidden. And a keyless `score` drops `panel`/`expected_n`/`missing` entirely — the exact scar in `lessons-critical.md`. Also `configs/models.yaml` is **gitignored**, so neither run's original config exists in-repo.
+
+The plan's mitigation ("regenerate via the guarded `score_file` path; carry panel/usage blocks forward verbatim") is not a procedure. It needs to be spelled out:
+
+- **first-run:** call `score_file()` directly with `panel` reconstructed **from the committed `summary.json`'s own panel block** (prices `None`) and the roster rebuilt from committed `questions.jsonl` × the 4 model ids. Do **not** rebuild it from a YAML config: `cli.py:349` would stamp `claude-haiku-5-5 [no-tools]`, which changes the standings key and **collides with the tutorial's `haiku` row** in cross-run standings (and makes `test_tutorial_run.py:20` `FIRST_RUN_KEY` stale) — the very collision `arch-critical.md` calls a zero-viewer-change property.
+- Note the honest diff: first-run's summary will also gain `api_model` (score.py:429) and `generated_at` (score.py:435), neither of which it has today. The acceptance criterion "only accuracy + `generated_at` differ" is wrong as written.
+- **tutorial:** fingerprints *are* present (`anthropic|claude-haiku-5-5||`), so a reconstructed `models.yaml` works — but say so, and say that the reconstruction is ephemeral (gitignored), so the rebaseline command must be recorded in the review to be reproducible.
+
+**3. `test_score.py:231` must NOT gain `contains_reference`.**
+
+The plan says "update the two whole-`metrics`-dict equality assertions (`:46`, `:231`) to include `contains_reference`." Line 231 is `identify_version` (`assert ok == {"exact":1,"normalized":1,"correct":1}`). It does not break, and following this instruction would push a builder toward adding the key to `identify_version` — directly violating the plan's own "five other branches byte-for-byte unchanged" deliverable and the spec's provenance-untouched criterion. (The spec made this error first; don't inherit it.) Only the `retrieve_quote` dict at ~:44 changes.
+
+## Smaller points
+
+- **Phase 2 misses `runs/first-run-2026-10-11/README.md`.** It carries the stale `24%` and claims "17 answers reproduce the verse correctly but add a citation prefix… a relaxed 'quote-contained' metric is a Spec-2 refinement." I checked those 18 high-F1 misses: only 1 is contained; the rest are genuine translation/paraphrase differences ("prince"→"captain", "your tradition"→"your own tradition"). So the README is wrong on both the number and the cause — correct it, don't just bump the figure. This is also good evidence for the PR gate that containment isn't over-rescuing.
+- **`CODE_WALKTHROUGH.md:300-304`** states the flat rule "Never re-run `generate`/`collect`/`score` over `runs/tutorial-…`/`runs/first-run-…`". Phase 1 does exactly that under sanction. Phase 2 should amend that bullet to describe the sanctioned-exception shape, or the next contributor reads a rule the repo's own history contradicts.
+- **Latin-invariance becomes unprovable after the rebaseline** — the byte-for-byte guard is rebaselined against the new file, so it no longer witnesses "nothing else moved." Make the evidence assertion a real pinned test, not "may live in a test or be shown in the review": assert the flipped set is exactly the 21 known `(model_id, question_id)` pairs, or pin the per-cell `contains_reference`/accuracy values in `summary.json` (e.g. haiku-search `0.52`, haiku `0.47`).
+
+I did not modify anything in the tree; all checks above were reads plus a scratch computation in a heredoc that wrote no files.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Approach and deltas verified correct, but the plan misses five breaking viewer vitest guards its own test dispatcher won't run, hand-waves a first-run summary regeneration that the CLI fail-fasts on, and instructs a test edit that would violate the spec.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- Five viewer guards read the committed runs and break on rebaseline (`tutorialRun.test.ts:117-119,148`, `ExplorerPage.test.tsx:152` + correct-filter test, `LeaderboardPage.test.tsx:214` "72% (n=25)" → 76%); `.codev/checks/test.sh` maps `runs/` to the pipelines lane only, so the builder's gate stays green while main breaks. Nine affected guards, not four.
+- `first-run` answers carry no `panel_fingerprint`, so `score --config` fail-fasts (`cli.py:325-331`) and a keyless score nulls the panel; `configs/models.yaml` is gitignored. The plan needs an explicit procedure: call `score_file()` with the panel taken verbatim from the committed `summary.json` + roster rebuilt from committed `questions.jsonl`.
+- Rebuilding first-run's panel from a YAML config would stamp `[no-tools]`, colliding with the tutorial `haiku` standings key and staling `test_tutorial_run.py:20` — must be explicitly avoided.
+- "Only accuracy + `generated_at` differ" is wrong for first-run: `api_model` and `generated_at` are both newly added keys there.
+- Instruction to add `contains_reference` to `test_score.py:231` is wrong — that is `identify_version` and must stay byte-for-byte unchanged.
+- Phase 2 omits `runs/first-run-2026-10-11/README.md` (stale 24% and a factually wrong "17 understated answers" claim) and the `CODE_WALKTHROUGH.md:300-304` never-re-score rule.
+- Implementation shortcut available: `_bounded_equal()` already is word-bounded containment — reuse it plus an empty-expected guard instead of duplicating the regex.
+- Latin-invariance / "nothing else moved" loses its witness once the guards are rebaselined; pin the 21-cell flip set or the new per-cell values in a real test.
