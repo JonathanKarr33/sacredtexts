@@ -81,15 +81,17 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   Bibles are treated as English-canonical and stay in — #27 Q1.) **Default selection
   (`language == canonical_language` & non-restricted) = 17 texts:** Qur'an + 9 hadith + Talmud Aramaic
   + Book of Mormon + D&C + Pearl of Great Price + KJV + ASV + WEB. Included **but restricted** (local
-  only, `--include-restricted`): NABRE, TLG Greek. Translations added by `--include-translations`:
-  Talmud English, Papal Encyclicals.
+  only, `--include-restricted`): NABRE, TLG Greek. Excluded by the rule (`language != canonical_language`)
+  and reported in the manifest with a reason: Talmud English (en≠he), Papal Encyclicals (en≠la). There
+  is **no** `--include-translations` flag — canonical-language-only, full stop (architect, 2026-10-20).
 
 ## Desired State
 
-- **Default selection is original-language-only.** `generate` with no extra flags emits questions
-  only for texts where `language == canonical_language` (the equality inclusion rule) and not
-  `restricted`. `--include-translations` opts the translations back in; `--include-restricted` keeps
-  its existing meaning (TLG stays local-only, audit gate unchanged).
+- **Selection is canonical-language-only, full stop.** `generate` emits questions only for texts where
+  `language == canonical_language` (the equality inclusion rule) and not `restricted`. There is **no**
+  `--include-translations` flag (dropped as YAGNI, architect 2026-10-20): a text that fails the rule is
+  simply excluded and **reported in the manifest with its reason** (e.g. `language en != canonical la`).
+  `--include-restricted` keeps its existing meaning (TLG/NABRE stay local-only, audit gate unchanged).
 - **One text = one `(work, version, language)` group, 15–30 questions each (default 28 → 7 per
   template),** split as evenly as possible over the active templates. A "text" is the set of
   standardized documents sharing `(work, version, language)` — **not** a single catalogue target (the
@@ -177,8 +179,8 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 - [ ] `generate` with defaults selects exactly the included (`language == canonical_language`),
       non-restricted texts (17, grouped by `(work, version, language)`) and emits N questions per text
       split over the active templates — exactly N/4 per template when N divides evenly (7 each at the
-      default N=28 → 476 questions), else the deterministic `N // len(active)` + remainder allocation;
-      `--include-translations` additionally includes the excluded, non-restricted texts.
+      default N=28 → 476 questions), else the deterministic `N // len(active)` + remainder allocation.
+      There is no `--include-translations`; excluded texts are reported in the manifest with a reason.
 - [ ] Prompts render `<edition>` as a seeded choice from `requested_as` (recorded in
       `question.source.requested_as`), never the raw `version`; `cite_passage` shows the citation form
       by example from a different seeded entry; and **no prompt duplicates the edition name** —
@@ -195,8 +197,8 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
       (`int(verify_template_quota × negatives_share)`, default share 0.5 — at 5 items/text that is 2
       negatives / 3 positives per text, ≈40/60, aggregating deterministically; "50/50" names the share
       parameter, not a guaranteed per-text split — same formula as today).
-- [ ] The manifest records `per_text`, `include_translations`, and the list of selected texts;
-      the question-set digest machinery is unchanged.
+- [ ] The manifest records `per_text`, the list of selected texts, and the **excluded** targets with
+      their reason; the question-set digest machinery is unchanged.
 - [ ] `summary.md`/`summary.json` include a per-text table keyed by model then text (text, n,
       accuracy, coverage, refused — on the Spec 15 outcome contract, which #24 lands before scoring).
 - [ ] A fresh `runs/original-<date>/` is committed with a README; scores re-derive bit-for-bit from
@@ -211,8 +213,9 @@ the original issue-body wording (`ask_as`/`original_language`/`citation_hint`, d
 
 1. **Original languages only, no translations.** A text is in scope only when the edition we hold is
    in the language it was composed in. Inclusion is **derived**: a text is original-language iff
-   `language == canonical_language` (equality). Default selection = included & non-restricted;
-   `--include-translations` opts the rest in.
+   `language == canonical_language` (equality). Selection = included & non-restricted — **full stop**.
+   There is no `--include-translations` flag (dropped as YAGNI, architect 2026-10-20); excluded targets
+   are reported in the manifest with their reason.
 2. **15–30 questions per text, default 28** (→ 7 per template over the four templates), where one text =
    one `(work, version, language)` group — replacing per-tradition balancing. Split evenly over the
    active templates. Fail fast when a text can't fill its quota.
@@ -382,11 +385,13 @@ requirement* is the spec contract.
   counts 7 per template per text at `--per-text 28`.
 - A `--per-text` not divisible by the active-task count (e.g. 18 over four tasks) produces the
   deterministic `N // len(active)`+remainder split; `--per-text` below `len(active)` fails fast.
-- `--include-translations` adds the excluded non-restricted texts; `--tasks retrieve_quote --per-text
-  28` emits 28/text over the single active template.
+- An excluded text (`language != canonical_language`, e.g. Talmud English, encyclicals) is absent from
+  the questions and appears in the manifest's excluded list with its reason; `--tasks retrieve_quote
+  --per-text 28` emits 28/text over the single active template.
 - `--include-restricted` behaviour unchanged; TLG only appears with it and stays local-only.
 - A text that cannot fill its per-template share fails fast, naming the text and template.
-- Manifest records `per_text`, `include_translations`, and the selected-texts list; digest unchanged.
+- Manifest records `per_text`, the selected-texts list, and the excluded targets with reason; digest
+  unchanged.
 
 **Prompt rendering**
 - Each template's rendered prompt renders `<edition>` as a seeded `requested_as` choice (never the raw

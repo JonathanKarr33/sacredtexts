@@ -75,13 +75,15 @@ fails loading with the file and target named.
     `requested_as` with a dedicated **non-empty list-of-non-empty-strings** validator (the string loop
     does not cover a list);
   - add both fields to the `Target` dataclass and the `Target(...)` constructor;
-  - **the metadata channel is a `(work, version, language)`-keyed map, not a path filter.** `license`
-    reaches generation only as a *path filter* (`filter_standardized_paths` → `load_documents` discards
-    the path→doc association), and `_build` sees only a `Document` (no catalogue facts). So add a
-    fail-closed `text_metadata(sources) -> dict[(work, version, language), TextMeta]`
-    (`TextMeta = {requested_as, canonical_language}`) keyed on the tuple converters stamp onto
-    `doc.work/version/language` and that Phase 2 groups "texts" on; a doc whose tuple is absent raises
-    `CatalogueError`. The slug-agreement check extends to both fields.
+  - **the metadata channel is PATH-based, mirroring `license`** (revised per Phase-1 consult): a name
+    cannot travel on a `Document`, and some converters (`encyclicals`) re-stamp `work`/`version` per
+    document, so a `(work, version, language)`-keyed lookup can't resolve them. Add
+    `metadata_for_standardized_path(path, sources) -> TextMeta | None` (`TextMeta = {requested_as,
+    canonical_language}`), the deepest-containing-target resolver like `license_for_standardized_path`;
+    generation fail-closes on `None`. Also add `text_metadata(sources) -> dict[(work, version, language),
+    TextMeta]` as a **conflict-detecting** nominal view (raises on a cross-source duplicate tuple that
+    disagrees — the per-file slug-agreement check can't catch that). The slug-agreement check extends to
+    both fields and names the field(s) that differ.
   - update the module docstring + annotated example YAML.
 - `texts/raw/*/source.yaml` (6 files) — add `requested_as` + `canonical_language` to every target with
   the #27 starting values; **delete the two `KJV (LDS 2013 edition)` targets** from the LDS file.
@@ -128,14 +130,17 @@ quota over exactly four templates, and natural-language prompts using a seeded `
 - `pipelines/sacredbench/generate.py`:
   - `TASKS` → the four kept names (retire `identify_version`, `identify_source` from `TASKS` and
     `_build`); delete `_balanced_sample` and the per-task `quotas`/`per_task` machinery.
-  - group standardized docs into **texts by `(work, version, language)`**; take the Phase-1
-    `text_metadata` map as a `generate()` parameter and look up each text's metadata by that tuple.
-  - **selection predicate (flag matrix):** a text is selected iff
-    `(included_by_language OR include_translations) AND (not restricted OR include_restricted)`, where
-    `included_by_language` ⇔ `language == canonical_language` (equality, the #26 inclusion rule).
-    Consequences to test as a matrix: original+non-restricted → default; original+restricted (TLG) →
-    needs `--include-restricted` only; translation+non-restricted → needs `--include-translations`;
-    translation+restricted (NABRE) → needs **both** flags.
+  - group standardized docs into **texts by `(work, version, language)`**; resolve each document's
+    metadata by **path** via the Phase-1 `metadata_for_standardized_path` (robust to converters like
+    `encyclicals` that re-stamp `work`/`version`; fail-closed on an unmapped path). A `(work, version,
+    language)` group's metadata is the shared resolution of its documents.
+  - **selection predicate — canonical-language-only, no `--include-translations`** (dropped as YAGNI,
+    architect 2026-10-20): a text is selected iff
+    `(language == canonical_language) AND (not restricted OR include_restricted)`. A text that fails the
+    equality rule (Talmud English, encyclicals) is **excluded and recorded in the manifest with its
+    reason** — never pulled in by a flag. Combinations to test: included+non-restricted → in;
+    included+restricted (TLG, NABRE) → needs `--include-restricted`; excluded (`language !=
+    canonical_language`) → out with a manifest reason regardless of the restricted flag.
   - `--per-text N` (**default 28** → 7 per template over the four tasks) split over the **active** task
     set (the four, or the `--tasks` subset): `N // len(active)` per task plus one extra to the first
     `N % len(active)` in canonical order (`retrieve_quote`, `complete_unit`, `cite_passage`,
@@ -165,28 +170,34 @@ quota over exactly four templates, and natural-language prompts using a seeded `
     variant-wording narrations that defeat exact-text exclusion and yield wrong "no" truth). Fail-fast
     if a text cannot source enough cross-family negatives. Keep the existing deterministic negative
     share (`int(verify_template_quota × negatives_share)`).
-  - fail fast (naming text+template) when a template's share can't be filled; manifest records
-    `per_text`, `include_translations`, and the selected-texts list.
-- `pipelines/sacredbench/cli.py` — `generate`: drop `--per-task` / `--quota`; add `--per-text` /
-  `--include-translations`; keep `--tasks` / `--negatives-share`.
+  - fail fast (naming text+template) when an in-pool template's share can't be filled; manifest records
+    `per_text`, the selected-texts list, and the **excluded** targets with their reason.
+- `pipelines/sacredbench/cli.py` — `generate`: drop `--per-task` / `--quota`; add `--per-text`; keep
+  `--tasks` / `--negatives-share` / `--include-restricted`. **No `--include-translations`.**
 - `CODE_WALKTHROUGH.md` — **in this same commit**, update the pointer-guard entries coupled to the
   symbols this phase deletes/changes (`test_code_walkthrough.py` requires `def _balanced_sample(` and
   the `TASKS = (` shape in `_REQUIRED_SYMBOLS`) so the pointer-guard test stays green from this commit
   on. Recipe prose polish not coupled to a deleted symbol stays in Phase 5.
-- `pipelines/tests/test_first_run_regression.py` — **named decision:** this guard calls
-  `run_generate(docs, per_task=…, quotas=…)` and re-asserts the committed first-run question-set digest;
-  the signature is removed and the 100-question `retrieve_quote`-only set is **not expressible** under
-  `--per-text` (no N yields 100 over 3 texts). Retire the **generation-invariance** half (regenerate →
-  same digest) with rationale (the generator's interface changed by design); **keep the re-score half**
-  (score committed answers → committed scores, byte-for-byte — unaffected, `retrieve_quote`-only). A new
-  generation-invariance anchor is re-established on the fresh Phase-6 run (digest-pinned there).
+- `pipelines/tests/test_first_run_regression.py` — **named decision:** the generation-invariance guard
+  (`test_first_run_question_set_digest_regenerates`) is already broken by **Phase 1**, not just this
+  phase: removing the two `KJV (LDS 2013 edition)` targets orphaned
+  `texts/standardized/.../the-bible-kjv-lds-2013-edition-en/`, which is in the committed first-run
+  manifest's `inputs`, so `filter_standardized_paths` now raises fail-closed on regenerate (green only
+  because `texts/standardized/` is absent in this worktree — it bites at Phase 6 when the corpus is
+  rebuilt). This phase also removes `per_task`/`quotas` from `generate()`, and the 100-question
+  `retrieve_quote`-only set is **not expressible** under `--per-text`. Retire the
+  **generation-invariance** half with that two-part rationale (Phase-1 target removal **and** the
+  generator-interface change); **keep the re-score half** (score committed answers → committed scores,
+  byte-for-byte — unaffected, `retrieve_quote`-only). A new generation-invariance anchor is
+  re-established on the fresh Phase-6 run (digest-pinned there).
 - `pipelines/tests/test_generate.py` — rewrite retired-task + quota/balancing tests; add the new ones.
 
 #### Deliverables
 
 - [ ] Default selection = the 17 included (`language == canonical_language`), non-restricted texts
       (grouped by tuple); 7/template at `--per-text 28` over the four tasks.
-- [ ] Flag matrix holds (TLG needs `--include-restricted`; NABRE needs both flags).
+- [ ] Excluded texts (`language != canonical_language`) are out and recorded in the manifest with a
+      reason; restricted texts (TLG, NABRE) need `--include-restricted`; no `--include-translations`.
 - [ ] `--per-text` split over the active task set; `--per-text >= len(active)` fail-fast; deterministic
       remainder.
 - [ ] Prompts use a **seeded** `requested_as` name recorded in `question.source.requested_as` (never the
@@ -212,7 +223,9 @@ quota over exactly four templates, and natural-language prompts using a seeded `
 
 #### Test Plan
 
-Unit: selection flag matrix (4 combinations); grouping by tuple; per-text split over 1/2/4-task
+Unit: selection by the equality rule (included vs excluded-with-manifest-reason; restricted gated by
+`--include-restricted`; no `--include-translations`); metadata resolved by path (incl. an
+encyclical-style doc whose work != target work); grouping by tuple; per-text split over 1/2/4-task
 subsets incl. non-multiple and fail-fast floor; seeded `requested_as` choice is deterministic and
 recorded in `source.requested_as`; `display_citation` no-duplication (work-prefixed vs bare fixture);
 `cite_passage` exemplar drawn from a different same-text entry (and fail-fast when <2 entries);
