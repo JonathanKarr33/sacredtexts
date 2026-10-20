@@ -91,3 +91,17 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   ben-crowder.json) are still committed but now orphaned (no target). Left in place; asked whether
   to delete.
 - Next: Phase 2 (generation reshape). Will run /compact-style context awareness; porch next.
+
+### Phase 1 per-phase consult + re-iter (2026-10-20)
+- codex + claude both REQUEST_CHANGES, converged: (1) (w,v,l)-keyed metadata channel can't
+  resolve encyclicals (convert_encyclicals re-stamps work=title) — breaks even DEFAULT run
+  (equality rule reads canonical_language before excluding); (2) text_metadata() silent
+  last-wins cross-source. claude: first-run gen-invariance test already broken by Phase-1
+  LDS-KJV removal; Talmud en/he identical requested_as; slug msg names all 3 fields.
+- FIX: metadata_for_standardized_path (path-based, mirrors license; handles re-stamp);
+  text_metadata() now conflict-detecting view; slug msg narrowed. Tests added. 336 passed.
+- ARCHITECT decision: DROP --include-translations entirely (YAGNI). Selection =
+  language==canonical_language (+ --include-restricted gate); excluded → manifest w/ reason.
+  Moots encyclicals-201-texts + Talmud en/he. Spec/plan updated (flag removed; manifest
+  excluded-with-reason; path-based channel; first-run retirement rationale corrected).
+- Rebuttal written. porch done re-iter next.
