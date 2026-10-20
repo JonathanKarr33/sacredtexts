@@ -25,10 +25,13 @@ record cannot describe that, so each tradition directory carries one committed
 
 ``requested_as`` is the non-empty list of names a person would use for this edition; ``generate``
 renders ``<edition>`` as a seeded uniform choice from it. ``canonical_language`` is the language the
-text was composed in; a text is in the default (original-language) question pool only when
-``language == canonical_language``. Both are catalogue facts, not ``Document`` facts, and reach
-``generate`` through ``text_metadata`` (a ``(work, version, language)``-keyed map), since a
-standardized ``Document`` carries neither.
+text was composed in; a text is in the question pool only when ``language == canonical_language``.
+Both are catalogue facts, not ``Document`` facts, and reach ``generate`` through
+``metadata_for_standardized_path`` — recovered from the document's path like ``license``, since a
+standardized ``Document`` carries neither and some converters (``encyclicals``) re-stamp
+``work``/``version`` per document, so a ``(work, version, language)`` key cannot resolve them.
+``text_metadata`` is a separate, *nominal* catalogue-wide view (keyed on each target's own tuple) that
+exists to fail-fast on a cross-source metadata conflict — not the per-document resolution channel.
 
 ``license`` is the three-value gate. ``restricted`` targets (copyrighted
 translations whose payloads are git-ignored and local-only) are excluded from
@@ -38,8 +41,9 @@ is unaffected by license.
 **Standardized-path convention.** A target's converted output lives under
 ``texts/standardized/<source-id>/<target-slug>/`` mirroring
 ``texts/raw/<source-id>``. That lets ``generate`` recover a standardized
-document's license from its path alone — the interchange ``Document`` format
-stays unchanged (it carries no ``license``).
+document's ``license`` *and* its text metadata (``requested_as`` /
+``canonical_language``) from its path alone — the interchange ``Document`` format
+stays unchanged (it carries neither).
 
 Loading is fail-fast: a malformed target or unknown ``license`` raises
 ``CatalogueError`` naming the file and the offending target.
@@ -249,7 +253,7 @@ def load_source(yaml_path: Path, raw_root: Path = RAW_ROOT) -> Source:
                 tradition=tuple(tradition),
                 license=license_,
                 provenance=provenance,
-                requested_as=tuple(requested_as),
+                requested_as=tuple(name.strip() for name in requested_as),
                 canonical_language=t["canonical_language"],
                 license_detail=detail,
             )

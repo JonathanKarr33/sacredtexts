@@ -522,8 +522,9 @@ def test_slug_agreement_covers_canonical_language(tmp_path):
 
 def test_real_catalogue_default_pool_is_seventeen():
     """The committed corpus: 21 targets, default pool (language == canonical_language,
-    non-restricted) is 17 texts; every target carries both new fields; the two
-    LDS KJV targets are gone (issue #27 Q3)."""
+    non-restricted) is exactly these 17 texts; every target carries both new fields; the two
+    LDS KJV targets are gone (issue #27 Q3). Pins membership, not just the count, so a
+    canonical_language typo that silently drops/adds a text fails loudly."""
     sources = cat.discover_catalogue(REPO_ROOT / "texts" / "raw")
     targets = cat.all_targets(sources)
     assert len(targets) == 21
@@ -532,8 +533,28 @@ def test_real_catalogue_default_pool_is_seventeen():
         assert isinstance(t.canonical_language, str) and t.canonical_language
     # no LDS KJV targets remain
     assert not [t for t in targets if t.version == "KJV (LDS 2013 edition)"]
-    pool = [t for t in targets if t.language == t.canonical_language and t.license != "restricted"]
-    assert len(pool) == 17
+    # cross-source conflict guard is live on the real catalogue
+    cat.text_metadata(sources)
+    pool = {t.text_key for t in targets if t.language == t.canonical_language and t.license != "restricted"}
+    assert pool == {
+        ("The Qur'an", "Uthmani (QUL)", "ar"),
+        ("Sahih al-Bukhari", "sunnah.com Arabic", "ar"),
+        ("Sahih Muslim", "sunnah.com Arabic", "ar"),
+        ("Sunan Abi Dawud", "sunnah.com Arabic", "ar"),
+        ("Jami` at-Tirmidhi", "sunnah.com Arabic", "ar"),
+        ("Sunan an-Nasa'i", "sunnah.com Arabic", "ar"),
+        ("Sunan Ibn Majah", "sunnah.com Arabic", "ar"),
+        ("Muwatta Malik", "sunnah.com Arabic", "ar"),
+        ("Musnad Ahmad", "sunnah.com Arabic", "ar"),
+        ("Sunan al-Darimi", "sunnah.com Arabic", "ar"),
+        ("Talmud Bavli", "William Davidson Edition - Aramaic", "he"),
+        ("Book of Mormon", "2013 edition", "en"),
+        ("Doctrine and Covenants", "2013 edition", "en"),
+        ("Pearl of Great Price", "2013 edition", "en"),
+        ("The Bible", "KJV", "en"),
+        ("The Bible", "ASV (1901)", "en"),
+        ("The Bible", "WEB", "en"),
+    }
 
 
 # --- gitignore reachability (regression guard for the real repo) -------------

@@ -63,9 +63,9 @@ targets across 6 files). Starting values for every target are the table on **iss
 #### Objective
 
 Make `requested_as` and `canonical_language` validated, fail-fast parts of the catalogue contract and
-available to generation through a `(work, version, language)`-keyed map, so every later phase can rely
-on them. Delivers: every committed `source.yaml` carries both fields; a missing or ill-typed field
-fails loading with the file and target named.
+available to generation by **path** (like `license`), so every later phase can rely on them. Delivers:
+every committed `source.yaml` carries both fields; a missing or ill-typed field fails loading with the
+file and target named.
 
 #### Files to Create / Modify
 
@@ -93,27 +93,31 @@ fails loading with the file and target named.
 
 - [ ] Both fields required + validated (`canonical_language` non-empty str via `_TARGET_STR_FIELDS`;
       `requested_as` via a non-empty-list-of-strings validator); `Target` exposes them.
-- [ ] `text_metadata()` returns a `(work, version, language)`-keyed map, fail-closed on an unmapped
-      tuple; slug-agreement covers both fields.
+- [ ] `metadata_for_standardized_path()` resolves a document's `TextMeta` by path (returns `None` for
+      an unmapped path; generation fail-closes on `None`); `text_metadata()` is a nominal view that
+      raises on a cross-source conflicting tuple; slug-agreement covers both fields.
 - [ ] All 21 targets in the 6 `source.yaml` files carry both fields (from #27); the two LDS KJV targets
       are removed.
-- [ ] Docstring + example YAML document the two fields.
+- [ ] Docstring + example YAML document the two fields and that both travel by path.
 - [ ] Tests for this phase.
 
 #### Acceptance Criteria
 
 - [ ] Loading a target missing either field fails, naming file + `targets[i]`; a non-list `requested_as`,
       an empty list, or an empty `canonical_language` is rejected.
-- [ ] A slug shared by two targets that disagree on a field fails (slug-agreement).
-- [ ] `text_metadata()` raises `CatalogueError` for a `(work, version, language)` not in the catalogue.
+- [ ] A slug shared by two targets that disagree on a field fails (slug-agreement, naming the field).
+- [ ] `metadata_for_standardized_path()` resolves a re-stamped document (work != target work) by path and
+      returns `None` for a stray path; `text_metadata()` raises on a cross-source conflicting tuple.
+- [ ] The real-catalogue test pins the exact 17-member default pool (membership, not just count).
 - [ ] Pipeline suite green; the real `source.yaml` trackable/payload-ignored test still passes.
 
 #### Test Plan
 
 Unit: field-presence fail-fast (both), `requested_as` non-list / empty-list / empty-element rejection,
-`canonical_language` empty rejection, slug-agreement on a disagreeing fixture, `text_metadata()`
-fail-closed on an unmapped tuple and correct keying on a shared-tuple fixture. Regression: existing
-catalogue tests stay green. Manual: the catalogue gate loads all real sources.
+`canonical_language` empty rejection, slug-agreement on a disagreeing fixture (narrowed message),
+`metadata_for_standardized_path` resolving an encyclical-style doc (work != target work) by path and
+`None` for a stray, `text_metadata` cross-source conflict. Regression: existing catalogue tests stay
+green. Manual: the catalogue gate loads all real sources.
 
 ### Phase 2: Original-language selection, per-text quota, four-template generation
 
@@ -133,7 +137,9 @@ quota over exactly four templates, and natural-language prompts using a seeded `
   - group standardized docs into **texts by `(work, version, language)`**; resolve each document's
     metadata by **path** via the Phase-1 `metadata_for_standardized_path` (robust to converters like
     `encyclicals` that re-stamp `work`/`version`; fail-closed on an unmapped path). A `(work, version,
-    language)` group's metadata is the shared resolution of its documents.
+    language)` group's metadata is the shared resolution of its documents. **Call `text_metadata(sources)`
+    once at the start** (its only production caller) so the cross-source conflict guard actually fires on
+    the real catalogue — and assert each tuple-group's path-resolved metadata agrees.
   - **selection predicate — canonical-language-only, no `--include-translations`** (dropped as YAGNI,
     architect 2026-10-20): a text is selected iff
     `(language == canonical_language) AND (not restricted OR include_restricted)`. A text that fails the
