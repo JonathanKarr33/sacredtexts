@@ -20,7 +20,7 @@ path works (lessons-critical: "tests pass" ≠ "it works").
    on the **already-merged** Spec 15 outcomes contract (`origin/main` merged before Phase 1).
 4. **Viewer** drops the two retired tasks (a separate app with its own vitest suite).
 5. **Docs** polish (symbol-coupled doc edits already rode with the code in Phases 2–3).
-6. **Live run + evidence** generates the default original-language set (392 questions), smokes, runs the
+6. **Live run + evidence** generates the default original-language set (476 questions), smokes, runs the
    panel after an explicit budget sign-off, and commits a fresh `runs/original-<date>/` whose scores
    re-derive bit-for-bit.
 
@@ -184,7 +184,7 @@ quota over exactly four templates, and natural-language prompts using a seeded `
 
 #### Deliverables
 
-- [ ] Default selection = the 14 included (`language == canonical_language`), non-restricted texts
+- [ ] Default selection = the 17 included (`language == canonical_language`), non-restricted texts
       (grouped by tuple); 7/template at `--per-text 28` over the four tasks.
 - [ ] Flag matrix holds (TLG needs `--include-restricted`; NABRE needs both flags).
 - [ ] `--per-text` split over the active task set; `--per-text >= len(active)` fail-fast; deterministic
@@ -374,11 +374,11 @@ Prove the whole path end to end on a real panel and commit the evidence.
 
 #### Deliverables
 
-- [ ] Generate defaults (**14 texts × 28 = 392 questions**).
+- [ ] Generate defaults (**17 texts × 28 = 476 questions**).
 - [ ] **Cheap live smoke first** (e.g. `--per-text` small, one task, haiku-only) to catch live-only
       failures before the full panel (lessons-critical: keep a budgeted live smoke in the loop).
-- [ ] **Budget note + explicit architect sign-off gate before the full panel:** 392 questions × 4 panel
-      arms (haiku + opus, each search on/off, two opus arms use `web_search`) ≈ **1,568 live cells** —
+- [ ] **Budget note + explicit architect sign-off gate before the full panel:** 476 questions × 4 panel
+      arms (haiku + opus, each search on/off, two opus arms use `web_search`) ≈ **1,904 live cells** —
       post the estimate and wait for the architect's go before collecting the full panel (outward-facing,
       costly action).
 - [ ] Run the tutorial panel from `configs/models.example.yaml`; keys loaded only from
@@ -410,7 +410,7 @@ only to the fresh run directory.
 | cite_passage Arabic-Indic digit scoring gap (25% of the benchmark) | Medium | High | Template 3's **by-example** citation form steers the model to the scored shape (replacing `citation_hint`); evaluate folding Arabic-Indic digits in Phase 3 (`\d` matches `٧` but NFKD doesn't fold it, and `_NUM_CITE`'s `[A-Za-z]` prefix fails on Arabic); verify in the Phase 6 run; test scenario carried from the spec. |
 | verify_source negatives: variant-wording narrations shared across the 9 hadith collections → wrong "no" | Medium | Medium | Family exclusion by `document_type` (never pair two hadith collections) — a real mitigation, since cross-*work* alone is a no-op (the 9 are distinct works); fail-fast on insufficient cross-family pool. |
 | `ANTHROPIC_API_KEY` absent → live run blocked | Medium | Medium | Deliver Phases 1–5; stop at Phase 6 live step, report to architect; do not substitute OpenRouter. |
-| Full panel cost (~1,568 cells) run without sign-off | Low | High | Phase 6 runs a cheap smoke, posts the budget estimate, and waits for explicit architect sign-off before the full panel. |
+| Full panel cost (~1,904 cells) run without sign-off | Low | High | Phase 6 runs a cheap smoke, posts the budget estimate, and waits for explicit architect sign-off before the full panel. |
 | Re-running score/collect over committed evidence nulls the proof | Low | High | Phase 6 writes only to the fresh `runs/original-<date>/`; any deliberate contract-driven move is a sanctioned rebaseline, surfaced first. |
 
 ## Documentation Updates

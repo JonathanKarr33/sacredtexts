@@ -72,16 +72,17 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   | LDS | Book of Mormon | 2013 | en | en | open | **yes** |
   | LDS | Doctrine and Covenants | 2013 | en | en | open | **yes** |
   | LDS | Pearl of Great Price | 2013 | en | en | open | **yes** |
-  | Protestant | The Bible | KJV / ASV (1901) / WEB (3) | en | (he/grc) | public-domain | no (×3) |
+  | Protestant | The Bible | KJV / ASV (1901) / WEB (3) | en | en | public-domain | **yes** (×3) |
   | Roman Catholic | Papal Encyclicals | Vatican English | en | la | open | no (composed in Latin) |
-  | Roman Catholic | The Bible | NABRE | en | (he/grc) | restricted | no |
-  | Greek Orthodox | Septuagint & Greek NT | TLG | grc | grc | restricted | **yes** |
+  | Roman Catholic | The Bible | NABRE | en | en | restricted | no (restricted) |
+  | Greek Orthodox | Septuagint & Greek NT | TLG | grc | grc | restricted | **yes** (restricted) |
 
-  (`canonical_language` exact values come from the #27 table; the Bible translations' source languages
-  are shown indicatively.) **Default selection (`language == canonical_language` & non-restricted) = 14
-  texts:** Qur'an + 9 hadith + Talmud Aramaic + Book of Mormon + D&C + Pearl of Great Price.
-  Included **but restricted**: TLG Greek (local-only, `--include-restricted`). Translations added by
-  `--include-translations`: Talmud English, KJV/ASV/WEB, Papal Encyclicals (NABRE stays restricted).
+  (`canonical_language` values are the #27 table verbatim; per the architect's decision the English
+  Bibles are treated as English-canonical and stay in — #27 Q1.) **Default selection
+  (`language == canonical_language` & non-restricted) = 17 texts:** Qur'an + 9 hadith + Talmud Aramaic
+  + Book of Mormon + D&C + Pearl of Great Price + KJV + ASV + WEB. Included **but restricted** (local
+  only, `--include-restricted`): NABRE, TLG Greek. Translations added by `--include-translations`:
+  Talmud English, Papal Encyclicals.
 
 ## Desired State
 
@@ -123,7 +124,7 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 
   **No duplicated edition name.** Stored citations for the nine hadith collections
   (`convert.py` → `"Sahih al-Bukhari 1"`) and Doctrine and Covenants (`"Doctrine and Covenants 1:1"`)
-  are work-prefixed — 10 of the 14 in-scope texts. `retrieve_quote` therefore renders a
+  are work-prefixed — 10 of the 17 in-scope texts. `retrieve_quote` therefore renders a
   **`display_citation`**: the stored `citation` with a leading `work`/edition-name prefix stripped, so
   the edition name appears exactly once (*"What is the text of Sahih al-Bukhari 1?"*, not *"…Sahih
   al-Bukhari Sahih al-Bukhari 1?"*). The stored `citation` and all scored ground truth are unchanged;
@@ -134,7 +135,7 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   (`apps/viewer` has task-specific handling at `localResults.ts`, `explorer.test.ts`,
   `QuestionList.test.tsx`) and docs.
 
-- **Prompt and answer language.** The four prompt templates are in **English**; 11 of the 14 in-scope
+- **Prompt and answer language.** The four prompt templates are in **English**; 11 of the 17 in-scope
   texts are Arabic/Hebrew, so for templates 1–2 the *answer* is expected in the source script (Arabic
   for Qur'an/hadith, Aramaic for Talmud), scored by the script-aware `normalize()`. For `cite_passage`,
   the by-example exemplar steers the model to answer the citation in the Latin-script/colon shape the
@@ -159,7 +160,7 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
 - **Summary gains a per-text table** (text, n, accuracy, coverage, refused), **keyed by model then
   text** — mirroring the existing `by_tradition` structure (`summary.json` → `by_text[model_id][text]`,
   markdown rendered per model), since the committed run is a multi-model panel and pooling across
-  models would be meaningless. Per-tradition balance no longer holds (9 of 14 committable texts are
+  models would be meaningless. Per-tradition balance no longer holds (9 of 17 committable texts are
   hadith collections). `coverage` = `(correct + incorrect) / n` and `refused` are Spec 15 outcomes,
   which Spec 26 builds on as its base (architect-confirmed #24 merges before scoring; see dependency).
 - **A fresh committed run** demonstrates the new question set end to end, with a README, scores
@@ -174,9 +175,9 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
       target; a missing or ill-typed one fails `catalogue` loading with the file and target index named;
       the two `KJV (LDS 2013 edition)` targets are removed (21 targets total).
 - [ ] `generate` with defaults selects exactly the included (`language == canonical_language`),
-      non-restricted texts (14, grouped by `(work, version, language)`) and emits N questions per text
+      non-restricted texts (17, grouped by `(work, version, language)`) and emits N questions per text
       split over the active templates — exactly N/4 per template when N divides evenly (7 each at the
-      default N=28 → 392 questions), else the deterministic `N // len(active)` + remainder allocation;
+      default N=28 → 476 questions), else the deterministic `N // len(active)` + remainder allocation;
       `--include-translations` additionally includes the excluded, non-restricted texts.
 - [ ] Prompts render `<edition>` as a seeded choice from `requested_as` (recorded in
       `question.source.requested_as`), never the raw `version`; `cite_passage` shows the citation form
@@ -280,7 +281,7 @@ the original issue-body wording (`ask_as`/`original_language`/`citation_hint`, d
   `--tasks` subsets the four templates and the per-text split then applies over the selected subset at
   `N // len(active)` (so `--tasks retrieve_quote --per-text 28` = 28/text). `--negatives-share` keeps
   its default 0.5 and governs the `verify_source` yes/no mix via the existing deterministic formula.
-- The 14 included original-language texts each hold enough qualifying passages to fill 28 questions
+- The 17 included original-language texts each hold enough qualifying passages to fill 28 questions
   across the four templates (and ≥2 entries per text for `cite_passage`'s target+exemplar). If a text
   cannot, generation fails fast and the architect decides (lower the default, or exclude that text).
 - `complete_unit` and `verify_source` keep their existing pool-gating semantics (minimum word counts,
@@ -324,7 +325,7 @@ marks the sentence boundary.
 
 ### Citation composition: avoiding a duplicated edition name
 
-`retrieve_quote` renders `{edition} {citation}`, but 10 of 14 in-scope texts store work-prefixed
+`retrieve_quote` renders `{edition} {citation}`, but 10 of 17 in-scope texts store work-prefixed
 citations (hadith `"Sahih al-Bukhari 1"`, D&C `"Doctrine and Covenants 1:1"`), which would read
 *"…Sahih al-Bukhari Sahih al-Bukhari 1?"*. **Approach A (recommended):** derive a `display_citation`
 by stripping a leading `work`/edition-name prefix from the stored citation at render time; stored
@@ -376,7 +377,7 @@ requirement* is the spec contract.
   slug but disagree on a field.
 
 **Selection & quota**
-- Default generate over the full catalogue selects exactly the 14 included
+- Default generate over the full catalogue selects exactly the 17 included
   (`language == canonical_language`), non-restricted texts (grouped by `(work, version, language)`);
   counts 7 per template per text at `--per-text 28`.
 - A `--per-text` not divisible by the active-task count (e.g. 18 over four tasks) produces the
@@ -418,7 +419,7 @@ requirement* is the spec contract.
   asserted per the resolution chosen in Open Questions (example-steer accepted, or digit folding added).
 
 **End-to-end / evidence**
-- A fresh `runs/original-<date>/` generates 392 questions, runs the tutorial panel, scores, and the
+- A fresh `runs/original-<date>/` generates 476 questions, runs the tutorial panel, scores, and the
   scores re-derive bit-for-bit from the committed answers.
 - Copyright audit gate green on the committed run (no restricted-derived artifact).
 - Viewer renders the new run (per-text table present in summary).
@@ -428,7 +429,7 @@ requirement* is the spec contract.
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | Spec 15 base / #24 (MERGED @ 1324755) | Low | Medium | `origin/main` merged before Phase 1; scoring builds on the named-grader + refused-outcome contract directly. No fallback. |
-| `retrieve_quote` duplicates the edition name for 10/14 texts (work-prefixed citations) | High (if unaddressed) | High | `display_citation` strips the leading work/edition-name prefix at render; test the no-duplication contract for a hadith and a bare-citation text. |
+| `retrieve_quote` duplicates the edition name for 10/17 texts (work-prefixed citations) | High (if unaddressed) | High | `display_citation` strips the leading work/edition-name prefix at render; test the no-duplication contract for a hadith and a bare-citation text. |
 | `cite_passage` ground truth is majority-Arabic but the scorer expects Latin-script/colon and doesn't fold Arabic-Indic digits — 25% of the benchmark mis-scores | Medium | High | Template 3's by-example exemplar steers answers to the Latin/colon shape; consider folding Arabic-Indic digits in `normalize()`/extractor; verify in the live/smoke run; test scenario. |
 | verify_source negatives: variant-wording narrations shared across 9 hadith collections yield a wrong "no" ground truth (exact-match exclusion misses them) | Medium | Medium | Family exclusion by `document_type` (never pair two hadith collections) — cross-*work* alone is a no-op since the 9 are distinct works; fail-fast on insufficient cross-family pool; #23 hardening protects gaming, not wrong truth. |
 | A committable text can't fill 28 questions for some template (or <2 entries for `cite_passage`) | Medium | Medium | Fail fast naming text+template; architect decides default or exclusion. Surface via `afx send`. |
