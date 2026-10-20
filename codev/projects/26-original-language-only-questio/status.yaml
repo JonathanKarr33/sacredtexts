@@ -1,16 +1,34 @@
 id: '26'
 title: original-language-only-questio
 protocol: aspir
-phase: plan
-plan_phases: []
-current_plan_phase: null
+phase: implement
+plan_phases:
+  - id: phase_1
+    title: 'Catalogue metadata: requested_as / canonical_language'
+    status: in_progress
+  - id: phase_2
+    title: Original-language selection, per-text quota, four-template generation
+    status: pending
+  - id: phase_3
+    title: 'Scoring: leading-stance yes/no (#23), retire tasks, per-text summary'
+    status: pending
+  - id: phase_4
+    title: 'Viewer: retire identify_version / identify_source'
+    status: pending
+  - id: phase_5
+    title: 'Docs: tutorial, walkthrough, README, arch-critical'
+    status: pending
+  - id: phase_6
+    title: Live run and committed original-language evidence
+    status: pending
+current_plan_phase: phase_1
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
 iteration: 1
-build_complete: true
+build_complete: false
 history: []
 started_at: '2026-10-20T22:41:46.537Z'
-updated_at: '2026-10-20T23:06:53.157Z'
+updated_at: '2026-10-20T23:26:20.698Z'
