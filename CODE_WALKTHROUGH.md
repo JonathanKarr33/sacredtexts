@@ -95,6 +95,12 @@ fields:
 - `license` — **the field that gates everything**: one of `public-domain`, `open`, or
   `restricted` (`LICENSES`, `pipelines/sacredbench/catalogue.py:46`). The optional
   `license_detail` keeps the real upstream licence string verbatim.
+- `requested_as` — a non-empty list of the names a person uses for this edition, e.g.
+  `["King James Version", "KJV", "KJV Bible"]`; `generate` renders `<edition>` as a seeded
+  choice from it (never the raw `version`).
+- `canonical_language` — the language the text was composed in, e.g. `ar` for the Qur'an,
+  `he` for the Talmud, `en` for the Book of Mormon. A text is in the default (original-language)
+  question pool only when `language == canonical_language` (so a translation is excluded).
 
 A target maps to the `Target` dataclass (`pipelines/sacredbench/catalogue.py:102`).
 `select_targets()` (`pipelines/sacredbench/catalogue.py:259`) excludes `restricted`
@@ -208,16 +214,19 @@ Add a branch in the per-text, per-task loop of `generate()`
 Add a branch to `score_answer()` (`pipelines/sacredbench/score.py:225`) returning your
 task's metrics dict, including the headline `correct` flag and the `outcome` stamped by
 `_with_outcome` (`pipelines/sacredbench/score.py:288`). For the text-retrieval tasks the sub-metrics
-and the headline come from the **selected graders** (recipe below); the other tasks' fixed
-sub-metrics live in `_SUBMETRICS` (`pipelines/sacredbench/score.py:128`).
+and the headline come from the **selected graders** (recipe below); a task with fixed sub-metrics
+would register them in `_SUBMETRICS` (`pipelines/sacredbench/score.py:128`), currently empty.
 
 > Existing tasks show the range of rules: `retrieve_quote`/`complete_unit` pass on the OR of the
 > selected graders' verdicts (default `normalized OR contains_reference`, Spec 15 — a verbatim quote
-> wrapped in a citation counts); others require the answer to *be* a specific label, or a single
-> extracted citation to equal the expected one (`_single_citation_correct`,
-> `pipelines/sacredbench/score.py:207`). **Refusal is an OUTCOME, not a grader**: a leading decline
-> that doesn't deliver the answer is `refused` (excluded from `accuracy = correct/(correct+incorrect)`,
-> with `coverage` reported beside it), via `outcomes.classify_refusal` + `_with_outcome`.
+> wrapped in a citation counts); `verify_source` needs the **leading-stance** Yes/No to equal expected
+> (Spec 26 — a buried or negation-evasion verdict is refused, not correct); `cite_passage` needs a
+> single extracted citation to equal the expected one (`_single_citation_correct`,
+> `pipelines/sacredbench/score.py:207`). **Refusal is an OUTCOME, not a grader**: for text-retrieval /
+> cite_passage a leading decline that doesn't deliver the answer is `refused` (via
+> `outcomes.classify_refusal` + `_with_outcome`); for `verify_source`, `refused ⟺ parsed is None` (no
+> leading verdict). Refusals are excluded from `accuracy = correct/(correct+incorrect)`, with
+> `coverage` reported beside it.
 
 #### Adding an evaluator (a named grader)
 

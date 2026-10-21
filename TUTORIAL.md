@@ -35,8 +35,12 @@ It runs **three scriptures in their original languages** through one question ty
 - **The Talmud Bavli — William Davidson Edition** (Aramaic, © Sefaria, CC-BY-NC 4.0) —
   the Aramaic original, *not* the English translation.
 
-The question type is `retrieve_quote`: the model is given a citation (like a chapter and
-verse) and must return **the exact text of that passage and nothing else**.
+The benchmark asks four kinds of question — *retrieve_quote* ("what is the text of
+⟨edition⟩ ⟨citation⟩?"), *complete_unit* ("complete this quote…"), *cite_passage* ("where in
+⟨edition⟩ is this?") and *verify_source* ("is this text from ⟨edition⟩? yes/no"). For
+simplicity this tutorial uses just the first, **`retrieve_quote`**: the model is given a
+citation (like a chapter and verse) and must return **the exact text of that passage and
+nothing else**.
 
 Four "contestants" answer every question — **two models** (a larger, more capable one
 and a smaller, faster one), each tried **two ways: with web search switched on, and with
@@ -108,19 +112,24 @@ uv --project pipelines run python -m sacredbench generate \
   "texts/standardized/Protestant Christian/the-bible-kjv-en" \
   "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar" \
   "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he" \
-  --tasks retrieve_quote --per-task 100 --seed 20261011 \
+  --tasks retrieve_quote --per-text 20 --seed 20261011 \
   --out runs/my-run/questions.jsonl
 ```
 
-The three quoted paths pick exactly our three scriptures. `--per-task 100` asks for 100
-questions; `--seed 20261011` is a fixed starting number that makes the random selection
-repeatable — these are the **exact settings that produced the shipped example run**, so
-your question set will match it. The questions are written to a brand-new folder,
-`runs/my-run/`, which keeps your work separate from the shipped examples.
+The three quoted paths pick exactly our three scriptures. `--per-text 20` asks for 20
+questions **per text** (60 in all here); `--seed 20261011` is a fixed starting number that
+makes the random selection repeatable, so the same command always builds the same set. The
+questions are written to a brand-new folder, `runs/my-run/`, which keeps your work separate
+from the shipped examples.
 
-> To try the whole loop cheaply before committing to the paid step, use a smaller number
-> like `--per-task 5`. Note that **any number other than 100 produces a different
-> question set**, so it will no longer match the shipped example run.
+> To try the whole loop cheaply before the paid step, use a smaller number like
+> `--per-text 5`. A different `--per-text` or `--seed` produces a different question set.
+>
+> **Shipped example runs** are there to compare against in the viewer:
+> [`runs/original-<date>/`](runs/) is the current Spec-26 run (four templates, all 17
+> original-language texts), and [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) is an
+> earlier `retrieve_quote`-only example generated before Spec 26 reshaped the generator (so its
+> exact `--per-task` command no longer reproduces under today's `--per-text`).
 
 ## 4. Audit — confirm nothing restricted slipped in
 

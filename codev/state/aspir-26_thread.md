@@ -242,3 +242,21 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   (grep clean). Viewer vitest 157 passed; tsc --noEmit clean. (by_text not rendered — scope is
   retirement only, per plan; summary.md/json is the per-text source of truth.)
 - Ran pnpm -C apps/viewer install (node_modules gitignored, not committed).
+
+### IMPLEMENT Phase 5 built (docs) — 2026-10-21
+- arch-critical.md: Phase-1 line gains "original-language editions only by default" (4 templates,
+  28/text); **#23 PAPER GATE line → closed by Spec 26** (leading-stance parse_yes_no; refused⟺
+  parsed None) — the hard pre-Phase-6 requirement, done.
+- pipelines/README.md: generate step (four templates, --per-text 28, canonical-language-only,
+  manifest exclusions, cross-family same-language negatives); per-task scoring contract
+  (leading-stance verify_source #23-closed, cite_passage; retired tasks gone; per-model×TEXT
+  summary); Source catalogue section documents requested_as + canonical_language + equality
+  inclusion + metadata-by-path.
+- CODE_WALKTHROUGH.md: Recipe A step 2 documents the two new fields; §3 scoring prose updated
+  (leading-stance verify_source, cite_passage; removed the retired "answer must be a label"
+  rule; _SUBMETRICS now empty). Pointer-guard 77 green.
+- TUTORIAL.md: "what questions" lists the four templates (tutorial still demos retrieve_quote);
+  generate command → --per-text 20; repointed reproduce claim (tutorial-2026-10-11 is a
+  pre-Spec-26 example whose --per-task command no longer reproduces; the current Spec-26 run is
+  runs/original-<date>/, committed in Phase 6).
+- Full pipeline suite 362; viewer unaffected. Phase 5/6 doc watch-items (d) discharged.
