@@ -47,11 +47,13 @@ text from ⟨edition⟩? yes/no"). For simplicity this tutorial uses just the fi
 **`retrieve_quote`**: the model is given a citation (like a chapter and verse) and must return
 **the exact text of that passage and nothing else**.
 
-Four "contestants" answer every question — **two models** (a larger, more capable one
-and a smaller, faster one), each tried **two ways: with web search switched on, and with
-it off**. "Off" tests what the model memorised; "on" tests whether a live web search
-helps it find the exact words. The search setting is part of each contestant's identity,
-so the results page shows all four side by side and never mixes them up.
+In the panel **you** will run (step 5), four "contestants" answer every question — **two
+models** (a larger, more capable one and a smaller, faster one), each tried **two ways: with
+web search switched on, and with it off**. "Off" tests what the model memorised; "on" tests
+whether a live web search helps it find the exact words. The search setting is part of each
+contestant's identity, so the results page shows all four side by side and never mixes them up.
+(The *shipped* reference run below is a different panel — three models, all search-off — so it
+shows three rows and no search comparison; both shapes render in the same viewer.)
 
 The current reference run ships with the project in
 [`runs/original-2026-10-21/`](runs/original-2026-10-21/) — the full **four-template,
@@ -237,7 +239,8 @@ and **coverage** (how often it answers at all). That pairing is the real story: 
 high accuracy only because it stayed silent on most of the roster, which is exactly why coverage sits
 right beside it. In this run opus reaches 68% overall but answers only half the `retrieve_quote`
 roster — it refuses the Arabic/Aramaic lines it can't recall rather than guessing — while the famous
-KJV is answered at 100% coverage and 100% accuracy by every model. (The earlier
+KJV is answered at 100% accuracy by both frontier models (the small `gpt-oss-20b` manages only 16%
+even there). (The earlier
 `runs/tutorial-2026-10-11/` additionally contrasts web search on vs. off; this run is search-off
 only — see its README for why.)
 
@@ -256,9 +259,10 @@ which run is newest, add `?run=original-2026-10-21` to the address.
 
 What you can look at:
 
-- The **leaderboard** (`/`) ranks the four contestants by accuracy, with a **coverage** column of
-  equal weight beside it, columns per scripture, each model's token totals, and — for a run with the
-  same model tried with and without search — a **"Search on vs off"** comparison.
+- The **leaderboard** (`/`) ranks the models in the selected run by accuracy, with a **coverage**
+  column of equal weight beside it, columns per scripture, each model's token totals, and — only
+  for a run that has the same model tried with and without search (the tutorial panel, not the
+  shipped three-model reference run) — a **"Search on vs off"** comparison.
 - A **run selector** lets you switch between runs (your own and the shipped examples);
   your choice is saved in the address so you can share or reload it.
 - Click any model (or a scripture cell) to open the **error explorer** — every question with its
@@ -268,9 +272,10 @@ What you can look at:
   declined answer shows a neutral **refused** label rather than a red "wrong".
 - **Standings** (link in the header) shows each model's most recent result across all
   runs. Because web-search-on and web-search-off count as different contestants, the four
-  tutorial entries stay as four separate rows — but the plain (no-search) `claude-haiku-5-5`
-  now shares a row with the same model from the earlier first run, and the newer run wins,
-  so you see one up-to-date row for it instead of two.
+  entries from the tutorial panel (once you run it) stay as four separate rows — but the plain
+  (no-search) `claude-haiku-5-5` shares a row with the same model from another search-off run
+  (the earlier first run, or the shipped reference run), and the newer run wins, so you see one
+  up-to-date row for it instead of several.
 
 For more on the viewer, see [`apps/viewer/README.md`](apps/viewer/README.md).
 

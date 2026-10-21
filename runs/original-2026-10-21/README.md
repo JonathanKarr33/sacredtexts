@@ -57,10 +57,11 @@ often it answers.
 The benchmark discriminates cleanly — **opus > haiku > gpt-oss-20b** — and the structure is the
 point of Phase 1:
 
-- **English Bibles are near-saturated; original-language scripture is hard.** The **KJV scores
-  100%** for all three models (famous, heavily-memorised); opus is 93–100% on every
-  English text, but Arabic/Aramaic recall collapses (opus Qur'an 86%, Talmud 32%; haiku Talmud
-  29%). This is the recall gap the benchmark exists to measure.
+- **English texts are far easier; original-language scripture is hard.** The **KJV is answered
+  at 100% accuracy by both frontier models** (opus and haiku) — though the small `gpt-oss-20b`
+  manages only 16% even there; opus scores **86–100%** on every English text, but Arabic/Aramaic
+  recall collapses (opus Qur'an 86%, Talmud 32%; haiku Talmud 29%). This is the recall gap the
+  benchmark exists to measure.
 - **`retrieve_quote` is hardest** (exact original-language recall; opus 67% acc at only 50%
   coverage — it refuses half the Arabic/Aramaic roster rather than guess), **`verify_source`
   easiest** (opus 98%, haiku 95%).
@@ -170,7 +171,8 @@ retry. Coverage is **1427 / 1428 cells (99.93%)**.
   distributed; the **Talmud Bavli, William Davidson Edition (Aramaic)** is **© Sefaria,
   CC-BY-NC 4.0** — used here for non-commercial academic benchmarking with attribution
   (`texts/raw/Judaism/source.yaml`).
-- **Automated audit scope.** `audit` ran **origin-only** here (`copyright audit OK — 2 path(s),
-  origin only`): the content layer fingerprints restricted unit texts only when the held-back
+- **Automated audit scope.** `audit` ran **origin-only** here (`audit runs/original-2026-10-21`
+  → `copyright audit OK — 1 path(s), origin only`): the content layer fingerprints restricted
+  unit texts only when the held-back
   restricted payloads are present locally, and this run uses **no** restricted source. Origin is
   the enforceable proxy in a clone / CI, where restricted payloads are never committed.

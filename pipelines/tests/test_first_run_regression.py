@@ -11,8 +11,10 @@ committed first-run set is 100 `retrieve_quote`-only questions under the pre-Spe
 Spec 26 both changed the corpus (Phase 1 removed the two `KJV (LDS 2013 edition)` targets) and
 reshaped the generator (four templates, per-text quota, no `per_task`/`quotas`), so regenerating
 from the committed inputs yields a *different* set and a different digest — a digest mismatch, by
-design. The new generation-invariance anchor is the fresh Spec-26 run (`runs/original-<date>/`,
-digest-pinned there). The re-score half below is unaffected and stays.
+design. The new generation-invariance anchor is the fresh Spec-26 run
+(`runs/original-2026-10-21/`), digest-pinned in `test_original_run_regression.py`
+(`test_regenerating_original_run_reproduces_digest`). The re-score half below is unaffected and
+stays.
 """
 
 from __future__ import annotations
