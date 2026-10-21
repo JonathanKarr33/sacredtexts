@@ -148,26 +148,45 @@ def token_f1(answer: str, expected: str) -> float:
 
 
 _YES_NO_LEADING = re.compile(r"[^\w]*(yes|no)\b", re.IGNORECASE)
+_SENTENCE_END = re.compile(r"[.!?\n]")
+_LEADING_CHARS = 60  # the leading window: first sentence or this many chars, whichever is shorter
+# leading markdown emphasis / bullets / wrapping quotes to strip before reading a verdict
+_LEADING_MARKUP = re.compile(r"^[\s>*_~`\"'“”‘’•·\-–—]+")
+# a bare label the prompt's "Answer Yes or No" invites ("Answer: Yes", "Verdict - No") — stripped so
+# the verdict after it is leading (architect 2026-10-21). NOT a general window search: only this
+# fixed label form, so "Based on my search, yes" and "There is no way to verify this" stay un-stripped.
+_LABEL_PREFIX = re.compile(r"^(?:answer|verdict|response)\s*[:\-–]\s*", re.IGNORECASE)
+
+
+def _leading_window(answer: str) -> str:
+    """The leading segment of the RAW answer a stance may occupy: strip leading markdown/quotes/
+    bullets and a bare ``Answer:``/``Verdict:``/``Response:`` label, then take the first sentence or
+    the first 60 chars, whichever is shorter. Taken BEFORE ``normalize()`` (which deletes the
+    sentence-ending punctuation and markup this depends on)."""
+    s = _LEADING_MARKUP.sub("", answer.strip(), count=1)
+    s = _LABEL_PREFIX.sub("", s, count=1)
+    end = _SENTENCE_END.search(s)
+    cut = min(end.start() if end else len(s), _LEADING_CHARS)
+    return s[:cut]
 
 
 def parse_yes_no(answer: str) -> str | None:
     """The **leading-stance** Yes/No verdict, or ``None`` (Spec 26, closes the #23 PAPER GATE).
 
-    A verdict counts only when Yes/No is the **leading token** of the answer — after stripping
-    wrapping quotes/whitespace and any leading punctuation — not merely the first Yes/No found
-    *anywhere*. This is read from the RAW answer, deliberately BEFORE ``normalize()`` (which deletes
-    the punctuation and sentence boundaries a stance depends on). A window-search would still match
-    the incidental ``no`` inside ``"There is no way to verify this"`` and score a false premise
-    ``no``-correct — exactly the negation-evasion #23 is about; requiring the leading token does not:
+    A verdict counts only when Yes/No is the **leading token of the leading window**
+    (``_leading_window`` — first sentence / first 60 chars of the raw answer), not merely the first
+    Yes/No found *anywhere*. Requiring the leading token — rather than searching the window — is what
+    resists the negation-evasion #23 is about: a window *search* would still match the incidental
+    ``no`` inside ``"There is no way to verify this"`` and score a false-premise ``no``-correct.
 
     - ``"No, that is from Sahih Muslim"`` → ``no``   (leading ``No``)
     - ``"Yes."`` → ``yes``
-    - ``"There is no way to verify this... Yes"`` → ``None`` (leads with "There"; the "no" is in
-      "no way", the trailing "Yes" is not leading) — not gamed into a correct "no"
-    - a decline with no leading verdict → ``None`` (the outcome layer classifies it ``refused``)
+    - ``"There is no way to verify this... Yes"`` → ``None`` (window leads with "There"; the "no" is
+      in "no way", the trailing "Yes" is outside the first sentence) — not gamed into a correct "no"
+    - a non-committal / declined answer with no leading verdict → ``None`` (``score._with_outcome``
+      classifies a ``None``-parse verify_source cell as ``refused``)
     """
-    stripped = answer.strip().strip("\"'“”‘’").strip()
-    m = _YES_NO_LEADING.match(stripped)
+    m = _YES_NO_LEADING.match(_leading_window(answer))
     return m.group(1).lower() if m else None
 
 
@@ -175,14 +194,25 @@ def _contains(answer: str, needle: str) -> bool:
     return normalize(needle) in normalize(answer)
 
 
-def _text_label(source: dict) -> str | None:
-    """A stable per-text key from a question's source: ``work | version | language`` (one text =
-    one ``(work, version, language)``). ``None`` when any part is absent, so a malformed row never
-    creates a phantom text bucket."""
+def _text_key(source: dict) -> tuple[str, str, str] | None:
+    """The per-text key from a question's source: the ``(work, version, language)`` tuple (one text =
+    one such tuple). ``None`` when any part is absent, so a malformed row never creates a phantom
+    text bucket."""
     work, version, language = source.get("work"), source.get("version"), source.get("language")
     if not (work and version and language):
         return None
-    return f"{work} | {version} | {language}"
+    return (work, version, language)
+
+
+# NUL joins the (work, version, language) tuple into an UNAMBIGUOUS summary key — no field can
+# contain NUL, so distinct tuples never collide (unlike a " | " join). Same convention the viewer's
+# standings key uses. Split back with .split("\u0000") for display.
+_TEXT_KEY_SEP = "\u0000"
+
+
+def _text_label_display(key: str) -> str:
+    work, version, language = key.split(_TEXT_KEY_SEP)
+    return f"{work} ({version}, {language})"
 
 
 # A citation SPAN: the numeric/para token WITH its leading work/book words
@@ -296,15 +326,23 @@ def _with_outcome(metrics: dict, task: str, answer: str, expected: dict) -> dict
     non-refused cell the outcome is simply correct-vs-incorrect per the headline verdict."""
     from .outcomes import classify_refusal
 
-    # A decline-prefixed answer that still DELIVERS the right result (a hedged-but-correct citation,
-    # "I can't verify, but it's Jude 1:3") is an ANSWER, not a refusal — so for the tasks whose
-    # correctness is a DELIVERED result, refusal only applies when the headline is not already
-    # correct. verify_source is different: its "answer" is the verdict itself, so a leading decline
-    # ("I can't verify whether …") is a refusal regardless of any incidental Yes/No token the
-    # first-token parser may have matched — otherwise an explicit decline could score correct.
-    refused = classify_refusal(answer, task, expected) and (task == "verify_source" or not metrics["correct"])
+    if task == "verify_source":
+        # verify_source's "answer" IS the verdict, so refusal is determined by whether a verdict was
+        # COMMITTED, not by a decline-cue scan: a committed leading Yes/No (``parsed`` is not None) is
+        # GRADED even when followed by a disclaimer ("No, though I cannot fully verify…"); the absence
+        # of a leading verdict (``parsed`` is None — a decline, a non-committal answer, or a
+        # negation-evasion like "there is no way to verify this … yes") is a refusal to answer the
+        # yes/no question. This both closes the #23 gaming gap and does not force a declined-but-
+        # committed verdict to ``refused``.
+        refused = metrics.get("parsed") is None
+    else:
+        # A decline-prefixed answer that still DELIVERS the right result (a hedged-but-correct
+        # citation, "I can't verify, but it's Jude 1:3") is an ANSWER, not a refusal — so for the
+        # tasks whose correctness is a DELIVERED result, refusal only applies when the headline is
+        # not already correct.
+        refused = classify_refusal(answer, task, expected) and not metrics["correct"]
     if refused:
-        metrics["correct"] = 0  # headline skipped for a declined verify_source (no-op elsewhere)
+        metrics["correct"] = 0  # headline skipped for a refused cell (no-op when already 0)
         metrics["outcome"] = "refused"
     else:
         metrics["outcome"] = "correct" if metrics["correct"] else "incorrect"
@@ -469,10 +507,10 @@ def score_file(
             # per-text breakdown (one text = one (work, version, language)); a verify_source
             # negative aggregates under the ASKED edition (Phase-2 source), the right denominator
             # now that per-tradition balance no longer holds (9 of 17 texts are hadith collections).
-            text_label = _text_label(src)
-            if text_label is not None:
+            tkey = _text_key(src)
+            if tkey is not None:
                 xacc = per_text.setdefault(
-                    (d["model_id"], text_label, d["task"]), {"n": 0, "correct": 0, "refused": 0}
+                    (d["model_id"], _TEXT_KEY_SEP.join(tkey), d["task"]), {"n": 0, "correct": 0, "refused": 0}
                 )
                 xacc["n"] += 1
                 xacc["correct"] += metrics["correct"]
@@ -681,18 +719,19 @@ def summary_markdown(summary: dict) -> str:
 
     by_text = summary.get("by_text") or {}
     if by_text:
-        lines += ["", "### By text (one text = one work | version | language)"]
-        lines += ["| model | text | " + " | ".join(tasks) + " | overall |", "|" + "---|" * (len(tasks) + 3)]
+        # per-text table (Spec 26): each text's OVERALL — text, n, accuracy, coverage, refused — the
+        # right denominator now that per-tradition balance no longer holds. One section per model.
+        lines += ["", "### By text (one text = one work · version · language)"]
         for model_id in sorted(by_text):
-            for text_label in sorted(by_text[model_id]):
-                cells = by_text[model_id][text_label]
-                row = [model_id, text_label] + [_cell_str(cells.get(t)) for t in tasks]
-                ov = cells["_overall"]
+            lines += ["", f"**{model_id}**",
+                      "| text | n | accuracy | coverage | refused |", "|" + "---|" * 5]
+            for key in sorted(by_text[model_id]):
+                ov = by_text[model_id][key]["_overall"]
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
-                cov = "" if ov.get("coverage") is None else f" cov {ov['coverage']:.0%}"
-                cir = f"; c/i/r {ov['correct']}/{ov['incorrect']}/{ov['refused']}" if "correct" in ov else ""
-                row.append(f"**{acc}**{cov} (n={ov['n']}{cir})")
-                lines.append("| " + " | ".join(row) + " |")
+                cov = "n/a" if ov.get("coverage") is None else f"{ov['coverage']:.0%}"
+                lines.append(
+                    f"| {_text_label_display(key)} | {ov['n']} | {acc} | {cov} | {ov['refused']} |"
+                )
 
     panel = summary.get("panel") or {}
     if panel:

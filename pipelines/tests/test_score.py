@@ -43,7 +43,11 @@ def test_token_f1_bounds():
     ("No, that is from Sahih Muslim", "no"),            # leading No
     ('"No" — that is from Sahih Muslim', "no"),         # quoted leading No
     ("**Yes**", "yes"),                                  # markdown-wrapped leading Yes
+    ("Answer: Yes", "yes"),                              # bare "Answer:" label stripped (architect)
+    ("Verdict - No", "no"),                              # "Verdict -" label stripped
+    ("Response: yes, it is.", "yes"),                    # "Response:" label stripped
     ("There is no way to verify this... Yes", None),     # negation-evasion: "no" buried, not leading
+    ("Based on my search, yes", None),                   # verdict not leading (no label) -> None
     ("It is not from this edition.", None),              # leads with "It", not a Yes/No verdict
     ("I think yes.", None),                              # not a leading verdict
     ("yesterday it rained", None),                       # "yes" is not a whole-word verdict
@@ -53,10 +57,20 @@ def test_parse_yes_no(ans, expected):
     assert parse_yes_no(ans) == expected
 
 
-def test_verify_source_negation_evasion_not_gamed_into_correct():
-    # the #23 case: a non-declining negation-evasion must NOT score a false-premise "no" correct
+def test_verify_source_negation_evasion_is_refused_not_correct():
+    # the #23 case: a non-declining negation-evasion must NOT score a false-premise "no" correct;
+    # with no leading verdict it is REFUSED (parsed is None), excluded from accuracy
     r = score_answer("verify_source", "There is no way to verify this... Yes", {"answer": "no"})
-    assert r["parsed"] is None and r["correct"] == 0
+    assert r["parsed"] is None and r["correct"] == 0 and r["outcome"] == "refused"
+
+
+def test_verify_source_committed_verdict_with_trailing_decline_is_graded():
+    # a LEADING verdict counts even when followed by a decline ("No, though I cannot verify…") —
+    # refused is parsed-is-None, not a decline-cue scan
+    r = score_answer("verify_source", "No, I cannot verify that this is from X.", {"answer": "no"})
+    assert r["parsed"] == "no" and r["correct"] == 1 and r["outcome"] == "correct"
+    # no leading verdict at all -> refused
+    assert score_answer("verify_source", "I cannot determine that.", {"answer": "no"})["outcome"] == "refused"
 
 
 def test_retrieve_quote_tiers():
@@ -523,11 +537,33 @@ def test_summary_by_text_keyed_by_model_then_text(tmp_path):
     summary = score_file(answers, tmp_path / "scores.jsonl")
 
     bt = summary["by_text"]
-    assert set(bt["m1"]) == {"Qur | U | ar", "Bukhari | S | ar"}  # stable (work | version | language) keys
+    NUL = "\u0000"
+    qur_key, bukhari_key = NUL.join(("Qur", "U", "ar")), NUL.join(("Bukhari", "S", "ar"))
+    assert set(bt["m1"]) == {qur_key, bukhari_key}  # unambiguous (work, version, language) keys
     # the negative aggregates under the ASKED edition (Bukhari source), not its true source (Qur)
-    assert bt["m1"]["Bukhari | S | ar"]["verify_source"]["n"] == 1
-    assert "verify_source" not in bt["m1"]["Qur | U | ar"]
-    qur = bt["m1"]["Qur | U | ar"]["retrieve_quote"]
+    assert bt["m1"][bukhari_key]["verify_source"]["n"] == 1
+    assert "verify_source" not in bt["m1"][qur_key]
+    qur = bt["m1"][qur_key]["retrieve_quote"]
     assert qur["n"] == 2 and qur["correct"] == 1 and qur["accuracy"] == 0.5
     md = summary_markdown(summary)
-    assert "### By text" in md and "Bukhari | S | ar" in md
+    assert "### By text" in md and "Bukhari (S, ar)" in md  # display form: work (version, language)
+
+
+def test_by_text_key_is_unambiguous_no_collision(tmp_path):
+    """Distinct (work, version, language) tuples that a ' | ' join would collide must stay separate
+    (the NUL-joined key is unambiguous)."""
+    answers = tmp_path / "answers.jsonl"
+
+    def row(qid, work, version, lang):
+        return {
+            "question_id": qid, "model_id": "m1", "task": "retrieve_quote", "answer": "x",
+            "question_set_digest": "d",
+            "question": {"expected": {"text": "x"},
+                         "source": {"tradition": ["T"], "work": work, "version": version, "language": lang}},
+        }
+
+    # ("A | B", "C", "D") and ("A", "B | C", "D") both render "A | B | C | D" under a naive join
+    rows = [row("q0", "A | B", "C", "D"), row("q1", "A", "B | C", "D")]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    summary = score_file(answers, tmp_path / "scores.jsonl")
+    assert len(summary["by_text"]["m1"]) == 2  # two distinct texts, not one collapsed bucket

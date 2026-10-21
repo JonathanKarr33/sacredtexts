@@ -26,10 +26,12 @@ Both halves matter:
   genuine preamble ("I'm sorry, but I am unable…", "Let me try to get the segment. I couldn't…").
 - *reference not delivered* — a decline-prefixed answer that still contains the reference
   (word-bounded) IS a correct retrieval ("I can't be certain, but it's: <verse>"), so the containment
-  half keeps it out of the refused set. For ``verify_source`` and the other provenance tasks a leading
-  decline alone is the refusal — a genuine verdict/citation leads with its answer, not a decline — and
-  ``score._with_outcome`` applies verify_source's refusal ungated (so an incidental Yes/No inside a
-  decline cannot score correct) while gating the delivered-result tasks on ``not correct``.
+  half keeps it out of the refused set. For ``cite_passage`` a leading decline alone is the refusal,
+  gated on ``not correct`` so a decline-prefixed but delivered citation stays an answer.
+  ``verify_source`` is **not** classified here (Spec 26): its "answer" is the verdict itself, so its
+  refusal is ``parsed is None`` (no leading Yes/No committed), decided in ``score._with_outcome`` — a
+  committed leading verdict is graded even with a trailing disclaimer, and a negation-evasion with no
+  leading verdict is refused, not scored correct.
 
 This module is deliberately thin: the primitives (``normalize``, ``_bounded_equal``, ``parse_yes_no``)
 live in ``score.py`` and are imported lazily so there is no import cycle (``score`` imports this inside
@@ -104,9 +106,10 @@ def classify_refusal(answer: str, task: str, expected: dict) -> bool:
     """Deterministic refusal detector (see module docstring). Returns True for a declined cell.
 
     - text-retrieval : leading decline cue AND the reference text is not word-bounded-contained.
-    - verify_source  : leading decline cue AND no Yes/No was committed (so a declined verification
-                       is refused rather than scored incorrect for parsing to ``None``).
-    - other tasks    : a leading decline cue is the refusal (conservative; no committed evidence).
+    - cite_passage   : a leading decline cue is the refusal (gated in ``_with_outcome`` on ``not
+                       correct``, so a decline-prefixed but DELIVERED-correct citation stays an answer).
+    - verify_source  : **not classified here** — its refusal is ``parsed is None`` (no leading verdict
+                       committed), decided in ``score._with_outcome``, not by a decline-cue scan.
     """
     if not leading_decline(answer):
         return False
@@ -120,8 +123,8 @@ def classify_refusal(answer: str, task: str, expected: dict) -> bool:
         # check stops a decline-prefixed correct retrieval from being mislabelled `refused`. Keep it.
         target = expected.get("text", "")
         return not (target and _bounded_equal(answer, target))
-    # verify_source and cite_passage (provenance tasks): a leading decline cue IS the refusal — the
-    # model declined to answer. For verify_source `_with_outcome` applies this ungated (so an incidental
-    # Yes/No token in the decline cannot score correct); for cite_passage the gate keeps a
-    # decline-prefixed but DELIVERED-correct answer an answer.
+    # cite_passage (and any future provenance task that routes here): a leading decline cue IS the
+    # refusal — the model declined to answer — gated in `_with_outcome` on `not correct` so a
+    # decline-prefixed but DELIVERED-correct answer stays an answer. (verify_source no longer reaches
+    # this path; its refusal is parsed-based in `_with_outcome`.)
     return True

@@ -202,3 +202,19 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
 - Built on merged Spec 15 (graders/outcomes/_with_outcome/coverage). Rebaseline oracle + first-run
   re-score still green. Full suite 356 passed.
 - PHASE 5 TODO: arch-critical.md "#23 PAPER GATE" line → "closed by Spec 26" (doc task).
+
+### Phase 3 per-phase consult iter1 (both REQUEST_CHANGES) + re-iter
+- codex: parse_yes_no window not implemented + "no way... yes" scored incorrect not refused;
+  _text_label " | " ambiguous; markdown should be text/n/accuracy/coverage/refused columns.
+- claude: _with_outcome ungated refusal would refuse a COMMITTED verdict ("No, I cannot verify..."
+  → refused, wrong); test_outcomes:71 vacuous; leading-token narrower than spec (surface).
+- RESOLUTION (satisfies both): verify_source refused ⟺ parsed is None. Committed leading verdict
+  graded even with trailing decline; no leading verdict (decline / evasion / non-committal) →
+  refused. classify_refusal no longer governs verify_source (docstrings updated).
+- ARCHITECT leniency decision: strict leading-token + narrow pre-strip (leading markdown/quotes/
+  bullets + bare 'Answer:'/'Verdict:'/'Response:' label). 'Answer: Yes' grades; 'Based on my
+  search, yes' + 'There is no way... yes' → None → refused. Added label cases to tests.
+- _text_key → (work,version,language) tuple; by_text key = NUL-join (unambiguous) + collision test;
+  markdown now per-model text/n/accuracy/coverage/refused table. Full suite 362.
+- PHASE 6 TODO (architect): run README parsed-is-None diagnostic — count + 10 sample verify_source
+  rows per model (what strict leading-token refuses).
