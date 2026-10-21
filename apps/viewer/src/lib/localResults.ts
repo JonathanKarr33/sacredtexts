@@ -188,9 +188,10 @@ export function parseJsonl<T>(text: string, where = "jsonl"): T[] {
   return out;
 }
 
-function expectedText(_task: string, expected: Record<string, unknown>): string {
+function expectedText(expected: Record<string, unknown>): string {
   // the human-readable ground truth for the per-question list: retrieve_quote/complete_unit → text,
-  // cite_passage → citation, verify_source → answer (yes/no).
+  // cite_passage → citation, verify_source → answer (yes/no). Task-agnostic now that the two
+  // provenance tasks (identify_version/identify_source) are retired.
   for (const k of ["text", "citation", "answer"]) {
     if (typeof expected[k] === "string") return expected[k] as string;
   }
@@ -212,7 +213,7 @@ function answeredResult(s: ScoreRow | undefined, a: AnswerRow, fallbackTask: str
     refused: s?.metrics.outcome === "refused",
     prompt: a.question.prompt ?? "",
     answer: a.answer ?? "",
-    expected: expectedText(s?.task ?? a.task, a.question.expected),
+    expected: expectedText(a.question.expected),
     tradition: a.question.source?.tradition ?? [],
     exact: metricOrNull(s?.metrics, "exact"),
     normalized: metricOrNull(s?.metrics, "normalized"),
@@ -230,7 +231,7 @@ function missingResult(model_id: string, q: QuestionRow): QuestionResult {
     refused: false,
     prompt: q.prompt ?? "",
     answer: "",
-    expected: expectedText(q.task, q.expected),
+    expected: expectedText(q.expected),
     tradition: q.source?.tradition ?? [],
     exact: null,
     normalized: null,

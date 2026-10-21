@@ -269,3 +269,32 @@ describe("parseSummary nested-shape validation (render-path safety)", () => {
     expect(rows[0]?.tokens).toBeNull();
   });
 });
+
+describe("expectedText — all four kept tasks (Spec 26)", () => {
+  it("renders the right ground truth per task and covers only the four kept tasks", () => {
+    const mk = (qid: string, task: string, expected: Record<string, unknown>) => ({
+      score: { question_id: qid, model_id: "m", task, metrics: { correct: 1, outcome: "correct" } } as ScoreRow,
+      answer: { question_id: qid, model_id: "m", task, answer: "a",
+                question: { prompt: "p", expected } } as AnswerRow,
+    });
+    const cases = [
+      mk("rq", "retrieve_quote", { text: "the verse text", full_text: "the verse text" }),
+      mk("cu", "complete_unit", { text: "the remainder", full_text: "the full text" }),
+      mk("cp", "cite_passage", { citation: "John 3:16" }),
+      // verify_source expected has answer + true_* (true_citation, NOT citation) — the display must
+      // show the yes/no answer, so a lost "answer" key or a generate.py true_citation→citation
+      // rename would surface here as wrong ground truth.
+      mk("vs", "verify_source", { answer: "no", true_work: "X", true_version: "V",
+                                  true_language: "ar", true_citation: "X 1:1" }),
+    ];
+    const results = joinResults(cases.map((c) => c.score), cases.map((c) => c.answer));
+    const expectedById = Object.fromEntries(results.map((r) => [r.question_id, r.expected]));
+    expect(expectedById.rq).toBe("the verse text");
+    expect(expectedById.cu).toBe("the remainder");
+    expect(expectedById.cp).toBe("John 3:16");
+    expect(expectedById.vs).toBe("no");
+    expect(new Set(results.map((r) => r.task))).toEqual(
+      new Set(["retrieve_quote", "complete_unit", "cite_passage", "verify_source"]),
+    );
+  });
+});

@@ -57,13 +57,13 @@ describe("explorer — filters compose", () => {
   const results: QuestionResult[] = [
     q({ question_id: "a", correct: true, task: "retrieve_quote", tradition: ["Judaism"] }),
     q({ question_id: "b", correct: false, missing: false, task: "retrieve_quote", tradition: ["Judaism"] }),
-    q({ question_id: "c", correct: false, missing: true, task: "verify_source", tradition: ["Roman Catholic"] }),
-    q({ question_id: "d", correct: false, missing: false, task: "verify_source", tradition: ["Judaism", "Roman Catholic"] }),
+    q({ question_id: "c", correct: false, missing: true, task: "cite_passage", tradition: ["Roman Catholic"] }),
+    q({ question_id: "d", correct: false, missing: false, task: "cite_passage", tradition: ["Judaism", "Roman Catholic"] }),
     q({ question_id: "e", correct: false, refused: true, task: "retrieve_quote", tradition: ["Judaism"] }),
   ];
 
   it("filters by task", () => {
-    expect(filterQuestions(results, { task: "verify_source" }).map((r) => r.question_id)).toEqual(["c", "d"]);
+    expect(filterQuestions(results, { task: "cite_passage" }).map((r) => r.question_id)).toEqual(["c", "d"]);
   });
 
   it("filters by tradition (membership, multi-tradition aware)", () => {
@@ -84,14 +84,14 @@ describe("explorer — filters compose", () => {
 
   it("composes multiple active filters by AND", () => {
     expect(
-      filterQuestions(results, { task: "verify_source", tradition: "Judaism", mode: "wrong" }).map((r) => r.question_id),
+      filterQuestions(results, { task: "cite_passage", tradition: "Judaism", mode: "wrong" }).map((r) => r.question_id),
     ).toEqual(["d"]);
     // a contradictory composition honestly yields nothing (correct + missing)
     expect(filterQuestions(results, { correct: "correct", mode: "missing" })).toHaveLength(0);
   });
 
   it("derives sorted distinct task and tradition options", () => {
-    expect(explorerTasks(results)).toEqual(["retrieve_quote", "verify_source"]);
+    expect(explorerTasks(results)).toEqual(["cite_passage", "retrieve_quote"]);
     expect(explorerTraditions(results)).toEqual(["Judaism", "Roman Catholic"]);
   });
 
