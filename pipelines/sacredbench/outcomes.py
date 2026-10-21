@@ -120,8 +120,8 @@ def classify_refusal(answer: str, task: str, expected: dict) -> bool:
         # check stops a decline-prefixed correct retrieval from being mislabelled `refused`. Keep it.
         target = expected.get("text", "")
         return not (target and _bounded_equal(answer, target))
-    # verify_source and the other provenance tasks: a leading decline cue IS the refusal — the model
-    # declined to answer. For verify_source `_with_outcome` applies this ungated (so an incidental
-    # Yes/No token in the decline cannot score correct); for cite_passage/identify_source/
-    # identify_version the gate keeps a decline-prefixed but DELIVERED-correct answer an answer.
+    # verify_source and cite_passage (provenance tasks): a leading decline cue IS the refusal — the
+    # model declined to answer. For verify_source `_with_outcome` applies this ungated (so an incidental
+    # Yes/No token in the decline cannot score correct); for cite_passage the gate keeps a
+    # decline-prefixed but DELIVERED-correct answer an answer.
     return True

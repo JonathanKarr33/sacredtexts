@@ -185,3 +185,20 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   verify_source (pos+neg) — a passage not a citation is shown; (2) negatives weighted by entry
   count not uniform over texts; (3) near-verbatim non-identical shared-passage residual;
   (4) Talmud-Aramaic cross-language negatives (no he partner).
+
+### IMPLEMENT Phase 3 built (scoring) — 2026-10-21
+- parse_yes_no → LEADING-STANCE (closes #23): yes/no must be the leading token (after stripping
+  wrapping quotes/punct), read from RAW answer before normalize. "There is no way to verify
+  this... Yes" → None (not gamed); "No, ..." → no; "Yes." → yes. Design choice: strict leading
+  token (not a window-search, which would still match the incidental "no" in "no way") — the
+  only interpretation passing the adversarial case. A buried verdict after explanation → None
+  (prompt says "Answer Yes or No", expects a leading verdict).
+- Retired identify_version/identify_source from score_answer; _SUBMETRICS now {} (annotated);
+  updated the _SUBMETRICS pointer-guard entry (test_code_walkthrough) + outcomes.py comment +
+  module docstring (removed #23 PAPER-GATE SCOPE note, verify_source rule now "closes #23").
+- by_text summary: per_text accumulator keyed by (model, "work | version | language", task);
+  summary["by_text"][model][text][task] cells + _overall; "### By text" markdown table. A
+  verify_source NEGATIVE aggregates under the ASKED edition (source), verified by test.
+- Built on merged Spec 15 (graders/outcomes/_with_outcome/coverage). Rebaseline oracle + first-run
+  re-score still green. Full suite 356 passed.
+- PHASE 5 TODO: arch-critical.md "#23 PAPER GATE" line → "closed by Spec 26" (doc task).

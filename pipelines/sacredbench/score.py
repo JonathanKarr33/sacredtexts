@@ -34,27 +34,23 @@ that containment alone cannot game provenance honesty, within the SCOPE noted be
                                    retrieval; exact + token-F1 reported alongside).
                                    Containment is confined to these two text-retrieval
                                    tasks — the provenance tasks below never use it.
-- verify_source                  : parsed leading Yes/No equals expected
-- identify_version               : the answer, normalised, EQUALS the version label
-                                   (exact + normalized reported) — an evasive
-                                   "KJV or WEB" or "not the KJV, the ASV" scores 0
+- verify_source                  : the parsed **leading-stance** Yes/No equals expected
+                                   (``parse_yes_no``: Yes/No must be the leading token, so a
+                                   negation-evasion like "there is no way to verify this" is
+                                   NOT read as "no") — closes the #23 PAPER GATE
 - cite_passage                   : the SINGLE extracted citation EQUALS ground truth
                                    (boundary-aware, not containment); a multi-candidate
                                    hedge scores 0, a repeated correct citation does not
-- identify_source                : work present AND a single citation equals ground
-                                   truth (same anti-hedge rule as cite_passage)
 
-SCOPE / known gaps (the first run is ``retrieve_quote``-only, so these affect no
-reported number; tracked for the Spec 2 scoring-contract revision):
+(``identify_version`` and ``identify_source`` were retired in Spec 26: the question set is
+original-language-only, so there are never ≥2 editions of one work for ``identify_version``, and
+``cite_passage`` subsumes ``identify_source``.)
+
+SCOPE / known gaps (tracked for the Spec 2 scoring-contract revision):
 - the citation anti-hedge counts only FORMALLY-SHAPED citation candidates, so a
   PROSE hedge ("it could be Jude 1:3, or perhaps chapter 1 verse 4") is not caught.
-- ``verify_source`` uses the first Yes/No token and ``identify_source``'s work check
-  is substring containment — both are gameable by negation ("it is NOT from X");
-  since every corpus embeds the work in the citation, the work check collapses into
-  the citation check. These tasks must be hardened before any verify_source /
-  identify_source number is reported — tracked as **issue #23 (PAPER GATE)**. (A leading
-  decline on verify_source is already classified ``refused`` by the outcome layer; the gap
-  is negation-evasion on a NON-declining answer, which no committed run exercises.)
+- ``cite_passage`` over Arabic ground truth: the span extractors expect a Latin-script leading
+  word and ``normalize()`` does not fold Arabic-Indic digits — evaluated in the Spec 26 run.
 """
 
 from __future__ import annotations
@@ -123,11 +119,10 @@ def strip_script_marks(text: str) -> str:
     )
 
 # Fixed sub-metrics for the NON-graded tasks. The text-retrieval tasks (retrieve_quote /
-# complete_unit) derive their submetric set from the selected graders (see graders.submetrics_for),
-# so they are intentionally absent here.
-_SUBMETRICS = {
-    "identify_version": ("exact", "normalized"),
-}
+# complete_unit) derive their submetric set from the selected graders (see graders.submetrics_for);
+# verify_source and cite_passage carry no fixed submetrics. (identify_version / identify_source were
+# retired in Spec 26, so this is now empty — kept for the per-task dispatch and the doc pointer-guard.)
+_SUBMETRICS: dict[str, tuple[str, ...]] = {}
 
 
 def normalize(text: str) -> str:
@@ -152,17 +147,42 @@ def token_f1(answer: str, expected: str) -> float:
     return 2 * precision * recall / (precision + recall)
 
 
+_YES_NO_LEADING = re.compile(r"[^\w]*(yes|no)\b", re.IGNORECASE)
+
+
 def parse_yes_no(answer: str) -> str | None:
-    """The leading Yes/No verdict (first token), or None. Deliberately simple: a DECLINE to verify
-    is handled by the outcome layer (a leading decline cue → ``refused``, Spec 15), not here, so this
-    needs only to read a committed verdict. Hardening against negation/evasion on NON-declining
-    answers remains the deferred verify_source gap noted in the module docstring."""
-    m = re.search(r"\b(yes|no)\b", normalize(answer))
-    return m.group(1) if m else None
+    """The **leading-stance** Yes/No verdict, or ``None`` (Spec 26, closes the #23 PAPER GATE).
+
+    A verdict counts only when Yes/No is the **leading token** of the answer — after stripping
+    wrapping quotes/whitespace and any leading punctuation — not merely the first Yes/No found
+    *anywhere*. This is read from the RAW answer, deliberately BEFORE ``normalize()`` (which deletes
+    the punctuation and sentence boundaries a stance depends on). A window-search would still match
+    the incidental ``no`` inside ``"There is no way to verify this"`` and score a false premise
+    ``no``-correct — exactly the negation-evasion #23 is about; requiring the leading token does not:
+
+    - ``"No, that is from Sahih Muslim"`` → ``no``   (leading ``No``)
+    - ``"Yes."`` → ``yes``
+    - ``"There is no way to verify this... Yes"`` → ``None`` (leads with "There"; the "no" is in
+      "no way", the trailing "Yes" is not leading) — not gamed into a correct "no"
+    - a decline with no leading verdict → ``None`` (the outcome layer classifies it ``refused``)
+    """
+    stripped = answer.strip().strip("\"'“”‘’").strip()
+    m = _YES_NO_LEADING.match(stripped)
+    return m.group(1).lower() if m else None
 
 
 def _contains(answer: str, needle: str) -> bool:
     return normalize(needle) in normalize(answer)
+
+
+def _text_label(source: dict) -> str | None:
+    """A stable per-text key from a question's source: ``work | version | language`` (one text =
+    one ``(work, version, language)``). ``None`` when any part is absent, so a malformed row never
+    creates a phantom text bucket."""
+    work, version, language = source.get("work"), source.get("version"), source.get("language")
+    if not (work and version and language):
+        return None
+    return f"{work} | {version} | {language}"
 
 
 # A citation SPAN: the numeric/para token WITH its leading work/book words
@@ -260,28 +280,9 @@ def score_answer(task: str, answer: str, expected: dict, graders: "list | None" 
             {"parsed": parsed, "expected": expected["answer"], "correct": correct},
             task, answer, expected,
         )
-    if task == "identify_version":
-        # the answer must BE the version label (exact/normalized), so an evasive
-        # "KJV or WEB" or "not the KJV, it's the ASV" does not score correct
-        version = expected["version"]
-        exact = int(answer.strip() == version)
-        norm = int(normalize(answer) == normalize(version))
-        return _with_outcome({"exact": exact, "normalized": norm, "correct": norm}, task, answer, expected)
     if task == "cite_passage":
         correct, n = _single_citation_correct(answer, expected["citation"])
         return _with_outcome({"correct": correct, "n_candidates": n}, task, answer, expected)
-    if task == "identify_source":
-        work_found = int(_contains(answer, expected["work"]))
-        citation_ok, n = _single_citation_correct(answer, expected["citation"])
-        return _with_outcome(
-            {
-                "work_found": work_found,
-                "citation_found": citation_ok,
-                "n_candidates": n,
-                "correct": int(work_found and citation_ok),
-            },
-            task, answer, expected,
-        )
     raise ScoreError(f"unknown task {task!r}")
 
 
@@ -406,11 +407,12 @@ def score_file(
     def _task_submetrics(task: str) -> tuple[str, ...]:
         if task in ("retrieve_quote", "complete_unit"):
             return text_submetrics
-        return _SUBMETRICS.get(task, ())  # fixed for identify_version; () for the others
+        return _SUBMETRICS.get(task, ())  # () for verify_source / cite_passage (no fixed submetrics)
 
     scores_path.parent.mkdir(parents=True, exist_ok=True)
     per_cell: dict[tuple[str, str], dict] = {}  # (model_id, task) -> accumulators
     per_trad: dict[tuple[str, str, str], dict] = {}  # (model_id, tradition, task) -> {n, correct}
+    per_text: dict[tuple[str, str, str], dict] = {}  # (model_id, text_label, task) -> {n, correct, refused}
     usage: dict[str, dict] = {}  # model_id -> {calls, in, out, model, served_by{host:count}}
     with open(scores_path, "w", encoding="utf-8") as out:
         for d in rows:
@@ -455,17 +457,29 @@ def score_file(
             host = u.get("provider")  # OpenRouter reports the upstream serving host
             if host:
                 um["served_by"][host] = um["served_by"].get(host, 0) + 1
+            src = d.get("question", {}).get("source", {})
             # tradition breakdown: count this observation once PER listed tradition
-            for trad in d.get("question", {}).get("source", {}).get("tradition", []) or []:
+            for trad in src.get("tradition", []) or []:
                 tacc = per_trad.setdefault(
                     (d["model_id"], trad, d["task"]), {"n": 0, "correct": 0, "refused": 0}
                 )
                 tacc["n"] += 1
                 tacc["correct"] += metrics["correct"]
                 tacc["refused"] += int(refused)
+            # per-text breakdown (one text = one (work, version, language)); a verify_source
+            # negative aggregates under the ASKED edition (Phase-2 source), the right denominator
+            # now that per-tradition balance no longer holds (9 of 17 texts are hadith collections).
+            text_label = _text_label(src)
+            if text_label is not None:
+                xacc = per_text.setdefault(
+                    (d["model_id"], text_label, d["task"]), {"n": 0, "correct": 0, "refused": 0}
+                )
+                xacc["n"] += 1
+                xacc["correct"] += metrics["correct"]
+                xacc["refused"] += int(refused)
 
     expected = expected or {}
-    summary: dict = {"models": {}, "by_tradition": {}}
+    summary: dict = {"models": {}, "by_tradition": {}, "by_text": {}}
     # every (model, task) that was answered OR was expected (so a fully-failed
     # model/task is represented, not dropped)
     all_cells = set(per_cell) | set(expected)
@@ -525,6 +539,24 @@ def score_file(
                 ov["expected_n"] = exp_total
                 ov["missing"] = max(exp_total - ov["n"], 0)
             tasks["_overall"] = ov
+
+    # per-model x text x task: one text = one (work, version, language), the right denominator
+    # now that per-tradition balance no longer holds (Spec 26). Built from what was answered (no
+    # per-text roster), so it carries outcomes (accuracy/coverage/refused), never submetrics.
+    for (model_id, text_label, task) in sorted(per_text):
+        cell = _outcome_cell(per_text[(model_id, text_label, task)], ())
+        summary["by_text"].setdefault(model_id, {}).setdefault(text_label, {})[task] = cell
+    for model_id, texts in summary["by_text"].items():
+        for text_label, tasks in texts.items():
+            raw = [per_text[(model_id, text_label, t)] for t in tasks]
+            tasks["_overall"] = _outcome_cell(
+                {
+                    "n": sum(c["n"] for c in raw),
+                    "correct": sum(c["correct"] for c in raw),
+                    "refused": sum(c["refused"] for c in raw),
+                },
+                (),
+            )
 
     # Token usage totals (cost accounting). Prices are NOT invented: a cost appears
     # only for models whose panel entry supplied price_in/price_out ($ per 1M tokens).
@@ -640,6 +672,21 @@ def summary_markdown(summary: dict) -> str:
             for trad in sorted(by_trad[model_id]):
                 cells = by_trad[model_id][trad]
                 row = [model_id, trad] + [_cell_str(cells.get(t)) for t in tasks]
+                ov = cells["_overall"]
+                acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
+                cov = "" if ov.get("coverage") is None else f" cov {ov['coverage']:.0%}"
+                cir = f"; c/i/r {ov['correct']}/{ov['incorrect']}/{ov['refused']}" if "correct" in ov else ""
+                row.append(f"**{acc}**{cov} (n={ov['n']}{cir})")
+                lines.append("| " + " | ".join(row) + " |")
+
+    by_text = summary.get("by_text") or {}
+    if by_text:
+        lines += ["", "### By text (one text = one work | version | language)"]
+        lines += ["| model | text | " + " | ".join(tasks) + " | overall |", "|" + "---|" * (len(tasks) + 3)]
+        for model_id in sorted(by_text):
+            for text_label in sorted(by_text[model_id]):
+                cells = by_text[model_id][text_label]
+                row = [model_id, text_label] + [_cell_str(cells.get(t)) for t in tasks]
                 ov = cells["_overall"]
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
                 cov = "" if ov.get("coverage") is None else f" cov {ov['coverage']:.0%}"
