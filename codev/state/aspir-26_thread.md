@@ -167,3 +167,13 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   (verify_source_cross_language_negatives); expected gains true_language. Residual→Phase6 README.
 - Spec/plan updated to the family/same-language model + target-aggregated exclusions + chosen-name
   requested_as. Full suite 344 passed. Rebuttal written.
+
+### Phase 2 iter2 (codex REQUEST_CHANGES test-strength / claude APPROVE)
+- Fixes: module docstring family rule (was document_type → work-based); verify_source
+  source.citation="" + expected.true_citation (negative's foreign citation was incoherent under
+  asked work); cite_passage boundary tests (exact-quota success @2 entries, single-entry fail);
+  byte-exact prompt test for all 4 templates; structural containment test (all-contained →
+  fail-fast, deterministic). Full suite 348.
+- PHASE 6 README TODO (claude non-blocking): negative candidates are weighted by entry count,
+  not uniform over texts — document as a known limitation; also document the near-verbatim
+  shared-passage residual and the Talmud-Aramaic cross-language negatives.

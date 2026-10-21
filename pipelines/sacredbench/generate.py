@@ -32,14 +32,20 @@ Contract details that keep the benchmark honest:
   from a *different* seeded entry of the same text — so the model answers in the
   shape the scorer extracts. Needs >=2 entries per text (fail-fast otherwise).
 - **False-premise** ``verify_source``: the question belongs to the **asked**
-  edition (``source`` records it; the prompt uses its ``requested_as`` name). A
-  positive presents a passage from the asked edition; a negative presents a real
-  passage from a *different in-pool text*, attributed to the asked edition
-  (``expected.answer == "no"``, ``expected.true_work``/``true_version`` name the
-  passage's real source). Negatives are drawn **cross-family** (never from a text
-  of the same ``document_type`` — the nine hadith collections share variant-wording
-  narrations that exact-text exclusion misses) and exclude any passage whose text
-  also occurs in the asked edition.
+  edition (``source`` records it — with an empty ``citation``, since the prompt
+  shows a passage, not a citation — and uses its ``requested_as`` name). A positive
+  presents a passage from the asked edition; a negative presents a real passage
+  from a *different in-pool text*, attributed to the asked edition
+  (``expected.answer == "no"``; ``expected.true_work``/``true_version``/
+  ``true_language``/``true_citation`` name the passage's real source). Negatives are
+  drawn from a **different family** — the nine hadith collections are one family
+  (``document_type == hadith_collection``), otherwise a text's family is its
+  ``work`` (so the KJV/ASV/WEB Bible editions never serve as each other's negatives,
+  but a different work such as Book of Mormon may). Candidates exclude any passage
+  whose text also occurs in the asked edition (containment over all entries), and a
+  **same-language** partner is preferred; a text with no same-language different-family
+  partner (e.g. Talmud Aramaic) falls back to cross-language, recorded per text in the
+  manifest.
 - Only **canonically cited** units are sampled — front-matter ``unnumbered para.``
   and ``(dup N)`` units (see the encyclicals converter) are not benchmark items.
 - **Stable content-derived IDs**, a **deterministic order**, with fail-fast on an
@@ -337,9 +343,12 @@ def generate(
     return questions, excluded
 
 
-def _verify_expected(answer: str, src: Document) -> dict:
+def _verify_expected(answer: str, src: Document, entry: Entry) -> dict:
+    # verify_source shows a passage, not a citation, so the passage's full provenance
+    # (including its real citation) is ground truth in `expected`; `source.citation` is
+    # left empty, because a negative's passage has no citation in the ASKED edition.
     return {"answer": answer, "true_work": src.work, "true_version": src.version,
-            "true_language": src.language}
+            "true_language": src.language, "true_citation": entry.citation}
 
 
 def _append_verify_source(
@@ -366,8 +375,8 @@ def _append_verify_source(
         prompt = f'Is the following text from {name}? "{e.text}" Answer Yes or No.'
         questions.append(Question(
             id=_qid("verify_source", asked.key, asked.rep_doc, e), task="verify_source",
-            prompt=prompt, expected=_verify_expected("yes", asked.rep_doc),
-            source=_source_dict(asked.rep_doc, e.citation, name),
+            prompt=prompt, expected=_verify_expected("yes", asked.rep_doc, e),
+            source=_source_dict(asked.rep_doc, "", name),
         ))
 
     if n_neg <= 0:
@@ -400,8 +409,8 @@ def _append_verify_source(
         prompt = f'Is the following text from {name}? "{e.text}" Answer Yes or No.'
         questions.append(Question(
             id=_qid("verify_source", asked.key, other.rep_doc, e), task="verify_source",
-            prompt=prompt, expected=_verify_expected("no", other.rep_doc),
-            source=_source_dict(asked.rep_doc, e.citation, name),
+            prompt=prompt, expected=_verify_expected("no", other.rep_doc, e),
+            source=_source_dict(asked.rep_doc, "", name),
         ))
 
 

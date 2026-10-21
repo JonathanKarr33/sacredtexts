@@ -197,6 +197,51 @@ def test_display_citation_strips_work_prefix():
     assert "What is the text of Qur " in bare_prompt
 
 
+def test_prompt_strings_are_byte_exact():
+    """Pin the four authoritative template strings byte-for-byte (they feed the digest)."""
+    text = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma"
+    e1 = Entry("verse", "Work 1:1", text)
+    e2 = Entry("verse", "Work 2:2",
+               "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen")
+    doc = Document(tradition=["T"], work="Work", version="V", language="en",
+                   document_type="scripture", source_url=None, entries=[e1, e2])
+    meta = {("Work", "V", "en"): TextMeta(requested_as=("Edition",), canonical_language="en",
+                                          target_key=("Work", "V", "en"))}
+
+    rq, _ = generate([doc], meta, per_text=2, seed=1, tasks=("retrieve_quote",))
+    p = next(q.prompt for q in rq if q.expected["text"] == text)
+    assert p == "What is the text of Edition 1:1? Reply with the exact text of that verse and nothing else."
+
+    cu, _ = generate([doc], meta, per_text=2, seed=1, tasks=("complete_unit",))
+    p = next(q.prompt for q in cu if q.expected.get("full_text") == text)
+    assert p == ('Please complete this quote from Edition: '
+                 '"alpha beta gamma delta epsilon zeta eta theta iota" '
+                 'Reply with only the remaining words.')
+
+    cp, _ = generate([doc], meta, per_text=2, seed=1, tasks=("cite_passage",))
+    p = next(q.prompt for q in cp if q.expected["citation"] == "Work 1:1")
+    assert p == ('Where in Edition can I find this quote? '
+                 f'"{text}" Answer with the citation only, in the same form as: Work 2:2.')
+
+    vs, _ = generate([doc], meta, per_text=2, seed=1, negatives_share=0.0, tasks=("verify_source",))
+    p = next(q.prompt for q in vs if text in q.prompt)
+    assert p == f'Is the following text from Edition? "{text}" Answer Yes or No.'
+
+
+def test_verify_source_source_citation_empty_and_true_citation_recorded():
+    asked = _doc("Bukhari", language="ar", document_type="hadith_collection")
+    other = _doc("Qur", language="ar", document_type="scripture")
+    qs, _ = generate([asked, other], _meta([asked, other]),
+                     per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
+    for q in qs:
+        assert q.source["citation"] == ""  # a passage, not a citation, is shown
+        assert "true_citation" in q.expected  # the passage's real citation is ground truth
+    neg = next(q for q in qs if q.source["work"] == "Bukhari" and q.expected["answer"] == "no")
+    # the negative's true_citation is the passage's real citation (from Qur), while source.work
+    # is the asked edition (Bukhari) — the provenance lives in expected, not in source.citation
+    assert neg.expected["true_work"] == "Qur" and neg.expected["true_citation"].startswith("Qur ")
+
+
 def test_edition_is_seeded_choice_recorded_in_source():
     docs = [_doc("Qur"), _doc("Hadith", document_type="hadith")]
     names = {("Qur", "V", "en"): ("the Qur'an", "Quran", "Koran")}
@@ -220,11 +265,23 @@ def test_cite_passage_shows_exemplar_from_other_entry():
         assert exemplar != q.expected["citation"]  # a DIFFERENT entry's citation
 
 
-def test_cite_passage_fails_fast_when_too_few_entries():
-    docs = [_doc("Qur", n=3), _doc("Hadith", document_type="hadith", n=30)]
-    # Qur has 3 entries; cite_passage quota 3 needs 3 targets + 1 exemplar = 4
+def test_cite_passage_exact_quota_succeeds_with_two_entries():
+    # max(quota, 2): a text with exactly quota == 2 entries fills, because each target's
+    # exemplar may be the OTHER target entry (just not itself).
+    docs = [_doc("Qur", n=2)]
+    qs, _ = _gen(docs, per_text=2, seed=1, tasks=("cite_passage",))
+    assert len(qs) == 2 and {q.task for q in qs} == {"cite_passage"}
+    # the exemplar shown is the sibling entry's citation, never the target's own
+    for q in qs:
+        exemplar = q.prompt.rsplit("in the same form as:", 1)[1].strip().rstrip(".")
+        assert exemplar != q.expected["citation"]
+
+
+def test_cite_passage_single_entry_fails_fast():
+    # one entry, quota 1 -> max(quota, 2) == 2 > 1: no distinct exemplar exists -> fail
+    docs = [_doc("Qur", n=1)]
     with pytest.raises(GenerateError, match="cite_passage"):
-        _gen(docs, per_text=12, seed=1, tasks=("cite_passage",))
+        _gen(docs, per_text=1, seed=1, tasks=("cite_passage",))
 
 
 # --- verify_source identity + cross-family negatives -------------------------
@@ -316,6 +373,20 @@ def test_verify_source_negative_excludes_contained_passage():
     assert negs  # there ARE negatives
     # none of them presents the shared passage, because it is contained in the asked edition
     assert all(shared_text not in q.prompt for q in negs)
+
+
+def test_verify_source_fails_fast_when_all_cross_family_passages_contained():
+    """Structural proof that the containment filter is load-bearing (deterministic, seed-free):
+    if EVERY different-family passage is also present in the asked edition, there is no eligible
+    negative and generation fails fast — remove the `ne in asked.all_norm` filter and it would
+    wrongly succeed."""
+    asked = _doc("Bukhari", language="ar", document_type="hadith_collection", n=30)
+    other = _doc("Qur", language="ar", document_type="scripture", n=0)
+    # every Qur entry is verbatim one of Bukhari's texts -> all contained in the asked edition
+    other.entries = [Entry("verse", f"Qur {i}", e.text) for i, e in enumerate(asked.entries, 1)]
+    with pytest.raises(GenerateError, match="cross-family"):
+        generate([asked, other], _meta([asked, other]), per_text=8, seed=1,
+                 negatives_share=0.5, tasks=("verify_source",))
 
 
 def test_verify_source_insufficient_cross_family_pool_fails_fast():
