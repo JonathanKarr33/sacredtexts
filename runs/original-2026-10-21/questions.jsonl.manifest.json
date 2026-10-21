@@ -1,0 +1,134 @@
+{
+ "seed": 20261010,
+ "inputs": [
+  "texts/standardized"
+ ],
+ "per_text": 28,
+ "negatives_share": 0.5,
+ "tasks_requested": [
+  "retrieve_quote",
+  "complete_unit",
+  "cite_passage",
+  "verify_source"
+ ],
+ "tasks_by_count": {
+  "cite_passage": 119,
+  "complete_unit": 119,
+  "retrieve_quote": 119,
+  "verify_source": 119
+ },
+ "verify_source_negatives": 51,
+ "verify_source_cross_language_negatives": [
+  {
+   "work": "Talmud Bavli",
+   "version": "William Davidson Edition - Aramaic",
+   "language": "he",
+   "count": 3
+  }
+ ],
+ "selected_texts": [
+  {
+   "work": "Book of Mormon",
+   "version": "2013 edition",
+   "language": "en"
+  },
+  {
+   "work": "Doctrine and Covenants",
+   "version": "2013 edition",
+   "language": "en"
+  },
+  {
+   "work": "Jami` at-Tirmidhi",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Musnad Ahmad",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Muwatta Malik",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Pearl of Great Price",
+   "version": "2013 edition",
+   "language": "en"
+  },
+  {
+   "work": "Sahih Muslim",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Sahih al-Bukhari",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Sunan Abi Dawud",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Sunan Ibn Majah",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Sunan al-Darimi",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Sunan an-Nasa'i",
+   "version": "sunnah.com Arabic",
+   "language": "ar"
+  },
+  {
+   "work": "Talmud Bavli",
+   "version": "William Davidson Edition - Aramaic",
+   "language": "he"
+  },
+  {
+   "work": "The Bible",
+   "version": "ASV (1901)",
+   "language": "en"
+  },
+  {
+   "work": "The Bible",
+   "version": "KJV",
+   "language": "en"
+  },
+  {
+   "work": "The Bible",
+   "version": "WEB",
+   "language": "en"
+  },
+  {
+   "work": "The Qur'an",
+   "version": "Uthmani (QUL)",
+   "language": "ar"
+  }
+ ],
+ "excluded_texts": [
+  {
+   "work": "Papal Encyclicals",
+   "version": "Vatican English",
+   "language": "en",
+   "reason": "language 'en' != canonical_language 'la'"
+  },
+  {
+   "work": "Talmud Bavli",
+   "version": "William Davidson Edition - English",
+   "language": "en",
+   "reason": "language 'en' != canonical_language 'he'"
+  }
+ ],
+ "corpus_hash": "5ae493e7e249575c",
+ "question_set_digest": "de65959a99dea9b3",
+ "n_questions": 476,
+ "generated_at": "2026-10-21T11:58:19.436470+00:00"
+}

@@ -1,0 +1,21 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Comprehensive and feasible overall, but quota arithmetic and scoring semantics contain blocking ambiguities.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- The allowed `--per-text` range is 15–30, yet every value must split evenly across four templates. Values such as 15, 17, and 30 cannot satisfy that requirement. Specify whether only multiples of four (16, 20, 24, 28) are accepted or define deterministic remainder allocation.
+- Leading-stance parsing is not sufficiently defined to close #23. `"There is no way to verify this... Yes"` contains an early `no`; a search within the stated window could classify it as `no`, making a false-premise answer incorrectly correct. Require an explicit result for this case—presumably `refused`—and define what syntactically constitutes a stance, with tests for incidental “yes/no,” quoted text, punctuation, and sentence boundaries.
+- The baked “verbatim shapes” conflict with the rendered prompts: notably template 2 uses `?` in the baked form but `:` in Desired State, while template 4 is also reworded. Reconcile the authoritative prompt strings so implementation and acceptance tests have one exact contract.
+- Per-text identity and negative attribution need clarification. The catalogue already has multiple targets sharing `(work, version, language)` (the LDS KJV Old/New Testament targets), so “one tuple target” is not unique. Also define whether a negative `verify_source` question counts and aggregates under the falsely attributed edition or the passage’s true source, and what the question `source` metadata records.
+- The per-text summary contract omits the model dimension even though the committed run has a multi-model panel. Specify whether `summary.json` is keyed by model then text, or whether results are intentionally pooled across models.
+- Clarify whether `--tasks` and `--negatives-share` remain supported after removing `--per-task`/`--quota`; task subsets and non-50/50 negative ratios otherwise conflict with the stated per-text split and fixed 50/50 mix.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the codex review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-26_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

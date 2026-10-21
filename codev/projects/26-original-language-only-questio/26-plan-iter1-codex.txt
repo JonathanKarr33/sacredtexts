@@ -1,0 +1,22 @@
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: The sequencing is sound, but generation omits several critical identity, quota, and metadata details required by the specification.
+CONFIDENCE: HIGH
+---
+KEY_ISSUES:
+- `verify_source` negatives are not fully redesigned. Current `_build()` records the passage’s true source while the spec requires `source` to identify the **asked edition**, with `expected.true_work` and `expected.true_version` identifying the passage origin. Phase 2 must explicitly implement and test this because it determines per-text aggregation.
+- The plan does not define quota allocation when `--tasks` selects a subset. The spec requires `--per-text N` to be divided across the selected templates, so `--tasks retrieve_quote --per-text 20` must emit 20 questions per text—not 5. Add the algorithm and tests for one-, two-, and four-task selections.
+- The baked 15–30 range is not enforced or tested. Specify CLI/API validation for `--per-text` below 15 and above 30, while retaining the default of 20.
+- Phase 1 incorrectly says the existing `_TARGET_STR_FIELDS` loop covers `ask_as` and `citation_hint`; the actual tuple does not contain those fields. The plan must explicitly extend `_TARGET_STR_FIELDS`, not merely `_TARGET_REQUIRED`.
+- Define a stable, unambiguous `by_text` key derived from `(work, version, language)` and test collisions. Also test that negative `verify_source` questions aggregate under the asked text rather than the passage’s true source.
+- Make the flag interaction explicit: restricted translations such as NABRE should require both `--include-restricted` and `--include-translations`, while TLG should require only `--include-restricted`. Add matrix tests.
+
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the codex review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-26_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

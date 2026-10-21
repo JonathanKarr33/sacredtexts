@@ -39,10 +39,38 @@ def test_token_f1_bounds():
     ("Yes.", "yes"), ("no,", "no"), ("NO!", "no"), ("maybe", None),
     # leading verdict wins even with a later incidental token ("no doubt")
     ("Yes, there is no doubt about it.", "yes"),
+    # Spec 26 leading-stance (#23 PAPER GATE): the verdict must be the LEADING token
+    ("No, that is from Sahih Muslim", "no"),            # leading No
+    ('"No" — that is from Sahih Muslim', "no"),         # quoted leading No
+    ("**Yes**", "yes"),                                  # markdown-wrapped leading Yes
+    ("Answer: Yes", "yes"),                              # bare "Answer:" label stripped (architect)
+    ("Verdict - No", "no"),                              # "Verdict -" label stripped
+    ("Response: yes, it is.", "yes"),                    # "Response:" label stripped
+    ("There is no way to verify this... Yes", None),     # negation-evasion: "no" buried, not leading
+    ("Based on my search, yes", None),                   # verdict not leading (no label) -> None
+    ("It is not from this edition.", None),              # leads with "It", not a Yes/No verdict
+    ("I think yes.", None),                              # not a leading verdict
+    ("yesterday it rained", None),                       # "yes" is not a whole-word verdict
 ])
 def test_parse_yes_no(ans, expected):
-    # first committed Yes/No token; a DECLINE to verify is handled by the outcome layer, not here
+    # the LEADING-stance Yes/No (Spec 26); a DECLINE is handled by the outcome layer, not here
     assert parse_yes_no(ans) == expected
+
+
+def test_verify_source_negation_evasion_is_refused_not_correct():
+    # the #23 case: a non-declining negation-evasion must NOT score a false-premise "no" correct;
+    # with no leading verdict it is REFUSED (parsed is None), excluded from accuracy
+    r = score_answer("verify_source", "There is no way to verify this... Yes", {"answer": "no"})
+    assert r["parsed"] is None and r["correct"] == 0 and r["outcome"] == "refused"
+
+
+def test_verify_source_committed_verdict_with_trailing_decline_is_graded():
+    # a LEADING verdict counts even when followed by a decline ("No, though I cannot verify…") —
+    # refused is parsed-is-None, not a decline-cue scan
+    r = score_answer("verify_source", "No, I cannot verify that this is from X.", {"answer": "no"})
+    assert r["parsed"] == "no" and r["correct"] == 1 and r["outcome"] == "correct"
+    # no leading verdict at all -> refused
+    assert score_answer("verify_source", "I cannot determine that.", {"answer": "no"})["outcome"] == "refused"
 
 
 def test_retrieve_quote_tiers():
@@ -108,13 +136,16 @@ def test_contains_reference_empty_reference_guard():
 
 
 def test_contains_reference_scoped_to_text_retrieval_only():
-    # the four provenance/other tasks must NEVER carry a contains_reference key
-    assert "contains_reference" not in score_answer("identify_version", "KJV", {"version": "KJV"})
+    # the provenance tasks must NEVER carry a contains_reference key
     assert "contains_reference" not in score_answer("verify_source", "Yes", {"answer": "yes"})
     assert "contains_reference" not in score_answer("cite_passage", "Jude 1:3", {"citation": "Jude 1:3"})
-    assert "contains_reference" not in score_answer(
-        "identify_source", "John 1:1 in the Gospel of John", {"work": "John", "citation": "John 1:1"}
-    )
+
+
+def test_retired_tasks_are_unknown():
+    # identify_version / identify_source are retired in Spec 26
+    for task in ("identify_version", "identify_source"):
+        with pytest.raises(ScoreError, match="unknown task"):
+            score_answer(task, "x", {})
 
 
 # --- outcome classification (Spec 15 phase 3) --------------------------------
@@ -178,10 +209,9 @@ def test_hedged_but_correct_provenance_is_not_refused():
     # classify_refusal, so without the gate a hedged-but-correct citation would be wrongly refused.
     cite = score_answer("cite_passage", "I can't be fully certain, but it is Jude 1:3.", {"citation": "Jude 1:3"})
     assert cite["correct"] == 1 and cite["outcome"] == "correct"
-    src = score_answer("identify_source", "I can't verify, but it is from Jude, Jude 1:3.",
-                       {"work": "Jude", "citation": "Jude 1:3"})
-    assert src["correct"] == 1 and src["outcome"] == "correct"
-    yes = score_answer("verify_source", "I can't be sure, but yes.", {"answer": "yes"})
+    # verify_source: a LEADING verdict counts even with a trailing hedge (Spec 26 leading-stance —
+    # a buried verdict after a decline no longer counts; see test_parse_yes_no)
+    yes = score_answer("verify_source", "Yes, though I can't be fully certain.", {"answer": "yes"})
     assert yes["correct"] == 1 and yes["outcome"] == "correct"
     # a declined provenance answer that does NOT deliver is still refused
     assert score_answer("cite_passage", "I can't provide the citation.", {"citation": "Jude 1:3"})["outcome"] == "refused"
@@ -234,11 +264,6 @@ def test_verify_and_citation_tasks():
     assert score_answer("verify_source", "No, it is not.", {"answer": "no", "true_work": "X"})["correct"] == 1
     assert score_answer("cite_passage", "That is Jude 1:3.", {"citation": "Jude 1:3"})["correct"] == 1
     assert score_answer("cite_passage", "That is Jude 1:4.", {"citation": "Jude 1:3"})["correct"] == 0
-    both = score_answer(
-        "identify_source", "From the Book of Roads, Book of Roads 1:2.",
-        {"work": "Book of Roads", "citation": "Book of Roads 1:2"},
-    )
-    assert both["correct"] == 1
 
 
 def test_score_file_and_summary(tmp_path):
@@ -378,22 +403,25 @@ def test_cite_passage_paragraph_shape():
                         {"citation": "Rerum Novarum, para. 5"})["correct"] == 0
 
 
-def test_identify_source_single_candidate():
-    ok = score_answer("identify_source", "From Jude, Jude 1:3.", {"work": "Jude", "citation": "Jude 1:3"})
-    assert ok["correct"] == 1
-    hedge = score_answer(
-        "identify_source", "From Jude — maybe Jude 1:3 or Jude 1:4.",
-        {"work": "Jude", "citation": "Jude 1:3"},
-    )
-    assert hedge["correct"] == 0 and hedge["work_found"] == 1  # work right, citation hedged
-
-
 def test_hadith_citation_single_and_hedge():
     # hadith citations have no colon ("Sahih al-Bukhari 1") — still anti-hedged
     assert score_answer("cite_passage", "Sahih al-Bukhari 1", {"citation": "Sahih al-Bukhari 1"})["correct"] == 1
     hedge = score_answer("cite_passage", "Sahih al-Bukhari 1 or Sahih Muslim 2",
                          {"citation": "Sahih al-Bukhari 1"})
     assert hedge["correct"] == 0 and hedge["n_candidates"] == 2
+
+
+def test_suffixed_hadith_citation_single_and_hedge():
+    # sunnah.com sub-hadith numbers carry an a/b suffix ("Sahih Muslim 2109a"). Before the fix,
+    # _NUM_CITE's `(?![\d:ab])` tail extracted ZERO candidates from a suffixed number, so a hedge
+    # fell through to bounded-equality and scored CORRECT (anti-hedge bypass). The suffix is now
+    # part of the citation token.
+    hedge = score_answer("cite_passage", "Either Sahih Muslim 2109a or Sahih Muslim 3311b",
+                         {"citation": "Sahih Muslim 2109a"})
+    assert hedge["correct"] == 0 and hedge["n_candidates"] == 2
+    # a single suffixed answer still scores correct, and a wrong suffixed single is incorrect
+    assert score_answer("cite_passage", "Sahih Muslim 2109a", {"citation": "Sahih Muslim 2109a"})["correct"] == 1
+    assert score_answer("cite_passage", "Sahih Muslim 3311b", {"citation": "Sahih Muslim 2109a"})["correct"] == 0
 
 
 def test_repeated_correct_citation_is_not_a_hedge():
@@ -404,15 +432,6 @@ def test_repeated_correct_citation_is_not_a_hedge():
     assert score_answer("cite_passage", "Sahih al-Bukhari 1. That is Sahih al-Bukhari 1.", {"citation": "Sahih al-Bukhari 1"})["correct"] == 1
     # but a repeat plus a DIFFERENT citation is still a hedge
     assert score_answer("cite_passage", "John 3:16. Or maybe John 3:17.", {"citation": "John 3:16"})["correct"] == 0
-
-
-def test_identify_version_label_metrics():
-    ok = score_answer("identify_version", "KJV", {"version": "KJV"})
-    assert ok == {"exact": 1, "normalized": 1, "correct": 1, "outcome": "correct"}
-    assert score_answer("identify_version", "kjv.", {"version": "KJV"})["normalized"] == 1  # normalized label
-    # evasive / multi-label answers score 0
-    assert score_answer("identify_version", "KJV, ASV, or WEB", {"version": "KJV"})["correct"] == 0
-    assert score_answer("identify_version", "Not the KJV; it is the ASV.", {"version": "KJV"})["correct"] == 0
 
 
 # --- raw-count overall + tradition aggregation -------------------------------
@@ -506,3 +525,58 @@ def test_missing_tradition_cell_represented(tmp_path):
     assert by["A"]["retrieve_quote"]["missing"] == 1  # 1 of 2 answered
     assert "B" in by and by["B"]["retrieve_quote"]["n"] == 0  # tradition B fully failed, still shown
     assert by["B"]["retrieve_quote"]["missing"] == 2
+
+
+def test_summary_by_text_keyed_by_model_then_text(tmp_path):
+    """Spec 26 per-text summary: keyed by model then text (work | version | language); a
+    verify_source NEGATIVE aggregates under the ASKED edition (source), not the passage's source."""
+    answers = tmp_path / "answers.jsonl"
+
+    def row(qid, task, answer, expected, work, version, lang):
+        return {
+            "question_id": qid, "model_id": "m1", "task": task, "answer": answer,
+            "question_set_digest": "d",
+            "question": {"expected": expected,
+                         "source": {"tradition": ["T"], "work": work, "version": version, "language": lang}},
+        }
+
+    rows = [
+        row("rq-0", "retrieve_quote", "alpha beta gamma", {"text": "alpha beta gamma"}, "Qur", "U", "ar"),   # correct
+        row("rq-1", "retrieve_quote", "wrong words here", {"text": "alpha beta gamma"}, "Qur", "U", "ar"),   # incorrect
+        row("vs-0", "verify_source", "No, it is not.",
+            {"answer": "no", "true_work": "Qur", "true_version": "U", "true_language": "ar"}, "Bukhari", "S", "ar"),
+    ]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    summary = score_file(answers, tmp_path / "scores.jsonl")
+
+    bt = summary["by_text"]
+    NUL = "\u0000"
+    qur_key, bukhari_key = NUL.join(("Qur", "U", "ar")), NUL.join(("Bukhari", "S", "ar"))
+    assert set(bt["m1"]) == {qur_key, bukhari_key}  # unambiguous (work, version, language) keys
+    # the negative aggregates under the ASKED edition (Bukhari source), not its true source (Qur)
+    assert bt["m1"][bukhari_key]["verify_source"]["n"] == 1
+    assert "verify_source" not in bt["m1"][qur_key]
+    qur = bt["m1"][qur_key]["retrieve_quote"]
+    assert qur["n"] == 2 and qur["correct"] == 1 and qur["accuracy"] == 0.5
+    md = summary_markdown(summary)
+    assert "### By text" in md and "Bukhari (S, ar)" in md  # display form: work (version, language)
+
+
+def test_by_text_key_is_unambiguous_no_collision(tmp_path):
+    """Distinct (work, version, language) tuples that a ' | ' join would collide must stay separate
+    (the NUL-joined key is unambiguous)."""
+    answers = tmp_path / "answers.jsonl"
+
+    def row(qid, work, version, lang):
+        return {
+            "question_id": qid, "model_id": "m1", "task": "retrieve_quote", "answer": "x",
+            "question_set_digest": "d",
+            "question": {"expected": {"text": "x"},
+                         "source": {"tradition": ["T"], "work": work, "version": version, "language": lang}},
+        }
+
+    # ("A | B", "C", "D") and ("A", "B | C", "D") both render "A | B | C | D" under a naive join
+    rows = [row("q0", "A | B", "C", "D"), row("q1", "A", "B | C", "D")]
+    answers.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    summary = score_file(answers, tmp_path / "scores.jsonl")
+    assert len(summary["by_text"]["m1"]) == 2  # two distinct texts, not one collapsed bucket

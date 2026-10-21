@@ -34,8 +34,8 @@ describe("QuestionList", () => {
   });
 
   it("renders a metric the task does not emit (null) as 'n/a'", () => {
-    // identify_version emits exact+normalized but no token_f1 → null → "n/a"
-    render(<QuestionList results={[q({ task: "identify_version", exact: 1, normalized: 1, token_f1: null })]} />);
+    // a metric a task does not emit arrives as null and must render "n/a" (here token_f1 is null)
+    render(<QuestionList results={[q({ task: "cite_passage", exact: 1, normalized: 1, token_f1: null })]} />);
     expect(screen.getByText("n/a")).toBeInTheDocument();
   });
 

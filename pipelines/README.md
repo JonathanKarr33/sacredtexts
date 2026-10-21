@@ -16,22 +16,33 @@ questions.jsonl × model panel ──collect──▶ answers.jsonl ──score�
 versions, and source shapes. Every tradition directory carries one committed
 `source.yaml` — a *targets manifest*: shared provenance plus a `targets:` list,
 where each target is one `(work, version, language)` unit with its `payload`
-glob, `converter`, `tradition[]`, and `license`. See
-`pipelines/sacredbench/catalogue.py` for the schema; loading is fail-fast.
+glob, `converter`, `tradition[]`, `license`, and (Spec 26) `requested_as` and
+`canonical_language`. See `pipelines/sacredbench/catalogue.py` for the schema;
+loading is fail-fast.
 
 - **`license`** is a three-value gate: `public-domain` / `open` / `restricted`
   (the real upstream string, e.g. the Talmud's `CC-BY-NC`, is kept verbatim in
-  `license_detail`). `restricted` targets are copyrighted translations whose
-  **payloads are git-ignored and local-only** (NABRE, the Greek Orthodox TLG
-  extracts); their `source.yaml` is still committed so the catalogue stays
-  complete and auditable.
+  `license_detail`). `restricted` targets are copyrighted texts whose
+  **payloads are git-ignored and local-only** — NABRE (an English translation) and the
+  Greek Orthodox TLG extracts (an original-language Greek edition); their `source.yaml` is
+  still committed so the catalogue stays complete and auditable.
+- **`requested_as`** is the non-empty list of names a person actually uses for this edition
+  (e.g. `["King James Version", "KJV", "KJV Bible"]`); `generate` renders `<edition>` in the
+  prompt as a seeded choice from it, never the raw `version`. **`canonical_language`** is the
+  language the benchmark treats as the text's own (usually the language of composition); a text
+  is in the default question pool only when **`language == canonical_language`**, so most
+  translations — Talmud English, the Vatican English encyclicals — are excluded and recorded in
+  the manifest with a reason. **Exception (working-group policy, issue #27 Q1):** the English
+  Bibles (KJV/ASV/WEB) are translations but carry `canonical_language: en` so they stay in the
+  pool; the Qur'an (`ar`), Talmud Aramaic (`he`) and TLG Greek (`grc`) are genuine originals.
 - `convert` and `generate` **exclude `restricted` targets by default**; pass
   `--include-restricted` to opt in (and supply the local payload). `validate` is
   unaffected by license.
 - **Standardized-path convention:** a target's converted output lives under
   `texts/standardized/<source-id>/<target-slug>/` mirroring
-  `texts/raw/<source-id>`, so `generate` recovers a document's license from its
-  path. The interchange `Document` format is unchanged (it carries no `license`).
+  `texts/raw/<source-id>`, so `generate` recovers a document's `license` **and** its text
+  metadata (`requested_as` / `canonical_language`) from its path. The interchange `Document`
+  format is unchanged (it carries neither).
 
 ```bash
 # Validate the whole catalogue and list the selected (non-restricted) targets
@@ -66,17 +77,22 @@ uv --project pipelines run python -m sacredbench convert --include-restricted --
 uv --project pipelines run python -m sacredbench validate texts/standardized
 
 # 2b. (Optional) Assemble the working group's interchange document per
-#     (work, version, language): merges shards (e.g. the LDS KJV OT+NT), dedupes
-#     by (citation, text), unions traditions, and checks the inverse-grouping
-#     round-trip before writing texts/interchange/ (rebuildable, gitignored).
+#     (work, version, language): merges shards (e.g. the dozens of per-tractate
+#     Talmud Bavli Aramaic files into one document), dedupes by (citation, text),
+#     unions traditions, and checks the inverse-grouping round-trip before writing
+#     texts/interchange/ (rebuildable, gitignored).
 uv --project pipelines run python -m sacredbench export texts/standardized
 
-# 3. Generate questions (six working-group templates; deterministic; incl.
-#    false-premise negatives when the corpus has >=2 works). Inputs are
-#    standardized docs under texts/standardized; restricted docs are excluded
-#    (opt in with --include-restricted), and a doc whose license can't be
-#    recovered from its path is refused (fail-closed).
-uv --project pipelines run python -m sacredbench generate texts/standardized --per-task 10
+# 3. Generate questions (four working-group templates; deterministic; original-language-only
+#    by default). A text (one work/version/language group) is in the pool iff
+#    language == canonical_language; excluded texts are recorded in the manifest with a
+#    reason (there is no --include-translations). Each in-pool text gets --per-text questions
+#    (default 28) split over the active templates. verify_source false-premise negatives are
+#    drawn cross-family (hadith collections are one family), same-language preferred. Inputs
+#    are standardized docs under texts/standardized; restricted docs are excluded (opt in with
+#    --include-restricted), and a doc whose license/metadata can't be recovered from its path
+#    is refused (fail-closed).
+uv --project pipelines run python -m sacredbench generate texts/standardized --per-text 28
 
 # 4. Collect answers from the model panel (resumable; non-zero exit on failures).
 #    `generate` also writes runs/questions.jsonl.manifest.json (seed, params,
@@ -91,13 +107,13 @@ uv --project pipelines run python -m sacredbench collect runs/questions.jsonl co
 #    -> the OR of the SELECTED named graders' verdicts (default `strict` + `containment`
 #    => `normalized OR contains_reference`; pick a subset with `--evaluator strict` /
 #    `--evaluator containment`; a paid/separate-pass grader is expressible, never default
-#    -> issue #21); verify_source -> boolean; identify_version -> label exact/normalized;
-#    cite_passage/identify_source -> the SINGLE extracted citation must equal ground truth
-#    (a multi-candidate hedge scores 0). Every answered cell also gets an OUTCOME
-#    (correct/incorrect/refused): a decline is `refused` and excluded from
-#    `accuracy = correct/(correct+incorrect)`, with `coverage = (correct+incorrect)/n`
-#    reported beside it. The summary also breaks down per model x task x TRADITION (each
-#    observation once per listed tradition). Optional flags:
+#    -> issue #21); verify_source -> the LEADING-stance Yes/No equals expected (Spec 26: a
+#    buried/negation-evasion verdict is refused, not correct — #23 closed);
+#    cite_passage -> the SINGLE extracted citation must equal ground truth (a multi-candidate
+#    hedge scores 0). Every answered cell also gets an OUTCOME (correct/incorrect/refused): a
+#    decline is `refused` and excluded from `accuracy = correct/(correct+incorrect)`, with
+#    `coverage = (correct+incorrect)/n` reported beside it. The summary breaks down per model x
+#    task x TRADITION and per model x TEXT (one text = one work/version/language). Optional flags:
 #      --summary-md PATH            also write the markdown summary (Phase 8 evidence)
 #      --questions Q --config CFG   report missing/failed cells against the panel x
 #                                   question-set roster (expected_n / 'miss N')

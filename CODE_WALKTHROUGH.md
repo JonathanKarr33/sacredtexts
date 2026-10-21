@@ -50,7 +50,7 @@ sacredtexts/
 ├── texts/
 │   ├── raw/<tradition>/        Source scripture as obtained, one folder per tradition, each with a source.yaml catalogue. Add a text's data here (RECIPE A).
 │   └── standardized/           Converted texts in the standard format. Rebuilt by `convert`; never committed.
-├── runs/                       Finished benchmark runs (questions + answers + scores + summary). The two dated folders are shipped reference evidence — never overwrite them.
+├── runs/                       Finished benchmark runs (questions + answers + scores + summary). The three dated folders are shipped reference evidence — never overwrite them.
 ├── apps/viewer/                The local results website (leaderboard + error explorer). Read apps/viewer/README.md before touching it.
 │   └── src/lib/explorer.ts     Derives the viewer's task/tradition filters from the data.
 ├── configs/                    models.example.yaml — the model list template copied to models.yaml for a run.
@@ -80,7 +80,7 @@ Drop the source JSON under `texts/raw/<tradition>/` (create the tradition folder
 new). This is the file exactly as you obtained it — whatever shape it came in.
 
 > A tradition folder holds one **`source.yaml`** catalogue listing everything in it. Each
-> `source.yaml` is parsed by `catalogue.py` (`pipelines/sacredbench/catalogue.py:155`).
+> `source.yaml` is parsed by `catalogue.py` (`pipelines/sacredbench/catalogue.py:185`).
 
 ### 2. Add a *target* to that folder's `source.yaml`
 
@@ -93,11 +93,19 @@ fields:
 - `work`, `version`, `language`, `document_type`, `tradition` — the identity of the text
   (`tradition` is a **list**).
 - `license` — **the field that gates everything**: one of `public-domain`, `open`, or
-  `restricted` (`LICENSES`, `pipelines/sacredbench/catalogue.py:46`). The optional
+  `restricted` (`LICENSES`, `pipelines/sacredbench/catalogue.py:59`). The optional
   `license_detail` keeps the real upstream licence string verbatim.
+- `requested_as` — a non-empty list of the names a person uses for this edition, e.g.
+  `["the King James Version", "the KJV", "the King James Bible"]`; `generate` renders `<edition>`
+  as a seeded choice from it (never the raw `version`).
+- `canonical_language` — the language this text is canonically in (its authoritative wording),
+  e.g. `ar` for the Qur'an, `he` for the Talmud, and `en` for the KJV (an English Bible that the
+  working group treats as canonical English, issue #27 Q1). A text is in the default
+  (original-language) question pool only when `language == canonical_language` (so a mere
+  translation — the Talmud English, the Vatican-English encyclicals — is excluded).
 
-A target maps to the `Target` dataclass (`pipelines/sacredbench/catalogue.py:102`).
-`select_targets()` (`pipelines/sacredbench/catalogue.py:259`) excludes `restricted`
+A target maps to the `Target` dataclass (`pipelines/sacredbench/catalogue.py:125`).
+`select_targets()` (`pipelines/sacredbench/catalogue.py:381`) excludes `restricted`
 targets from a normal `convert`. Set `license` honestly: mislabel a copyrighted text as
 `open` and the copyright gate's first line of defence won't catch it (step 6).
 
@@ -145,7 +153,7 @@ uv --project pipelines run python -m sacredbench validate texts/standardized
 
 `convert` writes your text to `texts/standardized/<source-id>/<target-slug>/` (the path
 convention enforced by `Target.standardized_dir`,
-`pipelines/sacredbench/catalogue.py:122`); `validate` re-checks the result is well-formed.
+`pipelines/sacredbench/catalogue.py:152`); `validate` re-checks the result is well-formed.
 
 ### 6. Check the copyright audit
 
@@ -168,9 +176,10 @@ catching a restricted unit mislabeled with a public source.
 > (`pipelines/sacredbench/convert.py:418`) wires it up. Data plus one function — a whole
 > tradition in a non-Latin script, no core change.
 
-The sampler that balances questions across traditions (`_balanced_sample`,
-`pipelines/sacredbench/generate.py:143`) reads tradition generically, so your new text
-becomes another bucket with no further edits.
+Generation groups documents into texts by `(work, version, language)` and includes a text
+only when `language == canonical_language` (`_build_texts`,
+`pipelines/sacredbench/generate.py:178`), so your new text joins the pool as another
+`(work, version, language)` group with no further edits.
 
 ---
 
@@ -181,40 +190,45 @@ evidence or the scoring guarantees.
 
 ### 1. Add the task to `generate.py` — `TASKS`
 
-Register the task name in the `TASKS` tuple (`pipelines/sacredbench/generate.py:48`).
+Register the task name in the `TASKS` tuple (`pipelines/sacredbench/generate.py:71`).
 Questions are built here with **no AI in the loop**, so a given seed always yields the
 same set — that repeatability is the contract that makes a run auditable.
 
-### 2. Give it a question template — `_build`
+### 2. Give it a question template — the per-task builders in `generate()`
 
-Add a branch to `_build()` (`pipelines/sacredbench/generate.py:102`) producing the
-prompt and the ground-truth `expected` dict for your task. A built question is the
-`Question` dataclass (`pipelines/sacredbench/generate.py:67`), with a content-derived id
-from `_qid()` (`pipelines/sacredbench/generate.py:92`).
+Add a branch in the per-text, per-task loop of `generate()`
+(`pipelines/sacredbench/generate.py:241`) producing the prompt and the ground-truth
+`expected` dict for your task. A built question is the `Question` dataclass
+(`pipelines/sacredbench/generate.py:86`), with a content-derived id from `_qid()`
+(`pipelines/sacredbench/generate.py:124`). `<edition>` is a seeded choice from the text's
+`requested_as` names.
 
-> If your task only applies to some texts (e.g. it needs a wrong "false-premise" work, or
-> two versions of the same work), add a pool filter in the per-task loop
-> (`pipelines/sacredbench/generate.py:246`). Determinism is anchored by
-> `question_set_digest()` (`pipelines/sacredbench/generate.py:307`) and recorded by
-> `build_manifest()` (`pipelines/sacredbench/generate.py:333`); `collect` stamps that
-> digest on every answer and `score` checks it, so a run can never silently mix question
-> sets.
+> If your task needs special sampling (e.g. the false-premise `verify_source`, whose
+> negatives are drawn cross-family — see `_append_verify_source`,
+> `pipelines/sacredbench/generate.py:354`), add it alongside the other task branches.
+> Determinism is anchored by `question_set_digest()`
+> (`pipelines/sacredbench/generate.py:420`) and recorded by `build_manifest()`
+> (`pipelines/sacredbench/generate.py:442`); `collect` stamps that digest on every answer
+> and `score` checks it, so a run can never silently mix question sets.
 
 ### 3. Grade the task — `score_answer`
 
-Add a branch to `score_answer()` (`pipelines/sacredbench/score.py:225`) returning your
+Add a branch to `score_answer()` (`pipelines/sacredbench/score.py:275`) returning your
 task's metrics dict, including the headline `correct` flag and the `outcome` stamped by
-`_with_outcome` (`pipelines/sacredbench/score.py:288`). For the text-retrieval tasks the sub-metrics
-and the headline come from the **selected graders** (recipe below); the other tasks' fixed
-sub-metrics live in `_SUBMETRICS` (`pipelines/sacredbench/score.py:128`).
+`_with_outcome` (`pipelines/sacredbench/score.py:319`). For the text-retrieval tasks the sub-metrics
+and the headline come from the **selected graders** (recipe below); a task with fixed sub-metrics
+would register them in `_SUBMETRICS` (`pipelines/sacredbench/score.py:125`), currently empty.
 
 > Existing tasks show the range of rules: `retrieve_quote`/`complete_unit` pass on the OR of the
 > selected graders' verdicts (default `normalized OR contains_reference`, Spec 15 — a verbatim quote
-> wrapped in a citation counts); others require the answer to *be* a specific label, or a single
-> extracted citation to equal the expected one (`_single_citation_correct`,
-> `pipelines/sacredbench/score.py:207`). **Refusal is an OUTCOME, not a grader**: a leading decline
-> that doesn't deliver the answer is `refused` (excluded from `accuracy = correct/(correct+incorrect)`,
-> with `coverage` reported beside it), via `outcomes.classify_refusal` + `_with_outcome`.
+> wrapped in a citation counts); `verify_source` needs the **leading-stance** Yes/No to equal expected
+> (Spec 26 — a buried or negation-evasion verdict is refused, not correct); `cite_passage` needs a
+> single extracted citation to equal the expected one (`_single_citation_correct`,
+> `pipelines/sacredbench/score.py:257`). **Refusal is an OUTCOME, not a grader**: for text-retrieval /
+> cite_passage a leading decline that doesn't deliver the answer is `refused` (via
+> `outcomes.classify_refusal` + `_with_outcome`); for `verify_source`, `refused ⟺ parsed is None` (no
+> leading verdict). Refusals are excluded from `accuracy = correct/(correct+incorrect)`, with
+> `coverage` reported beside it.
 
 #### Adding an evaluator (a named grader)
 
@@ -233,12 +247,12 @@ graders run.
 
 ### 4. Know the matching backbone — `_SUBMETRICS` / `normalize`
 
-The comparison engine is `normalize()` (`pipelines/sacredbench/score.py:133`), which runs
+The comparison engine is `normalize()` (`pipelines/sacredbench/score.py:128`), which runs
 three passes **in a fixed order**: Unicode folding, then `strip_script_marks()`
-(`pipelines/sacredbench/score.py:105`) which removes Arabic/Hebrew vowel marks *only within
+(`pipelines/sacredbench/score.py:101`) which removes Arabic/Hebrew vowel marks *only within
 those scripts* (so a vocalised verse matches its plain form), then the
 punctuation/case/whitespace pass. The word-overlap metric is `token_f1`
-(`pipelines/sacredbench/score.py:144`), explicitly a **v1 stand-in** for a future
+(`pipelines/sacredbench/score.py:139`), explicitly a **v1 stand-in** for a future
 semantic metric — the designated slot if your task needs similarity scoring (a judge-based grader
 arrives as the separate-pass seam, issue #21).
 
@@ -246,7 +260,7 @@ arrives as the separate-pass seam, issue #21).
 > is byte-for-byte unchanged by design, and the shipped English run was scored under the
 > current rules. The guard that proves a scoring change didn't move old numbers is
 > `test_rescoring_committed_run_reproduces_scores`
-> (`pipelines/tests/test_first_run_regression.py:32`), which re-scores the committed
+> (`pipelines/tests/test_first_run_regression.py:30`), which re-scores the committed
 > answers and asserts the committed scores reproduce exactly. A new task should *add*
 > evidence, not perturb the old — don't route around this test.
 >
@@ -259,8 +273,8 @@ arrives as the separate-pass seam, issue #21).
 
 ### 5. What flows through for free — and what NOT to touch
 
-The summary rollup (`score_file`, `pipelines/sacredbench/score.py:344`;
-`summary_markdown`, `pipelines/sacredbench/score.py:606`) keys on `(model, task)` and is
+The summary rollup (`score_file`, `pipelines/sacredbench/score.py:383`;
+`summary_markdown`, `pipelines/sacredbench/score.py:676`) keys on `(model, task)` and is
 task-generic, so your task appears without extra work. It reports the three-outcome split +
 `coverage` beside accuracy and stamps `summary["evaluators"]` (the graders that scored the run). The
 viewer's filters derive from the data too (`explorerTasks`, `apps/viewer/src/lib/explorer.ts:52`;
@@ -271,11 +285,13 @@ The viewer is HeroUI-v3 and provider-less — read
 **Must NOT touch:**
 
 - **The shipped run evidence.** Never re-run `generate`/`collect`/`score` over
-  `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`. Write to a fresh
-  `runs/<id>/` (see [`TUTORIAL.md`](TUTORIAL.md)). A `collect` there resume-skips every
+  `runs/original-2026-10-21/`, `runs/tutorial-2026-10-11/`, or `runs/first-run-2026-10-11/`. Write
+  to a fresh `runs/<id>/` (see [`TUTORIAL.md`](TUTORIAL.md)). A `collect` there resume-skips every
   cell; a keyless `score` overwrites the committed proof with nulls. (The *only* exception is a
   deliberate, oracle-witnessed contract rebaseline — see the sanctioned exception under step 4.)
-- **The regression guard** in `test_first_run_regression.py` (step 4).
+- **The regression guards** in `test_first_run_regression.py` and
+  `test_original_run_regression.py` (step 4) — the latter pins the current reference run's digest
+  and re-score.
 
 ### 6. Preserve the evidence-integrity invariants
 
@@ -284,7 +300,7 @@ A new task must keep every property that makes a committed run trustworthy:
 - **Panel identity includes tool use.** A model cell's identity is `_panel_fingerprint()`
   (`pipelines/sacredbench/collect.py:32`), which folds in its `tools`, and the same
   tools identity is emitted as a real `panel.tools` list — the `model` stays the raw API
-  id, with no inline marker — in the written panel snapshot (`score.py:430`), so the viewer
+  id, with no inline marker — in the written panel snapshot (`score.py:629`), so the viewer
   keys standings on `(provider, model, tools)`: web-search-on and web-search-off stay
   distinct rows while same-model/same-tools runs dedupe. Tools are validated (and fail-fast
   on a non-Anthropic provider) by `_parse_tools` (`pipelines/sacredbench/config.py:59`; the

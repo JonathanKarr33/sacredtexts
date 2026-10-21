@@ -48,7 +48,9 @@ def _fixture_tree(root: Path) -> Path:
         "    document_type: scripture\n"
         "    tradition: [Protestant Christian]\n"
         "    license: public-domain\n"
-        "    license_detail: public domain\n",
+        "    license_detail: public domain\n"
+        "    requested_as: [King James Version, KJV]\n"
+        "    canonical_language: en\n",
     )
     _write(
         raw / "Protestant Christian" / "kjv.json",
@@ -69,6 +71,8 @@ def _fixture_tree(root: Path) -> Path:
         "    document_type: encyclical\n"
         "    tradition: [Roman Catholic]\n"
         "    license: open\n"
+        "    requested_as: [papal encyclicals, the encyclicals]\n"
+        "    canonical_language: la\n"
         "  - payload: nabre.json\n"
         "    converter: nabre\n"
         "    work: The Bible\n"
@@ -76,7 +80,9 @@ def _fixture_tree(root: Path) -> Path:
         "    language: en\n"
         "    document_type: scripture\n"
         "    tradition: [Roman Catholic]\n"
-        "    license: restricted\n",
+        "    license: restricted\n"
+        "    requested_as: [NABRE, New American Bible]\n"
+        "    canonical_language: en\n",
     )
     _write(raw / "Roman Catholic" / "encyclicals" / "en" / "a.json", "{}")
     _write(raw / "Roman Catholic" / "nabre.json", "{}")
@@ -142,7 +148,8 @@ def test_per_target_provenance_override(tmp_path):
 
 _TARGET = (
     "targets:\n  - payload: a.json\n    converter: c\n    work: W\n    version: V\n"
-    "    language: en\n    document_type: scripture\n    tradition: [X]\n    license: open"
+    "    language: en\n    document_type: scripture\n    tradition: [X]\n    license: open\n"
+    "    requested_as: [Wname, W]\n    canonical_language: en"
 )
 
 
@@ -213,6 +220,7 @@ def test_slug_and_standardized_dir():
         work="The Bible", version="NABRE", language="en", document_type="scripture",
         tradition=("Roman Catholic",), license="restricted",
         provenance=cat.Provenance("x", "y", "z"),
+        requested_as=("NABRE",), canonical_language="en",
     )
     assert t.slug == "the-bible-nabre-en"
     assert t.standardized_dir(Path("texts/standardized")) == Path(
@@ -320,8 +328,10 @@ def test_cli_generate_fail_closed_on_unmapped(tmp_path):
     assert "fail-closed" in str(r.exception)
 
 
-def test_cli_generate_tasks_and_quota(tmp_path):
-    """The CLI exposes the quota/task policy (Phase 8's ~N retrieve_quote shape)."""
+def test_cli_generate_tasks_and_per_text(tmp_path):
+    """The CLI exposes the --tasks subset and --per-text quota (per-text split over the
+    active tasks). The doc's own (work, version, language) differs from the target's, so
+    metadata must resolve by PATH (the encyclicals-style case) for the text to be in-pool."""
     raw = _fixture_tree(tmp_path)
     sources = cat.discover_catalogue(raw)
     std = tmp_path / "texts" / "standardized"
@@ -337,22 +347,12 @@ def test_cli_generate_tasks_and_quota(tmp_path):
     r = runner.invoke(
         app,
         ["generate", str(std), "--raw-root", str(raw), "--standardized-root", str(std),
-         "--tasks", "retrieve_quote", "--quota", "retrieve_quote=3", "--out", str(out)],
+         "--tasks", "retrieve_quote", "--per-text", "3", "--out", str(out)],
     )
     assert r.exit_code == 0, r.output
     qs = [json.loads(line) for line in out.read_text().splitlines() if line.strip()]
     assert len(qs) == 3 and {q["task"] for q in qs} == {"retrieve_quote"}
     assert (out.parent / "q.jsonl.manifest.json").exists()
-
-
-def test_cli_generate_bad_quota_rejected(tmp_path):
-    raw = _fixture_tree(tmp_path)
-    r = runner.invoke(
-        app,
-        ["generate", str(tmp_path / "texts" / "standardized"), "--raw-root", str(raw),
-         "--quota", "retrieve_quote"],  # missing '=N'
-    )
-    assert r.exit_code != 0 and "task=N" in r.output
 
 
 def test_cli_gate_requires_catalogue(tmp_path):
@@ -372,6 +372,7 @@ def test_slugify_collapses_runs():
         source_id="x", payload="p", converter="c", work="The Bible",
         version="ASV (1901)", language="en", document_type="scripture",
         tradition=("x",), license="public-domain", provenance=cat.Provenance("a", "b", "c"),
+        requested_as=("ASV",), canonical_language="en",
     )
     assert t.slug == "the-bible-asv-1901-en"  # no doubled hyphens
 
@@ -398,6 +399,7 @@ def test_standardized_tie_prefers_restricted(tmp_path):
         source_id="x", payload="p", converter="c", work="W", version="V",
         language="en", document_type="scripture", tradition=("x",),
         provenance=cat.Provenance("a", "b", "c"),
+        requested_as=("W",), canonical_language="en",
     )
     open_t = cat.Target(license="open", **common)
     restricted_t = cat.Target(license="restricted", **common)
@@ -423,6 +425,128 @@ def test_cli_generate_reports_missing_path_distinctly(tmp_path):
     )
     assert r.exit_code != 0
     assert "input path not found" in r.output  # not a misleading license error
+
+
+# --- Spec 26: requested_as / canonical_language + text_metadata --------------
+
+
+@pytest.mark.parametrize(
+    "body, needle",
+    [
+        (PROV + _TARGET.replace("    requested_as: [Wname, W]\n", ""), "missing required field 'requested_as'"),
+        (PROV + _TARGET.replace("\n    canonical_language: en", ""), "missing required field 'canonical_language'"),
+        (PROV + _TARGET.replace("requested_as: [Wname, W]", "requested_as: KJV"), "requested_as must be"),
+        (PROV + _TARGET.replace("requested_as: [Wname, W]", "requested_as: []"), "requested_as must be"),
+        (PROV + _TARGET.replace("requested_as: [Wname, W]", "requested_as: ['  ']"), "requested_as must be"),
+        (PROV + _TARGET.replace("canonical_language: en", "canonical_language: '  '"), "canonical_language"),
+    ],
+)
+def test_requested_as_and_canonical_language_validation(tmp_path, body, needle):
+    y = _write(tmp_path / "texts" / "raw" / "X" / "source.yaml", body)
+    with pytest.raises(cat.CatalogueError) as e:
+        cat.load_source(y, tmp_path / "texts" / "raw")
+    assert needle in str(e.value)
+    assert "source.yaml" in str(e.value)  # names the file
+
+
+def test_target_exposes_requested_as_and_canonical_language(tmp_path):
+    raw = _fixture_tree(tmp_path)
+    kjv = cat.load_source(raw / "Protestant Christian" / "source.yaml", raw).targets[0]
+    assert kjv.requested_as == ("King James Version", "KJV")
+    assert kjv.canonical_language == "en"
+    assert kjv.text_key == ("The Bible", "KJV", "en")
+
+
+def test_text_metadata_nominal_view(tmp_path):
+    raw = _fixture_tree(tmp_path)
+    meta = cat.text_metadata(cat.discover_catalogue(raw))
+    assert meta[("The Bible", "KJV", "en")].canonical_language == "en"
+    enc = meta[("Papal Encyclicals", "Vatican English", "en")]
+    assert enc.requested_as == ("papal encyclicals", "the encyclicals")
+    assert enc.canonical_language == "la"
+
+
+def test_text_metadata_conflicting_tuple_across_sources_fails(tmp_path):
+    """Two source.yaml files declaring the same (work, version, language) with different
+    metadata is a global conflict — the per-file slug-agreement check cannot catch it."""
+    raw = tmp_path / "texts" / "raw"
+    _write(raw / "A" / "source.yaml", PROV + _TARGET)
+    _write(
+        raw / "B" / "source.yaml",
+        PROV + _TARGET.replace("requested_as: [Wname, W]", "requested_as: [Different]"),
+    )
+    sources = cat.discover_catalogue(raw)
+    with pytest.raises(cat.CatalogueError) as e:
+        cat.text_metadata(sources)
+    assert "ambiguous metadata" in str(e.value)
+
+
+def test_metadata_for_standardized_path_resolves_by_path(tmp_path):
+    """The generation channel recovers metadata by PATH, so it works even for a document
+    whose (work, version, language) differs from its target's — the encyclicals case
+    (convert_encyclicals re-stamps work=title/version)."""
+    raw = _fixture_tree(tmp_path)
+    sources = cat.discover_catalogue(raw)
+    std = tmp_path / "texts" / "standardized"
+    enc_t = next(t for t in cat.all_targets(sources) if t.work == "Papal Encyclicals")
+    # a document whose work is a specific encyclical title (NOT the target's nominal work)
+    doc = _std_doc(enc_t.standardized_dir(std) / "humanae-vitae.json", work="Humanae Vitae")
+    tm = cat.metadata_for_standardized_path(doc, sources, std)
+    assert tm is not None
+    assert tm.requested_as == ("papal encyclicals", "the encyclicals")
+    assert tm.canonical_language == "la"
+    # a path under no target directory is unresolved (callers fail closed on None)
+    assert cat.metadata_for_standardized_path(_std_doc(std / "stray.json"), sources, std) is None
+
+
+def test_slug_agreement_covers_canonical_language(tmp_path):
+    item = _TARGET[len("targets:\n"):]  # one item, same (work, version, language) -> same slug
+    body = (
+        PROV + "targets:\n" + item + "\n"
+        + item.replace("canonical_language: en", "canonical_language: ar") + "\n"
+    )
+    y = _write(tmp_path / "texts" / "raw" / "X" / "source.yaml", body)
+    with pytest.raises(cat.CatalogueError) as e:
+        cat.load_source(y, tmp_path / "texts" / "raw")
+    # the message names the field that actually differs, not all three
+    assert "disagree on canonical_language" in str(e.value)
+
+
+def test_real_catalogue_default_pool_is_seventeen():
+    """The committed corpus: 21 targets, default pool (language == canonical_language,
+    non-restricted) is exactly these 17 texts; every target carries both new fields; the two
+    LDS KJV targets are gone (issue #27 Q3). Pins membership, not just the count, so a
+    canonical_language typo that silently drops/adds a text fails loudly."""
+    sources = cat.discover_catalogue(REPO_ROOT / "texts" / "raw")
+    targets = cat.all_targets(sources)
+    assert len(targets) == 21
+    for t in targets:
+        assert t.requested_as and all(isinstance(n, str) and n for n in t.requested_as)
+        assert isinstance(t.canonical_language, str) and t.canonical_language
+    # no LDS KJV targets remain
+    assert not [t for t in targets if t.version == "KJV (LDS 2013 edition)"]
+    # cross-source conflict guard is live on the real catalogue
+    cat.text_metadata(sources)
+    pool = {t.text_key for t in targets if t.language == t.canonical_language and t.license != "restricted"}
+    assert pool == {
+        ("The Qur'an", "Uthmani (QUL)", "ar"),
+        ("Sahih al-Bukhari", "sunnah.com Arabic", "ar"),
+        ("Sahih Muslim", "sunnah.com Arabic", "ar"),
+        ("Sunan Abi Dawud", "sunnah.com Arabic", "ar"),
+        ("Jami` at-Tirmidhi", "sunnah.com Arabic", "ar"),
+        ("Sunan an-Nasa'i", "sunnah.com Arabic", "ar"),
+        ("Sunan Ibn Majah", "sunnah.com Arabic", "ar"),
+        ("Muwatta Malik", "sunnah.com Arabic", "ar"),
+        ("Musnad Ahmad", "sunnah.com Arabic", "ar"),
+        ("Sunan al-Darimi", "sunnah.com Arabic", "ar"),
+        ("Talmud Bavli", "William Davidson Edition - Aramaic", "he"),
+        ("Book of Mormon", "2013 edition", "en"),
+        ("Doctrine and Covenants", "2013 edition", "en"),
+        ("Pearl of Great Price", "2013 edition", "en"),
+        ("The Bible", "KJV", "en"),
+        ("The Bible", "ASV (1901)", "en"),
+        ("The Bible", "WEB", "en"),
+    }
 
 
 # --- gitignore reachability (regression guard for the real repo) -------------

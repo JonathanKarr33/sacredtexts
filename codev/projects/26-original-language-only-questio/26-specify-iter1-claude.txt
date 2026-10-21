@@ -1,0 +1,94 @@
+I'll review this spec against the actual codebase before forming a verdict.I read the spec, the four implementation modules it touches, every `source.yaml`, and the committed run evidence. Read-only throughout — I made no changes to the worktree.
+
+## Verification notes
+
+Confirmed accurate in the spec: the 14-text count (I enumerated 23 catalogue targets; 14 original-language non-restricted, 2 restricted, 7 non-restricted translations), `_balanced_sample`/`--per-task` as described, `parse_yes_no` matching the first token anywhere (`score.py:137-139`), the six-task `TASKS` tuple, and the absence of `refused`/`coverage`/grader registry. The Current State section is honest about the tree it's standing on.
+
+## Blocking
+
+**1. Templates 1 and 3 render a duplicated work name for 10 of the 14 in-scope texts.**
+
+`convert.py:338` builds hadith citations work-prefixed:
+
+```python
+Entry(unit_type="hadith", citation=f"{target.work} {number}", ...)   # "Sahih al-Bukhari 1"
+```
+
+and `convert.py:133-138` does the same for Doctrine and Covenants (`"Doctrine and Covenants 1:1"` — the comment says "Prefix the work so the citation is self-identifying"). So the spec's template 1, `What is the text of {ask_as} {citation}?`, produces:
+
+- *"What is the text of Sahih al-Bukhari Sahih al-Bukhari 1?"* (×9 collections)
+- *"What is the text of Doctrine and Covenants Doctrine and Covenants 1:1?"*
+
+That is 10 of 14 in-scope texts, and it defeats the exact problem the spec is written to solve — while the acceptance criterion ("Rendered prompts use `ask_as`, never the raw `version` string") still passes. The rendered prompt is an observable contract that feeds `question_set_digest`, so the composition rule belongs in the spec, not the plan: either derive a display citation that strips a leading work/`ask_as` prefix, or add a per-target citation-rendering field, or change the hadith/D&C citation format (which moves the committed digest).
+
+**2. Two success criteria require `refused` and `coverage`, which do not exist in this tree and arrive only with unmerged PR #24.**
+
+The criteria "a decline cue with no stance → refused" and "per-text table (text, n, accuracy, **coverage**, **refused**)" are unsatisfiable against the current `score.py`. Assumptions names the Spec-15 dependency and the Risks row says "merge `origin/main` when #24 lands" — but never states what happens if it doesn't land before Spec 26 reaches scoring. A builder cannot tell whether to implement `refused`/`coverage` here (duplicating Spec 15 and guaranteeing a conflict) or to block. Add the explicit either/or, e.g. "if #24 has not merged, the per-text table ships with text/n/accuracy only and the decline case is recorded as `parsed: null`."
+
+## Substantive
+
+**3. "Keep the 50/50 yes/no mix" is arithmetically impossible at 5 items per text.** `generate.py:269` computes `n_negatives = int(quota * negatives_share)`; 5 × 0.5 → 2 negatives / 3 positives = 40/60 per text, 28/70 aggregate. State whether 50/50 is per-text (then 5 can't do it) or aggregate (then the rounding alternation must be deterministic, because it feeds the digest).
+
+**4. `--per-text` 15–30 with an even four-way split is undefined for non-multiples of 4.** 15, 18, 22, 25, 30 all fail "N/4 per template". Say whether they're rejected (real range {16,20,24,28}) or how the remainder is placed.
+
+**5. The metadata channel into `generate` is unspecified, and the spec closes the obvious door.** `generate(docs: list[Document])` consumes standardized JSON; `Document` carries no catalogue facts, which is exactly why license is recovered *from the path* (`license_for_standardized_path`, fail-closed, `catalogue.py:296-355`). Keeping `Document` unchanged is right, but then the three new fields need the same channel plus the two rules that channel already has: (a) fail-closed when recovery fails, (b) the slug-agreement check at `catalogue.py:220-230`. The LDS KJV OT/NT pair is precisely such a case — two targets, one `(work, version, language)`, one slug — which also quietly breaks the spec's "one text = one target" identity. Grouping must be on `(work, version, language)` (the Talmud Aramaic target alone yields dozens of per-tractate documents); the spec's wording supports that but should stop equating "target" with "text."
+
+**6. `cite_passage` scoring is a self-documented weak path, and this spec makes it the majority case.** `score.py:149-151` states in-code: *"Number-only citations, e.g. a bare hadith number, are not span-extracted — Arabic corpora are a follow-on; the first run is English."* `_NUM_CITE` requires a Latin-script leading word (`[A-Za-z]`), and `normalize()`'s NFKD does not fold Arabic-Indic digits (٧ ≠ 7). Under original-language-only, `cite_passage` is 25% of the benchmark and its ground truth is overwhelmingly Arabic hadith numbers and Qur'ān `surah:ayah` — a model answering `صحيح البخاري ١` is right and scores 0. The spec hardens `verify_source` for the #23 gate but is silent here. This belongs in Risks with a mitigation (digit folding, or a Latin-script steer in `citation_hint`) and as a test scenario.
+
+**7. Template-4 negatives get riskier in a hadith-majority corpus.** The exclusion at `generate.py:274` is *exact normalized-text membership* in the wrongly-attributed work. Nine of fourteen texts are hadith collections that genuinely share narrations with variant wording and isnād — so a near-duplicate that isn't normalize-identical yields a **wrong "no" ground truth**. Previously negatives were mostly cross-tradition, where exact matching sufficed. Since `verify_source` is the false-premise instrument #23 exists to protect, either restrict negatives to cross-family pairs or record this as a stated, accepted limitation.
+
+## Minor
+
+8. `apps/viewer` has task-specific handling for the retired tasks (`localResults.ts:169`, `explorer.test.ts`, `QuestionList.test.tsx:37`), but the retirement criterion enumerates only `TASKS`/`_build`/`score.py`/docs while a separate criterion demands the viewer suite green. Name the viewer. Helpfully, I verified `runs/first-run-2026-10-11`'s manifest is `retrieve_quote` only (100 questions), so `test_first_run_regression.py`'s byte-for-byte re-score is *not* at risk from retiring the two tasks — worth stating so the builder doesn't have to guess.
+
+9. The leading-stance window must be taken **before** `normalize()`: `_PUNCT_RE = [^\w\s]` (`score.py:56`) deletes all punctuation, so "first sentence" is undetectable afterwards, and `parse_yes_no` currently normalizes first. Same ordering hazard class as arch-critical's normalize-pass warning — pin it.
+
+10. Prompt/answer language is never stated: all four templates are English while 11 of 14 texts are Arabic/Hebrew. One line ("English prompt; answers expected in the source script for templates 1–2") removes real ambiguity now that this is the dominant case.
+
+11. The `original_language` mapping never names the two LDS KJV Bible targets. Since "every target in every `source.yaml`" is a criterion, give the full census (23 targets: Judaism 2, Protestant 3, LDS 5, Catholic 2, Sunni 10, Greek Orthodox 1).
+
+Structure follows the template; the Baked Decisions are internally consistent and I'm not challenging any of them — issues 1, 3, and 4 are places where the spec *fails to honor or fully specify* a baked number, which is why they're defects rather than objections.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Well-grounded spec, but template 1 renders duplicated work names for 10 of 14 in-scope texts given work-prefixed citations, and two success criteria depend on `refused`/`coverage` that don't exist without unmerged PR #24.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Template 1 (`What is the text of {ask_as} {citation}?`) duplicates the work name for 9 hadith collections + D&C, because `convert.py:338`/`:138` prefix the work into the citation — defeats the spec's own purpose while passing its acceptance criterion; needs a stated composition rule.
+- Criteria requiring `refused` and `coverage` (leading-stance decline case; per-text table) are unsatisfiable in this pre-Spec-15 tree; the spec names the PR #24 dependency but defines no fallback if it hasn't merged.
+- "Keep the 50/50 yes/no mix" is impossible at 5 `verify_source` items per text (`int(5*0.5)` = 2 → 40/60); specify per-text vs aggregate and the deterministic rounding.
+- `--per-text` 15–30 is undefined for non-multiples of 4 against the "N/4 per template" criterion.
+- The channel delivering `original_language`/`ask_as`/`citation_hint` to `generate` is unspecified; it needs the license channel's fail-closed and slug-agreement rules (the LDS KJV OT/NT pair shares one slug and breaks "one text = one target").
+- `cite_passage` scoring is documented in-code as English/colon-only ("Arabic corpora are a follow-on"); this spec makes Arabic hadith numbers the majority and Arabic-Indic digits are not folded by `normalize()` — unaddressed, now 25% of the benchmark.
+- Template-4 negative ground truth relies on exact normalized-text exclusion, which won't catch variant-wording hadith shared across 9 collections — a wrong-"no" risk in the very instrument #23 protects.Closing the one loop I'd left open: I located the delivered template at `/opt/homebrew/lib/node_modules/@cluesmith/codev/skeleton/protocols/spir/templates/spec.md` and diffed its headings against the spec.
+
+The template's eleven headings — Problem Statement, Current State, Desired State, Success Criteria, Constraints, Assumptions, Solution Approaches, Open Questions, Test Scenarios, Risks and Mitigation, References — are present in the spec in exactly that order, with the SPEC-vs-PLAN boundary comment retained and no section stubbed to "N/A". **Structural compliance is verified, not assumed** (my review had asserted this from recall; it holds). No heading drift from pattern-matching older specs in `codev/specs/`.
+
+This does not change my assessment. Restating the verdict unchanged:
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Well-grounded spec that follows the delivered template exactly, but template 1 renders duplicated work names for 10 of 14 in-scope texts given work-prefixed citations, and two success criteria depend on `refused`/`coverage` that don't exist without unmerged PR #24.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Template 1 (`What is the text of {ask_as} {citation}?`) duplicates the work name for 9 hadith collections + D&C, because `convert.py:338`/`:138` prefix the work into the citation — defeats the spec's own purpose while passing its acceptance criterion; needs a stated composition rule.
+- Criteria requiring `refused` and `coverage` (leading-stance decline case; per-text table) are unsatisfiable in this pre-Spec-15 tree; the spec names the PR #24 dependency but defines no fallback if it hasn't merged.
+- "Keep the 50/50 yes/no mix" is impossible at 5 `verify_source` items per text (`int(5*0.5)` = 2 → 40/60); specify per-text vs aggregate and the deterministic rounding.
+- `--per-text` 15–30 is undefined for non-multiples of 4 against the "N/4 per template" criterion.
+- The channel delivering `original_language`/`ask_as`/`citation_hint` to `generate` is unspecified; it needs the license channel's fail-closed and slug-agreement rules (the LDS KJV OT/NT pair shares one slug and breaks "one text = one target").
+- `cite_passage` scoring is documented in-code as English/colon-only ("Arabic corpora are a follow-on"); this spec makes Arabic hadith numbers the majority and Arabic-Indic digits are not folded by `normalize()` — unaddressed, now 25% of the benchmark.
+- Template-4 negative ground truth relies on exact normalized-text exclusion, which won't catch variant-wording hadith shared across 9 collections — a wrong-"no" risk in the very instrument #23 protects.
+- Structure: compliant with `protocols/spir/templates/spec.md` (verified against the installed skeleton) — not an issue, recorded for completeness.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-26_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

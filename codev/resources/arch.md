@@ -27,6 +27,11 @@ Seeded from Spec 1 (Phase 1 benchmark) — the first implementation round.
   rebuilt by `convert`). The standardized path mirrors the raw path so `generate`
   recovers a document's licence from its path. `convert`/`generate` exclude
   `restricted` targets unless `--include-restricted`.
+- **Any catalogue fact `generate` needs is recovered through the path-based metadata
+  channel** (`metadata_for_standardized_path` / `license_for_standardized_path`), not the
+  `Document` (which carries none of it): `license`, `requested_as`, and
+  `canonical_language` are its users. This is why the standardized path must mirror the raw
+  path, and why a converter that re-stamps `work` (encyclicals) still resolves correctly.
 - `catalogue.py`: `Target`/`Source`/`Provenance`, `discover_catalogue` (globs
   `texts/raw/**/source.yaml`), `select_targets`, path↔licence mapping; fail-fast on
   unknown licence, bad target, or missing field.
@@ -44,11 +49,14 @@ round-trip that proves no invention/reordering.
 `convert` → `texts/standardized` → `generate` → `questions.jsonl` → `collect` →
 `answers.jsonl` → `score` → `scores.jsonl` + `summary.{json,md}`.
 
-- **generate.py**: six working-group templates; deterministic (content-derived ids,
-  seeded); version-gated with overlap exclusions; tradition-balanced (`_balanced_sample`
-  sorts sub-pools by content before the seeded shuffle, so it is input-order
-  independent); writes a `.manifest.json` (seed, params, corpus hash, question-set
-  digest).
+- **generate.py**: four working-group templates (`retrieve_quote` / `complete_unit` /
+  `cite_passage` / `verify_source`), **original-language-only by default** (a text is in the
+  pool iff `language == canonical_language`; excluded texts recorded in the manifest with a
+  reason); deterministic (content-derived ids, seeded); a per-text quota (`--per-text`, default
+  28) split over the active templates; `<edition>` rendered as a seeded choice from the text's
+  `requested_as` names; writes a `.manifest.json` (seed, params, corpus hash, question-set
+  digest, selected + excluded texts). (Spec 26 retired `identify_version`/`identify_source` and
+  the tradition-balanced sampler.)
 - **collect.py**: concurrency-bounded fan-out; **resumable** (skips answered
   `(question_id, model_id)` cells); failed cells stay pending and the run exits
   non-zero; stamps the question-set digest on every row and refuses to resume a file
@@ -66,13 +74,14 @@ round-trip that proves no invention/reordering.
 - **score.py**: per-task headline contract — `retrieve_quote`/`complete_unit` → the OR of the
   SELECTED graders' verdicts (default `strict` + `containment` ⇒ `normalized OR contains_reference`,
   Spec 15; graders are named + selectable via `score --evaluator`, a paid/separate-pass grader
-  expressible for #21; + exact/token-F1 reported); `verify_source` → yes/no; `identify_version` →
-  label exact/normalized; citation tasks → the single extracted citation must equal ground truth (a
+  expressible for #21; + exact/token-F1 reported); `verify_source` → the **leading-stance** yes/no
+  equals expected; `cite_passage` → the single extracted citation must equal ground truth (a
   multi-candidate hedge scores 0; extractor chosen by the ground-truth citation shape). Every
   answered cell also carries an **outcome** (correct/incorrect/**refused**): a deterministic decline
   is `refused` and excluded from `accuracy = correct/(correct+incorrect)`, with **coverage** reported
-  beside it. A deliberate contract change is a sanctioned, oracle-witnessed rebaseline, not a
-  forbidden re-score. (verify_source commitment-parsing hardening is deferred — issue #23.) `normalize()` is script-aware: it **deletes**
+  beside it (for `verify_source`, `refused ⟺ parsed is None`). A deliberate contract change is a
+  sanctioned, oracle-witnessed rebaseline, not a forbidden re-score. (verify_source is hardened —
+  leading-stance `parse_yes_no`; **#23 PAPER GATE closed, Spec 26**.) `normalize()` is script-aware: it **deletes**
   Arabic/Hebrew combining marks (harakat/niqqud/cantillation) and tatweel and folds
   alef-wasla→alef / Hebrew maqaf→space *before* the punctuation pass, so vocalised
   non-Latin words score fairly; Latin text is byte-for-byte unchanged (a pinned

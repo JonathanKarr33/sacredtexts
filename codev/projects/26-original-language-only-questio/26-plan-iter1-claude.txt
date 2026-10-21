@@ -1,0 +1,67 @@
+I'll start by reading the actual plan and spec files, then verify the referenced code paths.Now let me verify the plan's claims against the surrounding code — especially how catalogue facts reach `_build`, and which tests/docs couple to the flags being removed.I read the plan, the spec, and the actual code it targets (`catalogue.py`, `generate.py`, `cli.py`, `score.py`, the test suite, the viewer, TUTORIAL.md). The plan is well-structured and faithful to the baked decisions — phase ordering follows the real data flow, and the file paths it names all exist. But I found four issues that will bite the builder, two of which I verified against the test suite.
+
+## Issues
+
+**1. Phase 2 turns the test suite red and it stays red until Phase 5 (verified).**
+`pipelines/tests/test_code_walkthrough.py:95` has a hard pointer-guard entry:
+```python
+("pipelines/sacredbench/generate.py", "def _balanced_sample("),
+```
+Phase 2 deletes `_balanced_sample`; the CODE_WALKTHROUGH update is Phase 5. So `test_referenced_symbol_exists` fails from Phase 2 through Phase 4, contradicting the "Pipeline suite green" acceptance criterion in each of those phases and the "each phase can be committed independently" premise. Same class of problem for `TASKS = (` and `_SUBMETRICS = {` (both in `_REQUIRED_SYMBOLS`) if their shape changes. **Fix:** move the doc edits that are *coupled to deleted symbols* into the phase that deletes them; leave only prose/recipe polish in Phase 5.
+
+**2. Phase 2 breaks `test_first_run_regression.py` on the function signature, and the plan never mentions it.**
+`test_first_run_regression.py:59-66` calls:
+```python
+run_generate(docs, per_task=manifest["per_task"], ..., quotas=manifest["quotas"] or None, tasks=...)
+```
+Phase 2 removes `per_task` and `quotas` from `generate()` → `TypeError`. Note this guard *skips* when `texts/standardized/` is absent (gitignored), so it may pass vacuously in the gate and only fail on a machine that ran `convert` — easy to ship broken. Worse, the first-run set (100 questions, `retrieve_quote` only, 3 texts) is **not expressible** under `--per-text`: no `N` yields 100 total. The spec's reassurance covers only the *re-score* half; the **generation-invariance** half is genuinely lost. The plan should name this as a decision (retire the generation guard with rationale, or replace it with a digest-pinned fixture) rather than discovering it mid-phase. Phase 2's file list must include this test.
+
+**3. The metadata channel as described cannot deliver `ask_as` to the prompt renderer.**
+Phase 1 says the three fields reach `generate` via "the `license_for_standardized_path` analog". But `license` never travels *into* `generate()` — it is a **path filter**: `filter_standardized_paths()` returns kept paths, then `schema.load_documents(kept)` **discards the path→doc association**. Meanwhile `_build(task, doc, entry)` (generate.py:102) has only a `Document`, and `Document` (schema.py:52-59) carries no catalogue facts. So a path-keyed recovery function structurally can't feed `ask_as`/`citation_hint` to the renderer. `original_language` *can* be a path filter; the other two cannot.
+
+The clean mechanism is already implied by the spec's own slug-agreement rule: `Target.slug == _slugify(f"{work}-{version}-{language}")` — exactly the tuple Phase 2 groups "texts" on, and converters set `doc.work/version/language` from the target. So Phase 1 should deliver something like `text_metadata(sources) -> dict[tuple[str,str,str], TextMeta]` (fail-closed: a doc whose tuple is absent raises `CatalogueError`), passed into `generate()` as a parameter. Worth pinning in the plan — getting it wrong costs rework across Phases 1 **and** 2.
+
+**4. `verify_source` question identity is a spec requirement with no plan coverage.**
+Spec Constraints require: the question belongs to the **asked** edition, `source` records the asked edition, and `expected` gains `true_version`. Current code does the opposite — `_source_dict(doc, entry)` records the *passage's* doc, `expected` has only `true_work` (generate.py:120), the prompt interpolates a raw `neg_work` string (no `ask_as`), and negatives are selected at **work** granularity (`works`, `work_texts`) rather than `(work, version, language)`. Phase 2 says only "keep `verify_source` negative sampling + the existing deterministic negative share," which reads as *no change*. This is also a silent cross-phase hazard: Phase 3's `by_text` aggregates off `question.source`, so if Phase 2 doesn't invert the source dict, the per-text table mis-attributes every negative.
+
+Relatedly, the risk-table mitigation **"prefer cross-work/cross-family negatives" is currently a no-op** — the nine hadith collections *are* nine distinct `work` values, so cross-work pairing is exactly what already happens and exactly what produces variant-narration false "no"s. A real mitigation needs a family/grouping notion (e.g. never pair two hadith collections) that the plan would have to define.
+
+## Smaller points
+
+- **`--tasks` × per-text split denominator is unstated.** Spec: "the per-text split then applies over the selected subset." The plan says "N//4 + remainder" everywhere. With `--tasks retrieve_quote` that yields 5 of 20. Pin it as `N // len(active)` + remainder to the first `N % len(active)` in canonical order.
+- **TUTORIAL.md:107-122 becomes unreproducible.** It documents `--tasks retrieve_quote --per-task 100 --seed 20261011` and explicitly promises the digest matches the committed `tutorial-2026-10-11` run. Under `--per-text` no documented command regenerates that set. Phase 5 says only "the generate command shows `--per-text`" — it should state what happens to the reproduce-the-committed-run claim.
+- **Phase 6 budget has no gate.** 280 questions × 4 panel entries (two are `claude-opus-5-5`, two arms with `web_search`) = **~1,120 live cells**, vs. the tutorial's 400 `retrieve_quote`-only. "A budget note with the cell count" isn't an approval step. Per lessons-critical ("keep a budgeted live smoke in the loop"), add a cheap smoke (e.g. `--per-text 4`, haiku-only) and explicit architect sign-off on the estimate before the full panel.
+- **"Viewer renders the new run (per-text table present)"** (Phase 6) is unscoped. `localResults.ts:115` destructures only `models`/`by_tradition`/`usage`/`panel`, so `by_text` is silently ignored — it will render *without* the table and still pass. Either reword to "present in `summary.md`/`summary.json`" or add `by_text` rendering to Phase 4.
+- `--per-text` isn't validated against the spec's 15–30 range (`min=15, max=30` in the Typer option would be free).
+
+## What's good
+
+Phase ordering along catalogue → generate → score is right; Phase 1 genuinely must come first. The 23-targets/6-files census checks out exactly (1+2+3+2+10+5). The `#24`-not-merged STOP rule correctly refuses a fallback per the project rule. The pre-`normalize()` window for `parse_yes_no` is the right call and correctly identified as the same ordering-sensitivity class as the arch-critical normalize invariant. The Arabic-Indic digit risk is real and correctly sized — worth noting `\d` in Python *does* match `٧`, so `_COLON_CITE` will extract `٧:٧٠` and then fail comparison (NFKD doesn't fold Arabic-Indic digits), while `_NUM_CITE`'s `[A-Za-z]` prefix requirement fails outright on an Arabic answer. That argues for making Phase 3's "evaluate folding" an explicit go/no-go rather than an open item.
+
+I made no changes to the worktree.
+
+---
+VERDICT: REQUEST_CHANGES
+SUMMARY: Sound phase ordering and accurate file targeting, but two verified test-breakages leave the suite red across three phases, the metadata channel as described can't reach the prompt renderer, and the spec's verify_source identity change is uncovered.
+CONFIDENCE: HIGH
+---
+
+KEY_ISSUES:
+- Phase 2 deletes `_balanced_sample` but the CODE_WALKTHROUGH pointer-guard (`test_code_walkthrough.py:95`) requires it; suite is red Phases 2–4, contradicting each phase's "Pipeline suite green" criterion. Move coupled doc edits into the deleting phase.
+- Phase 2 removes `per_task`/`quotas` from `generate()`, breaking `test_first_run_regression.py:59-66` on signature. The first-run's 100-question set is not expressible under `--per-text`, so the generation-invariance guard is genuinely lost — needs to be a named decision, and that test belongs in Phase 2's file list.
+- Phase 1's "`license_for_standardized_path` analog" can't deliver `ask_as`/`citation_hint`: license is a path *filter* and `load_documents()` discards path→doc association, while `_build()` sees only a `Document`. Pin a `(work, version, language)`-keyed, fail-closed metadata mapping passed into `generate()`.
+- Spec-required `verify_source` changes are uncovered: `source` must record the *asked* edition, `expected` must gain `true_version`, prompts must use the asked text's `ask_as`, and negatives must be selected at text not work granularity. Phase 3's `by_text` mis-attributes negatives if Phase 2 skips this.
+- The "prefer cross-work/cross-family negatives" mitigation is a no-op — the nine hadith collections are already distinct `work` values; a real family-grouping rule is needed.
+- `--tasks` subset interaction with the per-text split is unstated (should be `N // len(active)`, not `N // 4`).
+- TUTORIAL.md's documented `--per-task 100` reproduce-the-committed-run command and its digest promise become unreproducible; Phase 5 doesn't address it.
+- Phase 6 is ~1,120 live cells (incl. two opus arms with web_search) with a budget *note* but no approval gate or prior smoke.
+- Phase 6's "viewer renders the per-text table" will pass vacuously — `localResults.ts` ignores unknown summary keys, so `by_text` never renders; either reword or scope it into Phase 4.
+
+---
+
+## ⚠️ WORKING TREE CHANGED during the claude review (#1649).
+A consultant reviews the tree; it must never write to it. 1 path changed while this lane was running:
+  - codev/state/aspir-26_thread.md
+Check `git status` and `git diff` before trusting this review or shipping the branch.
+Note: under cmap the lanes run concurrently in one worktree, so another lane — or you —
+may be the writer. This warning names what moved, not who moved it.

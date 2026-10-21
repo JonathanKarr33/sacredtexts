@@ -64,11 +64,18 @@ def test_hedge_without_decline_cue_is_not_refused():
     assert classify_refusal(ans, "retrieve_quote", EXP) is False
 
 
-def test_verify_source_decline_vs_committed():
-    assert classify_refusal("I can't verify that.", "verify_source", {"answer": "yes"}) is True
-    assert classify_refusal("Yes, that is correct.", "verify_source", {"answer": "yes"}) is False
-    # a leading decline that still commits a Yes/No is an answer, not a refusal
-    assert classify_refusal("I can't be fully sure, but yes.", "verify_source", {"answer": "yes"}) is False
+def test_verify_source_refusal_is_parsed_based_not_classify_refusal():
+    # Spec 26: verify_source refusal is "no leading verdict committed" (parsed is None), decided in
+    # score._with_outcome — NOT classify_refusal (which now governs only text-retrieval / cite_passage).
+    from sacredbench.score import score_answer
+
+    # leads with the verdict (trailing decline) -> graded, even with a real decline cue present
+    assert score_answer("verify_source", "No, I cannot verify that this is from X.",
+                        {"answer": "no"})["outcome"] == "correct"
+    # leads with a decline, verdict buried after "but" -> no leading verdict -> refused
+    assert score_answer("verify_source", "I can't verify that, but no.", {"answer": "no"})["outcome"] == "refused"
+    # a clean leading verdict -> graded
+    assert score_answer("verify_source", "Yes, that is correct.", {"answer": "yes"})["outcome"] == "correct"
 
 
 def test_leading_window_boundary():

@@ -1,0 +1,29 @@
+# Spec 26 run panel — OpenRouter (search-OFF only).
+#
+# Waleed's decision (2026-10-21): the Spec 26 committed run uses the OpenRouter key because
+# ANTHROPIC_API_KEY was not available. web_search is an Anthropic server-side tool and
+# config.py fail-fasts it on a non-anthropic provider, so this panel is SEARCH-OFF ONLY —
+# there are no tool-assisted-retrieval arms. The run is therefore UNPRICED (no per-token
+# price is supplied; `score` reports token totals only — prices are never invented).
+#
+# Keys come from the environment only (OPENROUTER_API_KEY), never from a file in this repo.
+concurrency: 4
+models:
+  - id: haiku
+    provider: openai
+    model: anthropic/claude-haiku-5-5
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 4096             # headroom so a long Arabic/Aramaic quote does not trip truncation
+  - id: opus
+    provider: openai
+    model: anthropic/claude-opus-5-5
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 4096
+  - id: gpt-oss-20b
+    provider: openai
+    model: openai/gpt-oss-20b    # a cheap open-weights contrast (same slug as the first run)
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 4096
