@@ -156,3 +156,14 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   _SUBMETRICS entries — retire there (update _SUBMETRICS pointer-guard in that commit).
   by_text summary aggregates on source (now has work/version/language + requested_as).
   Source gained requested_as field (additive; viewer/score read specific keys, harmless).
+
+### Phase 2 per-phase consult iter1 + re-iter (2026-10-21)
+- codex + claude both REQUEST_CHANGES (core confirmed correct: 476q, byte-exact prompts,
+  display_citation, identity flip). Fixes: cite_passage max(quota,2); excluded_texts
+  aggregate to catalogue TARGET (TextMeta.target_key) so 201 encyclicals→1; containment over
+  ALL entries; fixed always-true containment test; perf precompute (entry_norms/all_norm).
+- ARCHITECT verify_source family decision: family=hadith_collection else work; prefer
+  same-language cross-family negative, cross-language fallback recorded in manifest
+  (verify_source_cross_language_negatives); expected gains true_language. Residual→Phase6 README.
+- Spec/plan updated to the family/same-language model + target-aggregated exclusions + chosen-name
+  requested_as. Full suite 344 passed. Rebuttal written.
