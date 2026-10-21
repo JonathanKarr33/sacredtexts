@@ -101,12 +101,15 @@ scores or the viewer; future contributors adding corpora (the metadata contract 
   `complete_unit`, `cite_passage`, `verify_source`). The per-task quota and the tradition-balanced
   sampler are gone — replaced, not kept alongside. Generation fails fast (naming the text and the
   template) when a text cannot fill a template's share.
-- **The two new fields reach generation through a `(work, version, language)`-keyed map.** `generate`
-  consumes standardized `Document`s, which (correctly, unchanged) carry no catalogue facts; `license`
-  reaches generation only as a path *filter* (`load_documents` discards the path→doc link), which
-  structurally cannot feed a name into the prompt renderer. So `requested_as` and `canonical_language`
-  travel a fail-closed `text_metadata` map keyed on `(work, version, language)` (a doc whose tuple is
-  absent raises `CatalogueError`), with slug-agreement across targets sharing a slug.
+- **The two new fields reach generation by path, mirroring `license`.** `generate` consumes
+  standardized `Document`s, which (correctly, unchanged) carry no catalogue facts, so `requested_as`
+  and `canonical_language` are recovered from a document's path via `metadata_for_standardized_path`
+  (the deepest-containing target wins, exactly like `license_for_standardized_path`); generation
+  fail-closes when a path resolves to no target. Keying by path — not by `(work, version, language)` —
+  is what makes this robust to converters such as `encyclicals` that re-stamp `work`/`version` per
+  document (every encyclical file still lives under the one encyclicals target dir). A separate
+  `text_metadata()` is a nominal catalogue-wide view that fail-fasts on a cross-source tuple conflict
+  the per-file slug-agreement check cannot see; both are extended with the two fields.
 - **Exactly four templates, rendered in natural language.** `<edition>` is a **seeded uniform choice**
   from the text's `requested_as` list, recorded in `question.source.requested_as`. **The rendered
   prompt strings below are the authoritative contract** (they feed the question-set digest); Waleed's
@@ -375,9 +378,11 @@ requirement* is the spec contract.
   `targets[i]`.
 - A non-list / empty-list / empty-element `requested_as`, or an empty `canonical_language`, is rejected.
 - A valid target with both fields loads and exposes them on `Target`.
-- **Metadata channel:** `text_metadata()` returns a `(work, version, language)`-keyed map, fail-closed
-  (`CatalogueError`) on an unmapped tuple, and the slug-agreement check fires when two targets share a
-  slug but disagree on a field.
+- **Metadata channel:** `metadata_for_standardized_path()` recovers a document's `requested_as` /
+  `canonical_language` by path (resolving even a re-stamped encyclical doc whose work != target work),
+  returns `None` for a stray path (generation fail-closes on `None`); `text_metadata()` raises on a
+  cross-source conflicting tuple; the slug-agreement check fires, naming the field(s), when two targets
+  share a slug but disagree.
 
 **Selection & quota**
 - Default generate over the full catalogue selects exactly the 17 included

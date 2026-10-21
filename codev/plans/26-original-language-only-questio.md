@@ -12,8 +12,9 @@ path works (lessons-critical: "tests pass" ≠ "it works").
 
 1. **Catalogue metadata** is first because generation and selection both read the two new fields;
    nothing downstream can be built or tested until `requested_as` / `canonical_language` load, validate,
-   and reach generation through a `(work, version, language)`-keyed map (the plan-review correction: a
-   path-keyed `license`-style channel structurally cannot feed a name to the prompt renderer).
+   and reach generation **by path** via `metadata_for_standardized_path` (mirroring `license`; the
+   per-phase consult established that a `(work, version, language)` key cannot resolve converters like
+   `encyclicals` that re-stamp work/version, while a path-based recovery can).
 2. **Generation** reshapes selection (equality inclusion) + the per-text-28 quota + the four templates
    on top of that contract.
 3. **Scoring** hardens `parse_yes_no` (closes the #23 PAPER GATE) and adds the per-text summary, built
@@ -185,17 +186,17 @@ quota over exactly four templates, and natural-language prompts using a seeded `
   the `TASKS = (` shape in `_REQUIRED_SYMBOLS`) so the pointer-guard test stays green from this commit
   on. Recipe prose polish not coupled to a deleted symbol stays in Phase 5.
 - `pipelines/tests/test_first_run_regression.py` — **named decision:** the generation-invariance guard
-  (`test_first_run_question_set_digest_regenerates`) is already broken by **Phase 1**, not just this
-  phase: removing the two `KJV (LDS 2013 edition)` targets orphaned
-  `texts/standardized/.../the-bible-kjv-lds-2013-edition-en/`, which is in the committed first-run
-  manifest's `inputs`, so `filter_standardized_paths` now raises fail-closed on regenerate (green only
-  because `texts/standardized/` is absent in this worktree — it bites at Phase 6 when the corpus is
-  rebuilt). This phase also removes `per_task`/`quotas` from `generate()`, and the 100-question
-  `retrieve_quote`-only set is **not expressible** under `--per-text`. Retire the
-  **generation-invariance** half with that two-part rationale (Phase-1 target removal **and** the
-  generator-interface change); **keep the re-score half** (score committed answers → committed scores,
-  byte-for-byte — unaffected, `retrieve_quote`-only). A new generation-invariance anchor is
-  re-established on the fresh Phase-6 run (digest-pinned there).
+  (`test_first_run_question_set_digest_regenerates`) can no longer hold. Its symptom on a clean rebuild
+  is a **question-set digest mismatch**: regenerating from the committed first-run `inputs` yields a
+  *different* set than the committed one, so the pinned digest no longer matches — because Phase 1
+  removed the two `KJV (LDS 2013 edition)` targets (the corpus changed) and this phase removes
+  `per_task`/`quotas` from `generate()` and reshapes the templates (the generator changed; the
+  100-question `retrieve_quote`-only set is **not expressible** under `--per-text`). (It is green in
+  this worktree only because `texts/standardized/` is absent, so the test skips; it bites at Phase 6
+  when the corpus is rebuilt.) Retire the **generation-invariance** half with that two-part rationale;
+  **keep the re-score half** (score committed answers → committed scores, byte-for-byte — unaffected,
+  `retrieve_quote`-only). A new generation-invariance anchor is re-established on the fresh Phase-6 run
+  (digest-pinned there).
 - `pipelines/tests/test_generate.py` — rewrite retired-task + quota/balancing tests; add the new ones.
 
 #### Deliverables
