@@ -92,7 +92,7 @@ _REQUIRED_SYMBOLS = [
     ("pipelines/sacredbench/schema.py", "def parse_document("),
     ("pipelines/sacredbench/generate.py", "TASKS = ("),
     ("pipelines/sacredbench/generate.py", "def question_set_digest("),
-    ("pipelines/sacredbench/generate.py", "def _balanced_sample("),
+    ("pipelines/sacredbench/generate.py", "def _build_texts("),
     ("pipelines/sacredbench/score.py", "_SUBMETRICS = {"),
     ("pipelines/sacredbench/score.py", "def score_answer("),
     ("pipelines/sacredbench/score.py", "def normalize("),

@@ -168,9 +168,10 @@ catching a restricted unit mislabeled with a public source.
 > (`pipelines/sacredbench/convert.py:418`) wires it up. Data plus one function — a whole
 > tradition in a non-Latin script, no core change.
 
-The sampler that balances questions across traditions (`_balanced_sample`,
-`pipelines/sacredbench/generate.py:143`) reads tradition generically, so your new text
-becomes another bucket with no further edits.
+Generation groups documents into texts by `(work, version, language)` and includes a text
+only when `language == canonical_language` (`_build_texts`,
+`pipelines/sacredbench/generate.py:153`), so your new text joins the pool as another
+`(work, version, language)` group with no further edits.
 
 ---
 
@@ -185,20 +186,22 @@ Register the task name in the `TASKS` tuple (`pipelines/sacredbench/generate.py:
 Questions are built here with **no AI in the loop**, so a given seed always yields the
 same set — that repeatability is the contract that makes a run auditable.
 
-### 2. Give it a question template — `_build`
+### 2. Give it a question template — the per-task builders in `generate()`
 
-Add a branch to `_build()` (`pipelines/sacredbench/generate.py:102`) producing the
-prompt and the ground-truth `expected` dict for your task. A built question is the
-`Question` dataclass (`pipelines/sacredbench/generate.py:67`), with a content-derived id
-from `_qid()` (`pipelines/sacredbench/generate.py:92`).
+Add a branch in the per-text, per-task loop of `generate()`
+(`pipelines/sacredbench/generate.py:205`) producing the prompt and the ground-truth
+`expected` dict for your task. A built question is the `Question` dataclass
+(`pipelines/sacredbench/generate.py:80`), with a content-derived id from `_qid()`
+(`pipelines/sacredbench/generate.py:118`). `<edition>` is a seeded choice from the text's
+`requested_as` names.
 
-> If your task only applies to some texts (e.g. it needs a wrong "false-premise" work, or
-> two versions of the same work), add a pool filter in the per-task loop
-> (`pipelines/sacredbench/generate.py:246`). Determinism is anchored by
-> `question_set_digest()` (`pipelines/sacredbench/generate.py:307`) and recorded by
-> `build_manifest()` (`pipelines/sacredbench/generate.py:333`); `collect` stamps that
-> digest on every answer and `score` checks it, so a run can never silently mix question
-> sets.
+> If your task needs special sampling (e.g. the false-premise `verify_source`, whose
+> negatives are drawn cross-family — see `_append_verify_source`,
+> `pipelines/sacredbench/generate.py:316`), add it alongside the other task branches.
+> Determinism is anchored by `question_set_digest()`
+> (`pipelines/sacredbench/generate.py:380`) and recorded by `build_manifest()`
+> (`pipelines/sacredbench/generate.py:402`); `collect` stamps that digest on every answer
+> and `score` checks it, so a run can never silently mix question sets.
 
 ### 3. Grade the task — `score_answer`
 

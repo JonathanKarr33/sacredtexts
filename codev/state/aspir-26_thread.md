@@ -129,3 +129,30 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   cite_passage by-example exemplar from a different seeded entry (needs >=2 entries), (j) retire
   identify_version/identify_source from TASKS/_build + CODE_WALKTHROUGH pointer-guard in-commit, (k)
   first-run regression: keep re-score, retire generation-invariance half.
+
+### IMPLEMENT Phase 2 built (generation reshape) — 2026-10-21
+- generate.py rewritten: TASKS=4 (retrieve_quote/complete_unit/cite_passage/verify_source);
+  deleted _balanced_sample + per-task quota; identify_version/identify_source gone from
+  TASKS/_build. New generate(docs, text_meta, per_text=28, ...) -> (questions, excluded).
+  Per-text split over active tasks (N//len + remainder, canonical order); fail-fast if
+  per_text<len(active). Selection = language==canonical_language; excluded recorded.
+  <edition> = seeded rng.choice(requested_as), recorded in source.requested_as.
+  display_citation strips leading work prefix (hadith/D&C). cite_passage shows by-example
+  exemplar from a different seeded entry (fail-fast <2 entries). verify_source identity flip:
+  source=asked edition, expected.true_work/true_version=passage's real source, negatives
+  cross-family (document_type) only + exclude contained passages, fail-fast on empty pool.
+  Manifest: per_text, selected_texts, excluded_texts (no per_task/quotas).
+- cli.py generate: --per-text (default 28), dropped --per-task/--quota, NO --include-translations;
+  resolves metadata per-path (metadata_for_standardized_path) keyed by (w,v,l); calls
+  text_metadata(sources) for conflict guard; passes excluded to build_manifest.
+- CODE_WALKTHROUGH: pointer-guard symbol _balanced_sample→_build_texts; fixed prose naming
+  deleted _balanced_sample/_build/tradition-balancing (symbol-coupled). Recipe-A field docs
+  deferred to Phase 5.
+- test_first_run_regression: retired generation-invariance half (can't hold: corpus+generator
+  changed → digest mismatch); kept re-score half.
+- test_generate.py rewritten (26 tests); test_catalogue CLI gen test → --per-text; removed
+  --quota test. Full suite 340 passed.
+- CARRY to Phase 3: score.py still has dead identify_version/identify_source branches +
+  _SUBMETRICS entries — retire there (update _SUBMETRICS pointer-guard in that commit).
+  by_text summary aggregates on source (now has work/version/language + requested_as).
+  Source gained requested_as field (additive; viewer/score read specific keys, harmless).

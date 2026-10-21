@@ -328,8 +328,10 @@ def test_cli_generate_fail_closed_on_unmapped(tmp_path):
     assert "fail-closed" in str(r.exception)
 
 
-def test_cli_generate_tasks_and_quota(tmp_path):
-    """The CLI exposes the quota/task policy (Phase 8's ~N retrieve_quote shape)."""
+def test_cli_generate_tasks_and_per_text(tmp_path):
+    """The CLI exposes the --tasks subset and --per-text quota (per-text split over the
+    active tasks). The doc's own (work, version, language) differs from the target's, so
+    metadata must resolve by PATH (the encyclicals-style case) for the text to be in-pool."""
     raw = _fixture_tree(tmp_path)
     sources = cat.discover_catalogue(raw)
     std = tmp_path / "texts" / "standardized"
@@ -345,22 +347,12 @@ def test_cli_generate_tasks_and_quota(tmp_path):
     r = runner.invoke(
         app,
         ["generate", str(std), "--raw-root", str(raw), "--standardized-root", str(std),
-         "--tasks", "retrieve_quote", "--quota", "retrieve_quote=3", "--out", str(out)],
+         "--tasks", "retrieve_quote", "--per-text", "3", "--out", str(out)],
     )
     assert r.exit_code == 0, r.output
     qs = [json.loads(line) for line in out.read_text().splitlines() if line.strip()]
     assert len(qs) == 3 and {q["task"] for q in qs} == {"retrieve_quote"}
     assert (out.parent / "q.jsonl.manifest.json").exists()
-
-
-def test_cli_generate_bad_quota_rejected(tmp_path):
-    raw = _fixture_tree(tmp_path)
-    r = runner.invoke(
-        app,
-        ["generate", str(tmp_path / "texts" / "standardized"), "--raw-root", str(raw),
-         "--quota", "retrieve_quote"],  # missing '=N'
-    )
-    assert r.exit_code != 0 and "task=N" in r.output
 
 
 def test_cli_gate_requires_catalogue(tmp_path):

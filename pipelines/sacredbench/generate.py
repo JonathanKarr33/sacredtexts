@@ -1,36 +1,52 @@
-"""Question generation from the working group's six candidate templates (Sep 8).
+"""Question generation from the four working-group templates (2026-10-20).
 
 Deterministic (seeded) sampling over the standard-format documents — no LLM in
 the loop, so the question set is reproducible and auditable against the sources.
 
-Task types (template -> what a correct answer contains):
+The question set is **original-language-only**: a text (one ``(work, version,
+language)`` group) is in the pool only when ``language == canonical_language``
+(the catalogue's ``canonical_language`` fact, recovered per document by path —
+see ``catalogue.metadata_for_standardized_path``). There is no
+``--include-translations``; a text that fails the rule is excluded and recorded
+in the manifest with its reason.
 
-- ``identify_version``  "Which version of <work> says <text>?"            -> the version
-- ``retrieve_quote``    "Please give me the <version> quote for <cite>"   -> the exact text
-- ``verify_source``     "Is <text> from <work>?"                          -> yes / no
-- ``complete_unit``     "Please complete this <unit_type>: <beginning>"   -> the remainder
-- ``cite_passage``      "What is the source citation for this passage
-                         from <work>? <text>"                             -> the citation
-- ``identify_source``   "Where is this quote from? <text>"                -> work + citation
+Each in-pool text gets ``per_text`` questions (default 28), split as evenly as
+possible over the active templates (``per_text // n`` each, the remainder going
+to the first tasks in canonical order). Four templates (task -> what a correct
+answer contains):
+
+- ``retrieve_quote``  "What is the text of <edition> <citation>?"       -> the exact text
+- ``complete_unit``   "Please complete this quote from <edition>: …"    -> the remainder
+- ``cite_passage``    "Where in <edition> can I find this quote? …"     -> the citation
+- ``verify_source``   "Is this text from <edition>? …"                  -> yes / no
 
 Contract details that keep the benchmark honest:
 
-- **Version-gated** ``identify_version`` is emitted only for works that have >=2
-  converted versions in the corpus (live for the Bible via KJV/ASV/WEB), and only
-  for passages whose text is unique to one version (a verse identical across KJV
-  and ASV has two correct answers, so it is excluded).
-- **False-premise** ``verify_source`` negatives attribute a real passage to the
-  WRONG work; a negative is excluded when its text also occurs in that wrong work
-  (the "no" ground truth would be wrong).
+- ``<edition>`` is a **seeded uniform choice** from the text's ``requested_as``
+  names (recorded in ``question.source.requested_as``) — prompts read the way a
+  person asks, never the raw ``version`` string.
+- ``retrieve_quote`` renders a **display citation**: a leading ``work`` prefix is
+  stripped from the stored citation so the edition name appears once (hadith and
+  D&C citations are work-prefixed).
+- ``cite_passage`` shows the **citation form by example** — an exemplar citation
+  from a *different* seeded entry of the same text — so the model answers in the
+  shape the scorer extracts. Needs >=2 entries per text (fail-fast otherwise).
+- **False-premise** ``verify_source``: the question belongs to the **asked**
+  edition (``source`` records it; the prompt uses its ``requested_as`` name). A
+  positive presents a passage from the asked edition; a negative presents a real
+  passage from a *different in-pool text*, attributed to the asked edition
+  (``expected.answer == "no"``, ``expected.true_work``/``true_version`` name the
+  passage's real source). Negatives are drawn **cross-family** (never from a text
+  of the same ``document_type`` — the nine hadith collections share variant-wording
+  narrations that exact-text exclusion misses) and exclude any passage whose text
+  also occurs in the asked edition.
 - Only **canonically cited** units are sampled — front-matter ``unnumbered para.``
   and ``(dup N)`` units (see the encyclicals converter) are not benchmark items.
-- **Stable content-derived IDs** (task + source coordinates + text), a
-  **deterministic order**, configurable **per-task quotas** and a
-  **tradition-balanced** selection over the unbalanced corpus, with fail-fast on an
+- **Stable content-derived IDs**, a **deterministic order**, with fail-fast on an
   insufficient pool.
-- ``generate`` also produces a **manifest** (seed, params, corpus hash) and a
-  **question-set digest** that ``collect`` binds into its answers and ``score``
-  validates, so a resumed or scored run cannot silently mix question sets.
+- ``generate`` also produces a **manifest** (seed, params, corpus hash, the
+  selected texts and the excluded ones with reasons) and a **question-set digest**
+  that ``collect`` binds into its answers and ``score`` validates.
 """
 
 from __future__ import annotations
@@ -42,17 +58,14 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sacredbench.catalogue import TextMeta
 from sacredbench.schema import Document, Entry
 from sacredbench.score import normalize
 
-TASKS = (
-    "identify_version",
-    "retrieve_quote",
-    "verify_source",
-    "complete_unit",
-    "cite_passage",
-    "identify_source",
-)
+TASKS = ("retrieve_quote", "complete_unit", "cite_passage", "verify_source")
+
+#: Default questions per text (7 per template over the four tasks).
+DEFAULT_PER_TEXT = 28
 
 # Entries shorter than this are too generic to identify. Word count, not characters.
 MIN_WORDS_IDENTIFIABLE = 12
@@ -69,7 +82,7 @@ class Question:
     task: str
     prompt: str
     expected: dict  # task-specific ground truth (see score.py)
-    source: dict  # {tradition, work, version, language, document_type, citation}
+    source: dict  # {tradition, work, version, language, document_type, citation, requested_as}
 
 
 def _is_canonical_citation(citation: str) -> bool:
@@ -78,238 +91,294 @@ def _is_canonical_citation(citation: str) -> bool:
     return "unnumbered para." not in citation and "(dup " not in citation
 
 
-def _source_dict(doc: Document, entry: Entry) -> dict:
+def _text_key(doc: Document) -> tuple[str, str, str]:
+    return (doc.work, doc.version, doc.language)
+
+
+def _display_citation(citation: str, work: str) -> str:
+    """Strip a leading ``work`` prefix from a stored citation so the rendered prompt
+    names the edition once (hadith citations are ``"Sahih al-Bukhari 1"``, D&C
+    ``"Doctrine and Covenants 1:1"``). Bare citations (``"7:70"``) are unchanged."""
+    prefix = work + " "
+    return citation[len(prefix):] if citation.startswith(prefix) else citation
+
+
+def _source_dict(doc: Document, citation: str, requested_as: str) -> dict:
     return {
         "tradition": doc.tradition,
         "work": doc.work,
         "version": doc.version,
         "language": doc.language,
         "document_type": doc.document_type,
-        "citation": entry.citation,
+        "citation": citation,
+        "requested_as": requested_as,  # the seeded name rendered as <edition>
     }
 
 
-def _qid(task: str, doc: Document, entry: Entry, neg_work: str | None = None) -> str:
+def _qid(task: str, asked: tuple[str, str, str], passage_doc: Document, entry: Entry) -> str:
+    """Content-derived id: task + asked edition + the passage's true source + text.
+
+    Including the asked edition (which differs from the passage's source only for a
+    verify_source negative) keeps positives and negatives on the same passage distinct."""
     key = "\0".join(
-        [task, doc.work, doc.version, doc.language, entry.citation, entry.text, neg_work or ""]
+        [task, *asked, passage_doc.work, passage_doc.version, passage_doc.language,
+         entry.citation, entry.text]
     )
     return f"{task}-{hashlib.sha1(key.encode('utf-8')).hexdigest()[:12]}"
 
 
-_ANSWER_ONLY = "Answer with only the requested answer and no commentary."
+def _split_quota(per_text: int, n_tasks: int) -> list[int]:
+    """Split ``per_text`` over ``n_tasks`` as evenly as possible: ``per_text // n``
+    each, with the remainder going one-each to the first ``per_text % n`` tasks."""
+    base, rem = divmod(per_text, n_tasks)
+    return [base + (1 if i < rem else 0) for i in range(n_tasks)]
 
 
-def _build(task: str, doc: Document, entry: Entry, neg_work: str | None = None) -> Question:
-    qid = _qid(task, doc, entry, neg_work)
-    src = _source_dict(doc, entry)
-    if task == "identify_version":
-        prompt = (
-            f'Which version (edition or translation) of {doc.work} says: "{entry.text}"? '
-            f"{_ANSWER_ONLY}"
-        )
-        expected = {"version": doc.version}
-    elif task == "retrieve_quote":
-        prompt = (
-            f"Please give me the {doc.version} quote for {entry.citation}. "
-            f"Reply with the exact text of that {entry.unit_type} and nothing else."
-        )
-        expected = {"text": entry.text}
-    elif task == "verify_source":
-        work = neg_work or doc.work
-        prompt = f'Is the following text from {work}? "{entry.text}" Answer Yes or No.'
-        expected = {"answer": "no" if neg_work else "yes", "true_work": doc.work}
-    elif task == "complete_unit":
-        words = entry.text.split()
-        head = " ".join(words[: len(words) // 2])
-        prompt = (
-            f"Please complete this {entry.unit_type} from {doc.work} ({doc.version}): "
-            f'"{head}" Reply with only the remaining words of the {entry.unit_type}.'
-        )
-        expected = {"text": " ".join(words[len(words) // 2 :]), "full_text": entry.text}
-    elif task == "cite_passage":
-        prompt = (
-            f'What is the source citation for this passage from {doc.work}? "{entry.text}" '
-            f"{_ANSWER_ONLY}"
-        )
-        expected = {"citation": entry.citation}
-    elif task == "identify_source":
-        prompt = f'Where is this quote from? "{entry.text}" Name the work and the citation. {_ANSWER_ONLY}'
-        expected = {"work": doc.work, "citation": entry.citation}
-    else:
-        raise GenerateError(f"unknown task {task!r}")
-    return Question(id=qid, task=task, prompt=prompt, expected=expected, source=src)
+def _choose_name(meta: TextMeta, rng: random.Random) -> str:
+    """Seeded uniform choice of a ``requested_as`` name rendered as ``<edition>``."""
+    return rng.choice(meta.requested_as)
 
 
-def _balanced_sample(
-    pool: list[tuple[Document, Entry]], quota: int, rng: random.Random, task: str
-) -> list[tuple[Document, Entry]]:
-    """Sample ``quota`` items balanced across traditions (round-robin over each
-    tradition's shuffled sub-pool). Balancing is on the **primary (first-listed)**
-    tradition of each document — today's corpora have single-element tradition
-    lists, so primary == the tradition; Phase 6 aggregates once per *listed*
-    tradition, a separate axis. Fail-fast if the whole pool is too small."""
+@dataclass
+class _Text:
+    """One in-pool text: a (work, version, language) group with its metadata and
+    content-sorted canonical entry pool (deduplicated across colliding shards)."""
+
+    key: tuple[str, str, str]
+    rep_doc: Document  # a representative document for work/version/language/tradition/document_type
+    meta: TextMeta
+    entries: list[Entry]  # canonical, >= MIN_WORDS_IDENTIFIABLE, content-sorted, deduped
+
+
+def _build_texts(docs: list[Document], text_meta: dict[tuple[str, str, str], TextMeta]) -> tuple[list[_Text], list[dict]]:
+    """Group documents into texts, attach metadata (fail-closed), and split into the
+    in-pool texts (``language == canonical_language``) and the excluded ones."""
+    groups: dict[tuple[str, str, str], list[Document]] = {}
+    for d in docs:
+        groups.setdefault(_text_key(d), []).append(d)
+
+    texts: list[_Text] = []
+    excluded: list[dict] = []
+    for key in sorted(groups):
+        work, version, language = key
+        meta = text_meta.get(key)
+        if meta is None:
+            raise GenerateError(
+                f"no catalogue text metadata for (work, version, language)={key!r} "
+                "(fail-closed) — a standardized document maps to no catalogue target"
+            )
+        if language != meta.canonical_language:
+            excluded.append({
+                "work": work, "version": version, "language": language,
+                "reason": f"language {language!r} != canonical_language {meta.canonical_language!r}",
+            })
+            continue
+        group = groups[key]
+        rep = min(group, key=lambda d: (tuple(d.tradition), d.document_type))
+        # canonical, identifiable entries, deduplicated by content across shards
+        seen: set[tuple[str, str]] = set()
+        entries: list[Entry] = []
+        for d in group:
+            for e in d.entries:
+                if not _is_canonical_citation(e.citation) or len(e.text.split()) < MIN_WORDS_IDENTIFIABLE:
+                    continue
+                ckey = (e.citation, e.text)
+                if ckey in seen:
+                    continue
+                seen.add(ckey)
+                entries.append(e)
+        entries.sort(key=lambda e: (e.citation, e.text))
+        texts.append(_Text(key=key, rep_doc=rep, meta=meta, entries=entries))
+    return texts, excluded
+
+
+def _sample(pool: list[Entry], quota: int, rng: random.Random, what: str) -> list[Entry]:
+    """Deterministically sample ``quota`` distinct entries (content-sorted then
+    shuffled, so selection depends only on content + seed). Fail-fast if too small."""
     if len(pool) < quota:
-        raise GenerateError(
-            f"task {task}: pool of {len(pool)} < quota {quota} (insufficient entries)"
-        )
-    by_tradition: dict[str, list[tuple[Document, Entry]]] = {}
-    for d, e in pool:
-        by_tradition.setdefault(d.tradition[0], []).append((d, e))
-    traditions = sorted(by_tradition)
-    # sort each sub-pool by content, then shuffle, in a fixed tradition order — so
-    # the selection depends only on content and seed, never on input document order
-    for t in traditions:
-        by_tradition[t].sort(key=lambda de: (de[0].work, de[0].version, de[0].language, de[1].citation, de[1].text))
-        rng.shuffle(by_tradition[t])
-    chosen: list[tuple[Document, Entry]] = []
-    cursor = {t: 0 for t in traditions}
-    while len(chosen) < quota:
-        progressed = False
-        for t in traditions:
-            if len(chosen) >= quota:
-                break
-            items = by_tradition[t]
-            if cursor[t] < len(items):
-                chosen.append(items[cursor[t]])
-                cursor[t] += 1
-                progressed = True
-        if not progressed:  # every tradition exhausted before quota (shouldn't happen: len>=quota)
-            break
-    return chosen
+        raise GenerateError(f"{what}: pool of {len(pool)} < quota {quota} (insufficient entries)")
+    ordered = sorted(pool, key=lambda e: (e.citation, e.text))
+    rng.shuffle(ordered)
+    return ordered[:quota]
 
 
 def generate(
     docs: list[Document],
-    per_task: int,
+    text_meta: dict[tuple[str, str, str], TextMeta],
+    per_text: int = DEFAULT_PER_TEXT,
     seed: int = 20261010,
     negatives_share: float = 0.5,
-    quotas: dict[str, int] | None = None,
     tasks: tuple[str, ...] | None = None,
-) -> list[Question]:
-    """Sample questions per task over all documents.
+) -> tuple[list[Question], list[dict]]:
+    """Sample ``per_text`` questions for each in-pool text over the active tasks.
 
-    ``quotas`` overrides ``per_task`` per task; ``tasks`` restricts to a subset
-    (default all six). Deterministic for a given (docs, seed). Tasks are
-    version-gated and both overlap hazards are excluded."""
-    active = tuple(tasks) if tasks else TASKS
-    unknown = set(active) - set(TASKS)
-    if unknown:
-        raise GenerateError(f"unknown task(s) {sorted(unknown)} (known: {list(TASKS)})")
-    bad_quota = set(quotas or {}) - set(TASKS)
-    if bad_quota:
-        raise GenerateError(f"unknown quota task(s) {sorted(bad_quota)} (known: {list(TASKS)})")
+    Returns ``(questions, excluded)`` where ``excluded`` lists the texts dropped by
+    the ``language == canonical_language`` rule (with their reason). Deterministic for
+    a given ``(docs, text_meta, seed)``."""
+    active = tuple(t for t in TASKS if tasks is None or t in tasks)
+    if tasks is not None:
+        unknown = set(tasks) - set(TASKS)
+        if unknown:
+            raise GenerateError(f"unknown task(s) {sorted(unknown)} (known: {list(TASKS)})")
+    if not active:
+        raise GenerateError("no active tasks selected")
+    if per_text < len(active):
+        raise GenerateError(
+            f"--per-text {per_text} < number of active tasks {len(active)}; each task needs >= 1"
+        )
     if not docs:
         raise GenerateError("no documents to generate from")
+
     rng = random.Random(seed)
+    texts, excluded = _build_texts(docs, text_meta)
+    if not texts:
+        raise GenerateError("no in-pool texts (language == canonical_language) to generate from")
 
-    # Sort documents by a TOTAL key up front so everything downstream — the dedup
-    # representative, selection, and hashes — is independent of input order even
-    # when shards collide on (work, version, language).
-    docs = sorted(docs, key=lambda d: (d.work, d.version, d.language, tuple(d.tradition), d.document_type))
+    task_quota = dict(zip(active, _split_quota(per_text, len(active))))
 
-    # identifiable, canonically-cited entries, deduplicated by content BEFORE
-    # sampling (colliding shards sharing (work, version, language, citation, text)
-    # collapse to one canonical candidate) so quotas are met exactly and ids stay unique.
-    pool: list[tuple[Document, Entry]] = []
-    seen_content: set[tuple[str, str, str, str, str]] = set()
-    for d in docs:
-        for e in d.entries:
-            if not _is_canonical_citation(e.citation) or len(e.text.split()) < MIN_WORDS_IDENTIFIABLE:
-                continue
-            key = (d.work, d.version, d.language, e.citation, e.text)
-            if key in seen_content:
-                continue
-            seen_content.add(key)
-            pool.append((d, e))
-    if not pool:
-        raise GenerateError(f"no entries with >= {MIN_WORDS_IDENTIFIABLE} words and a canonical citation")
-
-    works = sorted({d.work for d in docs})
-    versions_per_work: dict[str, set[str]] = {}
-    for d in docs:
-        versions_per_work.setdefault(d.work, set()).add(d.version)
-    multi_version_works = {w for w, vs in versions_per_work.items() if len(vs) >= 2}
-
-    # normalized-text membership per work (for the verify_source negative overlap),
-    # and per (work -> text -> versions) for the identify_version ambiguity exclusion.
-    work_texts: dict[str, set[str]] = {}
-    version_texts: dict[str, dict[str, set[str]]] = {w: {} for w in multi_version_works}
-    for d in docs:
-        nt_set = work_texts.setdefault(d.work, set())
-        for e in d.entries:
-            nt = normalize(e.text)
-            nt_set.add(nt)
-            if d.work in multi_version_works:
-                version_texts[d.work].setdefault(nt, set()).add(d.version)
+    # cross-family membership for verify_source negatives: normalized text per text key,
+    # and the family (document_type) of each text.
+    text_norm: dict[tuple[str, str, str], set[str]] = {}
+    for t in texts:
+        text_norm[t.key] = {normalize(e.text) for e in t.entries}
 
     questions: list[Question] = []
-    for task in TASKS:
-        if task not in active:
-            continue
-        quota = (quotas or {}).get(task, per_task)
-        if quota <= 0:
-            continue
-        task_pool = pool
-        if task == "complete_unit":
-            task_pool = [(d, e) for d, e in pool if len(e.text.split()) >= MIN_WORDS_COMPLETABLE]
-        elif task == "identify_version":
-            if not multi_version_works:
-                continue  # version-gated: skip when no work has >=2 versions
-            # only passages whose text is unique to ONE version of the work
-            task_pool = [
-                (d, e)
-                for d, e in pool
-                if d.work in multi_version_works
-                and len(version_texts[d.work].get(normalize(e.text), ())) == 1
-            ]
-            if not task_pool:
-                continue  # every multi-version passage is ambiguous -> task not applicable
-        sample = _balanced_sample(task_pool, quota, rng, task)
-
-        n_negatives = int(quota * negatives_share) if task == "verify_source" else 0
-        if n_negatives > 0:
-            # a false-premise negative needs a wrong work that does NOT also contain
-            # the passage; fail fast if the requested ratio can't be met
-            annotated = [
-                (doc, entry, sorted(w for w in works if w != doc.work and normalize(entry.text) not in work_texts[w]))
-                for doc, entry in sample
-            ]
-            eligible = [i for i, (_, _, cands) in enumerate(annotated) if cands]
-            if len(eligible) < n_negatives:
-                raise GenerateError(
-                    f"verify_source: need {n_negatives} false-premise negatives "
-                    f"(negatives_share={negatives_share} of {quota}) but only {len(eligible)} of "
-                    f"the sampled items have an eligible wrong work (corpus has {len(works)} work(s)); "
-                    "lower --negatives-share or add works"
+    for t in sorted(texts, key=lambda t: t.key):
+        for task in active:
+            quota = task_quota[task]
+            if quota <= 0:
+                continue
+            if task == "retrieve_quote":
+                for e in _sample(t.entries, quota, rng, f"{t.key} retrieve_quote"):
+                    name = _choose_name(t.meta, rng)
+                    dc = _display_citation(e.citation, t.rep_doc.work)
+                    prompt = (
+                        f"What is the text of {name} {dc}? "
+                        f"Reply with the exact text of that {e.unit_type} and nothing else."
+                    )
+                    questions.append(Question(
+                        id=_qid(task, t.key, t.rep_doc, e), task=task, prompt=prompt,
+                        expected={"text": e.text},
+                        source=_source_dict(t.rep_doc, e.citation, name),
+                    ))
+            elif task == "complete_unit":
+                pool = [e for e in t.entries if len(e.text.split()) >= MIN_WORDS_COMPLETABLE]
+                for e in _sample(pool, quota, rng, f"{t.key} complete_unit"):
+                    name = _choose_name(t.meta, rng)
+                    words = e.text.split()
+                    head = " ".join(words[: len(words) // 2])
+                    rest = " ".join(words[len(words) // 2 :])
+                    prompt = (
+                        f'Please complete this quote from {name}: "{head}" '
+                        "Reply with only the remaining words."
+                    )
+                    questions.append(Question(
+                        id=_qid(task, t.key, t.rep_doc, e), task=task, prompt=prompt,
+                        expected={"text": rest, "full_text": e.text},
+                        source=_source_dict(t.rep_doc, e.citation, name),
+                    ))
+            elif task == "cite_passage":
+                if len(t.entries) < quota + 1:
+                    raise GenerateError(
+                        f"{t.key} cite_passage: needs quota {quota} targets + >=1 exemplar "
+                        f"(>= {quota + 1} entries) but has {len(t.entries)}"
+                    )
+                targets = _sample(t.entries, quota, rng, f"{t.key} cite_passage")
+                target_keys = {(e.citation, e.text) for e in targets}
+                for e in targets:
+                    name = _choose_name(t.meta, rng)
+                    # an exemplar citation from a different seeded entry of the same text
+                    others = [o for o in t.entries if (o.citation, o.text) != (e.citation, e.text)]
+                    example = rng.choice(others)
+                    prompt = (
+                        f'Where in {name} can I find this quote? "{e.text}" '
+                        f"Answer with the citation only, in the same form as: {example.citation}."
+                    )
+                    questions.append(Question(
+                        id=_qid(task, t.key, t.rep_doc, e), task=task, prompt=prompt,
+                        expected={"citation": e.citation},
+                        source=_source_dict(t.rep_doc, e.citation, name),
+                    ))
+            elif task == "verify_source":
+                _append_verify_source(
+                    questions, t, texts, text_norm, quota, negatives_share, rng
                 )
-            neg_idx = set(eligible[:n_negatives])
-            for i, (doc, entry, cands) in enumerate(annotated):
-                neg_work = rng.choice(cands) if i in neg_idx else None
-                questions.append(_build(task, doc, entry, neg_work=neg_work))
-        else:
-            for doc, entry in sample:
-                questions.append(_build(task, doc, entry))
 
     if not questions:
         raise GenerateError("generation produced no questions")
-    # stable, deterministic order; ids are unique by construction (pool is
-    # content-deduplicated), verified here as a fail-fast invariant.
     questions.sort(key=lambda q: (q.task, q.id))
     ids = [q.id for q in questions]
     if len(ids) != len(set(ids)):
         raise GenerateError("internal: duplicate question ids after content-dedup")
-    return questions
+    return questions, excluded
+
+
+def _append_verify_source(
+    questions: list[Question],
+    asked: _Text,
+    texts: list[_Text],
+    text_norm: dict[tuple[str, str, str], set[str]],
+    quota: int,
+    negatives_share: float,
+    rng: random.Random,
+) -> None:
+    """Build this text's verify_source questions: ``n_neg = int(quota * share)``
+    cross-family negatives, the rest positives. The question is always about the
+    ``asked`` edition; a negative presents a passage from a different-family text."""
+    n_neg = int(quota * negatives_share)
+    n_pos = quota - n_neg
+    asked_family = asked.rep_doc.document_type
+    asked_norm = text_norm[asked.key]
+
+    # positives: passages genuinely from the asked edition
+    for e in _sample(asked.entries, n_pos, rng, f"{asked.key} verify_source (+)"):
+        name = _choose_name(asked.meta, rng)
+        prompt = f'Is the following text from {name}? "{e.text}" Answer Yes or No.'
+        questions.append(Question(
+            id=_qid("verify_source", asked.key, asked.rep_doc, e), task="verify_source",
+            prompt=prompt,
+            expected={"answer": "yes", "true_work": asked.rep_doc.work,
+                      "true_version": asked.rep_doc.version},
+            source=_source_dict(asked.rep_doc, e.citation, name),
+        ))
+
+    if n_neg <= 0:
+        return
+    # negatives: a real passage from a DIFFERENT-FAMILY text, not present in the asked
+    # edition, attributed to the asked edition (truth = "no").
+    candidates: list[tuple[_Text, Entry]] = []
+    for other in sorted(texts, key=lambda t: t.key):
+        if other.key == asked.key or other.rep_doc.document_type == asked_family:
+            continue
+        for e in other.entries:
+            if normalize(e.text) in asked_norm:
+                continue
+            candidates.append((other, e))
+    if len(candidates) < n_neg:
+        raise GenerateError(
+            f"{asked.key} verify_source: need {n_neg} cross-family false-premise negatives "
+            f"(negatives_share={negatives_share} of {quota}) but only {len(candidates)} eligible "
+            f"passages from a different document_type exist; lower --negatives-share or add texts"
+        )
+    candidates.sort(key=lambda oe: (oe[0].key, oe[1].citation, oe[1].text))
+    rng.shuffle(candidates)
+    for other, e in candidates[:n_neg]:
+        name = _choose_name(asked.meta, rng)
+        prompt = f'Is the following text from {name}? "{e.text}" Answer Yes or No.'
+        questions.append(Question(
+            id=_qid("verify_source", asked.key, other.rep_doc, e), task="verify_source",
+            prompt=prompt,
+            expected={"answer": "no", "true_work": other.rep_doc.work,
+                      "true_version": other.rep_doc.version},
+            source=_source_dict(asked.rep_doc, e.citation, name),
+        ))
 
 
 # --- manifest + question-set digest ------------------------------------------
 
 
 def question_set_digest(questions: list[Question]) -> str:
-    """Content digest of the full question set (order-independent): binds collect/score.
-
-    Hashes each question's complete canonical JSON (id, task, prompt, expected,
-    source), so any change to a prompt or source field — not just the id — changes
-    the digest and a resumed/scored run against it is refused."""
+    """Content digest of the full question set (order-independent): binds collect/score."""
     h = hashlib.sha256()
     blobs = sorted(json.dumps(asdict(q), ensure_ascii=False, sort_keys=True) for q in questions)
     for blob in blobs:
@@ -331,23 +400,25 @@ def corpus_hash(docs: list[Document]) -> str:
 
 
 def build_manifest(
-    docs: list[Document], questions: list[Question], seed: int, per_task: int,
-    negatives_share: float, quotas: dict[str, int] | None, tasks: tuple[str, ...] | None = None,
+    docs: list[Document], questions: list[Question], excluded: list[dict], seed: int,
+    per_text: int, negatives_share: float, tasks: tuple[str, ...] | None = None,
     inputs: list[str] | None = None,
 ) -> dict:
     by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
     realized_negatives = sum(
         1 for q in questions if q.task == "verify_source" and q.expected.get("answer") == "no"
     )
+    selected = sorted({(q.source["work"], q.source["version"], q.source["language"]) for q in questions})
     return {
         "seed": seed,
         "inputs": list(inputs or []),  # the generate invocation's input paths (scoping)
-        "per_task": per_task,
+        "per_text": per_text,
         "negatives_share": negatives_share,
-        "quotas": quotas or {},
         "tasks_requested": list(tasks) if tasks else list(TASKS),
         "tasks_by_count": by_task,
         "verify_source_negatives": realized_negatives,
+        "selected_texts": [{"work": w, "version": v, "language": lg} for (w, v, lg) in selected],
+        "excluded_texts": excluded,  # dropped by language != canonical_language, with reason
         "corpus_hash": corpus_hash(docs),
         "question_set_digest": question_set_digest(questions),
         "n_questions": len(questions),

@@ -194,9 +194,8 @@ def validate(inputs: list[Path] = typer.Argument(help="standard-format file(s)/d
 def generate(
     inputs: list[Path] = typer.Argument(help="standard-format file(s)/director(ies)"),
     out: Path = typer.Option(Path("runs/questions.jsonl")),
-    per_task: int = typer.Option(10, min=1),
+    per_text: int = typer.Option(gen.DEFAULT_PER_TEXT, min=1, help="questions per in-pool text"),
     tasks: str = typer.Option(None, help="comma-separated task subset, e.g. 'retrieve_quote,verify_source'"),
-    quota: list[str] = typer.Option(None, help="per-task quota override, repeatable: 'task=N'"),
     seed: int = typer.Option(20261010),
     negatives_share: float = typer.Option(0.5, min=0.0, max=1.0, help="verify_source negative ratio"),
     raw_root: Path = typer.Option(cat.RAW_ROOT, help="raw texts root (for the license gate)"),
@@ -207,18 +206,13 @@ def generate(
         False, help="include restricted (copyrighted, held-back) standardized docs"
     ),
 ) -> None:
-    """Generate benchmark questions from the six working-group templates."""
+    """Generate benchmark questions from the four working-group templates.
+
+    Original-language-only: a text is in the pool iff language == canonical_language.
+    There is no --include-translations; excluded texts are recorded in the manifest."""
     task_subset = tuple(t.strip() for t in tasks.split(",") if t.strip()) if tasks else None
-    quotas: dict[str, int] = {}
-    for item in quota or []:
-        if "=" not in item:
-            raise typer.BadParameter(f"--quota must be 'task=N', got {item!r}")
-        name, _, count = item.partition("=")
-        try:
-            quotas[name.strip()] = int(count)
-        except ValueError as e:
-            raise typer.BadParameter(f"--quota {item!r}: N must be an integer") from e
     sources = _require_catalogue(raw_root)
+    cat.text_metadata(sources)  # fail-fast on a cross-source metadata conflict
     for p in inputs:
         if not Path(p).exists():
             raise typer.BadParameter(
@@ -240,24 +234,30 @@ def generate(
             "all standardized documents were restricted and excluded "
             "(pass --include-restricted to include them)"
         )
-    docs = schema.load_documents(kept)
-    works = {d.work for d in docs}
-    if len(works) < 2 and negatives_share > 0:
-        # not an automatic override — just a heads-up; generate() fails fast (per the
-        # plan's insufficient-pool contract) if verify_source negatives are requested
-        # on a single-work corpus. Pass --negatives-share 0 to generate positives only.
-        typer.secho(
-            "NOTE: single-work corpus — false-premise negatives need >=2 works; "
-            "verify_source with negatives_share>0 will fail. Pass --negatives-share 0 "
-            "(or --tasks without verify_source) for a single-work run.",
-            fg="yellow", err=True,
-        )
-    questions = run_generate(
-        docs, per_task=per_task, seed=seed, negatives_share=negatives_share,
-        quotas=quotas or None, tasks=task_subset,
+    # Recover each document's text metadata (requested_as / canonical_language) by path,
+    # mirroring the license gate, and carry it alongside the loaded documents.
+    docs: list = []
+    text_meta: dict = {}
+    for f in kept:
+        tm = cat.metadata_for_standardized_path(f, sources, standardized_root=standardized_root)
+        if tm is None:
+            raise typer.BadParameter(
+                f"{f}: no catalogue text metadata recoverable from path (fail-closed)"
+            )
+        doc = schema.load_document(f)
+        key = (doc.work, doc.version, doc.language)
+        if key in text_meta and text_meta[key] != tm:
+            raise typer.BadParameter(
+                f"{key}: documents resolve to conflicting text metadata (ambiguous)"
+            )
+        text_meta[key] = tm
+        docs.append(doc)
+    questions, excluded = run_generate(
+        docs, text_meta, per_text=per_text, seed=seed, negatives_share=negatives_share,
+        tasks=task_subset,
     )
     write_questions(questions, out)
-    manifest = gen.build_manifest(docs, questions, seed, per_task, negatives_share, quotas or None,
+    manifest = gen.build_manifest(docs, questions, excluded, seed, per_text, negatives_share,
                                   task_subset, inputs=[str(p) for p in inputs])
     mpath = gen.manifest_path(out)
     with open(mpath, "w", encoding="utf-8") as f:
@@ -265,6 +265,8 @@ def generate(
         f.write("\n")
     by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
     typer.echo(f"wrote {len(questions)} questions to {out} {by_task}")
+    if excluded:
+        typer.echo(f"excluded {len(excluded)} text(s) (language != canonical_language)")
     typer.echo(f"manifest {mpath} (digest {manifest['question_set_digest']}, corpus {manifest['corpus_hash']})")
 
 

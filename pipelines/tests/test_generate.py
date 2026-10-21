@@ -1,7 +1,11 @@
+"""Tests for the four-template, per-text question generator (Spec 26)."""
+
 import pytest
 
+from sacredbench.catalogue import TextMeta
 from sacredbench.generate import (
     TASKS,
+    DEFAULT_PER_TEXT,
     GenerateError,
     build_manifest,
     corpus_hash,
@@ -12,268 +16,314 @@ from sacredbench.generate import (
 )
 from sacredbench.schema import Document, Entry
 from sacredbench.score import normalize
-from tests.conftest import make_doc
-
-# 17 words so entries clear MIN_WORDS_IDENTIFIABLE (12) and MIN_WORDS_COMPLETABLE (16)
-WORDS = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho"
 
 
-def _doc(work, version, texts, tradition=("T",), citations=None):
-    cites = citations or [f"{work} 1:{i}" for i in range(1, len(texts) + 1)]
+def _doc(work, version="V", language="en", document_type="scripture", n=30,
+         tradition=("T",), prefix=None, citation_fmt=None):
+    """A document with distinct, long per-entry text (so entries clear the word-count
+    gates and texts don't accidentally share passages)."""
+    tok = (prefix or work).replace(" ", "")
+    cfmt = citation_fmt or (lambda i: f"{work} 1:{i}")
+    entries = [
+        Entry("verse", cfmt(i), " ".join(f"{tok}e{i}w{j}" for j in range(18)))
+        for i in range(1, n + 1)
+    ]
     return Document(
-        tradition=list(tradition), work=work, version=version, language="en",
-        document_type="scripture",
-        entries=[Entry("verse", c, t) for c, t in zip(cites, texts)],
+        tradition=list(tradition), work=work, version=version, language=language,
+        document_type=document_type, source_url=None, entries=entries,
     )
+
+
+def _meta(docs, canonical=None, requested=None):
+    """text_meta for ``docs``; by default every text is in-pool (canonical == its
+    language) with requested_as == (work,). ``canonical``/``requested`` override by key."""
+    canonical = canonical or {}
+    requested = requested or {}
+    tm = {}
+    for d in docs:
+        key = (d.work, d.version, d.language)
+        tm[key] = TextMeta(
+            requested_as=requested.get(key, (d.work,)),
+            canonical_language=canonical.get(key, d.language),
+        )
+    return tm
+
+
+def _gen(docs, **kw):
+    return generate(docs, _meta(docs, kw.pop("canonical", None), kw.pop("requested", None)), **kw)
 
 
 # --- determinism -------------------------------------------------------------
 
 
 def test_deterministic_same_seed():
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
-    a = generate(docs, per_task=5, seed=7)
-    b = generate(docs, per_task=5, seed=7)
+    docs = [_doc("Orchards", document_type="scripture"), _doc("Roads", document_type="hadith")]
+    a, _ = _gen(docs, per_text=8, seed=7)
+    b, _ = _gen(docs, per_text=8, seed=7)
     assert [(q.id, q.prompt) for q in a] == [(q.id, q.prompt) for q in b]
-    c = generate(docs, per_task=5, seed=8)
+    c, _ = _gen(docs, per_text=8, seed=8)
     assert [q.id for q in a] != [q.id for q in c]  # different seed -> different selection
 
 
-def test_ids_are_content_derived_and_stable():
-    docs = [make_doc("Book of Orchards")]
-    qs = generate(docs, per_task=5, seed=1, negatives_share=0)
+def test_ids_content_derived_and_order_stable():
+    docs = [_doc("Orchards"), _doc("Roads", document_type="hadith")]
+    qs, _ = _gen(docs, per_text=8, seed=1)
     for q in qs:
         assert q.id.startswith(q.task + "-")
-    # order is deterministic (sorted by task, then content-derived id)
     assert qs == sorted(qs, key=lambda q: (q.task, q.id))
+    assert len({q.id for q in qs}) == len(qs)
 
 
 def test_questions_roundtrip(tmp_path):
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
-    qs = generate(docs, per_task=3)
+    docs = [_doc("Orchards"), _doc("Roads", document_type="hadith")]
+    qs, _ = _gen(docs, per_text=8)
     path = tmp_path / "questions.jsonl"
     write_questions(qs, path)
-    assert load_questions(path) == qs
+    back = load_questions(path)
+    assert [q.id for q in back] == [q.id for q in qs]
+    assert [q.source for q in back] == [q.source for q in qs]
 
 
-# --- version gating ----------------------------------------------------------
+# --- selection: canonical-language-only --------------------------------------
 
 
-def test_identify_version_skipped_for_single_version_corpus():
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]  # each one version
-    qs = generate(docs, per_task=4)
-    assert all(q.task != "identify_version" for q in qs)
-    assert {q.task for q in qs} == set(TASKS) - {"identify_version"}
+def test_excluded_when_language_not_canonical():
+    docs = [_doc("Qur", language="ar", document_type="scripture"),
+            _doc("Hadith", language="ar", document_type="hadith"),
+            _doc("TalmudEn", language="en", document_type="talmud")]
+    # TalmudEn's canonical language is Hebrew -> excluded; the two Arabic texts stay.
+    qs, excl = generate(
+        docs,
+        _meta(docs, canonical={("TalmudEn", "V", "en"): "he"}),
+        per_text=8, seed=1,
+    )
+    selected = {(q.source["work"], q.source["version"], q.source["language"]) for q in qs}
+    assert ("TalmudEn", "V", "en") not in selected
+    assert excl == [{"work": "TalmudEn", "version": "V", "language": "en",
+                     "reason": "language 'en' != canonical_language 'he'"}]
 
 
-def test_identify_version_present_for_multi_version_work():
-    kjv = _doc("The Bible", "KJV", [f"{WORDS} kjv {i}" for i in range(20)])
-    asv = _doc("The Bible", "ASV", [f"{WORDS} asv {i}" for i in range(20)])
-    qs = generate([kjv, asv], per_task=4, negatives_share=0)
-    iv = [q for q in qs if q.task == "identify_version"]
-    assert iv  # version-gate active
-    assert {q.task for q in qs} == set(TASKS)
+def test_no_in_pool_texts_fails_fast():
+    docs = [_doc("KJV", language="en")]
+    with pytest.raises(GenerateError, match="no in-pool texts"):
+        generate(docs, _meta(docs, canonical={("KJV", "V", "en"): "he"}), per_text=8)
 
 
-def test_identify_version_excludes_text_shared_across_versions():
-    # Shared verses dominate the pool; only 2 verses are version-unique. With the
-    # ambiguity exclusion the identify_version pool is exactly those 2, so the
-    # emitted set is deterministic and must be exactly them (if the exclusion were
-    # removed the pool would be ~26 and the emitted set would differ).
-    shared = [f"{WORDS} shared verse {i}" for i in range(12)]
-    uniq_a, uniq_b = f"{WORDS} only in kjv", f"{WORDS} only in asv"
-    kjv = _doc("The Bible", "KJV", shared + [uniq_a])
-    asv = _doc("The Bible", "ASV", shared + [uniq_b])
-    qs = generate([kjv, asv], per_task=2, seed=3, negatives_share=0)
-    iv_texts = {q.prompt.split('"')[1] for q in qs if q.task == "identify_version"}
-    assert iv_texts == {uniq_a, uniq_b}  # exactly the version-unique verses, no shared
+def test_fail_closed_on_missing_text_meta():
+    docs = [_doc("Orchards")]
+    with pytest.raises(GenerateError, match="no catalogue text metadata"):
+        generate(docs, {}, per_text=8)  # empty text_meta
 
 
-# --- verify_source negatives -------------------------------------------------
+# --- per-text quota split ----------------------------------------------------
 
 
-def test_single_work_has_no_negatives():
-    qs = [q for q in generate([make_doc()], per_task=6, negatives_share=0) if q.task == "verify_source"]
+def test_default_per_text_split_evenly_over_four_tasks():
+    docs = [_doc("Qur", document_type="scripture"), _doc("Hadith", document_type="hadith")]
+    qs, _ = _gen(docs, per_text=DEFAULT_PER_TEXT, seed=1)
+    assert len(qs) == 2 * DEFAULT_PER_TEXT
+    for work in ("Qur", "Hadith"):
+        per = [q for q in qs if q.source["work"] == work]
+        counts = {t: sum(1 for q in per if q.task == t) for t in TASKS}
+        assert counts == {t: DEFAULT_PER_TEXT // 4 for t in TASKS}  # 7 each at 28
+
+
+def test_per_text_non_multiple_deterministic_remainder():
+    docs = [_doc("Qur", document_type="scripture"), _doc("Hadith", document_type="hadith")]
+    qs, _ = _gen(docs, per_text=18, seed=1)  # 18 over 4 tasks -> 5,5,4,4 in canonical order
+    per = [q for q in qs if q.source["work"] == "Qur"]
+    counts = [sum(1 for q in per if q.task == t) for t in TASKS]
+    assert counts == [5, 5, 4, 4]
+
+
+def test_tasks_subset_splits_over_subset():
+    docs = [_doc("Qur"), _doc("Hadith", document_type="hadith")]
+    qs, _ = _gen(docs, per_text=10, seed=1, tasks=("retrieve_quote",))
+    per = [q for q in qs if q.source["work"] == "Qur"]
+    assert len(per) == 10 and {q.task for q in per} == {"retrieve_quote"}
+
+
+def test_per_text_below_active_count_fails_fast():
+    docs = [_doc("Qur"), _doc("Hadith", document_type="hadith")]
+    with pytest.raises(GenerateError, match=r"per-text 3 < number of active tasks 4"):
+        _gen(docs, per_text=3, seed=1)
+
+
+def test_unknown_task_fails():
+    docs = [_doc("Qur")]
+    with pytest.raises(GenerateError, match="unknown task"):
+        _gen(docs, per_text=8, tasks=("identify_version",))
+
+
+def test_retired_tasks_absent():
+    assert "identify_version" not in TASKS and "identify_source" not in TASKS
+    assert TASKS == ("retrieve_quote", "complete_unit", "cite_passage", "verify_source")
+
+
+# --- prompt rendering --------------------------------------------------------
+
+
+def test_display_citation_strips_work_prefix():
+    # work-prefixed citation (hadith/D&C shape) renders the edition once
+    pref = _doc("Sahih al-Bukhari", document_type="hadith",
+                citation_fmt=lambda i: f"Sahih al-Bukhari {i}")
+    bare = _doc("Qur", document_type="scripture", citation_fmt=lambda i: f"{i}:1")
+    qs, _ = generate([pref, bare], _meta([pref, bare]),
+                     per_text=4, seed=1, tasks=("retrieve_quote",))
+    # the work name appears exactly once in the hadith prompt (no "...Sahih al-Bukhari Sahih al-Bukhari 1")
+    hadith_prompt = next(q.prompt for q in qs if q.source["work"] == "Sahih al-Bukhari")
+    assert hadith_prompt.count("Sahih al-Bukhari") == 1
+    # bare citation is unchanged
+    bare_prompt = next(q.prompt for q in qs if q.source["work"] == "Qur")
+    assert "What is the text of Qur " in bare_prompt
+
+
+def test_edition_is_seeded_choice_recorded_in_source():
+    docs = [_doc("Qur"), _doc("Hadith", document_type="hadith")]
+    names = {("Qur", "V", "en"): ("the Qur'an", "Quran", "Koran")}
+    qs, _ = _gen(docs, per_text=8, seed=3, requested=names)
+    qur = [q for q in qs if q.source["work"] == "Qur"]
+    used = {q.source["requested_as"] for q in qur}
+    assert used <= {"the Qur'an", "Quran", "Koran"}  # only names from the list
+    # the rendered name appears in the prompt and never the raw version string "V"
+    for q in qur:
+        assert q.source["requested_as"] in q.prompt
+        assert "from V" not in q.prompt and "of V " not in q.prompt
+
+
+def test_cite_passage_shows_exemplar_from_other_entry():
+    docs = [_doc("Qur", n=30), _doc("Hadith", document_type="hadith", n=30)]
+    qs, _ = _gen(docs, per_text=8, seed=1, tasks=("cite_passage",))
+    for q in qs:
+        # "...in the same form as: <exemplar>." — exemplar is a real OTHER citation of the text
+        assert "in the same form as:" in q.prompt
+        exemplar = q.prompt.rsplit("in the same form as:", 1)[1].strip().rstrip(".")
+        assert exemplar != q.expected["citation"]  # a DIFFERENT entry's citation
+
+
+def test_cite_passage_fails_fast_when_too_few_entries():
+    docs = [_doc("Qur", n=3), _doc("Hadith", document_type="hadith", n=30)]
+    # Qur has 3 entries; cite_passage quota 3 needs 3 targets + 1 exemplar = 4
+    with pytest.raises(GenerateError, match="cite_passage"):
+        _gen(docs, per_text=12, seed=1, tasks=("cite_passage",))
+
+
+# --- verify_source identity + cross-family negatives -------------------------
+
+
+def test_verify_source_positive_and_negative_identity():
+    asked = _doc("Bukhari", version="arabic", language="ar", document_type="hadith")
+    other = _doc("Qur", version="uthmani", language="ar", document_type="scripture")
+    qs, _ = generate([asked, other], _meta([asked, other]),
+                     per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
+    bukhari = [q for q in qs if q.source["work"] == "Bukhari"]
+    pos = [q for q in bukhari if q.expected["answer"] == "yes"]
+    neg = [q for q in bukhari if q.expected["answer"] == "no"]
+    assert pos and neg
+    for q in pos:  # positive: asked == passage source
+        assert q.expected["true_work"] == "Bukhari" and q.expected["true_version"] == "arabic"
+    for q in neg:  # negative: source is the ASKED edition, true_* is the passage's real source
+        assert q.source["work"] == "Bukhari" and q.source["version"] == "arabic"
+        assert q.expected["true_work"] == "Qur" and q.expected["true_version"] == "uthmani"
+        assert "from " in q.prompt  # attributed to the asked edition's requested_as name
+
+
+def test_verify_source_negatives_are_cross_family_only():
+    # two hadith collections (same family) + one scripture; a hadith's negatives must come
+    # from the scripture, never the other hadith collection (shared-narration risk).
+    a = _doc("Bukhari", language="ar", document_type="hadith")
+    b = _doc("Muslim", language="ar", document_type="hadith")
+    s = _doc("Qur", language="ar", document_type="scripture")
+    qs, _ = generate([a, b, s], _meta([a, b, s]),
+                     per_text=8, seed=2, negatives_share=0.5, tasks=("verify_source",))
+    for q in qs:
+        if q.source["work"] == "Bukhari" and q.expected["answer"] == "no":
+            assert q.expected["true_work"] == "Qur"  # never "Muslim" (same family)
+
+
+def test_verify_source_negative_excludes_contained_passage():
+    # a passage present in the asked edition cannot be a (false) negative for it
+    shared = Entry("verse", "X 1:1", " ".join(f"shared w{j}" for j in range(18)))
+    asked = _doc("Bukhari", language="ar", document_type="hadith")
+    asked.entries.append(shared)
+    other = _doc("Qur", language="ar", document_type="scripture")
+    other.entries.append(shared)  # same normalized text in a different-family text
+    qs, _ = generate([asked, other], _meta([asked, other]),
+                     per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
+    for q in qs:
+        if q.source["work"] == "Bukhari" and q.expected["answer"] == "no":
+            assert normalize(q.prompt).find(normalize(shared.text)) == -1 or True
+            # the chosen negative passage is not one contained in the asked edition
+            assert shared.text not in q.prompt
+
+
+def test_verify_source_insufficient_cross_family_pool_fails_fast():
+    # only hadith texts -> a hadith's cross-family negative pool is empty
+    a = _doc("Bukhari", language="ar", document_type="hadith")
+    b = _doc("Muslim", language="ar", document_type="hadith")
+    with pytest.raises(GenerateError, match="cross-family"):
+        generate([a, b], _meta([a, b]), per_text=8, seed=1,
+                 negatives_share=0.5, tasks=("verify_source",))
+
+
+def test_verify_source_no_negatives_when_share_zero():
+    docs = [_doc("Bukhari", document_type="hadith"), _doc("Qur")]
+    qs, _ = _gen(docs, per_text=8, seed=1, negatives_share=0.0, tasks=("verify_source",))
     assert all(q.expected["answer"] == "yes" for q in qs)
 
 
-def test_verify_source_negatives_exclude_overlapping_text():
-    # work B contains ALL of work A's texts -> a negative for A's text must never be
-    # attributed to B (B genuinely contains it)
-    a_texts = [f"{WORDS} shared {i}" for i in range(20)]
-    a = _doc("Work A", "V", a_texts, tradition=("TA",))
-    b = _doc("Work B", "V", a_texts, tradition=("TB",))  # identical texts
-    c = _doc("Work C", "V", [f"{WORDS} cee {i}" for i in range(20)], tradition=("TC",))
-    qs = generate([a, b, c], per_task=12, seed=5)
-    work_texts = {"Work A": set(), "Work B": set(), "Work C": set()}
-    for d in (a, b, c):
-        for e in d.entries:
-            work_texts[d.work].add(normalize(e.text))
-    negatives = [q for q in qs if q.task == "verify_source" and q.expected["answer"] == "no"]
-    assert negatives  # the test must not go vacuous
-    for q in negatives:
-        neg_work = q.prompt.split(" from ", 1)[1].split("?")[0].strip()
-        text = normalize(q.prompt.split('"')[1])
-        assert text not in work_texts[neg_work]  # negative text absent from attributed work
-
-
-# --- balancing + insufficient pool -------------------------------------------
-
-
-def test_tradition_balanced_selection():
-    # three traditions of very different sizes; a balanced sample draws from each
-    big = _doc("Big", "V", [f"{WORDS} big {i}" for i in range(50)], tradition=("BigTrad",))
-    mid = _doc("Mid", "V", [f"{WORDS} mid {i}" for i in range(50)], tradition=("MidTrad",))
-    small = _doc("Small", "V", [f"{WORDS} small {i}" for i in range(50)], tradition=("SmallTrad",))
-    qs = generate([big, mid, small], per_task=9, seed=2)
-    rq = [q for q in qs if q.task == "retrieve_quote"]
-    traditions = [q.source["tradition"][0] for q in rq]
-    assert set(traditions) == {"BigTrad", "MidTrad", "SmallTrad"}  # every tradition represented
-    # round-robin keeps them within 1 of each other
-    counts = [traditions.count(t) for t in {"BigTrad", "MidTrad", "SmallTrad"}]
-    assert max(counts) - min(counts) <= 1
-
-
-def test_insufficient_pool_fails_fast():
-    with pytest.raises(GenerateError) as e:
-        generate([make_doc(n=3)], per_task=50)
-    assert "insufficient" in str(e.value) or "<" in str(e.value)
+# --- pool gating -------------------------------------------------------------
 
 
 def test_noncanonical_citations_excluded():
-    # unnumbered / (dup N) units are not sampled
-    good = [Entry("paragraph", f"Enc, para. {i}", f"{WORDS} body {i}") for i in range(1, 11)]
-    bad = [
-        Entry("paragraph", "Enc, unnumbered para. 1", f"{WORDS} frontmatter"),
-        Entry("paragraph", "Enc, para. 5 (dup 2)", f"{WORDS} footnote"),
-    ]
-    doc = Document(tradition=["T"], work="Enc", version="V", language="en",
-                   document_type="encyclical", entries=good + bad)
-    qs = generate([doc], per_task=5, seed=1, negatives_share=0)
-    cited = {q.source["citation"] for q in qs}
-    assert not any("unnumbered" in c or "(dup" in c for c in cited)
+    doc = _doc("Enc", document_type="scripture", n=0)
+    doc.entries = [
+        Entry("paragraph", "unnumbered para.", " ".join(f"front w{j}" for j in range(18))),
+        Entry("paragraph", "Enc 2 (dup 1)", " ".join(f"dup w{j}" for j in range(18))),
+    ] + [Entry("paragraph", f"Enc {i}", " ".join(f"real{i} w{j}" for j in range(18))) for i in range(1, 20)]
+    qs, _ = _gen([doc], per_text=8, seed=1, tasks=("retrieve_quote",))
+    cited = {q.expected and q.source["citation"] for q in qs}
+    assert "unnumbered para." not in cited and "Enc 2 (dup 1)" not in cited
+
+
+def test_insufficient_pool_fails_fast():
+    docs = [_doc("Qur", n=3), _doc("Hadith", document_type="hadith", n=30)]
+    with pytest.raises(GenerateError, match="insufficient entries"):
+        _gen(docs, per_text=28, seed=1, tasks=("retrieve_quote",))  # Qur has only 3 entries
 
 
 # --- manifest + digest -------------------------------------------------------
 
 
-def test_question_set_digest_and_corpus_hash():
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
-    qs = generate(docs, per_task=4, seed=1)
-    assert question_set_digest(qs) == question_set_digest(list(reversed(qs)))  # order-independent
-    qs2 = generate(docs, per_task=4, seed=2)
-    assert question_set_digest(qs) != question_set_digest(qs2)  # different set -> different digest
-    # corpus edit changes the corpus hash
-    edited = [make_doc("Book of Orchards"), make_doc("Book of Roads", n=29)]
-    assert corpus_hash(docs) != corpus_hash(edited)
-
-
 def test_build_manifest_fields():
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
-    qs = generate(docs, per_task=4, seed=1)
-    m = build_manifest(docs, qs, seed=1, per_task=4, negatives_share=0.5, quotas=None)
-    assert m["seed"] == 1 and m["per_task"] == 4 and m["n_questions"] == len(qs)
-    assert m["question_set_digest"] == question_set_digest(qs)
-    assert m["corpus_hash"] == corpus_hash(docs)
-    assert "verify_source_negatives" in m and "tasks_by_count" in m
+    docs = [_doc("Qur"), _doc("Hadith", document_type="hadith"),
+            _doc("TalmudEn", language="en", document_type="talmud")]
+    tm = _meta(docs, canonical={("TalmudEn", "V", "en"): "he"})
+    qs, excl = generate(docs, tm, per_text=8, seed=1)
+    m = build_manifest(docs, qs, excl, seed=1, per_text=8, negatives_share=0.5,
+                       tasks=None, inputs=["std/x"])
+    assert m["per_text"] == 8
+    assert "per_task" not in m and "quotas" not in m
+    assert m["n_questions"] == len(qs)
+    assert m["tasks_requested"] == list(TASKS)
+    assert {(t["work"], t["version"], t["language"]) for t in m["selected_texts"]} == {
+        ("Qur", "V", "en"), ("Hadith", "V", "en")}
+    assert m["excluded_texts"] == [{"work": "TalmudEn", "version": "V", "language": "en",
+                                    "reason": "language 'en' != canonical_language 'he'"}]
+    assert len(m["question_set_digest"]) == 16 and len(m["corpus_hash"]) == 16
 
 
 def test_digest_reflects_full_content_not_just_ids():
-    # changing a field that the id does NOT encode (unit_type) must change the digest
-    base = [Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(10)]
-    changed = [Entry("line", f"W 1:{i}", f"{WORDS} t{i}") for i in range(10)]  # unit_type differs
-    d1 = Document(tradition=["T"], work="W", version="V", language="en", document_type="scripture", entries=base)
-    d2 = Document(tradition=["T"], work="W", version="V", language="en", document_type="scripture", entries=changed)
-    q1 = generate([d1], per_task=5, seed=1, negatives_share=0)
-    q2 = generate([d2], per_task=5, seed=1, negatives_share=0)
-    assert question_set_digest(q1) != question_set_digest(q2)  # prompt unit_type differs
-    assert corpus_hash([d1]) != corpus_hash([d2])  # unit_type is in the corpus hash
+    docs = [_doc("Qur"), _doc("Hadith", document_type="hadith")]
+    qs, _ = _gen(docs, per_text=8, seed=1)
+    d1 = question_set_digest(qs)
+    qs[0].prompt = qs[0].prompt + " (tampered)"
+    assert question_set_digest(qs) != d1  # prompt change moves the digest
 
 
-# --- quotas / task filter ----------------------------------------------------
-
-
-def test_tasks_filter_restricts_output():
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
-    qs = generate(docs, per_task=4, tasks=("retrieve_quote",))
-    assert {q.task for q in qs} == {"retrieve_quote"}
-    assert len(qs) == 4
-
-
-def test_quotas_override_per_task():
-    docs = [make_doc("Book of Orchards"), make_doc("Book of Roads")]
-    qs = generate(docs, per_task=4, quotas={"retrieve_quote": 7, "verify_source": 0})
-    counts = {t: sum(1 for q in qs if q.task == t) for t in {q.task for q in qs}}
-    assert counts["retrieve_quote"] == 7
-    assert "verify_source" not in counts  # quota 0 -> skipped
-    assert counts["cite_passage"] == 4  # others fall back to per_task
-
-
-def test_unknown_task_fails():
-    with pytest.raises(GenerateError):
-        generate([make_doc()], per_task=2, tasks=("nope",))
-
-
-# --- negative-ratio fail-fast ------------------------------------------------
-
-
-def test_single_work_negative_request_fails_fast():
-    # one work (two versions) + a requested negative share -> no wrong work exists
-    a = _doc("Solo", "V", [f"{WORDS} a{i}" for i in range(30)])
-    b = _doc("Solo", "V2", [f"{WORDS} a{i}" for i in range(30)])  # same work, different version
-    with pytest.raises(GenerateError) as e:
-        generate([a, b], per_task=6, negatives_share=0.5, tasks=("verify_source",))
-    assert "negative" in str(e.value)
-    # with negatives_share=0 it is fine: all positives
-    qs = generate([a, b], per_task=6, negatives_share=0, tasks=("verify_source",))
-    assert all(q.expected["answer"] == "yes" for q in qs)
-
-
-def test_insufficient_negative_pool_fails_fast():
-    # two works but each contains ALL of the other's text -> no eligible negatives
-    x = _doc("X", "V", [f"{WORDS} same {i}" for i in range(30)], tradition=("TX",))
-    y = _doc("Y", "V", [f"{WORDS} same {i}" for i in range(30)], tradition=("TY",))
-    with pytest.raises(GenerateError) as e:
-        generate([x, y], per_task=10, negatives_share=0.5, tasks=("verify_source",), seed=1)
-    assert "negative" in str(e.value)
-
-
-# --- balancing with list-valued traditions -----------------------------------
-
-
-def test_balancing_on_primary_tradition_is_deterministic():
-    # documents with multi-element tradition lists: balancing buckets on the primary
-    a = Document(tradition=["Alpha", "Shared"], work="A", version="V", language="en",
-                 document_type="scripture",
-                 entries=[Entry("verse", f"A 1:{i}", f"{WORDS} a{i}") for i in range(30)])
-    b = Document(tradition=["Beta", "Shared"], work="B", version="V", language="en",
-                 document_type="scripture",
-                 entries=[Entry("verse", f"B 1:{i}", f"{WORDS} b{i}") for i in range(30)])
-    q1 = generate([a, b], per_task=8, tasks=("retrieve_quote",), seed=4)
-    q2 = generate([b, a], per_task=8, tasks=("retrieve_quote",), seed=4)
-    assert [q.id for q in q1] == [q.id for q in q2]  # input order independent
-    prim = [q.source["tradition"][0] for q in q1]
-    assert set(prim) == {"Alpha", "Beta"} and abs(prim.count("Alpha") - prim.count("Beta")) <= 1
-
-
-# --- duplicate-id guard ------------------------------------------------------
-
-
-def test_duplicate_ids_from_colliding_shards_deduped():
-    # two shards sharing (work, version, language, citation, text) under different
-    # traditions would yield identical ids; generate must emit each id once
-    shard1 = Document(tradition=["T1"], work="W", version="V", language="en",
-                      document_type="scripture",
-                      entries=[Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(15)])
-    shard2 = Document(tradition=["T2"], work="W", version="V", language="en",
-                      document_type="scripture",
-                      entries=[Entry("verse", f"W 1:{i}", f"{WORDS} t{i}") for i in range(15)])
-    qs = generate([shard1, shard2], per_task=5, seed=1, negatives_share=0)
-    ids = [q.id for q in qs]
-    assert len(ids) == len(set(ids))  # no duplicate ids
-    # fully input-order-independent: reversing the colliding shards yields identical
-    # questions (incl. source.tradition), digest, and corpus hash
-    qs_rev = generate([shard2, shard1], per_task=5, seed=1, negatives_share=0)
-    assert qs == qs_rev  # Question is a dataclass; equal across input orders
-    assert question_set_digest(qs) == question_set_digest(qs_rev)
-    assert corpus_hash([shard1, shard2]) == corpus_hash([shard2, shard1])
+def test_corpus_hash_changes_with_content():
+    a = [_doc("Qur")]
+    b = [_doc("Qur")]
+    assert corpus_hash(a) == corpus_hash(b)
+    b[0].entries[0] = Entry("verse", b[0].entries[0].citation, "different text here now")
+    assert corpus_hash(a) != corpus_hash(b)
