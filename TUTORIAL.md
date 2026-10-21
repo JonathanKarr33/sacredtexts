@@ -136,7 +136,8 @@ to a brand-new folder, `runs/my-run/`, which keeps your work separate from the s
 > [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (this three-scripture
 > `retrieve_quote`-only example, built before Spec 26 reshaped the generator, so it is not
 > reproducible with today's CLI) and [`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/).
-> The full four-template, all-17-texts Spec-26 run is committed under `runs/` as well.
+> The full four-template, all-17-texts Spec-26 run lives under `runs/` alongside these once it is
+> generated (the `original-…` run).
 
 ## 4. Audit — confirm nothing restricted slipped in
 
