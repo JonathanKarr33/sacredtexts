@@ -50,7 +50,7 @@ sacredtexts/
 ├── texts/
 │   ├── raw/<tradition>/        Source scripture as obtained, one folder per tradition, each with a source.yaml catalogue. Add a text's data here (RECIPE A).
 │   └── standardized/           Converted texts in the standard format. Rebuilt by `convert`; never committed.
-├── runs/                       Finished benchmark runs (questions + answers + scores + summary). The two dated folders are shipped reference evidence — never overwrite them.
+├── runs/                       Finished benchmark runs (questions + answers + scores + summary). The three dated folders are shipped reference evidence — never overwrite them.
 ├── apps/viewer/                The local results website (leaderboard + error explorer). Read apps/viewer/README.md before touching it.
 │   └── src/lib/explorer.ts     Derives the viewer's task/tradition filters from the data.
 ├── configs/                    models.example.yaml — the model list template copied to models.yaml for a run.

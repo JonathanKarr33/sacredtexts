@@ -20,9 +20,9 @@ viewer in step 8 will show it to you.
 Two short safety notes you will see repeated below, because they matter:
 
 - **Never re-run steps 6, 7, or 8's scoring on top of the shipped example runs**
-  (`runs/tutorial-2026-10-11/` and `runs/first-run-2026-10-11/`). Those folders are the
-  finished reference results that come with the project; always send your own work to a
-  brand-new folder instead (step 5 sets one up).
+  (`runs/original-2026-10-21/`, `runs/tutorial-2026-10-11/`, and `runs/first-run-2026-10-11/`).
+  Those folders are the finished reference results that come with the project; always send your
+  own work to a brand-new folder instead (step 5 sets one up).
 - **Keep your API key in your terminal's environment, never saved in a file** in the
   project.
 
@@ -53,14 +53,16 @@ it off**. "Off" tests what the model memorised; "on" tests whether a live web se
 helps it find the exact words. The search setting is part of each contestant's identity,
 so the results page shows all four side by side and never mixes them up.
 
-A finished example of this same kind of run already ships with the project, in
-[`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) — its
-[`README.md`](runs/tutorial-2026-10-11/README.md) has the full results write-up. (It is an
-earlier `retrieve_quote`-only example built before Spec 26 reshaped the generator, so it is
-not byte-for-byte reproducible with today's CLI, but it shows exactly the same shape of run.) A
-second, English-only example run lives in
-[`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/), so the viewer always has at
-least two runs to compare.
+The current reference run ships with the project in
+[`runs/original-2026-10-21/`](runs/original-2026-10-21/) — the full **four-template,
+all-17-texts, original-language-only** Spec-26 run over a three-model panel; its
+[`README.md`](runs/original-2026-10-21/README.md) has the full results write-up. It is produced
+by exactly today's CLI (scoring is deterministic and byte-for-byte reproducible over its
+committed `answers.jsonl`). Two earlier examples also ship, so the viewer always has several runs
+to compare: [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (a `retrieve_quote`-only
+example built *before* Spec 26 reshaped the generator, so it is not reproducible with today's
+CLI but shows the same shape of run) and the English-only
+[`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/).
 
 ## Before you start
 
@@ -132,12 +134,12 @@ to a brand-new folder, `runs/my-run/`, which keeps your work separate from the s
 > To try the whole loop cheaply before the paid step, use a smaller number like
 > `--per-text 5`. A different `--per-text` or `--seed` produces a different question set.
 >
-> **Shipped example runs** are there to compare against in the viewer:
-> [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (this three-scripture
-> `retrieve_quote`-only example, built before Spec 26 reshaped the generator, so it is not
+> **Shipped example runs** are there to compare against in the viewer: the current
+> [`runs/original-2026-10-21/`](runs/original-2026-10-21/) (the full four-template, all-17-texts
+> original-language-only Spec-26 run, produced by today's CLI), plus two earlier examples —
+> [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (a three-scripture
+> `retrieve_quote`-only run built before Spec 26 reshaped the generator, so it is not
 > reproducible with today's CLI) and [`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/).
-> The full four-template, all-17-texts Spec-26 run lives under `runs/` alongside these once it is
-> generated (the `original-…` run).
 
 ## 4. Audit — confirm nothing restricted slipped in
 
@@ -179,9 +181,9 @@ leaves the rest in place — just run it again and it fills in only the missing 
 will refuse to run against a different question set than the one it started with, so you
 can't accidentally mix things up.
 
-> **Never point this at `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`.**
-> Those are the finished example runs; re-running here would either do nothing or
-> overwrite their results. Always use your own `runs/my-run/` folder.
+> **Never point this at `runs/original-2026-10-21/`, `runs/tutorial-2026-10-11/`, or
+> `runs/first-run-2026-10-11/`.** Those are the finished example runs; re-running here would
+> either do nothing or overwrite their results. Always use your own `runs/my-run/` folder.
 
 ## 7. Score — grade the answers
 
@@ -219,23 +221,25 @@ cat runs/my-run/summary.md
 > maintainers treat that as fair use for academic research, and the automated audit above
 > still blocks anything derived from a *restricted* source.
 
-**No API key?** Steps 6 and 7 need the paid run, so skip them and explore the shipped
-example instead. Read its summary directly:
+**No API key?** Steps 6 and 7 need the paid run, so skip them and explore the current shipped
+reference run instead. Read its summary directly:
 
 ```bash
-cat runs/tutorial-2026-10-11/summary.md
+cat runs/original-2026-10-21/summary.md
 ```
 
-The shipped run's [`README.md`](runs/tutorial-2026-10-11/README.md) explains the headline
+The shipped run's [`README.md`](runs/original-2026-10-21/README.md) explains the headline
 finding. An answer counts as **correct** when it contains the exact passage — a verbatim quote
 wrapped in extra words ("According to Sefaria…", a link) still counts — and a model that **declines**
 ("I can't reliably reproduce that line") is marked **refused** and set aside, not counted wrong. So
 each model gets two numbers you read together: **accuracy** (how often it's right *when it answers*)
-and **coverage** (how often it answers at all). That pairing is the real story — web search mostly
-converts refusals into correct retrievals, most dramatically for the Aramaic Talmud, where the
-search-on model goes from refusing every line to retrieving about a quarter of them. It also means a
-model can show "100%" only because it stayed silent most of the time, which is exactly why coverage
-sits right beside accuracy.
+and **coverage** (how often it answers at all). That pairing is the real story: a model can show a
+high accuracy only because it stayed silent on most of the roster, which is exactly why coverage sits
+right beside it. In this run opus reaches 68% overall but answers only half the `retrieve_quote`
+roster — it refuses the Arabic/Aramaic lines it can't recall rather than guessing — while the famous
+KJV is answered at 100% coverage and 100% accuracy by every model. (The earlier
+`runs/tutorial-2026-10-11/` additionally contrasts web search on vs. off; this run is search-off
+only — see its README for why.)
 
 ## 8. View — see the results in your browser
 
@@ -247,8 +251,8 @@ pnpm -C apps/viewer install     # one-time setup: fetch the viewer's dependencie
 pnpm -C apps/viewer dev         # then open the web address it prints
 ```
 
-Open the address it prints. To land directly on the shipped example run regardless of
-which run is newest, add `?run=tutorial-2026-10-11` to the address.
+Open the address it prints. To land directly on the shipped reference run regardless of
+which run is newest, add `?run=original-2026-10-21` to the address.
 
 What you can look at:
 

@@ -274,3 +274,35 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
       per-text table present, parsed-is-None diagnostic (count + 10 sample verify_source rows/
       model), negatives-weighted-by-entry-count + near-verbatim-residual + Talmud-Aramaic
       cross-language limitations.
+
+### IMPLEMENT Phase 6 — BLOCKED on ANTHROPIC_API_KEY (2026-10-21)
+- Free/local steps done & verified on the REAL corpus:
+  - convert (default): 219 docs, 318,697 entries, 19 targets (2 restricted NABRE/TLG excluded).
+  - generate (default, --per-text 28): **476 questions** (17 texts × 28, 119/template), digest
+    ca5b5d5372f81603. Excluded 2 TARGETS (aggregated, not 201 docs): Papal Encyclicals (en≠la),
+    Talmud English (en≠he). 51 verify_source negatives; cross-language only Talmud-Aramaic ×3.
+  - (generated to scratchpad, NOT committed — a run needs answers/scores from the live panel.)
+- BLOCKER: ANTHROPIC_API_KEY ABSENT from sacredtexts/.env (OPENROUTER present but MUST NOT
+  substitute — web_search is Anthropic-only, plan forbids it). Full-panel budget = 476 × 4 arms
+  (haiku+opus × search on/off) ≈ 1,904 live cells. Live collect/score + committed run blocked.
+- Reported to architect; awaiting key or direction. Do NOT proceed with collect without the key.
+
+### IMPLEMENT Phase 6 — UNBLOCKED: OpenRouter, search-off (Waleed decision 2026-10-21)
+- Waleed: use OPENROUTER_API_KEY. No web_search arms (search-off only, since web_search is
+  Anthropic-only + config.py fail-fasts it on a non-anthropic provider). Panel = provider openai,
+  base_url openrouter, 3 models: anthropic/claude-haiku-5-5, anthropic/claude-opus-5-5,
+  openai/gpt-oss-20b. Run is UNPRICED (no per-token prices supplied). HARD BUDGET: smoke →
+  extrapolate → proceed only if ≤ $40; stop+ping if >$40 or credits <$15 mid-run.
+- Committed panel YAML: `configs/models.openrouter.yaml` (concurrency 4, max_tokens 4096, NO tools).
+- Credits before: $77.37 (total_credits 11500, total_usage 11422.63). Key never printed.
+- SMOKES (scratchpad, not committed): 6-cell retrieve_quote = $0.0214; 23-cell MIX balanced across
+  all 4 tasks = $0.10321 (1 gpt-oss-20b empty-response fail — model quirk, resumable). Per-cell
+  $0.0043–0.0045. Task mix matches full run's 119/template split → EXTRAPOLATED FULL RUN
+  (1,428 cells) ≈ **$6.4**, well under $40. Posted estimate to architect; proceeding per the
+  pre-authorized ≤$40 rule.
+- gpt-oss-20b emits long reasoning (avg out ~1,800–3,000 tok) + occasional empty responses; will
+  retry failed cells (collect resumable).
+- Full collect running (bg b9mw1hxur) → runs/original-2026-10-21/answers.jsonl. Questions committed-
+  dir generated: runs/original-2026-10-21/questions.jsonl (digest ca5b5d5372f81603). Next: score
+  (--summary-md), audit, viewer smoke, README with parsed-is-None diagnostic + limitations, then
+  the Phase-6 doc repoints (TUTORIAL ref-run, CODE_WALKTHROUGH:53 two→three folders).
