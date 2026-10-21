@@ -329,3 +329,20 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
      and Waleed explicitly directed OpenRouter + ≤$40 on 2026-10-21. No search-on/off contrast in
      this run (documented in run README §"Why no search arms").
   3. Smoke cost-extrapolation method is ~2× low for models with heavy reasoning output + retries.
+
+### PR #28 opened → review round 1/1b (2026-10-21)
+- PR #28 opened (Closes #26). Both PR consults APPROVED. Architect integration review +
+  consult-lane fold-ins drove a full regenerate + re-collect + re-score.
+- requested_as now article-carrying (architect's exact lists) → new digest **eaf8c68e82cc0cb5**
+  (was ca5b5d5372f81603). Prompts read naturally; bare "Muslim" dropped.
+- Scorer/gen fixes (committed 9ae605b): A _NUM_CITE suffixed-hadith anti-hedge; B cite_passage
+  decline survey (29 cells pinned count+SHA, 10 moved incorrect→refused); C core negatives_share
+  validation; D by_text roster (expected_n/missing); E viewer comment; canonical_language +
+  containment→equality wording; TUTORIAL single OpenRouter track.
+- Re-run: 1428/1428 COMPLETE (all gpt-oss empty stragglers recovered over ~8 retry passes).
+  opus 69% / haiku 51% / gpt-oss 23%. Cost ≈ $5.2 (credits $64.48→$59.25, cap $25). pipelines
+  367 + viewer 158 green; audit origin-clean; re-score byte-for-byte; regen digest-pinned.
+  Arabic-Indic digits 0/1428 → follow-up CLOSED.
+- tip 9ae605b pushed. Replied to architect (tip+digest+cost+B numbers). Flagged --per-text
+  semantics (tutorial uses --per-text 40 to hit the architect's 120 questions). **Do NOT merge**
+  — awaiting the pr gate (human approval).
