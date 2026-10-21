@@ -258,7 +258,7 @@ arrives as the separate-pass seam, issue #21).
 > is byte-for-byte unchanged by design, and the shipped English run was scored under the
 > current rules. The guard that proves a scoring change didn't move old numbers is
 > `test_rescoring_committed_run_reproduces_scores`
-> (`pipelines/tests/test_first_run_regression.py:32`), which re-scores the committed
+> (`pipelines/tests/test_first_run_regression.py:30`), which re-scores the committed
 > answers and asserts the committed scores reproduce exactly. A new task should *add*
 > evidence, not perturb the old — don't route around this test.
 >

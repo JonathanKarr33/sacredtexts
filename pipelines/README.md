@@ -29,9 +29,12 @@ loading is fail-fast.
 - **`requested_as`** is the non-empty list of names a person actually uses for this edition
   (e.g. `["King James Version", "KJV", "KJV Bible"]`); `generate` renders `<edition>` in the
   prompt as a seeded choice from it, never the raw `version`. **`canonical_language`** is the
-  language the text was composed in; a text is in the default (original-language) question pool
-  only when **`language == canonical_language`** (so translations — Talmud English, the Vatican
-  English encyclicals — are excluded and recorded in the manifest with a reason).
+  language the benchmark treats as the text's own (usually the language of composition); a text
+  is in the default question pool only when **`language == canonical_language`**, so most
+  translations — Talmud English, the Vatican English encyclicals — are excluded and recorded in
+  the manifest with a reason. **Exception (working-group policy, issue #27 Q1):** the English
+  Bibles (KJV/ASV/WEB) are translations but carry `canonical_language: en` so they stay in the
+  pool; the Qur'an (`ar`), Talmud Aramaic (`he`) and TLG Greek (`grc`) are genuine originals.
 - `convert` and `generate` **exclude `restricted` targets by default**; pass
   `--include-restricted` to opt in (and supply the local payload). `validate` is
   unaffected by license.
@@ -74,9 +77,10 @@ uv --project pipelines run python -m sacredbench convert --include-restricted --
 uv --project pipelines run python -m sacredbench validate texts/standardized
 
 # 2b. (Optional) Assemble the working group's interchange document per
-#     (work, version, language): merges shards (e.g. the LDS KJV OT+NT), dedupes
-#     by (citation, text), unions traditions, and checks the inverse-grouping
-#     round-trip before writing texts/interchange/ (rebuildable, gitignored).
+#     (work, version, language): merges shards (e.g. the dozens of per-tractate
+#     Talmud Bavli Aramaic files into one document), dedupes by (citation, text),
+#     unions traditions, and checks the inverse-grouping round-trip before writing
+#     texts/interchange/ (rebuildable, gitignored).
 uv --project pipelines run python -m sacredbench export texts/standardized
 
 # 3. Generate questions (four working-group templates; deterministic; original-language-only

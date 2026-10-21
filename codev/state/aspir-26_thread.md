@@ -260,3 +260,17 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   pre-Spec-26 example whose --per-task command no longer reproduces; the current Spec-26 run is
   runs/original-<date>/, committed in Phase 6).
 - Full pipeline suite 362; viewer unaffected. Phase 5/6 doc watch-items (d) discharged.
+
+### Phase 5 iter2/iter3 (pointer + README accuracy) — claude APPROVE iter3
+- iter2: corrected ~22 drifted CODE_WALKTHROUGH pointers (catalogue/generate/score grew),
+  verified each lands on its symbol; dropped "original-language" framing in run README (KJV is a
+  translation); softened TUTORIAL Spec-26-run claim to conditional.
+- iter3: README shard-merge example LDS-KJV→Talmud-Aramaic; canonical_language bullet gained the
+  English-Bible exception (#27 Q1); test_first_run_regression.py pointer :32→:30. claude APPROVE.
+- PHASE 6 HANDOFF (doc finalization once runs/original-<date>/ exists):
+  (1) TUTORIAL reference-run/digest repoint to the committed original run.
+  (2) CODE_WALKTHROUGH.md:53 "two dated folders" → three (add the original run).
+  (3) runs/original-<date>/README.md with: panel, re-score byte-for-byte note, audit-clean,
+      per-text table present, parsed-is-None diagnostic (count + 10 sample verify_source rows/
+      model), negatives-weighted-by-entry-count + near-verbatim-residual + Talmud-Aramaic
+      cross-language limitations.
