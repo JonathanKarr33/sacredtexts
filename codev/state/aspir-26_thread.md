@@ -177,3 +177,11 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
 - PHASE 6 README TODO (claude non-blocking): negative candidates are weighted by entry count,
   not uniform over texts — document as a known limitation; also document the near-verbatim
   shared-passage residual and the Talmud-Aramaic cross-language negatives.
+
+### Phase 2 APPROVED (codex + claude iter3) — advancing to Phase 3
+- Non-blocking polish deferred: CODE_WALKTHROUGH generate.py line pointers drifted (guard
+  permits; fix in Phase 5 doc pass); add a 2-task --tasks subset test (Phase 3/5 polish).
+- PHASE 6 README items (accumulated): (1) verify_source source.citation is "" for ALL
+  verify_source (pos+neg) — a passage not a citation is shown; (2) negatives weighted by entry
+  count not uniform over texts; (3) near-verbatim non-identical shared-passage residual;
+  (4) Talmud-Aramaic cross-language negatives (no he partner).
