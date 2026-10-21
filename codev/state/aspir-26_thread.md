@@ -218,3 +218,18 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   markdown now per-model text/n/accuracy/coverage/refused table. Full suite 362.
 - PHASE 6 TODO (architect): run README parsed-is-None diagnostic — count + 10 sample verify_source
   rows per model (what strict leading-token refuses).
+
+### Phase 3 APPROVED (codex + claude iter2) — advancing to Phase 4
+- verify_source refused⟺parsed-None confirmed correct; by_text NUL key + collision test; vacuous
+  test replaced. Full suite 362.
+- Watch items (non-blocking, deferred):
+  (a) Phase-6 parsed-is-None diagnostic should report prose-negation SHAPE FREQUENCIES, not just
+      10 samples/model.
+  (b) classify_refusal could raise on task=="verify_source" (one-line fail-fast guard) — optional
+      hardening; left out to not reopen the approved phase.
+  (c) _text_key→None silently drops a row (unreachable today — all questions carry work/version/
+      language; untested).
+  (d) **HARD PHASE-5-BEFORE-PHASE-6 REQUIREMENT**: update arch-critical.md "#23 PAPER GATE: no
+      verify_source number until hardened" → "closed by Spec 26", and the stale CODE_WALKTHROUGH
+      _SUBMETRICS / "answer must be a label" prose. Must land before Phase 6 reports a
+      verify_source number.
