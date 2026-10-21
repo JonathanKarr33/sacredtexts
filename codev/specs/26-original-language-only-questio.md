@@ -252,10 +252,15 @@ the original issue-body wording (`ask_as`/`original_language`/`citation_hint`, d
   the **asked edition** — the one named by the seeded `requested_as` choice in the prompt — and
   aggregates under that text in the per-text summary, because the task tests whether the model knows
   what is in *that* edition. The question's `source` records the asked edition; for a negative,
-  `expected` additionally records the passage's true source (`true_work`, `true_version`). Negatives are
-  selected at `(work, version, language)` granularity with a **family exclusion** (never attribute a
-  passage from the same family — e.g. another of the nine hadith collections — since shared
-  variant-wording narrations defeat exact-text exclusion and would make the "no" truth wrong).
+  `expected` additionally records the passage's true source (`true_work`, `true_version`, `true_language`).
+  Negatives are drawn from a **different family** (architect 2026-10-20: the nine hadith collections are
+  one family — `document_type == hadith_collection` — otherwise a text's family is its `work`, so the
+  KJV/ASV/WEB Bible editions never serve as each other's negatives but Book of Mormon may), excluding any
+  passage already present in the asked edition (normalized containment over **all** its entries — this
+  catches e.g. Book-of-Mormon chapters that quote KJV Isaiah verbatim). Negatives **prefer a same-language
+  partner**; a text with no same-language different-family partner (e.g. Talmud Aramaic) falls back to
+  cross-language, and the manifest records per text how many negatives were cross-language. The residual
+  (near-verbatim but non-identical shared passages) is a documented first-run limitation.
 - **Authoritative prompt strings.** Where Waleed's four-line shorthand (baked decision 3) and the
   rendered template strings in Desired State differ in punctuation or wording, the Desired-State
   rendered strings govern (they feed the digest and the acceptance tests). The shorthand conveys
@@ -406,10 +411,10 @@ requirement* is the spec contract.
   renders the edition exactly once (`display_citation`); over a bare-citation text (Qur'an, Talmud,
   Book of Mormon) renders unchanged. Stored citation and `cite_passage` ground truth are untouched.
 - `complete_unit` splits the unit and asks for the remainder; `verify_source` negatives attribute a
-  real passage from a different in-scope text (selected at `(work, version, language)` granularity, with
-  family exclusion so never from the same family as the asked text), excluding passages also present in
-  the attributed text, at the deterministic negative share; `source` records the asked edition and
-  `expected` gains `true_version`.
+  real passage from a **different-family** in-scope text (family = hadith-collection-else-work),
+  **preferring a same-language partner** (cross-language fallback flagged in the manifest), excluding
+  passages present in the asked edition (containment over all entries), at the deterministic negative
+  share; `source` records the asked edition and `expected` gains `true_version` / `true_language`.
 
 **Scoring (leading stance, #23)**
 - The leading window is taken from the **raw answer before `normalize()`** (a punctuation-bearing
@@ -441,7 +446,7 @@ requirement* is the spec contract.
 | Spec 15 base / #24 (MERGED @ 1324755) | Low | Medium | `origin/main` merged before Phase 1; scoring builds on the named-grader + refused-outcome contract directly. No fallback. |
 | `retrieve_quote` duplicates the edition name for 10/17 texts (work-prefixed citations) | High (if unaddressed) | High | `display_citation` strips the leading work/edition-name prefix at render; test the no-duplication contract for a hadith and a bare-citation text. |
 | `cite_passage` ground truth is majority-Arabic but the scorer expects Latin-script/colon and doesn't fold Arabic-Indic digits — 25% of the benchmark mis-scores | Medium | High | Template 3's by-example exemplar steers answers to the Latin/colon shape; consider folding Arabic-Indic digits in `normalize()`/extractor; verify in the live/smoke run; test scenario. |
-| verify_source negatives: variant-wording narrations shared across 9 hadith collections yield a wrong "no" ground truth (exact-match exclusion misses them) | Medium | Medium | Family exclusion by `document_type` (never pair two hadith collections) — cross-*work* alone is a no-op since the 9 are distinct works; fail-fast on insufficient cross-family pool; #23 hardening protects gaming, not wrong truth. |
+| verify_source negatives: variant-wording narrations shared across 9 hadith collections yield a wrong "no" ground truth (exact-match exclusion misses them) | Medium | Medium | Family = hadith-collection-else-work (the 9 hadith are one family); containment exclusion over all entries; prefer same-language negatives (cross-language flagged in the manifest); fail-fast on an empty cross-family pool. Residual near-verbatim shared passages documented in the run README. |
 | A committable text can't fill 28 questions for some template (or <2 entries for `cite_passage`) | Medium | Medium | Fail fast naming text+template; architect decides default or exclusion. Surface via `afx send`. |
 | `ANTHROPIC_API_KEY` absent → live run blocked (web_search is Anthropic-only) | Medium | Medium | Stop at live-run step, report to architect; do not substitute OpenRouter. Deliver everything else. |
 | Re-running score/collect over committed evidence nulls the panel/usage proof | Low | High | Always write to a fresh `runs/original-<date>/`; never target committed runs. |

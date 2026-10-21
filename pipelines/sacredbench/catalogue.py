@@ -310,6 +310,9 @@ class TextMeta:
 
     requested_as: tuple[str, ...]  # names a person uses; <edition> is a seeded choice from these
     canonical_language: str  # in the default pool iff a text's language == this
+    target_key: tuple[str, str, str]  # the catalogue TARGET's (work, version, language)
+    # — stable across documents a converter re-stamps (e.g. every encyclical resolves to the
+    # one Papal Encyclicals target), so exclusions aggregate to the target, not the document.
 
 
 def text_metadata(sources: list[Source]) -> dict[tuple[str, str, str], TextMeta]:
@@ -328,7 +331,7 @@ def text_metadata(sources: list[Source]) -> dict[tuple[str, str, str], TextMeta]
     """
     meta: dict[tuple[str, str, str], TextMeta] = {}
     for t in all_targets(sources):
-        tm = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language)
+        tm = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language, target_key=t.text_key)
         prev = meta.get(t.text_key)
         if prev is not None and prev != tm:
             raise CatalogueError(
@@ -364,7 +367,7 @@ def metadata_for_standardized_path(
         target_dir = t.standardized_dir(standardized_root).resolve()
         if resolved == target_dir or target_dir in resolved.parents:
             depth = len(target_dir.parts)
-            tm = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language)
+            tm = TextMeta(requested_as=t.requested_as, canonical_language=t.canonical_language, target_key=t.text_key)
             if depth > best_depth:
                 best_depth, best = depth, tm
             elif depth == best_depth and best is not None and tm != best:

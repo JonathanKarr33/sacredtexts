@@ -15,7 +15,6 @@ from sacredbench.generate import (
     write_questions,
 )
 from sacredbench.schema import Document, Entry
-from sacredbench.score import normalize
 
 
 def _doc(work, version="V", language="en", document_type="scripture", n=30,
@@ -34,17 +33,20 @@ def _doc(work, version="V", language="en", document_type="scripture", n=30,
     )
 
 
-def _meta(docs, canonical=None, requested=None):
+def _meta(docs, canonical=None, requested=None, target=None):
     """text_meta for ``docs``; by default every text is in-pool (canonical == its
-    language) with requested_as == (work,). ``canonical``/``requested`` override by key."""
+    language) with requested_as == (work,) and target_key == its own key.
+    ``canonical``/``requested``/``target`` override by key."""
     canonical = canonical or {}
     requested = requested or {}
+    target = target or {}
     tm = {}
     for d in docs:
         key = (d.work, d.version, d.language)
         tm[key] = TextMeta(
             requested_as=requested.get(key, (d.work,)),
             canonical_language=canonical.get(key, d.language),
+            target_key=target.get(key, key),
         )
     return tm
 
@@ -101,6 +103,23 @@ def test_excluded_when_language_not_canonical():
     assert ("TalmudEn", "V", "en") not in selected
     assert excl == [{"work": "TalmudEn", "version": "V", "language": "en",
                      "reason": "language 'en' != canonical_language 'he'"}]
+
+
+def test_excluded_aggregates_to_catalogue_target():
+    # two documents a converter re-stamped (different works) that resolve to ONE catalogue
+    # target (the encyclicals case) -> a single excluded entry naming the TARGET, not two.
+    d1 = _doc("Humanae Vitae", version="VE text (A)", language="en", document_type="encyclical")
+    d2 = _doc("Rerum Novarum", version="VE text (B)", language="en", document_type="encyclical")
+    qur = _doc("Qur", language="ar")  # one in-pool text so generation doesn't fail on empty pool
+    target = ("Papal Encyclicals", "Vatican English", "en")
+    tm = {
+        ("Humanae Vitae", "VE text (A)", "en"): TextMeta(("papal encyclicals",), "la", target),
+        ("Rerum Novarum", "VE text (B)", "en"): TextMeta(("papal encyclicals",), "la", target),
+        ("Qur", "V", "ar"): TextMeta(("Quran",), "ar", ("Qur", "V", "ar")),
+    }
+    _, excl = generate([d1, d2, qur], tm, per_text=4, seed=1, tasks=("retrieve_quote",))
+    assert excl == [{"work": "Papal Encyclicals", "version": "Vatican English", "language": "en",
+                     "reason": "language 'en' != canonical_language 'la'"}]
 
 
 def test_no_in_pool_texts_fails_fast():
@@ -229,10 +248,10 @@ def test_verify_source_positive_and_negative_identity():
 
 
 def test_verify_source_negatives_are_cross_family_only():
-    # two hadith collections (same family) + one scripture; a hadith's negatives must come
-    # from the scripture, never the other hadith collection (shared-narration risk).
-    a = _doc("Bukhari", language="ar", document_type="hadith")
-    b = _doc("Muslim", language="ar", document_type="hadith")
+    # the nine hadith collections are ONE family: Bukhari's negatives must come from the
+    # scripture, never another hadith collection (shared-narration risk).
+    a = _doc("Bukhari", language="ar", document_type="hadith_collection")
+    b = _doc("Muslim", language="ar", document_type="hadith_collection")
     s = _doc("Qur", language="ar", document_type="scripture")
     qs, _ = generate([a, b, s], _meta([a, b, s]),
                      per_text=8, seed=2, negatives_share=0.5, tasks=("verify_source",))
@@ -241,26 +260,68 @@ def test_verify_source_negatives_are_cross_family_only():
             assert q.expected["true_work"] == "Qur"  # never "Muslim" (same family)
 
 
-def test_verify_source_negative_excludes_contained_passage():
-    # a passage present in the asked edition cannot be a (false) negative for it
-    shared = Entry("verse", "X 1:1", " ".join(f"shared w{j}" for j in range(18)))
-    asked = _doc("Bukhari", language="ar", document_type="hadith")
-    asked.entries.append(shared)
-    other = _doc("Qur", language="ar", document_type="scripture")
-    other.entries.append(shared)  # same normalized text in a different-family text
-    qs, _ = generate([asked, other], _meta([asked, other]),
+def test_verify_source_same_work_bible_editions_are_same_family():
+    # KJV/ASV/WEB are all work "The Bible" -> one family (near-identical verses would make
+    # "no" a trap); a Bible edition's negatives come from a different work (Book of Mormon).
+    kjv = _doc("The Bible", version="KJV", language="en", document_type="scripture")
+    asv = _doc("The Bible", version="ASV", language="en", document_type="scripture")
+    bom = _doc("Book of Mormon", version="2013", language="en", document_type="scripture")
+    qs, _ = generate([kjv, asv, bom], _meta([kjv, asv, bom]),
                      per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
     for q in qs:
-        if q.source["work"] == "Bukhari" and q.expected["answer"] == "no":
-            assert normalize(q.prompt).find(normalize(shared.text)) == -1 or True
-            # the chosen negative passage is not one contained in the asked edition
-            assert shared.text not in q.prompt
+        if q.source["work"] == "The Bible" and q.expected["answer"] == "no":
+            assert q.expected["true_work"] == "Book of Mormon"  # never the other Bible edition
+
+
+def test_verify_source_prefers_same_language_negatives():
+    # same-language different-family partner (Hadith ar) is preferred over cross-language.
+    asked = _doc("Qur", language="ar", document_type="scripture")
+    same = _doc("Bukhari", language="ar", document_type="hadith_collection")
+    cross = _doc("BoM", language="en", document_type="scripture")
+    qs, _ = generate([asked, same, cross], _meta([asked, same, cross]),
+                     per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
+    neg = [q for q in qs if q.source["work"] == "Qur" and q.expected["answer"] == "no"]
+    assert neg and all(q.expected["true_language"] == "ar" for q in neg)  # Qur: all same-language
+    man = build_manifest([asked, same, cross], qs, [], 1, 8, 0.5)
+    # Qur has a same-language partner (Bukhari ar), so none of its negatives are cross-language
+    assert not any(r["work"] == "Qur" for r in man["verify_source_cross_language_negatives"])
+
+
+def test_verify_source_cross_language_fallback_recorded():
+    # Talmud Aramaic (he) has no same-language different-family partner -> cross-language,
+    # and the manifest records the per-text count.
+    asked = _doc("Talmud", language="he", document_type="talmud")
+    other = _doc("Qur", language="ar", document_type="scripture")
+    qs, excl = generate([asked, other], _meta([asked, other]),
+                        per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
+    man = build_manifest([asked, other], qs, excl, 1, 8, 0.5)
+    rows = man["verify_source_cross_language_negatives"]
+    talmud = next((r for r in rows if r["work"] == "Talmud"), None)
+    assert talmud is not None and talmud["count"] >= 1  # Talmud (he) had no he partner
+
+
+def test_verify_source_negative_excludes_contained_passage():
+    # A passage that occurs in the asked edition (even under a non-canonical/short citation)
+    # must never be used as a FALSE negative for it (the "no" ground truth would be wrong).
+    # Book-of-Mormon-quotes-KJV-Isaiah is the real case this guards.
+    shared_text = " ".join(f"sharedverse w{j}" for j in range(18))
+    asked = _doc("Bukhari", language="ar", document_type="hadith_collection")
+    # the asked edition also contains the shared passage, under a NON-canonical citation
+    asked.entries.append(Entry("verse", "unnumbered para.", shared_text))
+    other = _doc("Qur", language="ar", document_type="scripture")
+    other.entries.append(Entry("verse", "Qur 9:9", shared_text))  # same text, different family
+    qs, _ = generate([asked, other], _meta([asked, other]),
+                     per_text=8, seed=1, negatives_share=0.5, tasks=("verify_source",))
+    negs = [q for q in qs if q.source["work"] == "Bukhari" and q.expected["answer"] == "no"]
+    assert negs  # there ARE negatives
+    # none of them presents the shared passage, because it is contained in the asked edition
+    assert all(shared_text not in q.prompt for q in negs)
 
 
 def test_verify_source_insufficient_cross_family_pool_fails_fast():
-    # only hadith texts -> a hadith's cross-family negative pool is empty
-    a = _doc("Bukhari", language="ar", document_type="hadith")
-    b = _doc("Muslim", language="ar", document_type="hadith")
+    # only hadith collections (one family) -> a hadith's different-family negative pool is empty
+    a = _doc("Bukhari", language="ar", document_type="hadith_collection")
+    b = _doc("Muslim", language="ar", document_type="hadith_collection")
     with pytest.raises(GenerateError, match="cross-family"):
         generate([a, b], _meta([a, b]), per_text=8, seed=1,
                  negatives_share=0.5, tasks=("verify_source",))

@@ -158,8 +158,9 @@ quota over exactly four templates, and natural-language prompts using a seeded `
     `min/max`.
   - render the four templates using the text's metadata from the map:
     - `{edition}` = a **seeded uniform choice** from the text's `requested_as` list (deterministic in
-      the question seed), **recorded in `question.source.requested_as`** (the chosen name; keep the full
-      list available there too for the viewer/scoring). Never the raw `version` string.
+      the question seed), **recorded in `question.source.requested_as`** (the chosen name — the full
+      list stays in the catalogue, per the architect's "record the chosen name" direction). Never the
+      raw `version` string.
     - `retrieve_quote` uses `display_citation` (stored citation with a leading work/name prefix stripped
       so the edition is named once).
     - `cite_passage` (template 3) shows the **citation form by example**: append an exemplar citation
@@ -169,16 +170,17 @@ quota over exactly four templates, and natural-language prompts using a seeded `
       exemplar) — enforce and fail-fast otherwise.
   - **`verify_source` identity rewrite (spec Constraints; currently the opposite):** the question
     belongs to the **asked** edition — `source` records the asked text, the prompt interpolates the
-    asked text's `requested_as` name (not a raw `neg_work`), and `expected` gains `true_version`
-    alongside `true_work`. Select negatives at **`(work, version, language)`** granularity (not the
-    current `work`-only `works`/`work_texts`), keeping the exact-contained exclusion, and apply a
-    **family exclusion** so a negative is never drawn from the **same family** as the asked text (define
-    family by `document_type` — the nine hadith collections are one family — because they share
-    variant-wording narrations that defeat exact-text exclusion and yield wrong "no" truth). Fail-fast
-    if a text cannot source enough cross-family negatives. Keep the existing deterministic negative
-    share (`int(verify_template_quota × negatives_share)`).
+    asked text's `requested_as` name (not a raw `neg_work`), and `expected` gains `true_version` /
+    `true_language` alongside `true_work`. Negatives are drawn from a **different family** (architect
+    2026-10-20: family = `hadith_collection` for the nine hadith collections, else the text's `work` —
+    so KJV/ASV/WEB never pair with each other but Book of Mormon may), excluding any passage present in
+    the asked edition (**containment over all entries**, catching BoM↔KJV-Isaiah). Negatives **prefer a
+    same-language partner**; a text with no same-language different-family partner falls back to
+    cross-language, and the manifest records the per-text cross-language count. Fail-fast on an empty
+    cross-family pool. Keep the deterministic share (`int(verify_quota × negatives_share)`).
   - fail fast (naming text+template) when an in-pool template's share can't be filled; manifest records
-    `per_text`, the selected-texts list, and the **excluded** targets with their reason.
+    `per_text`, the selected-texts list, and the **excluded catalogue targets** (aggregated by
+    `meta.target_key`, so re-stamped encyclicals collapse to one) with their reason.
 - `pipelines/sacredbench/cli.py` — `generate`: drop `--per-task` / `--quota`; add `--per-text`; keep
   `--tasks` / `--negatives-share` / `--include-restricted`. **No `--include-translations`.**
 - `CODE_WALKTHROUGH.md` — **in this same commit**, update the pointer-guard entries coupled to the
@@ -428,7 +430,7 @@ only to the fresh run directory.
 | Metadata field schema churns again | Low | Medium | #26 field table is **final** (two fields, equality inclusion, `citation_hint` dropped, default 28). Starting values on #27. If a new change arrives, STOP and ping — do not guess. |
 | A committable text can't fill 28 questions for a template (incl. `cite_passage` needing ≥2 entries) | Medium | Medium | Fail-fast names text+template; surface to architect (lower default or exclude the text) — not a silent rebalance. |
 | cite_passage Arabic-Indic digit scoring gap (25% of the benchmark) | Medium | High | Template 3's **by-example** citation form steers the model to the scored shape (replacing `citation_hint`); evaluate folding Arabic-Indic digits in Phase 3 (`\d` matches `٧` but NFKD doesn't fold it, and `_NUM_CITE`'s `[A-Za-z]` prefix fails on Arabic); verify in the Phase 6 run; test scenario carried from the spec. |
-| verify_source negatives: variant-wording narrations shared across the 9 hadith collections → wrong "no" | Medium | Medium | Family exclusion by `document_type` (never pair two hadith collections) — a real mitigation, since cross-*work* alone is a no-op (the 9 are distinct works); fail-fast on insufficient cross-family pool. |
+| verify_source negatives: variant-wording narrations shared across the 9 hadith collections → wrong "no" | Medium | Medium | Family = hadith-collection-else-work; containment over all entries; prefer same-language negatives (cross-language flagged per text in the manifest); fail-fast on an empty cross-family pool; residual near-verbatim shared passages documented in the run README. |
 | `ANTHROPIC_API_KEY` absent → live run blocked | Medium | Medium | Deliver Phases 1–5; stop at Phase 6 live step, report to architect; do not substitute OpenRouter. |
 | Full panel cost (~1,904 cells) run without sign-off | Low | High | Phase 6 runs a cheap smoke, posts the budget estimate, and waits for explicit architect sign-off before the full panel. |
 | Re-running score/collect over committed evidence nulls the proof | Low | High | Phase 6 writes only to the fresh `runs/original-<date>/`; any deliberate contract-driven move is a sanctioned rebaseline, surfaced first. |

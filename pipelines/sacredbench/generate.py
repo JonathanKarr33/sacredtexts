@@ -139,26 +139,48 @@ def _choose_name(meta: TextMeta, rng: random.Random) -> str:
     return rng.choice(meta.requested_as)
 
 
+def _family(doc: Document) -> str:
+    """Negative-sampling family: the nine hadith collections are ONE family (so a hadith is
+    never a false negative for another, given their shared variant-wording narrations);
+    every other text's family is its ``work`` (so the KJV/ASV/WEB Bible editions never serve
+    as each other's negatives, but a different work — Book of Mormon — may)."""
+    return "hadith_collection" if doc.document_type == "hadith_collection" else doc.work
+
+
 @dataclass
 class _Text:
-    """One in-pool text: a (work, version, language) group with its metadata and
-    content-sorted canonical entry pool (deduplicated across colliding shards)."""
+    """One in-pool text: a (work, version, language) group with its metadata, its
+    content-sorted canonical entry pool (deduplicated across colliding shards) and
+    precomputed normalisations."""
 
     key: tuple[str, str, str]
     rep_doc: Document  # a representative document for work/version/language/tradition/document_type
     meta: TextMeta
     entries: list[Entry]  # canonical, >= MIN_WORDS_IDENTIFIABLE, content-sorted, deduped
+    entry_norms: list[str]  # normalize(e.text) parallel to ``entries`` (precomputed once)
+    all_norm: frozenset[str]  # normalize over ALL raw entries — the containment set for negatives
+
+    @property
+    def family(self) -> str:
+        return _family(self.rep_doc)
+
+    @property
+    def language(self) -> str:
+        return self.key[2]
 
 
 def _build_texts(docs: list[Document], text_meta: dict[tuple[str, str, str], TextMeta]) -> tuple[list[_Text], list[dict]]:
     """Group documents into texts, attach metadata (fail-closed), and split into the
-    in-pool texts (``language == canonical_language``) and the excluded ones."""
+    in-pool texts (``language == canonical_language``) and the excluded ones. Excluded
+    entries are aggregated to the catalogue **target** (``meta.target_key``), so a
+    converter that re-stamps work/version per document (encyclicals) yields one excluded
+    entry, not hundreds."""
     groups: dict[tuple[str, str, str], list[Document]] = {}
     for d in docs:
         groups.setdefault(_text_key(d), []).append(d)
 
     texts: list[_Text] = []
-    excluded: list[dict] = []
+    excluded_by_target: dict[tuple[str, str, str], dict] = {}
     for key in sorted(groups):
         work, version, language = key
         meta = text_meta.get(key)
@@ -168,13 +190,17 @@ def _build_texts(docs: list[Document], text_meta: dict[tuple[str, str, str], Tex
                 "(fail-closed) — a standardized document maps to no catalogue target"
             )
         if language != meta.canonical_language:
-            excluded.append({
-                "work": work, "version": version, "language": language,
+            tw, tv, tl = meta.target_key
+            excluded_by_target.setdefault(meta.target_key, {
+                "work": tw, "version": tv, "language": tl,
                 "reason": f"language {language!r} != canonical_language {meta.canonical_language!r}",
             })
             continue
         group = groups[key]
         rep = min(group, key=lambda d: (tuple(d.tradition), d.document_type))
+        # the containment set is over ALL raw entries (not just the canonical/long pool),
+        # so a passage present in this edition under any citation is never a false negative.
+        all_norm = {normalize(e.text) for d in group for e in d.entries}
         # canonical, identifiable entries, deduplicated by content across shards
         seen: set[tuple[str, str]] = set()
         entries: list[Entry] = []
@@ -188,7 +214,11 @@ def _build_texts(docs: list[Document], text_meta: dict[tuple[str, str, str], Tex
                 seen.add(ckey)
                 entries.append(e)
         entries.sort(key=lambda e: (e.citation, e.text))
-        texts.append(_Text(key=key, rep_doc=rep, meta=meta, entries=entries))
+        texts.append(_Text(
+            key=key, rep_doc=rep, meta=meta, entries=entries,
+            entry_norms=[normalize(e.text) for e in entries], all_norm=frozenset(all_norm),
+        ))
+    excluded = [excluded_by_target[k] for k in sorted(excluded_by_target)]
     return texts, excluded
 
 
@@ -236,12 +266,6 @@ def generate(
 
     task_quota = dict(zip(active, _split_quota(per_text, len(active))))
 
-    # cross-family membership for verify_source negatives: normalized text per text key,
-    # and the family (document_type) of each text.
-    text_norm: dict[tuple[str, str, str], set[str]] = {}
-    for t in texts:
-        text_norm[t.key] = {normalize(e.text) for e in t.entries}
-
     questions: list[Question] = []
     for t in sorted(texts, key=lambda t: t.key):
         for task in active:
@@ -278,13 +302,15 @@ def generate(
                         source=_source_dict(t.rep_doc, e.citation, name),
                     ))
             elif task == "cite_passage":
-                if len(t.entries) < quota + 1:
+                # needs >= quota entries to sample targets, and >= 2 so each target has a
+                # DIFFERENT entry to use as the format exemplar (the exemplar may itself be
+                # another target entry — just not this one).
+                if len(t.entries) < max(quota, 2):
                     raise GenerateError(
-                        f"{t.key} cite_passage: needs quota {quota} targets + >=1 exemplar "
-                        f"(>= {quota + 1} entries) but has {len(t.entries)}"
+                        f"{t.key} cite_passage: needs >= max(quota {quota}, 2) entries for "
+                        f"targets + a distinct exemplar but has {len(t.entries)}"
                     )
                 targets = _sample(t.entries, quota, rng, f"{t.key} cite_passage")
-                target_keys = {(e.citation, e.text) for e in targets}
                 for e in targets:
                     name = _choose_name(t.meta, rng)
                     # an exemplar citation from a different seeded entry of the same text
@@ -300,9 +326,7 @@ def generate(
                         source=_source_dict(t.rep_doc, e.citation, name),
                     ))
             elif task == "verify_source":
-                _append_verify_source(
-                    questions, t, texts, text_norm, quota, negatives_share, rng
-                )
+                _append_verify_source(questions, t, texts, quota, negatives_share, rng)
 
     if not questions:
         raise GenerateError("generation produced no questions")
@@ -313,22 +337,28 @@ def generate(
     return questions, excluded
 
 
+def _verify_expected(answer: str, src: Document) -> dict:
+    return {"answer": answer, "true_work": src.work, "true_version": src.version,
+            "true_language": src.language}
+
+
 def _append_verify_source(
     questions: list[Question],
     asked: _Text,
     texts: list[_Text],
-    text_norm: dict[tuple[str, str, str], set[str]],
     quota: int,
     negatives_share: float,
     rng: random.Random,
 ) -> None:
     """Build this text's verify_source questions: ``n_neg = int(quota * share)``
     cross-family negatives, the rest positives. The question is always about the
-    ``asked`` edition; a negative presents a passage from a different-family text."""
+    ``asked`` edition; a negative presents a passage from a **different-family** text
+    (families: the nine hadith collections are one; otherwise a text's ``work``), not
+    already present in the asked edition (containment over all entries). Negatives prefer
+    a **same-language** partner; a text with no same-language different-family partner falls
+    back to cross-language (a trivially-rejectable, flagged case)."""
     n_neg = int(quota * negatives_share)
     n_pos = quota - n_neg
-    asked_family = asked.rep_doc.document_type
-    asked_norm = text_norm[asked.key]
 
     # positives: passages genuinely from the asked edition
     for e in _sample(asked.entries, n_pos, rng, f"{asked.key} verify_source (+)"):
@@ -336,40 +366,41 @@ def _append_verify_source(
         prompt = f'Is the following text from {name}? "{e.text}" Answer Yes or No.'
         questions.append(Question(
             id=_qid("verify_source", asked.key, asked.rep_doc, e), task="verify_source",
-            prompt=prompt,
-            expected={"answer": "yes", "true_work": asked.rep_doc.work,
-                      "true_version": asked.rep_doc.version},
+            prompt=prompt, expected=_verify_expected("yes", asked.rep_doc),
             source=_source_dict(asked.rep_doc, e.citation, name),
         ))
 
     if n_neg <= 0:
         return
-    # negatives: a real passage from a DIFFERENT-FAMILY text, not present in the asked
-    # edition, attributed to the asked edition (truth = "no").
-    candidates: list[tuple[_Text, Entry]] = []
-    for other in sorted(texts, key=lambda t: t.key):
-        if other.key == asked.key or other.rep_doc.document_type == asked_family:
+    # candidates: different-family passages not contained in the asked edition, split by
+    # whether they share the asked edition's language.
+    same_lang: list[tuple[_Text, Entry]] = []
+    cross_lang: list[tuple[_Text, Entry]] = []
+    for other in texts:
+        if other.family == asked.family:
             continue
-        for e in other.entries:
-            if normalize(e.text) in asked_norm:
+        bucket = same_lang if other.language == asked.language else cross_lang
+        for e, ne in zip(other.entries, other.entry_norms):
+            if ne in asked.all_norm:
                 continue
-            candidates.append((other, e))
-    if len(candidates) < n_neg:
+            bucket.append((other, e))
+    if len(same_lang) + len(cross_lang) < n_neg:
         raise GenerateError(
             f"{asked.key} verify_source: need {n_neg} cross-family false-premise negatives "
-            f"(negatives_share={negatives_share} of {quota}) but only {len(candidates)} eligible "
-            f"passages from a different document_type exist; lower --negatives-share or add texts"
+            f"(negatives_share={negatives_share} of {quota}) but only "
+            f"{len(same_lang) + len(cross_lang)} eligible different-family passages exist; "
+            "lower --negatives-share or add texts"
         )
-    candidates.sort(key=lambda oe: (oe[0].key, oe[1].citation, oe[1].text))
-    rng.shuffle(candidates)
-    for other, e in candidates[:n_neg]:
+    for bucket in (same_lang, cross_lang):
+        bucket.sort(key=lambda oe: (oe[0].key, oe[1].citation, oe[1].text))
+        rng.shuffle(bucket)
+    chosen = (same_lang + cross_lang)[:n_neg]  # same-language first
+    for other, e in chosen:
         name = _choose_name(asked.meta, rng)
         prompt = f'Is the following text from {name}? "{e.text}" Answer Yes or No.'
         questions.append(Question(
             id=_qid("verify_source", asked.key, other.rep_doc, e), task="verify_source",
-            prompt=prompt,
-            expected={"answer": "no", "true_work": other.rep_doc.work,
-                      "true_version": other.rep_doc.version},
+            prompt=prompt, expected=_verify_expected("no", other.rep_doc),
             source=_source_dict(asked.rep_doc, e.citation, name),
         ))
 
@@ -405,9 +436,14 @@ def build_manifest(
     inputs: list[str] | None = None,
 ) -> dict:
     by_task = {t: sum(1 for q in questions if q.task == t) for t in sorted({q.task for q in questions})}
-    realized_negatives = sum(
-        1 for q in questions if q.task == "verify_source" and q.expected.get("answer") == "no"
-    )
+    negatives = [q for q in questions if q.task == "verify_source" and q.expected.get("answer") == "no"]
+    # per asked text, how many of its negatives are cross-language (the passage's true
+    # language differs from the asked edition's) — a trivially-rejectable, flagged case.
+    cross_language: dict[tuple[str, str, str], int] = {}
+    for q in negatives:
+        if q.source["language"] != q.expected.get("true_language"):
+            k = (q.source["work"], q.source["version"], q.source["language"])
+            cross_language[k] = cross_language.get(k, 0) + 1
     selected = sorted({(q.source["work"], q.source["version"], q.source["language"]) for q in questions})
     return {
         "seed": seed,
@@ -416,9 +452,13 @@ def build_manifest(
         "negatives_share": negatives_share,
         "tasks_requested": list(tasks) if tasks else list(TASKS),
         "tasks_by_count": by_task,
-        "verify_source_negatives": realized_negatives,
+        "verify_source_negatives": len(negatives),
+        "verify_source_cross_language_negatives": [
+            {"work": w, "version": v, "language": lg, "count": cross_language[(w, v, lg)]}
+            for (w, v, lg) in sorted(cross_language)
+        ],
         "selected_texts": [{"work": w, "version": v, "language": lg} for (w, v, lg) in selected],
-        "excluded_texts": excluded,  # dropped by language != canonical_language, with reason
+        "excluded_texts": excluded,  # catalogue TARGETS dropped by language != canonical_language
         "corpus_hash": corpus_hash(docs),
         "question_set_digest": question_set_digest(questions),
         "n_questions": len(questions),
