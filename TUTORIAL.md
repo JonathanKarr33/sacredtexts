@@ -112,12 +112,12 @@ uv --project pipelines run python -m sacredbench generate \
   "texts/standardized/Protestant Christian/the-bible-kjv-en" \
   "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar" \
   "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he" \
-  --per-text 40 --seed 20261011 \
+  --per-text 20 --seed 20261011 \
   --out runs/my-run/questions.jsonl
 ```
 
-The three quoted paths pick exactly our three scriptures. `--per-text 40` asks for 40
-questions **per text**, split evenly across the four templates — **120 in all here** (30 of each
+The three quoted paths pick exactly our three scriptures. `--per-text 20` asks for 20
+questions **per text**, split evenly across the four templates — **60 in all here** (15 of each
 template); the default is `--per-text 28`. `--seed 20261011` is a fixed starting number that
 makes the random selection repeatable, so the same command always builds the same set. The
 questions are written to a brand-new folder, `runs/my-run/`, which keeps your work separate from
@@ -153,8 +153,8 @@ this file.
 
 This sends every question to every model over the internet and records their answers.
 **This is the step that costs money.** The cost scales with the number of
-question-and-model combinations: the `--per-text 40` command above makes 120 questions ×
-3 models = **360 combinations** — a couple of dollars on OpenRouter. For scale, the full
+question-and-model combinations: the `--per-text 20` command above makes 60 questions ×
+3 models = **180 combinations** — a dollar or two on OpenRouter. For scale, the full
 shipped reference run (`runs/original-2026-10-21`, 1,428 combinations) cost roughly **$13**.
 
 ```bash
