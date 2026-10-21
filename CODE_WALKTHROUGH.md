@@ -283,11 +283,13 @@ The viewer is HeroUI-v3 and provider-less — read
 **Must NOT touch:**
 
 - **The shipped run evidence.** Never re-run `generate`/`collect`/`score` over
-  `runs/tutorial-2026-10-11/` or `runs/first-run-2026-10-11/`. Write to a fresh
-  `runs/<id>/` (see [`TUTORIAL.md`](TUTORIAL.md)). A `collect` there resume-skips every
+  `runs/original-2026-10-21/`, `runs/tutorial-2026-10-11/`, or `runs/first-run-2026-10-11/`. Write
+  to a fresh `runs/<id>/` (see [`TUTORIAL.md`](TUTORIAL.md)). A `collect` there resume-skips every
   cell; a keyless `score` overwrites the committed proof with nulls. (The *only* exception is a
   deliberate, oracle-witnessed contract rebaseline — see the sanctioned exception under step 4.)
-- **The regression guard** in `test_first_run_regression.py` (step 4).
+- **The regression guards** in `test_first_run_regression.py` and
+  `test_original_run_regression.py` (step 4) — the latter pins the current reference run's digest
+  and re-score.
 
 ### 6. Preserve the evidence-integrity invariants
 
