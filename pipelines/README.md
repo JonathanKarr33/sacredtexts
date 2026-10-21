@@ -22,10 +22,10 @@ loading is fail-fast.
 
 - **`license`** is a three-value gate: `public-domain` / `open` / `restricted`
   (the real upstream string, e.g. the Talmud's `CC-BY-NC`, is kept verbatim in
-  `license_detail`). `restricted` targets are copyrighted translations whose
-  **payloads are git-ignored and local-only** (NABRE, the Greek Orthodox TLG
-  extracts); their `source.yaml` is still committed so the catalogue stays
-  complete and auditable.
+  `license_detail`). `restricted` targets are copyrighted texts whose
+  **payloads are git-ignored and local-only** — NABRE (an English translation) and the
+  Greek Orthodox TLG extracts (an original-language Greek edition); their `source.yaml` is
+  still committed so the catalogue stays complete and auditable.
 - **`requested_as`** is the non-empty list of names a person actually uses for this edition
   (e.g. `["King James Version", "KJV", "KJV Bible"]`); `generate` renders `<edition>` in the
   prompt as a seeded choice from it, never the raw `version`. **`canonical_language`** is the

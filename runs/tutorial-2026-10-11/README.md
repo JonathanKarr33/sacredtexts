@@ -109,7 +109,10 @@ headline, so the lift above is now in the accuracy column rather than hidden ben
 
 ## Reproducing
 
-Follow `TUTORIAL.md` (same `--seed 20261011`, `--per-task 100`, the three standardized
-corpora, and `configs/models.example.yaml`). Collection requires `ANTHROPIC_API_KEY` in
-the environment and incurs per-request web-search cost; scoring and the viewer are free
-and deterministic over the committed `answers.jsonl`.
+This run was generated **before Spec 26** reshaped the generator (a per-task,
+tradition-balanced sampler producing 100 `retrieve_quote` questions over three scriptures). It
+is **not reproducible with today's CLI** — the current generator is four-template,
+original-language-only, and quota-per-text. Scoring and the viewer remain free and deterministic
+over the committed `answers.jsonl` (the re-score regression guard pins this). For the current
+pipeline, follow `TUTORIAL.md`; collection requires `ANTHROPIC_API_KEY` in the environment and
+incurs per-request web-search cost.

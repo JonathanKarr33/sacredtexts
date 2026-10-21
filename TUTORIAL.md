@@ -28,19 +28,24 @@ Two short safety notes you will see repeated below, because they matter:
 
 ## What this tutorial builds
 
-It runs **three scriptures in their original languages** through one question type:
+It runs **three in-pool scriptures** through one question type:
 
-- **The Bible — King James Version** (English) — a Protestant Christian text.
+- **The Bible — King James Version** (English) — a Protestant Christian text. The KJV is an
+  English translation, but the benchmark treats its *canonical language* as English (so English
+  Bibles stay in the pool); the Qur'an and Talmud below are the genuine originals.
 - **The Qur'an — Uthmani text, QUL** (Arabic) — the vocalised Arabic original.
 - **The Talmud Bavli — William Davidson Edition** (Aramaic, © Sefaria, CC-BY-NC 4.0) —
   the Aramaic original, *not* the English translation.
 
+(A text is "in the pool" when its language equals its `canonical_language` — see
+[`pipelines/README.md`](pipelines/README.md).)
+
 The benchmark asks four kinds of question — *retrieve_quote* ("what is the text of
 ⟨edition⟩ ⟨citation⟩?"), *complete_unit* ("complete this quote…"), *cite_passage* ("where in
-⟨edition⟩ is this?") and *verify_source* ("is this text from ⟨edition⟩? yes/no"). For
-simplicity this tutorial uses just the first, **`retrieve_quote`**: the model is given a
-citation (like a chapter and verse) and must return **the exact text of that passage and
-nothing else**.
+⟨edition⟩ is this?", which shows the citation format by example) and *verify_source* ("is this
+text from ⟨edition⟩? yes/no"). For simplicity this tutorial uses just the first,
+**`retrieve_quote`**: the model is given a citation (like a chapter and verse) and must return
+**the exact text of that passage and nothing else**.
 
 Four "contestants" answer every question — **two models** (a larger, more capable one
 and a smaller, faster one), each tried **two ways: with web search switched on, and with
@@ -48,9 +53,11 @@ it off**. "Off" tests what the model memorised; "on" tests whether a live web se
 helps it find the exact words. The search setting is part of each contestant's identity,
 so the results page shows all four side by side and never mixes them up.
 
-A finished example of exactly this run already ships with the project, in
+A finished example of this same kind of run already ships with the project, in
 [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) — its
-[`README.md`](runs/tutorial-2026-10-11/README.md) has the full results write-up. A
+[`README.md`](runs/tutorial-2026-10-11/README.md) has the full results write-up. (It is an
+earlier `retrieve_quote`-only example built before Spec 26 reshaped the generator, so it is
+not byte-for-byte reproducible with today's CLI, but it shows exactly the same shape of run.) A
 second, English-only example run lives in
 [`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/), so the viewer always has at
 least two runs to compare.
@@ -117,19 +124,19 @@ uv --project pipelines run python -m sacredbench generate \
 ```
 
 The three quoted paths pick exactly our three scriptures. `--per-text 20` asks for 20
-questions **per text** (60 in all here); `--seed 20261011` is a fixed starting number that
-makes the random selection repeatable, so the same command always builds the same set. The
-questions are written to a brand-new folder, `runs/my-run/`, which keeps your work separate
-from the shipped examples.
+questions **per text** (60 in all here); the default is `--per-text 28`, and the full benchmark
+uses **15–30 per text**. `--seed 20261011` is a fixed starting number that makes the random
+selection repeatable, so the same command always builds the same set. The questions are written
+to a brand-new folder, `runs/my-run/`, which keeps your work separate from the shipped examples.
 
 > To try the whole loop cheaply before the paid step, use a smaller number like
 > `--per-text 5`. A different `--per-text` or `--seed` produces a different question set.
 >
 > **Shipped example runs** are there to compare against in the viewer:
-> [`runs/original-<date>/`](runs/) is the current Spec-26 run (four templates, all 17
-> original-language texts), and [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) is an
-> earlier `retrieve_quote`-only example generated before Spec 26 reshaped the generator (so its
-> exact `--per-task` command no longer reproduces under today's `--per-text`).
+> [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (this three-scripture
+> `retrieve_quote`-only example, built before Spec 26 reshaped the generator, so it is not
+> reproducible with today's CLI) and [`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/).
+> The full four-template, all-17-texts Spec-26 run is committed under `runs/` as well.
 
 ## 4. Audit — confirm nothing restricted slipped in
 
@@ -155,9 +162,11 @@ The models read your API key from the environment, so there are no secrets in th
 
 This sends every question to every contestant over the internet and records their
 answers. **This is the step that costs money**, and this particular set of contestants is
-not cheap: the shipped example run used roughly **4.24M input / 249K output tokens and
-226 web-search requests** across 400 question-and-model combinations — on the order of
-tens of dollars. Web search is billed per search on top of the text.
+not cheap. The cost scales with the number of question-and-model combinations: the
+`--per-text 20` command above makes 60 questions × 4 contestants = **240 combinations**. For
+scale, the shipped 100-question example run (`runs/tutorial-2026-10-11`, 400 combinations) used
+roughly **4.24M input / 249K output tokens and 226 web-search requests** — on the order of tens
+of dollars. Web search is billed per search on top of the text.
 
 ```bash
 uv --project pipelines run python -m sacredbench collect \
