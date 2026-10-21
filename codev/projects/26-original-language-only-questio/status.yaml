@@ -11,24 +11,24 @@ plan_phases:
     status: complete
   - id: phase_3
     title: 'Scoring: leading-stance yes/no (#23), retire tasks, per-text summary'
-    status: in_progress
+    status: complete
   - id: phase_4
     title: 'Viewer: retire identify_version / identify_source'
-    status: pending
+    status: in_progress
   - id: phase_5
     title: 'Docs: tutorial, walkthrough, README, arch-critical'
     status: pending
   - id: phase_6
     title: Live run and committed original-language evidence
     status: pending
-current_plan_phase: phase_3
+current_plan_phase: phase_4
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -103,7 +103,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_3-iter1-claude.txt
 started_at: '2026-10-20T22:41:46.537Z'
-updated_at: '2026-10-21T01:13:05.863Z'
+updated_at: '2026-10-21T01:18:09.809Z'
 force_advanced:
   phase: phase_1
   iteration: 3
@@ -117,3 +117,5 @@ context_refreshes:
   - boundary: plan-phase:phase_3
     at: '2026-10-21T00:52:16.750Z'
     acknowledged_at: '2026-10-21T00:52:38.168Z'
+  - boundary: plan-phase:phase_4
+    at: '2026-10-21T01:18:09.809Z'
