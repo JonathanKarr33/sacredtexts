@@ -25,7 +25,7 @@ from sacredbench.collect import collect as run_collect
 from sacredbench.config import ConfigError, load_config
 from sacredbench.generate import generate as run_generate
 from sacredbench.generate import load_questions, write_questions
-from sacredbench.score import ScoreError, score_file, summary_markdown
+from sacredbench.score import _TEXT_KEY_SEP, ScoreError, _text_key, score_file, summary_markdown
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
 
@@ -342,12 +342,17 @@ def score(
                 )
         expected = {}
         expected_tradition: dict[tuple[str, str, str], int] = {}
+        expected_text: dict[tuple[str, str, str], int] = {}
         for m in cfg.models:
             for q in qs:
                 expected[(m.id, q.task)] = expected.get((m.id, q.task), 0) + 1
                 for trad in q.source.get("tradition", []) or []:
                     k = (m.id, trad, q.task)
                     expected_tradition[k] = expected_tradition.get(k, 0) + 1
+                tkey = _text_key(q.source)
+                if tkey is not None:
+                    xk = (m.id, _TEXT_KEY_SEP.join(tkey), q.task)
+                    expected_text[xk] = expected_text.get(xk, 0) + 1
         # panel snapshot for the committed artifact (no secrets: provider/model/tools/host only)
         default_host = {"anthropic": "api.anthropic.com", "openai": "api.openai.com",
                         "gemini": "generativelanguage.googleapis.com"}
@@ -361,7 +366,8 @@ def score(
             panel[m.id] = {"provider": m.provider, "model": m.model, "tools": list(m.tools),
                            "endpoint": endpoint, "price_in": m.price_in, "price_out": m.price_out}
         summary = score_file(answers, scores_out, expected, expected_tradition, panel,
-                             expected_digest=gen.question_set_digest(qs), evaluators=evaluator or None)
+                             expected_digest=gen.question_set_digest(qs), evaluators=evaluator or None,
+                             expected_text=expected_text)
     else:
         summary = score_file(answers, scores_out, evaluators=evaluator or None)
     summary_out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,9 +1,8 @@
 # Sacred Texts Benchmark — end-to-end tutorial
 
-This benchmark measures how accurately AI models can quote scripture — and whether
-giving a model a **web-search tool** helps it quote more accurately than it can from
-memory alone. This tutorial walks the whole process once, from a fresh copy of the
-code to a results page in your browser.
+This benchmark measures how accurately AI models can quote scripture from memory. This
+tutorial walks the whole process once, from a fresh copy of the code to a results page in
+your browser, using the same kind of run that ships as the project's reference evidence.
 
 You do not need to be a programmer to follow it. Every step has a one-sentence
 plain-language explanation, then the exact command to copy and paste. Run the commands
@@ -28,7 +27,7 @@ Two short safety notes you will see repeated below, because they matter:
 
 ## What this tutorial builds
 
-It runs **three in-pool scriptures** through one question type:
+It runs **three in-pool scriptures** through the benchmark's four question templates:
 
 - **The Bible — King James Version** (English) — a Protestant Christian text. The KJV is an
   English translation, but the benchmark treats its *canonical language* as English (so English
@@ -40,31 +39,19 @@ It runs **three in-pool scriptures** through one question type:
 (A text is "in the pool" when its language equals its `canonical_language` — see
 [`pipelines/README.md`](pipelines/README.md).)
 
-The benchmark asks four kinds of question — *retrieve_quote* ("what is the text of
+The benchmark asks **four kinds of question**: *retrieve_quote* ("what is the text of
 ⟨edition⟩ ⟨citation⟩?"), *complete_unit* ("complete this quote…"), *cite_passage* ("where in
 ⟨edition⟩ is this?", which shows the citation format by example) and *verify_source* ("is this
-text from ⟨edition⟩? yes/no"). For simplicity this tutorial uses just the first,
-**`retrieve_quote`**: the model is given a citation (like a chapter and verse) and must return
-**the exact text of that passage and nothing else**.
+text from ⟨edition⟩? yes/no", sometimes with a deliberately wrong source to catch a model that
+agrees too readily). The question set is built directly from the scripture text, so the same
+command always builds the same set.
 
-In the panel **you** will run (step 5), four "contestants" answer every question — **two
-models** (a larger, more capable one and a smaller, faster one), each tried **two ways: with
-web search switched on, and with it off**. "Off" tests what the model memorised; "on" tests
-whether a live web search helps it find the exact words. The search setting is part of each
-contestant's identity, so the results page shows all four side by side and never mixes them up.
-(The *shipped* reference run below is a different panel — three models, all search-off — so it
-shows three rows and no search comparison; both shapes render in the same viewer.)
-
-The current reference run ships with the project in
-[`runs/original-2026-10-21/`](runs/original-2026-10-21/) — the full **four-template,
-all-17-texts, original-language-only** Spec-26 run over a three-model panel; its
-[`README.md`](runs/original-2026-10-21/README.md) has the full results write-up. It is produced
-by exactly today's CLI (scoring is deterministic and byte-for-byte reproducible over its
-committed `answers.jsonl`). Two earlier examples also ship, so the viewer always has several runs
-to compare: [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (a `retrieve_quote`-only
-example built *before* Spec 26 reshaped the generator, so it is not reproducible with today's
-CLI but shows the same shape of run) and the English-only
-[`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/).
+The run uses **three models** answering every question from memory (no web-search tool), exactly
+the shape of the shipped reference run in
+[`runs/original-2026-10-21/`](runs/original-2026-10-21/) — the full four-template,
+all-17-texts, original-language-only run whose [`README.md`](runs/original-2026-10-21/README.md)
+has the complete results write-up. Your tutorial run is a smaller, three-scripture version of
+it, and step 8 compares the two in the same viewer.
 
 ## Before you start
 
@@ -74,10 +61,12 @@ You need two free tools installed:
   everything Python needs for you; you do not have to know Python.
 - [`pnpm`](https://pnpm.io/) (with Node 20 or newer) — runs the results viewer, step 8.
 
-You only need an **AI model API key** if you want to do the paid step (6) yourself. The
-tutorial uses Anthropic models (web search is an Anthropic feature), so that key is an
-`ANTHROPIC_API_KEY`. Put it in your terminal's environment (`export ANTHROPIC_API_KEY=…`),
-never in a file inside the project.
+You only need an **AI model API key** if you want to do the paid step (6) yourself. This
+tutorial uses the three-model **OpenRouter** panel that ships with the project, so that key is
+an `OPENROUTER_API_KEY`. Put it in your terminal's environment (`export OPENROUTER_API_KEY=…`),
+never in a file inside the project. (An alternative panel, `configs/models.example.yaml`, is an
+Anthropic panel that also adds a web-search tool if you have an `ANTHROPIC_API_KEY` — not used
+here.)
 
 **Get the code** (replace `<this repo>` with the project's address):
 
@@ -114,34 +103,30 @@ uv --project pipelines run python -m sacredbench validate texts/standardized
 
 ## 3. Generate — build the question set
 
-This creates the actual questions — each one a citation whose exact passage text is the
-known correct answer. It does **not** use any AI; the questions are built directly from
-the scripture text, so the set is identical every time you run it with the same settings.
+This creates the actual questions — each one built from a known passage whose text (or
+citation) is the correct answer. It does **not** use any AI; the questions come directly
+from the scripture text, so the set is identical every time you run it with the same settings.
 
 ```bash
 uv --project pipelines run python -m sacredbench generate \
   "texts/standardized/Protestant Christian/the-bible-kjv-en" \
   "texts/standardized/Sunni Islam/the-qur-an-uthmani-qul-ar" \
   "texts/standardized/Judaism/talmud-bavli-william-davidson-edition-aramaic-he" \
-  --tasks retrieve_quote --per-text 20 --seed 20261011 \
+  --per-text 40 --seed 20261011 \
   --out runs/my-run/questions.jsonl
 ```
 
-The three quoted paths pick exactly our three scriptures. `--per-text 20` asks for 20
-questions **per text** (60 in all here); the default is `--per-text 28`, and the full benchmark
-uses **15–30 per text**. `--seed 20261011` is a fixed starting number that makes the random
-selection repeatable, so the same command always builds the same set. The questions are written
-to a brand-new folder, `runs/my-run/`, which keeps your work separate from the shipped examples.
+The three quoted paths pick exactly our three scriptures. `--per-text 40` asks for 40
+questions **per text**, split evenly across the four templates — **120 in all here** (30 of each
+template); the default is `--per-text 28`. `--seed 20261011` is a fixed starting number that
+makes the random selection repeatable, so the same command always builds the same set. The
+questions are written to a brand-new folder, `runs/my-run/`, which keeps your work separate from
+the shipped examples.
 
-> To try the whole loop cheaply before the paid step, use a smaller number like
-> `--per-text 5`. A different `--per-text` or `--seed` produces a different question set.
->
-> **Shipped example runs** are there to compare against in the viewer: the current
-> [`runs/original-2026-10-21/`](runs/original-2026-10-21/) (the full four-template, all-17-texts
-> original-language-only Spec-26 run, produced by today's CLI), plus two earlier examples —
-> [`runs/tutorial-2026-10-11/`](runs/tutorial-2026-10-11/) (a three-scripture
-> `retrieve_quote`-only run built before Spec 26 reshaped the generator, so it is not
-> reproducible with today's CLI) and [`runs/first-run-2026-10-11/`](runs/first-run-2026-10-11/).
+> To try the whole loop more cheaply first, use a smaller number like `--per-text 8`. A
+> different `--per-text` or `--seed` produces a different question set. The shipped
+> [`runs/original-2026-10-21/`](runs/original-2026-10-21/) is the full reference run to compare
+> your results against in the viewer.
 
 ## 4. Audit — confirm nothing restricted slipped in
 
@@ -154,24 +139,23 @@ uv --project pipelines run python -m sacredbench audit runs/my-run
 
 ## 5. Set up the model list for the paid step
 
-This copies the ready-made list of the four contestants (the two models, each with web
-search on and off) into place. It will not overwrite a list you already have.
+This copies the ready-made three-model OpenRouter panel into place. It will not overwrite
+a list you already have.
 
 ```bash
-cp -n configs/models.example.yaml configs/models.yaml
+cp -n configs/models.openrouter.yaml configs/models.yaml
 ```
 
-The models read your API key from the environment, so there are no secrets in this file.
+The models read your `OPENROUTER_API_KEY` from the environment, so there are no secrets in
+this file.
 
 ## 6. Collect — ask the models the questions  💲 *the only paid step*
 
-This sends every question to every contestant over the internet and records their
-answers. **This is the step that costs money**, and this particular set of contestants is
-not cheap. The cost scales with the number of question-and-model combinations: the
-`--per-text 20` command above makes 60 questions × 4 contestants = **240 combinations**. For
-scale, the shipped 100-question example run (`runs/tutorial-2026-10-11`, 400 combinations) used
-roughly **4.24M input / 249K output tokens and 226 web-search requests** — on the order of tens
-of dollars. Web search is billed per search on top of the text.
+This sends every question to every model over the internet and records their answers.
+**This is the step that costs money.** The cost scales with the number of
+question-and-model combinations: the `--per-text 40` command above makes 120 questions ×
+3 models = **360 combinations** — a couple of dollars on OpenRouter. For scale, the full
+shipped reference run (`runs/original-2026-10-21`, 1,428 combinations) cost roughly **$13**.
 
 ```bash
 uv --project pipelines run python -m sacredbench collect \
@@ -219,12 +203,12 @@ cat runs/my-run/summary.md
 ```
 
 > **A note on fair use.** The models' answers are saved exactly as given, with no manual
-> editing. A model using web search may happen to echo some copyrighted translation; the
-> maintainers treat that as fair use for academic research, and the automated audit above
-> still blocks anything derived from a *restricted* source.
+> editing. If a model happens to echo some copyrighted translation, the maintainers treat that
+> as fair use for academic research, and the automated audit above still blocks anything derived
+> from a *restricted* source.
 
-**No API key?** Steps 6 and 7 need the paid run, so skip them and explore the current shipped
-reference run instead. Read its summary directly:
+**No API key?** Steps 6 and 7 need the paid run, so skip them and explore the shipped reference
+run instead. Read its summary directly:
 
 ```bash
 cat runs/original-2026-10-21/summary.md
@@ -237,12 +221,10 @@ wrapped in extra words ("According to Sefaria…", a link) still counts — and 
 each model gets two numbers you read together: **accuracy** (how often it's right *when it answers*)
 and **coverage** (how often it answers at all). That pairing is the real story: a model can show a
 high accuracy only because it stayed silent on most of the roster, which is exactly why coverage sits
-right beside it. In this run opus reaches 68% overall but answers only half the `retrieve_quote`
-roster — it refuses the Arabic/Aramaic lines it can't recall rather than guessing — while the famous
-KJV is answered at 100% accuracy by both frontier models (the small `gpt-oss-20b` manages only 16%
-even there). (The earlier
-`runs/tutorial-2026-10-11/` additionally contrasts web search on vs. off; this run is search-off
-only — see its README for why.)
+right beside it. In that run the strongest model reaches 68% overall but answers only half the
+`retrieve_quote` roster — it refuses the Arabic/Aramaic lines it can't recall rather than guessing —
+while the famous KJV is answered at 100% accuracy by both frontier models (the small open model
+manages only 16% even there).
 
 ## 8. View — see the results in your browser
 
@@ -260,9 +242,7 @@ which run is newest, add `?run=original-2026-10-21` to the address.
 What you can look at:
 
 - The **leaderboard** (`/`) ranks the models in the selected run by accuracy, with a **coverage**
-  column of equal weight beside it, columns per scripture, each model's token totals, and — only
-  for a run that has the same model tried with and without search (the tutorial panel, not the
-  shipped three-model reference run) — a **"Search on vs off"** comparison.
+  column of equal weight beside it, columns per scripture, and each model's token totals.
 - A **run selector** lets you switch between runs (your own and the shipped examples);
   your choice is saved in the address so you can share or reload it.
 - Click any model (or a scripture cell) to open the **error explorer** — every question with its
@@ -271,11 +251,8 @@ What you can look at:
   "correct but wrapped in extra words" answers show as correct under the containment rule, and a
   declined answer shows a neutral **refused** label rather than a red "wrong".
 - **Standings** (link in the header) shows each model's most recent result across all
-  runs. Because web-search-on and web-search-off count as different contestants, the four
-  entries from the tutorial panel (once you run it) stay as four separate rows — but the plain
-  (no-search) `claude-haiku-5-5` shares a row with the same model from another search-off run
-  (the earlier first run, or the shipped reference run), and the newer run wins, so you see one
-  up-to-date row for it instead of several.
+  runs, so when you run your own tutorial panel its models appear here and the newest run for each
+  model wins.
 
 For more on the viewer, see [`apps/viewer/README.md`](apps/viewer/README.md).
 
@@ -295,3 +272,4 @@ pnpm -C apps/viewer test                      # the viewer only
 - **Run the pipeline stage by stage, with every option:** [`pipelines/README.md`](pipelines/README.md).
 - **Add a new scripture or a new kind of question:** [`CODE_WALKTHROUGH.md`](CODE_WALKTHROUGH.md).
 - **Understand how the whole system fits together:** [`codev/resources/arch.md`](codev/resources/arch.md).
+```

@@ -19,7 +19,7 @@ targets:
     tradition: [Sunni Islam]
     license: public-domain
     license_detail: KFGQPC Uthmani script via the Quranic Universal Library (QUL)
-    requested_as: ["Qur'an", "Quran", "Koran", "the Holy Qur'an"]
+    requested_as: ["the Qur'an", "the Quran", "the Koran", "the Holy Qur'an"]
     canonical_language: ar
   - payload: hadith_from_sunnah.com_arabic_only/bukhari.json
     converter: hadith_sunnah
@@ -41,7 +41,7 @@ targets:
     tradition: [Sunni Islam]
     license: public-domain
     license_detail: Classical Arabic text via sunnah.com
-    requested_as: ["Sahih Muslim", "Muslim"]
+    requested_as: ["Sahih Muslim"]
     canonical_language: ar
   - payload: hadith_from_sunnah.com_arabic_only/abudawud.json
     converter: hadith_sunnah

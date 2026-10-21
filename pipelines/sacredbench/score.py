@@ -228,8 +228,12 @@ _COLON_CITE = re.compile(r"(?:[A-Za-z0-9][^\s,:]*\s+){0,8}\d+[ab]?\s*:\s*\d+")
 # the (?![Pp]ara) guard stops the greedy prefix from swallowing an earlier
 # "para. N", so each paragraph citation in a hedge is its own candidate
 _PARA_CITE = re.compile(r"(?:(?![Pp]ara)[A-Za-z0-9][^\s,]*,?\s+){0,8}[Pp]ara\.?\s*\d+")
-# number-only (hadith "Sahih al-Bukhari 1"): >=1 leading word + a TERMINAL number
-_NUM_CITE = re.compile(r"(?:[A-Za-z][^\s,:]*\s+){1,8}\d+(?![\d:ab])")
+# number-only (hadith "Sahih al-Bukhari 1", "Sahih Muslim 2109a"): >=1 leading word + a
+# TERMINAL number that MAY carry a single a/b sub-hadith suffix (sunnah.com numbering). The
+# suffix is part of the citation token, so a letter-suffixed number is a real candidate and a
+# hedge over suffixed numbers ("Sahih Muslim 2109a or 3311b") is caught as multi-candidate; the
+# `(?![\d:])` tail still rejects a partial number and a colon span (handled by _COLON_CITE).
+_NUM_CITE = re.compile(r"(?:[A-Za-z][^\s,:]*\s+){1,8}\d+[ab]?(?![\d:])")
 
 
 def _shape_rx(expected_citation: str) -> "re.Pattern[str]":
@@ -386,6 +390,7 @@ def score_file(
     panel: dict[str, dict] | None = None,
     expected_digest: str | None = None,
     evaluators: "list[str] | None" = None,
+    expected_text: dict[tuple[str, str, str], int] | None = None,
 ) -> dict:
     """Score every answer row; write per-answer scores and return the summary dict.
 
@@ -579,15 +584,23 @@ def score_file(
             tasks["_overall"] = ov
 
     # per-model x text x task: one text = one (work, version, language), the right denominator
-    # now that per-tradition balance no longer holds (Spec 26). Built from what was answered (no
-    # per-text roster), so it carries outcomes (accuracy/coverage/refused), never submetrics.
-    for (model_id, text_label, task) in sorted(per_text):
-        cell = _outcome_cell(per_text[(model_id, text_label, task)], ())
+    # now that per-tradition balance no longer holds (Spec 26). Carries outcomes
+    # (accuracy/coverage/refused), never submetrics. Given the same roster treatment as the
+    # model/task and tradition tables: a fully-missing (expected-but-unanswered) cell is
+    # represented with expected_n/missing, so a text with a dropped cell shows `missing`, not a
+    # silently short n (e.g. the gpt-oss empty cite_passage cell → n=27, missing=1).
+    expected_text = expected_text or {}
+    all_text_cells = set(per_text) | set(expected_text)
+    for (model_id, text_label, task) in sorted(all_text_cells):
+        cell = _outcome_cell(per_text.get((model_id, text_label, task)) or {"n": 0, "correct": 0, "refused": 0}, ())
+        if (model_id, text_label, task) in expected_text:
+            cell["expected_n"] = expected_text[(model_id, text_label, task)]
+            cell["missing"] = max(expected_text[(model_id, text_label, task)] - cell["n"], 0)
         summary["by_text"].setdefault(model_id, {}).setdefault(text_label, {})[task] = cell
     for model_id, texts in summary["by_text"].items():
         for text_label, tasks in texts.items():
-            raw = [per_text[(model_id, text_label, t)] for t in tasks]
-            tasks["_overall"] = _outcome_cell(
+            raw = [per_text.get((model_id, text_label, t), {"n": 0, "correct": 0, "refused": 0}) for t in tasks]
+            ov = _outcome_cell(
                 {
                     "n": sum(c["n"] for c in raw),
                     "correct": sum(c["correct"] for c in raw),
@@ -595,6 +608,11 @@ def score_file(
                 },
                 (),
             )
+            exp_total = sum(v for (m, tl, _), v in expected_text.items() if m == model_id and tl == text_label)
+            if exp_total:
+                ov["expected_n"] = exp_total
+                ov["missing"] = max(exp_total - ov["n"], 0)
+            tasks["_overall"] = ov
 
     # Token usage totals (cost accounting). Prices are NOT invented: a cost appears
     # only for models whose panel entry supplied price_in/price_out ($ per 1M tokens).
@@ -724,13 +742,15 @@ def summary_markdown(summary: dict) -> str:
         lines += ["", "### By text (one text = one work · version · language)"]
         for model_id in sorted(by_text):
             lines += ["", f"**{model_id}**",
-                      "| text | n | accuracy | coverage | refused |", "|" + "---|" * 5]
+                      "| text | n | accuracy | coverage | refused | missing |", "|" + "---|" * 6]
             for key in sorted(by_text[model_id]):
                 ov = by_text[model_id][key]["_overall"]
                 acc = "n/a" if ov["accuracy"] is None else f"{ov['accuracy']:.0%}"
                 cov = "n/a" if ov.get("coverage") is None else f"{ov['coverage']:.0%}"
+                miss = ov.get("missing") or 0
                 lines.append(
-                    f"| {_text_label_display(key)} | {ov['n']} | {acc} | {cov} | {ov['refused']} |"
+                    f"| {_text_label_display(key)} | {ov['n']} | {acc} | {cov} | {ov['refused']} "
+                    f"| {miss if miss else '—'} |"
                 )
 
     panel = summary.get("panel") or {}

@@ -96,11 +96,13 @@ fields:
   `restricted` (`LICENSES`, `pipelines/sacredbench/catalogue.py:59`). The optional
   `license_detail` keeps the real upstream licence string verbatim.
 - `requested_as` — a non-empty list of the names a person uses for this edition, e.g.
-  `["King James Version", "KJV", "KJV Bible"]`; `generate` renders `<edition>` as a seeded
-  choice from it (never the raw `version`).
-- `canonical_language` — the language the text was composed in, e.g. `ar` for the Qur'an,
-  `he` for the Talmud, `en` for the Book of Mormon. A text is in the default (original-language)
-  question pool only when `language == canonical_language` (so a translation is excluded).
+  `["the King James Version", "the KJV", "the King James Bible"]`; `generate` renders `<edition>`
+  as a seeded choice from it (never the raw `version`).
+- `canonical_language` — the language this text is canonically in (its authoritative wording),
+  e.g. `ar` for the Qur'an, `he` for the Talmud, and `en` for the KJV (an English Bible that the
+  working group treats as canonical English, issue #27 Q1). A text is in the default
+  (original-language) question pool only when `language == canonical_language` (so a mere
+  translation — the Talmud English, the Vatican-English encyclicals — is excluded).
 
 A target maps to the `Target` dataclass (`pipelines/sacredbench/catalogue.py:125`).
 `select_targets()` (`pipelines/sacredbench/catalogue.py:381`) excludes `restricted`

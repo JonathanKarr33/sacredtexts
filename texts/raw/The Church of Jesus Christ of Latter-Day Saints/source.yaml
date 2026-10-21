@@ -25,7 +25,7 @@ targets:
     tradition: [The Church of Jesus Christ of Latter-Day Saints]
     license: open
     license_detail: LDS 2013 edition; reference compilation by Ben Crowder
-    requested_as: ["Book of Mormon"]
+    requested_as: ["the Book of Mormon"]
     canonical_language: en
   - payload: doctrine-and-covenants-reference-2013-edition-ben-crowder.json
     converter: lds_nested
@@ -36,7 +36,7 @@ targets:
     tradition: [The Church of Jesus Christ of Latter-Day Saints]
     license: open
     license_detail: LDS 2013 edition; reference compilation by Ben Crowder
-    requested_as: ["Doctrine and Covenants", "D&C"]
+    requested_as: ["the Doctrine and Covenants", "the D&C"]
     canonical_language: en
   - payload: pearl-of-great-price-reference-2013-edition-ben-crowder.json
     converter: lds_nested
@@ -47,5 +47,5 @@ targets:
     tradition: [The Church of Jesus Christ of Latter-Day Saints]
     license: open
     license_detail: LDS 2013 edition; reference compilation by Ben Crowder
-    requested_as: ["Pearl of Great Price"]
+    requested_as: ["the Pearl of Great Price"]
     canonical_language: en

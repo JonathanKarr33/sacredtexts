@@ -42,7 +42,8 @@ Contract details that keep the benchmark honest:
   (``document_type == hadith_collection``), otherwise a text's family is its
   ``work`` (so the KJV/ASV/WEB Bible editions never serve as each other's negatives,
   but a different work such as Book of Mormon may). Candidates exclude any passage
-  whose text also occurs in the asked edition (containment over all entries), and a
+  whose normalized text exactly equals a whole entry of the asked edition (membership
+  in the asked edition's set of normalized entries — equality, not substring containment), and a
   **same-language** partner is preferred; a text with no same-language different-family
   partner (e.g. Talmud Aramaic) falls back to cross-language, recorded per text in the
   manifest.
@@ -258,6 +259,8 @@ def generate(
             raise GenerateError(f"unknown task(s) {sorted(unknown)} (known: {list(TASKS)})")
     if not active:
         raise GenerateError("no active tasks selected")
+    if not 0.0 <= negatives_share <= 1.0:
+        raise GenerateError(f"negatives_share {negatives_share} out of range [0, 1]")
     if per_text < len(active):
         raise GenerateError(
             f"--per-text {per_text} < number of active tasks {len(active)}; each task needs >= 1"
@@ -363,7 +366,8 @@ def _append_verify_source(
     cross-family negatives, the rest positives. The question is always about the
     ``asked`` edition; a negative presents a passage from a **different-family** text
     (families: the nine hadith collections are one; otherwise a text's ``work``), not
-    already present in the asked edition (containment over all entries). Negatives prefer
+    not already a whole entry of the asked edition (exact normalized-entry equality over all
+    entries, not substring containment). Negatives prefer
     a **same-language** partner; a text with no same-language different-family partner falls
     back to cross-language (a trivially-rejectable, flagged case)."""
     n_neg = int(quota * negatives_share)

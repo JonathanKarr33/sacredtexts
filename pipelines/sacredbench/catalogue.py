@@ -20,12 +20,13 @@ record cannot describe that, so each tradition directory carries one committed
         tradition: ["Protestant Christian"]   # a bare string is accepted too
         license: public-domain                 # public-domain | open | restricted
         license_detail: "KJV — public domain"  # optional: the real upstream string, verbatim
-        requested_as: ["King James Version", "KJV", "KJV Bible"]  # names people actually use (>=1)
-        canonical_language: en                 # the language the text was composed in
+        requested_as: ["the King James Version", "the KJV", "the King James Bible"]  # names used (>=1)
+        canonical_language: en                 # the language this text is canonically in
 
 ``requested_as`` is the non-empty list of names a person would use for this edition; ``generate``
-renders ``<edition>`` as a seeded uniform choice from it. ``canonical_language`` is the language the
-text was composed in; a text is in the question pool only when ``language == canonical_language``.
+renders ``<edition>`` as a seeded uniform choice from it. ``canonical_language`` is the language this
+text is canonically in (its authoritative wording — ``en`` for the KJV, not only a composition
+language); a text is in the question pool only when ``language == canonical_language``.
 Both are catalogue facts, not ``Document`` facts, and reach ``generate`` through
 ``metadata_for_standardized_path`` — recovered from the document's path like ``license``, since a
 standardized ``Document`` carries neither and some converters (``encyclicals``) re-stamp
@@ -136,7 +137,7 @@ class Target:
     license: str
     provenance: Provenance
     requested_as: tuple[str, ...]  # names a person uses for this edition (>=1); seeded choice at generate
-    canonical_language: str  # language the text was composed in; in default pool iff language == this
+    canonical_language: str  # language this text is canonically in; in default pool iff language == this
     license_detail: str | None = None
 
     @property

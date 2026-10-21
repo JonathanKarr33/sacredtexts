@@ -123,6 +123,27 @@ Per-phase, 2-way (`codex` + `claude`; gemini excluded — it cannot see the work
 - `verify_source` refused = 0/357 → **N/A** (known evidence gap, see Follow-up; unit-tested in
   `test_score.py`).
 
+### Review Phase — PR #28 (Round 1 + 1b)
+Both PR consults (codex + claude) **APPROVED**; the architect's integration review and the
+consult-lane fold-ins drove a regenerate + re-collect + re-score. Dispositions:
+- **requested_as read unnaturally** ("Where in Koran…", "from KJV Bible", ambiguous bare "Muslim")
+  → **Addressed**: articles added to every `requested_as` in the data per the architect's exact
+  lists; bare "Muslim" dropped; prompts regenerated (digest `ca5b5d5372f81603` → `eaf8c68e82cc0cb5`).
+- **TUTORIAL had two panels + "not reproducible" asides** → **Addressed**: rewritten to one linear
+  OpenRouter track (copy `models.openrouter.yaml`, generate the three scriptures at `--per-text 40`,
+  collect/score/view, compare to the one shipped reference run); the historical note now lives only
+  in `runs/tutorial-2026-10-11/README.md`.
+- **`_NUM_CITE` anti-hedge bypass on letter-suffixed hadith numbers** (fold A) → **Addressed**
+  (regex + tests). **core `negatives_share` validation** (C) → **Addressed**. **`by_text` roster**
+  (D) → **Addressed** (`expected_n`/`missing` + markdown column). **viewer retired-task comment**
+  (E) → **Addressed**. **cite_passage decline survey** (B) → **Addressed** (10 cells moved to
+  refused; surveyed set pinned by count+SHA). **`canonical_language` / "containment" wording** →
+  **Addressed**. **F/G/H/I run-README docs** → **Addressed** (near-verbatim residual, negative-pool
+  structure, OpenRouter standings, Arabic-Indic resolved).
+- `--per-text` semantics: the architect's "120 questions from `--per-text 10` over 3 scriptures"
+  assumed per-template; `--per-text` is total-per-text, so the tutorial uses `--per-text 40` to hit
+  120 (flagged in the reply). Remaining nits are architect-filed follow-ups.
+
 ## Lessons Learned
 
 ### What Went Well
@@ -172,10 +193,19 @@ No flaky tests encountered.
 
 ## Follow-up Items
 
-- **`verify_source` live refusal path unexercised.** 0/357 cells triggered the #23 leading-stance
-  refusal (negation-evasion); the path is unit-tested (`test_score.py`) but no live answer hit it.
-  A future run with a more evasive model (or a crafted prompt) would exercise it end-to-end.
-- **Arabic-Indic digit citation scoring** (carried from the spec risk table): verify whether
-  `cite_passage` citations with Arabic-Indic digits score correctly across the Arabic corpus.
+- **`verify_source` live refusal path unexercised, and a measurement risk for future panels.**
+  0/357 cells triggered the #23 leading-stance refusal; the path is unit-tested (`test_score.py`)
+  but no live answer hit it. More than a coverage gap: a future model that rejects a false premise
+  in *prose* ("Not from this edition.", "The answer is no.") parses to `None` and is bucketed
+  `refused`, so its *correct* rejections would be dropped from the denominator and inflate reported
+  accuracy. Worth revisiting the prose-verdict handling before a panel that declines in prose.
+- **`verify_source` negative-pool structure.** Same-language-first sampling with only two Arabic
+  families (Qur'an vs. the nine hadith collections) means every Arabic negative pairs Qur'an with
+  hadith — a stylistically obvious contrast that likely inflates `verify_source` accuracy. A
+  diversity fix is tracked as a separate follow-up issue (architect-filed).
+- **Arabic-Indic digit citation scoring — RESOLVED.** Measured on the committed run: 0/1428 answers
+  use Arabic-Indic digits, and no non-English `cite_passage` miss is a scorer-extraction artifact, so
+  the low Arabic numbers are genuine model failure. A digit case is pinned in the scorer unit tests;
+  the open question is closed.
 - **Search-on/off contrast** is absent from the committed run (OpenRouter, search-off). If an
   `ANTHROPIC_API_KEY` becomes available, a follow-up run can restore the tool-use arms.

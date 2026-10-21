@@ -190,8 +190,8 @@ export function parseJsonl<T>(text: string, where = "jsonl"): T[] {
 
 function expectedText(expected: Record<string, unknown>): string {
   // the human-readable ground truth for the per-question list: retrieve_quote/complete_unit → text,
-  // cite_passage → citation, verify_source → answer (yes/no). Task-agnostic now that the two
-  // provenance tasks (identify_version/identify_source) are retired.
+  // cite_passage → citation, verify_source → answer (yes/no). Task-agnostic over the four active
+  // templates (the older provenance tasks are retired and carry no viewer behaviour).
   for (const k of ["text", "citation", "answer"]) {
     if (typeof expected[k] === "string") return expected[k] as string;
   }

@@ -76,6 +76,12 @@ _DECLINE_CUES_RAW: tuple[str, ...] = (
     "i couldn't verify", "i could not verify",
     "i couldn't retrieve", "i couldn't confirm", "i couldn't get", "i couldn't find",
     "i could not retrieve", "i could not confirm",
+    # can't confirm / pinpoint / confidently give — first-person inability to cite a passage the
+    # model acknowledges exists (Spec-26 cite_passage survey: these led the answer but were
+    # classified `incorrect` rather than `refused`). A confident third-person NON-existence claim
+    # ("Not found in the KJV", "No such verse") is a wrong answer, not a decline, and stays out.
+    "i can't confirm", "i cannot confirm", "i can't pinpoint", "i cannot pinpoint",
+    "i can't confidently give", "i cannot confidently give",
     # explicit refusal
     "i must decline", "i won't provide", "i will not provide", "i won't reconstruct",
     "i can't access", "i cannot access",

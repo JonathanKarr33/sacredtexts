@@ -23,7 +23,7 @@ targets:
     tradition: [Roman Catholic]
     license: open
     license_detail: Vatican-published English texts (vatican.va)
-    requested_as: ["papal encyclicals", "the encyclicals"]
+    requested_as: ["the papal encyclicals"]
     canonical_language: la
   - payload: nabre.json
     converter: nabre
@@ -40,5 +40,5 @@ targets:
     license_detail: >-
       New American Bible Revised Edition — (c) Confraternity of Christian
       Doctrine / USCCB; payload held back from this public repo
-    requested_as: ["New American Bible Revised Edition", "NABRE", "New American Bible"]
+    requested_as: ["the New American Bible Revised Edition", "the NABRE", "the New American Bible"]
     canonical_language: en

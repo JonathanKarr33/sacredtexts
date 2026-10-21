@@ -174,6 +174,18 @@ def test_unknown_task_fails():
         _gen(docs, per_text=8, tasks=("identify_version",))
 
 
+def test_negatives_share_out_of_range_fails_fast():
+    # negatives_share is validated in generate() core (not only the CLI), so a library caller
+    # cannot pass an out-of-range share silently.
+    docs = [_doc("Qur"), _doc("Hadith", document_type="hadith")]
+    for bad in (-0.1, 1.5):
+        with pytest.raises(GenerateError, match=r"negatives_share .* out of range"):
+            _gen(docs, per_text=8, seed=1, negatives_share=bad)
+    # the boundary values are valid
+    _gen(docs, per_text=8, seed=1, negatives_share=0.0)
+    _gen(docs, per_text=8, seed=1, negatives_share=1.0)
+
+
 def test_retired_tasks_absent():
     assert "identify_version" not in TASKS and "identify_source" not in TASKS
     assert TASKS == ("retrieve_quote", "complete_unit", "cite_passage", "verify_source")

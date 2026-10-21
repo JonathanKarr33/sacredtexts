@@ -411,6 +411,19 @@ def test_hadith_citation_single_and_hedge():
     assert hedge["correct"] == 0 and hedge["n_candidates"] == 2
 
 
+def test_suffixed_hadith_citation_single_and_hedge():
+    # sunnah.com sub-hadith numbers carry an a/b suffix ("Sahih Muslim 2109a"). Before the fix,
+    # _NUM_CITE's `(?![\d:ab])` tail extracted ZERO candidates from a suffixed number, so a hedge
+    # fell through to bounded-equality and scored CORRECT (anti-hedge bypass). The suffix is now
+    # part of the citation token.
+    hedge = score_answer("cite_passage", "Either Sahih Muslim 2109a or Sahih Muslim 3311b",
+                         {"citation": "Sahih Muslim 2109a"})
+    assert hedge["correct"] == 0 and hedge["n_candidates"] == 2
+    # a single suffixed answer still scores correct, and a wrong suffixed single is incorrect
+    assert score_answer("cite_passage", "Sahih Muslim 2109a", {"citation": "Sahih Muslim 2109a"})["correct"] == 1
+    assert score_answer("cite_passage", "Sahih Muslim 3311b", {"citation": "Sahih Muslim 2109a"})["correct"] == 0
+
+
 def test_repeated_correct_citation_is_not_a_hedge():
     # a correct citation stated more than once is ONE candidate, not a hedge
     assert score_answer("cite_passage", "The citation is John 3:16 (John 3:16).", {"citation": "John 3:16"})["correct"] == 1

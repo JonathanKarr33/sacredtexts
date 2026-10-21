@@ -23,13 +23,24 @@ from pathlib import Path
 
 import pytest
 
+import hashlib
+
 from sacredbench import catalogue as cat
 from sacredbench import cli
-from sacredbench.score import score_file
+from sacredbench.score import _citation_candidates, score_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN = REPO_ROOT / "runs" / "original-2026-10-21"
-PINNED_DIGEST = "ca5b5d5372f81603"
+PINNED_DIGEST = "eaf8c68e82cc0cb5"
+
+# Pre-registered cite_passage decline survey (Spec 26 round-1b, fold B). Every cite_passage answer
+# that yields ZERO citation candidates was hand-surveyed: a first-person inability to cite
+# ("I can't confirm/pinpoint the number") is a decline and its phrasing was added to
+# _DECLINE_CUES_RAW; a confident non-existence claim ("Not found in the KJV") or a bare book-name
+# attempt stays incorrect. This pins the surveyed population by count + SHA so any change to those
+# committed answers forces a fresh survey rather than silently shifting the decline set.
+SURVEY_COUNT = 29
+SURVEY_SHA256 = "ccc7184e739314b033c585aed4e2415af8dba9171400b1e1be664c28b3d9eabc"
 
 
 def test_rescoring_committed_original_run_reproduces_scores(tmp_path):
@@ -41,6 +52,23 @@ def test_rescoring_committed_original_run_reproduces_scores(tmp_path):
     score_file(answers, out)  # no roster/panel needed to reproduce per-answer scores
     # byte-for-byte, order included (score_file preserves input-row order).
     assert out.read_text(encoding="utf-8") == committed.read_text(encoding="utf-8")
+
+
+def test_cite_passage_decline_survey_is_pinned():
+    """The hand-surveyed zero-citation-candidate cite_passage set is fixed (count + SHA)."""
+    answers = RUN / "answers.jsonl"
+    if not answers.exists():
+        pytest.skip("original-2026-10-21 evidence not present")
+    rows = [json.loads(l) for l in answers.open(encoding="utf-8") if l.strip()]
+    zero = [
+        r for r in rows
+        if r["task"] == "cite_passage"
+        and not _citation_candidates(r.get("answer") or "", r["question"]["expected"]["citation"])
+    ]
+    assert len(zero) == SURVEY_COUNT
+    ids = sorted(f"{r['model_id']}\0{r['question_id']}\0{r.get('answer') or ''}" for r in zero)
+    sha = hashlib.sha256("\n".join(ids).encode()).hexdigest()
+    assert sha == SURVEY_SHA256
 
 
 def test_regenerating_original_run_reproduces_digest(tmp_path, monkeypatch):

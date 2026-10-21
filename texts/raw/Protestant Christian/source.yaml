@@ -19,7 +19,7 @@ targets:
     tradition: [Protestant Christian]
     license: public-domain
     license_detail: King James Version — public domain
-    requested_as: ["King James Version", "KJV", "KJV Bible", "King James Bible"]
+    requested_as: ["the King James Version", "the KJV", "the King James Bible", "the KJV Bible"]
     canonical_language: en
   - payload: asv.json
     converter: bible_flat
@@ -30,7 +30,7 @@ targets:
     tradition: [Protestant Christian]
     license: public-domain
     license_detail: American Standard Version (1901) — public domain
-    requested_as: ["American Standard Version", "ASV"]
+    requested_as: ["the American Standard Version", "the ASV"]
     canonical_language: en
   - payload: web.json
     converter: bible_flat
@@ -41,5 +41,5 @@ targets:
     tradition: [Protestant Christian]
     license: public-domain
     license_detail: World English Bible — public domain
-    requested_as: ["World English Bible", "WEB"]
+    requested_as: ["the World English Bible", "the WEB"]
     canonical_language: en
