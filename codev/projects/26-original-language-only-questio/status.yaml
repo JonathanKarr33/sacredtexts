@@ -1,7 +1,7 @@
 id: '26'
 title: original-language-only-questio
 protocol: aspir
-phase: implement
+phase: review
 plan_phases:
   - id: phase_1
     title: 'Catalogue metadata: requested_as / canonical_language'
@@ -20,15 +20,15 @@ plan_phases:
     status: complete
   - id: phase_6
     title: Live run and committed original-language evidence
-    status: in_progress
-current_plan_phase: phase_6
+    status: complete
+current_plan_phase: null
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 2
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -151,7 +151,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_6-iter1-claude.txt
 started_at: '2026-10-20T22:41:46.537Z'
-updated_at: '2026-10-21T07:14:20.102Z'
+updated_at: '2026-10-21T07:18:38.215Z'
 force_advanced:
   phase: phase_5
   iteration: 3
@@ -174,3 +174,5 @@ context_refreshes:
   - boundary: plan-phase:phase_6
     at: '2026-10-21T01:50:53.829Z'
     acknowledged_at: '2026-10-21T07:00:59.585Z'
+  - boundary: enter:review
+    at: '2026-10-21T07:18:38.215Z'
