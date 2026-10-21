@@ -105,3 +105,27 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   Moots encyclicals-201-texts + Talmud en/he. Spec/plan updated (flag removed; manifest
   excluded-with-reason; path-based channel; first-run retirement rationale corrected).
 - Rebuttal written. porch done re-iter next.
+
+### Phase 1 COMPLETE (3 iterations) — porch → context refresh, then Phase 2
+- iter1: both REQUEST_CHANGES → path-based metadata channel (metadata_for_standardized_path,
+  handles encyclicals re-stamp) + text_metadata conflict detection. Architect dropped
+  --include-translations (YAGNI) → selection = language==canonical_language only; excluded
+  reported in manifest w/ reason.
+- iter2: codex COMMENT / claude REQUEST_CHANGES → stale docs + test strength: catalogue
+  docstring → path channel; pool test pins exact 17-member SET; requested_as stripped on store.
+- iter3: codex REQUEST_CHANGES (stale spec/plan channel text) / claude APPROVE → fixed spec
+  Desired State + Test Scenario + plan Exec Summary to path-based; corrected first-run test
+  retirement rationale (symptom = digest mismatch on clean rebuild, not fail-close).
+- STATE: catalogue.py has requested_as+canonical_language (validated), Target.text_key,
+  metadata_for_standardized_path (path channel, fail-closed), text_metadata (conflict view),
+  slug-agreement names differing fields. 21 targets, pool=17 (Qur'an+9hadith+TalmudAramaic+
+  3LDS+3EnglishBibles). 476 questions planned. Full suite 336 passed.
+- CARRY to Phase 2: generate must (a) select by language==canonical_language (+ --include-restricted
+  gate, NO --include-translations), (b) resolve metadata per doc via metadata_for_standardized_path,
+  (c) call text_metadata(sources) once so the conflict guard is live, (d) group by (work,version,
+  language), (e) manifest records excluded targets + reason, (f) default --per-text 28 (7/template),
+  (g) verify_source identity flip (source=asked, true_version, requested_as name, text-granularity
+  negatives + document_type family exclusion), (h) display_citation (strip work prefix), (i)
+  cite_passage by-example exemplar from a different seeded entry (needs >=2 entries), (j) retire
+  identify_version/identify_source from TASKS/_build + CODE_WALKTHROUGH pointer-guard in-commit, (k)
+  first-run regression: keep re-score, retire generation-invariance half.
