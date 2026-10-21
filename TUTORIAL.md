@@ -221,10 +221,10 @@ wrapped in extra words ("According to Sefaria…", a link) still counts — and 
 each model gets two numbers you read together: **accuracy** (how often it's right *when it answers*)
 and **coverage** (how often it answers at all). That pairing is the real story: a model can show a
 high accuracy only because it stayed silent on most of the roster, which is exactly why coverage sits
-right beside it. In that run the strongest model reaches 68% overall but answers only half the
+right beside it. In that run the strongest model reaches 69% overall but answers only about half the
 `retrieve_quote` roster — it refuses the Arabic/Aramaic lines it can't recall rather than guessing —
-while the famous KJV is answered at 100% accuracy by both frontier models (the small open model
-manages only 16% even there).
+while the famous KJV is answered at 100% accuracy by the strongest model (the mid-size model 86%,
+the small open model only 12%).
 
 ## 8. View — see the results in your browser
 
@@ -272,4 +272,3 @@ pnpm -C apps/viewer test                      # the viewer only
 - **Run the pipeline stage by stage, with every option:** [`pipelines/README.md`](pipelines/README.md).
 - **Add a new scripture or a new kind of question:** [`CODE_WALKTHROUGH.md`](CODE_WALKTHROUGH.md).
 - **Understand how the whole system fits together:** [`codev/resources/arch.md`](codev/resources/arch.md).
-```

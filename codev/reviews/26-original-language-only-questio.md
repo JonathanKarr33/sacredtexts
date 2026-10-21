@@ -116,33 +116,42 @@ Per-phase, 2-way (`codex` + `claude`; gemini excluded — it cannot see the work
 ### Phase 6 — Live run (Rounds 1–2)
 #### Codex / Claude — REQUEST_CHANGES → both APPROVE
 - Generation-invariance anchor promised in Phase 2 did not exist, and a docstring claimed it did →
-  **Addressed** (`test_original_run_regression.py`: re-score + digest-pin `ca5b5d5372f81603`).
+  **Addressed** (`test_original_run_regression.py`: re-score + digest-pin, now `de65959a99dea9b3`).
 - False headline claims (KJV 100% "all three models"; opus "93–100%") → **Addressed** (KJV 100% for
   the two frontier models, gpt-oss-20b 16%; opus 86–100%).
 - TUTORIAL four-contestant framing vs the 3-model run; README audit path count → **Addressed**.
 - `verify_source` refused = 0/357 → **N/A** (known evidence gap, see Follow-up; unit-tested in
   `test_score.py`).
 
-### Review Phase — PR #28 (Round 1 + 1b)
-Both PR consults (codex + claude) **APPROVED**; the architect's integration review and the
-consult-lane fold-ins drove a regenerate + re-collect + re-score. Dispositions:
+### Review Phase — PR #28 (Rounds 1–2b)
+Both PR consults (codex + claude) **APPROVED**; the architect's integration review and three
+rounds of consult-lane fold-ins drove two regenerate + re-collect + re-score cycles. The digest
+moved `ca5b5d5372f81603` (original) → `eaf8c68e82cc0cb5` (article-carrying requested_as) →
+`de65959a99dea9b3` (spec-containment negatives). Dispositions:
 - **requested_as read unnaturally** ("Where in Koran…", "from KJV Bible", ambiguous bare "Muslim")
   → **Addressed**: articles added to every `requested_as` in the data per the architect's exact
-  lists; bare "Muslim" dropped; prompts regenerated (digest `ca5b5d5372f81603` → `eaf8c68e82cc0cb5`).
+  lists; bare "Muslim" dropped.
 - **TUTORIAL had two panels + "not reproducible" asides** → **Addressed**: rewritten to one linear
-  OpenRouter track (copy `models.openrouter.yaml`, generate the three scriptures at `--per-text 40`,
-  collect/score/view, compare to the one shipped reference run); the historical note now lives only
-  in `runs/tutorial-2026-10-11/README.md`.
+  OpenRouter track (copy `models.openrouter.yaml`, generate the three scriptures at `--per-text 20`
+  → 60 questions, collect/score/view, compare to the one shipped reference run); the historical note
+  now lives only in `runs/tutorial-2026-10-11/README.md`.
 - **`_NUM_CITE` anti-hedge bypass on letter-suffixed hadith numbers** (fold A) → **Addressed**
   (regex + tests). **core `negatives_share` validation** (C) → **Addressed**. **`by_text` roster**
   (D) → **Addressed** (`expected_n`/`missing` + markdown column). **viewer retired-task comment**
-  (E) → **Addressed**. **cite_passage decline survey** (B) → **Addressed** (10 cells moved to
-  refused; surveyed set pinned by count+SHA). **`canonical_language` / "containment" wording** →
-  **Addressed**. **F/G/H/I run-README docs** → **Addressed** (near-verbatim residual, negative-pool
-  structure, OpenRouter standings, Arabic-Indic resolved).
+  (E) → **Addressed**. **cite_passage decline survey** (B) → **Addressed** (surveyed set pinned by
+  count+SHA; the added cues move the leading-decline cells to refused). **`canonical_language`
+  wording** → **Addressed**. **F/G/H/I run-README docs** → **Addressed** (near-verbatim residual,
+  negative-pool structure, OpenRouter standings, Arabic-Indic resolved).
+- **Round 2b**: fold **#4** — the spec's verify_source negative exclusion is now **enforced in code**
+  as substring containment (not whole-entry equality); it excludes **96** genuine quote-embeddings
+  (Bible passages verbatim inside Book-of-Mormon entries), which — via the shared-RNG cascade —
+  reshaped the whole question set, so the run was re-collected at `de65959a99dea9b3` on the
+  architect's explicit go (digest-change-stop-and-ping honored). Fold **#5** — `TEXT_KEY_SEP`/
+  `text_key` made public. Fold **#6** — arch.md documents the path-based metadata channel. The
+  ~2–2.5 min containment generate is a known cost (perf follow-up).
 - `--per-text` semantics: the architect's "120 questions from `--per-text 10` over 3 scriptures"
-  assumed per-template; `--per-text` is total-per-text, so the tutorial uses `--per-text 40` to hit
-  120 (flagged in the reply). Remaining nits are architect-filed follow-ups.
+  assumed per-template; `--per-text` is total-per-text, so the tutorial uses `--per-text 20`
+  (→ 60 questions / 180 cells, per the round-2 nit). Remaining nits are architect-filed follow-ups.
 
 ## Lessons Learned
 

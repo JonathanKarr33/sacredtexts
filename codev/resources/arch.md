@@ -27,6 +27,11 @@ Seeded from Spec 1 (Phase 1 benchmark) — the first implementation round.
   rebuilt by `convert`). The standardized path mirrors the raw path so `generate`
   recovers a document's licence from its path. `convert`/`generate` exclude
   `restricted` targets unless `--include-restricted`.
+- **Any catalogue fact `generate` needs is recovered through the path-based metadata
+  channel** (`metadata_for_standardized_path` / `license_for_standardized_path`), not the
+  `Document` (which carries none of it): `license`, `requested_as`, and
+  `canonical_language` are its users. This is why the standardized path must mirror the raw
+  path, and why a converter that re-stamps `work` (encyclicals) still resolves correctly.
 - `catalogue.py`: `Target`/`Source`/`Provenance`, `discover_catalogue` (globs
   `texts/raw/**/source.yaml`), `select_targets`, path↔licence mapping; fail-fast on
   unknown licence, bad target, or missing field.

@@ -194,7 +194,7 @@ def _contains(answer: str, needle: str) -> bool:
     return normalize(needle) in normalize(answer)
 
 
-def _text_key(source: dict) -> tuple[str, str, str] | None:
+def text_key(source: dict) -> tuple[str, str, str] | None:
     """The per-text key from a question's source: the ``(work, version, language)`` tuple (one text =
     one such tuple). ``None`` when any part is absent, so a malformed row never creates a phantom
     text bucket."""
@@ -207,11 +207,11 @@ def _text_key(source: dict) -> tuple[str, str, str] | None:
 # NUL joins the (work, version, language) tuple into an UNAMBIGUOUS summary key — no field can
 # contain NUL, so distinct tuples never collide (unlike a " | " join). Same convention the viewer's
 # standings key uses. Split back with .split("\u0000") for display.
-_TEXT_KEY_SEP = "\u0000"
+TEXT_KEY_SEP = "\u0000"
 
 
 def _text_label_display(key: str) -> str:
-    work, version, language = key.split(_TEXT_KEY_SEP)
+    work, version, language = key.split(TEXT_KEY_SEP)
     return f"{work} ({version}, {language})"
 
 
@@ -512,10 +512,10 @@ def score_file(
             # per-text breakdown (one text = one (work, version, language)); a verify_source
             # negative aggregates under the ASKED edition (Phase-2 source), the right denominator
             # now that per-tradition balance no longer holds (9 of 17 texts are hadith collections).
-            tkey = _text_key(src)
+            tkey = text_key(src)
             if tkey is not None:
                 xacc = per_text.setdefault(
-                    (d["model_id"], _TEXT_KEY_SEP.join(tkey), d["task"]), {"n": 0, "correct": 0, "refused": 0}
+                    (d["model_id"], TEXT_KEY_SEP.join(tkey), d["task"]), {"n": 0, "correct": 0, "refused": 0}
                 )
                 xacc["n"] += 1
                 xacc["correct"] += metrics["correct"]

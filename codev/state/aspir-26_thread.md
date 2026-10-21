@@ -346,3 +346,25 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
 - tip 9ae605b pushed. Replied to architect (tip+digest+cost+B numbers). Flagged --per-text
   semantics (tutorial uses --per-text 40 to hit the architect's 120 questions). **Do NOT merge**
   — awaiting the pr gate (human approval).
+
+### PR #28 round-2 + 2b (2026-10-21)
+- Round-2 fresh-clone pass PASSED everything; one nit → tutorial --per-text 40→**20** (60 q / 180
+  cells). tip 71e9c75.
+- Round-2b (consults: claude APPROVE, codex REQUEST_CHANGES): 6 fold-ins.
+  - #1 stale refs (digest/headline) aligned; #2 TUTORIAL unmatched code fence removed; #3
+    _build_texts unions traditions + fail-fast on inconsistent document_type (+2 multi-shard tests;
+    no-op for this single-doc corpus); #5 TEXT_KEY_SEP/text_key made public; #6 arch.md path-based
+    metadata-channel line.
+  - **#4 (the big one)**: implemented the spec's verify_source negative exclusion as **substring
+    containment** (NUL-joined per-text haystack), not whole-entry equality. It excludes **96**
+    genuine quote-embeddings (Bible verbatim inside Book-of-Mormon entries — the spec's BoM↔KJV-
+    Isaiah case). Digest CHANGED eaf8c68e82cc0cb5 → **de65959a99dea9b3** (shared-RNG cascade
+    reshuffled 451/476 questions). STOPPED + pinged per instruction; architect chose (a) ACCEPT +
+    re-collect (cap $12). Known cost: containment generate ~2–2.5 min (perf follow-up).
+- Re-collect at de65959a: **1428/1428** complete (gpt-oss stragglers recovered over ~16 passes).
+  Cost **$5.10** (credits $59.25→$54.15, cap $12). Headline opus **69%** / haiku **49%** /
+  gpt-oss **20%**. KJV: opus 100%, haiku 86%, gpt-oss 12% (the reshuffle moved haiku off 100%).
+  B re-survey: 24 zero-cand cells (pin updated count+SHA), 16 leading declines refused.
+  verify_source refused 0/357; Arabic-Indic 0/1428.
+- Gate: pipelines **369** + viewer **158** green; audit origin-clean; re-score byte-for-byte;
+  digest-pin green. Awaiting pr gate — DO NOT MERGE.

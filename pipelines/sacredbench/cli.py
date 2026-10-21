@@ -25,7 +25,7 @@ from sacredbench.collect import collect as run_collect
 from sacredbench.config import ConfigError, load_config
 from sacredbench.generate import generate as run_generate
 from sacredbench.generate import load_questions, write_questions
-from sacredbench.score import _TEXT_KEY_SEP, ScoreError, _text_key, score_file, summary_markdown
+from sacredbench.score import TEXT_KEY_SEP, ScoreError, score_file, summary_markdown, text_key
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
 
@@ -349,9 +349,9 @@ def score(
                 for trad in q.source.get("tradition", []) or []:
                     k = (m.id, trad, q.task)
                     expected_tradition[k] = expected_tradition.get(k, 0) + 1
-                tkey = _text_key(q.source)
+                tkey = text_key(q.source)
                 if tkey is not None:
-                    xk = (m.id, _TEXT_KEY_SEP.join(tkey), q.task)
+                    xk = (m.id, TEXT_KEY_SEP.join(tkey), q.task)
                     expected_text[xk] = expected_text.get(xk, 0) + 1
         # panel snapshot for the committed artifact (no secrets: provider/model/tools/host only)
         default_host = {"anthropic": "api.anthropic.com", "openai": "api.openai.com",

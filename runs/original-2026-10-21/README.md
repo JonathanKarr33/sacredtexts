@@ -11,7 +11,7 @@ open corpora only). See `summary.md` for the full accuracy/coverage tables (per 
 - **476 questions**, four templates evenly split (`retrieve_quote` / `complete_unit` /
   `cite_passage` / `verify_source`, **119 each**), over the **17 in-pool texts** — a text is
   in the pool iff `language == canonical_language` (Spec 26). `--per-text 28`, `seed 20261010`,
-  `negatives_share 0.5`. Question-set digest `eaf8c68e82cc0cb5`, corpus hash `5ae493e7e249575c`.
+  `negatives_share 0.5`. Question-set digest `de65959a99dea9b3`, corpus hash `5ae493e7e249575c`.
 - **Prompts name each edition the way people ask for it.** `<edition>` is a seeded choice from the
   catalogue's `requested_as` list, which carries the natural article where one is used — "the King
   James Bible", "the Qur'an", "the Gemara", "the Book of Mormon" — while the hadith collections stay
@@ -23,8 +23,8 @@ open corpora only). See `summary.md` for the full accuracy/coverage tables (per 
 - **Two texts excluded** (recorded in the manifest with a reason): Papal Encyclicals
   (`en` != canonical `la`) and Talmud Bavli English (`en` != canonical `he`).
 - **Coverage: 1428 / 1428 cells (complete).** `gpt-oss-20b` returned empty responses on some
-  `complete_unit` cells on early passes (a provider quirk — empty output, not a refusal); the
-  resumable `collect` recovered every one over repeated passes.
+  cells on early passes (a provider quirk — empty output, not a refusal); the resumable `collect`
+  recovered every one over repeated passes.
 
 ## Panel — three models, **search-OFF only**, via OpenRouter
 
@@ -37,13 +37,13 @@ open corpora only). See `summary.md` for the full accuracy/coverage tables (per 
 - **Why no search arms.** `ANTHROPIC_API_KEY` was unavailable, so this run used the
   **OpenRouter** key (a human decision, 2026-10-21). `web_search` is an Anthropic *server-side*
   tool and `config.py` fail-fasts a tool on a non-anthropic provider, so every arm here is
-  **search-off**. Unlike the earlier tutorial run (which contrasted web-search on vs. off),
-  this run measures **parametric recall only** — three models, no tool-assisted retrieval.
+  **search-off**. This run measures **parametric recall only** — three models, no tool-assisted
+  retrieval.
 - **Unpriced.** No per-token prices are supplied for the OpenRouter panel, so `summary.json`
   carries **token totals only** (no `cost_usd`) — prices are never invented. Panel config:
-  `configs/models.openrouter.yaml`. The real dollar cost of the run (measured against the
-  OpenRouter credit balance, not committed) was ≈ **$5** for the collect, dominated by
-  `gpt-oss-20b`'s long reasoning output and its empty-response retry passes.
+  `configs/models.openrouter.yaml`. The real dollar cost of the collect (measured against the
+  OpenRouter credit balance, not committed) was ≈ **$5**, dominated by `gpt-oss-20b`'s long
+  reasoning output and its empty-response retry passes.
 - **OpenRouter standings note.** OpenRouter routes the two Anthropic models but the panel records
   `provider: openai` (the OpenRouter endpoint is OpenAI-compatible), so in the viewer's cross-run
   **standings** these rows key on `(openai, anthropic/claude-…, [])` and will **not** dedupe
@@ -61,24 +61,23 @@ often it answers.
 
 | model | overall accuracy | coverage | correct | incorrect | refused |
 |---|---|---|---|---|---|
-| opus | **69%** | 86% | 282 | 126 | 68 |
-| haiku | **51%** | 75% | 183 | 175 | 118 |
-| gpt-oss-20b | **23%** | 65% | 71 | 238 | 167 |
+| opus | **69%** | 86% | 280 | 128 | 68 |
+| haiku | **49%** | 77% | 178 | 188 | 110 |
+| gpt-oss-20b | **20%** | 67% | 64 | 256 | 156 |
 
 The benchmark discriminates cleanly — **opus > haiku > gpt-oss-20b** — and the structure is the
 point of Phase 1:
 
-- **English texts are far easier; original-language scripture is hard.** The **KJV is answered
-  at 100% accuracy by both frontier models** (opus and haiku) — though the small `gpt-oss-20b`
-  manages only 21% even there; opus scores **89–100%** on every English text, but Arabic/Aramaic
-  recall collapses (opus Qur'an ~86%, Talmud ~32%; haiku Talmud ~29%). This is the recall gap the
-  benchmark exists to measure.
-- **`retrieve_quote` is hardest** (exact original-language recall; opus 64% acc at only 51%
-  coverage — it refuses half the Arabic/Aramaic roster rather than guess), **`verify_source`
-  easiest** (opus 99%, haiku 97%).
+- **English texts are far easier; original-language scripture is hard.** On the **KJV**, opus is
+  at **100%**, haiku **86%**, and the small `gpt-oss-20b` only **12%**; opus scores **89–100%** on
+  every English text, but Arabic/Aramaic recall collapses (opus Qur'an ~86%, Talmud ~32%; haiku
+  Talmud ~29%). This is the recall gap the benchmark exists to measure.
+- **`retrieve_quote` is hardest** (exact original-language recall; opus 68% acc at only 53%
+  coverage — it refuses roughly half the Arabic/Aramaic roster rather than guess), **`verify_source`
+  easiest** (opus 99%, haiku 95%).
 - **`gpt-oss-20b` is weak and terse:** 0% on `retrieve_quote`/`complete_unit` for original-
   language text, and it answers `verify_source` with a bare "No." far too often (see the
-  diagnostic below) — 57% there, well below the frontier models.
+  diagnostic below) — 53% there, well below the frontier models.
 
 ## verify_source — leading-stance parser diagnostic (#23 closed)
 
@@ -90,49 +89,17 @@ None`) — a buried verdict or negation-evasion ("there is no way to verify this
 never scored correct.
 
 **parsed-is-None (refused) count across all 357 verify_source cells = 0** — every answer led with
-a parseable Yes/No. The real answers exercise the hardening (markdown-bold `**Yes.**`, a trailing
-explanation after the verdict), and the parser handles them. 10 sample rows per model:
+a parseable Yes/No. The real answers exercise the hardening (markdown-bold `**Yes.**`/`**No.**`, a
+trailing explanation after the verdict), and the parser handles them. Sample rows (parsed/expected):
 
-**opus** (10/10 parsed, 10/10 correct)
 ```
-yes/yes correct  **Yes**
-yes/yes correct  **Yes.** This is a baraita quoted in the Gemara, Sanhedrin …
-yes/yes correct  **Yes.** It appears in Sahih al-Bukhari, for example …
-yes/yes correct  **Yes.** It is 2 Nephi 28:8.
- no/ no correct  **No.** This text is from the Quran, Surah Al-Isra …
-yes/yes correct  **Yes.** This narration appears in *Musnad Ahmad* …
-yes/yes correct  **Yes.** This is Moses 1:20 in the Book of Moses …
-yes/yes correct  **Yes**  This hadith appears in Sunan an-Nasa'i …
-yes/yes correct  **Yes.** This matches the World English Bible (WEB) …
-yes/yes correct  **Yes.** This narration appears in Musnad Ahmad …
-```
-
-**haiku** (10/10 parsed, 10/10 correct)
-```
-yes/yes correct  **Yes.** This is a narration from the Muwatta of Imam Malik …
-yes/yes correct  **Yes.** The text is a baraita introduced by "תנו רבנן" …
-yes/yes correct  Yes. This is a hadith from Sahih al-Bukhari …
-yes/yes correct  Yes
- no/ no correct  No. This is a verse from the Quran (Surah Al-Isra 17 …
-yes/yes correct  **Yes.** The text has the chain of narration (isnad) …
-yes/yes correct  Yes, this passage is from the Pearl of Great Price …
-yes/yes correct  **Yes.** This matches the isnad format of Sunan an-Nasa'i …
-yes/yes correct  Yes.
-yes/yes correct  **Yes.** This hadith, in which Umar swears "by my father" …
-```
-
-**gpt-oss-20b** (10/10 parsed, 2/10 correct — all parse, but the model is usually wrong)
-```
- no/yes incorrect  No.
- no/yes incorrect  No.
- no/yes incorrect  No.
- no/yes incorrect  No.
- no/yes incorrect  No.
- no/ no   correct  No
- no/yes incorrect  No.
- no/yes incorrect  No.
-yes/yes   correct  Yes.
- no/ no   correct  No
+opus         no/ no  correct  **No.** This text is not from the King James Version …
+opus        yes/yes  correct  **Yes.** This is Judges 6:30 in the World English Bible …
+opus         no/ no  correct  **No.** This text is from the Book of Mormon, not …
+haiku        no/ no  correct  No
+haiku       yes/yes  correct  **Yes.** This is a hadith from Sunan Abi Dawud …
+gpt-oss-20b  no/yes  incorrect  No.      (a confident WRONG verdict — incorrect, not refused)
+gpt-oss-20b yes/ no  incorrect  Yes.
 ```
 
 The `gpt-oss-20b` rows show why **refused and incorrect must stay distinct**: its terse "No." is a
@@ -142,12 +109,13 @@ confident *wrong* verdict (parsed fine), not an abstention — it counts as inco
 
 `cite_passage` is scored by extracting the single citation candidate the model offers; an answer
 that offers **no** citation candidate falls through to the outcome classifier. A pre-registered
-hand survey examined **all 29** such zero-candidate cells (pinned by count + SHA in
+hand survey examined **all 24** such zero-candidate cells (pinned by count + SHA in
 `test_original_run_regression.py`). Each was classified:
 
 - **Declines** — a first-person inability to cite a passage the model *acknowledges exists* ("I
   can't confirm / pinpoint / confidently give the exact hadith number"). The clear leading
-  phrasings were added to `_DECLINE_CUES_RAW`; **10 cells moved from `incorrect` to `refused`**.
+  phrasings were added to `_DECLINE_CUES_RAW`; **16 of the 24 cells are leading declines, scored
+  `refused`**.
 - **Not declines (stay incorrect)** — a confident *non-existence* claim about a passage that really
   is in the text ("Not found in the KJV", "No such verse exists", "No citation.") is a wrong answer,
   the `cite_passage` analogue of a false `verify_source` "no"; and a bare book-name attempt with no
@@ -165,7 +133,7 @@ question is empirically closed; a Latin/Arabic-Indic digit case is pinned in the
 
 - **Scoring is free and deterministic.** Re-scoring the committed `answers.jsonl` reproduces
   `scores.jsonl` **byte-for-byte**; regenerating from the committed manifest params reproduces the
-  question-set digest `eaf8c68e82cc0cb5` — both pinned by `test_original_run_regression.py`. The
+  question-set digest `de65959a99dea9b3` — both pinned by `test_original_run_regression.py`. The
   viewer (`apps/viewer`) renders this run out of the box from its four artifacts.
 - **Collection is not free** and requires `OPENROUTER_API_KEY` in the environment; the panel is
   `configs/models.openrouter.yaml`. Follow `TUTORIAL.md` for the current four-template,
@@ -173,22 +141,24 @@ question is empirically closed; a Latin/Arabic-Indic digit case is pinned in the
 
 ## Limitations (scoring caveats specific to this run)
 
-- **Near-verbatim shared passages are not excluded from verify_source negatives.** A negative
-  attributes a real passage from a *different* text to the asked edition; the exclusion is **exact
-  normalized-entry equality**, so a passage that appears near-verbatim but not byte-identical in both
-  texts (e.g. the Book of Mormon and D&C quote long stretches of **KJV Isaiah**) could in principle
-  be presented as a false "no" that is arguably true. No such leak occurs in this run under a stronger
-  substring check, but the exclusion is equality-only by design (entry-granular sampling).
+- **verify_source negatives enforce containment (spec rule).** A negative attributes a real passage
+  from a *different* text to the asked edition; a candidate is excluded when its normalized text
+  occurs as a **substring of a single entry** of the asked edition (not merely when it equals a
+  whole entry). This catches near-verbatim shared passages — the Book of Mormon and D&C quote long
+  stretches of **KJV Isaiah** verbatim — that whole-entry equality missed: containment excludes
+  **96** such candidates from the eligible negative pool that equality did not. (Switching the rule
+  reshaped the whole question set via the shared RNG, which is why the committed digest is
+  `de65959a99dea9b3`.) **Known cost:** the containment check makes `generate` take ~2–2.5 min; a
+  faster index is a tracked perf follow-up.
 - **The verify_source negative pool is structurally narrow.** With same-language-first sampling and
   only two Arabic families (the Qur'an vs. the nine hadith collections), **every hadith negative is a
   Qur'an passage and every Qur'an negative is a hadith** — and Qur'anic Arabic vs. isnad/hadith
-  Arabic is a stylistically obvious contrast. That likely inflates the 97–99% `verify_source`
+  Arabic is a stylistically obvious contrast. That likely inflates the 95–99% `verify_source`
   accuracy of the frontier models. A structural fix (more diverse negatives) is tracked as a
   follow-up issue.
 - **Cross-language fallback was needed only for Talmud-Aramaic (×3).** When no same-language
   different-family negative exists, the sampler falls back to a cross-language source and records it
-  (manifest: `verify_source_cross_language_negatives`); here that happened for 3 Talmud Bavli
-  (Aramaic) questions only.
+  (manifest: `verify_source_cross_language_negatives`).
 - **Containment has no anti-hedge rule for text-retrieval.** A `retrieve_quote`/`complete_unit`
   answer that *wraps* the exact reference in a citation or caveat still counts as correct;
   `cite_passage` and `verify_source` do enforce a single-verdict / leading-stance rule.

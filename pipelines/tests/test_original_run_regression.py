@@ -7,11 +7,11 @@ generator guard (`test_first_run_regression.py`). Two invariants:
 - **Scoring invariance (always runs):** re-scoring the committed `answers.jsonl` to a scratch
   path reproduces the committed `scores.jsonl` byte-for-byte — proof that scoring changes did
   not move the only committed evidence that exercises Arabic/Aramaic `normalize()`, the
-  leading-stance `parse_yes_no`, and `cite_passage`/`complete_unit` over 1,427 real answers.
+  leading-stance `parse_yes_no`, and `cite_passage`/`complete_unit` over 1,428 real answers.
 - **Generation invariance (skips if `texts/standardized/` is absent, i.e. in a fresh clone /
   CI where the rebuilt corpus is gitignored):** regenerating the question set from the committed
   manifest's own inputs/seed/per_text/negatives_share reproduces the pinned question-set digest
-  `ca5b5d5372f81603`. This is what Phase 2's retirement note promised was "digest-pinned here".
+  `de65959a99dea9b3`. This is what Phase 2's retirement note promised was "digest-pinned here".
 
 Both write only to tmp paths; neither touches the committed evidence.
 """
@@ -31,7 +31,7 @@ from sacredbench.score import _citation_candidates, score_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN = REPO_ROOT / "runs" / "original-2026-10-21"
-PINNED_DIGEST = "eaf8c68e82cc0cb5"
+PINNED_DIGEST = "de65959a99dea9b3"
 
 # Pre-registered cite_passage decline survey (Spec 26 round-1b, fold B). Every cite_passage answer
 # that yields ZERO citation candidates was hand-surveyed: a first-person inability to cite
@@ -39,8 +39,8 @@ PINNED_DIGEST = "eaf8c68e82cc0cb5"
 # _DECLINE_CUES_RAW; a confident non-existence claim ("Not found in the KJV") or a bare book-name
 # attempt stays incorrect. This pins the surveyed population by count + SHA so any change to those
 # committed answers forces a fresh survey rather than silently shifting the decline set.
-SURVEY_COUNT = 29
-SURVEY_SHA256 = "ccc7184e739314b033c585aed4e2415af8dba9171400b1e1be664c28b3d9eabc"
+SURVEY_COUNT = 24
+SURVEY_SHA256 = "8244e9fb6c6b4d44ed067c3e0f6a75504f6bf28031259fe3ec334a90f24c5060"
 
 
 def test_rescoring_committed_original_run_reproduces_scores(tmp_path):

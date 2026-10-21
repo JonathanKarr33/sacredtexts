@@ -42,8 +42,8 @@ Contract details that keep the benchmark honest:
   (``document_type == hadith_collection``), otherwise a text's family is its
   ``work`` (so the KJV/ASV/WEB Bible editions never serve as each other's negatives,
   but a different work such as Book of Mormon may). Candidates exclude any passage
-  whose normalized text exactly equals a whole entry of the asked edition (membership
-  in the asked edition's set of normalized entries — equality, not substring containment), and a
+  whose normalized text occurs as a substring of a single entry of the asked edition
+  (containment — a passage quoted verbatim inside a longer unit is never a false negative), and a
   **same-language** partner is preferred; a text with no same-language different-family
   partner (e.g. Talmud Aramaic) falls back to cross-language, recorded per text in the
   manifest.
@@ -61,7 +61,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -77,6 +77,10 @@ DEFAULT_PER_TEXT = 28
 # Entries shorter than this are too generic to identify. Word count, not characters.
 MIN_WORDS_IDENTIFIABLE = 12
 MIN_WORDS_COMPLETABLE = 16
+
+# Separator for the per-text normalized-entry haystack (verify_source negative containment).
+# A NUL is never produced by normalize(), so a candidate can only match WITHIN one entry.
+_ENTRY_SEP = "\x00"
 
 
 class GenerateError(Exception):
@@ -165,7 +169,9 @@ class _Text:
     meta: TextMeta
     entries: list[Entry]  # canonical, >= MIN_WORDS_IDENTIFIABLE, content-sorted, deduped
     entry_norms: list[str]  # normalize(e.text) parallel to ``entries`` (precomputed once)
-    all_norm: frozenset[str]  # normalize over ALL raw entries — the containment set for negatives
+    all_joined: str  # ALL raw entries' normalisations, NUL-joined — the substring-containment
+    #                  haystack for verify_source negatives (a candidate is excluded iff it occurs
+    #                  within one entry of this edition)
 
     @property
     def family(self) -> str:
@@ -204,10 +210,26 @@ def _build_texts(docs: list[Document], text_meta: dict[tuple[str, str, str], Tex
             })
             continue
         group = groups[key]
-        rep = min(group, key=lambda d: (tuple(d.tradition), d.document_type))
-        # the containment set is over ALL raw entries (not just the canonical/long pool),
-        # so a passage present in this edition under any citation is never a false negative.
-        all_norm = {normalize(e.text) for d in group for e in d.entries}
+        # document_type drives negative-family selection, so it must not depend on shard sort
+        # order — require it consistent across the group and fail fast otherwise.
+        doc_types = {d.document_type for d in group}
+        if len(doc_types) > 1:
+            raise GenerateError(
+                f"{key}: shards disagree on document_type {sorted(doc_types)} — ambiguous "
+                "negative-family; fix the catalogue/converter so the group is consistent"
+            )
+        # union traditions across ALL shards (not just the representative's), deterministically,
+        # so no shard's tradition is dropped from the question source. A list (not a tuple) to
+        # match the schema type and survive the questions.jsonl JSON round-trip.
+        traditions = sorted({t for d in group for t in d.tradition})
+        rep = replace(min(group, key=lambda d: (tuple(d.tradition), d.document_type)),
+                      tradition=traditions)
+        # the containment haystack is over ALL raw entries (not just the canonical/long pool), so a
+        # passage present in this edition under any citation is never a false negative. NUL-joined
+        # per entry so a candidate negative is excluded when it is a SUBSTRING of a single entry
+        # (the spec's containment rule — e.g. a KJV-Isaiah verse quoted verbatim inside a longer
+        # Book-of-Mormon unit), with no match spanning two entries.
+        all_joined = _ENTRY_SEP.join(normalize(e.text) for d in group for e in d.entries)
         # canonical, identifiable entries, deduplicated by content across shards
         seen: set[tuple[str, str]] = set()
         entries: list[Entry] = []
@@ -223,7 +245,7 @@ def _build_texts(docs: list[Document], text_meta: dict[tuple[str, str, str], Tex
         entries.sort(key=lambda e: (e.citation, e.text))
         texts.append(_Text(
             key=key, rep_doc=rep, meta=meta, entries=entries,
-            entry_norms=[normalize(e.text) for e in entries], all_norm=frozenset(all_norm),
+            entry_norms=[normalize(e.text) for e in entries], all_joined=all_joined,
         ))
     excluded = [excluded_by_target[k] for k in sorted(excluded_by_target)]
     return texts, excluded
@@ -366,8 +388,8 @@ def _append_verify_source(
     cross-family negatives, the rest positives. The question is always about the
     ``asked`` edition; a negative presents a passage from a **different-family** text
     (families: the nine hadith collections are one; otherwise a text's ``work``), not
-    not already a whole entry of the asked edition (exact normalized-entry equality over all
-    entries, not substring containment). Negatives prefer
+    not already contained in the asked edition (its normalized text is a substring of a single
+    asked-edition entry). Negatives prefer
     a **same-language** partner; a text with no same-language different-family partner falls
     back to cross-language (a trivially-rejectable, flagged case)."""
     n_neg = int(quota * negatives_share)
@@ -394,7 +416,7 @@ def _append_verify_source(
             continue
         bucket = same_lang if other.language == asked.language else cross_lang
         for e, ne in zip(other.entries, other.entry_norms):
-            if ne in asked.all_norm:
+            if ne in asked.all_joined:  # substring of a single asked-edition entry (containment)
                 continue
             bucket.append((other, e))
     if len(same_lang) + len(cross_lang) < n_neg:

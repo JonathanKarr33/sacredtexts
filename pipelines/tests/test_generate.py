@@ -86,6 +86,27 @@ def test_questions_roundtrip(tmp_path):
     assert [q.source for q in back] == [q.source for q in qs]
 
 
+def test_multi_shard_unions_traditions():
+    # two shards of ONE text (same work/version/language, same document_type) with DIFFERENT
+    # tradition lists: the question source carries the sorted UNION, not just one shard's.
+    docs = [_doc("Shared", tradition=("Zeta",), prefix="p1"),
+            _doc("Shared", tradition=("Alpha",), prefix="p2")]
+    # retrieve_quote only: one text has no cross-family verify_source negative pool.
+    qs, _ = _gen(docs, per_text=8, seed=1, tasks=("retrieve_quote",))
+    assert qs, "expected questions from the merged shards"
+    for q in qs:
+        assert q.source["tradition"] == ["Alpha", "Zeta"]  # union, deterministic (sorted)
+
+
+def test_multi_shard_inconsistent_document_type_fails_fast():
+    # shards of one text that disagree on document_type make negative-family selection ambiguous;
+    # generation must fail fast rather than depend on sort order.
+    docs = [_doc("Shared", document_type="scripture", prefix="p1"),
+            _doc("Shared", document_type="hadith", prefix="p2")]
+    with pytest.raises(GenerateError, match="document_type"):
+        _gen(docs, per_text=8, seed=1)
+
+
 # --- selection: canonical-language-only --------------------------------------
 
 
