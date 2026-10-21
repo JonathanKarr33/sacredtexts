@@ -5,10 +5,10 @@ phase: implement
 plan_phases:
   - id: phase_1
     title: 'Catalogue metadata: requested_as / canonical_language'
-    status: in_progress
+    status: complete
   - id: phase_2
     title: Original-language selection, per-text quota, four-template generation
-    status: pending
+    status: in_progress
   - id: phase_3
     title: 'Scoring: leading-stance yes/no (#23), retire tasks, per-text summary'
     status: pending
@@ -21,14 +21,14 @@ plan_phases:
   - id: phase_6
     title: Live run and committed original-language evidence
     status: pending
-current_plan_phase: phase_1
+current_plan_phase: phase_2
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -67,10 +67,13 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_1-iter3-claude.txt
 started_at: '2026-10-20T22:41:46.537Z'
-updated_at: '2026-10-21T00:01:35.363Z'
+updated_at: '2026-10-21T00:01:37.703Z'
 force_advanced:
   phase: phase_1
   iteration: 3
   max_iterations: 3
   rebuttal_file: 26-phase_1-iter3-rebuttals.md
   at: '2026-10-21T00:01:35.363Z'
+context_refreshes:
+  - boundary: plan-phase:phase_2
+    at: '2026-10-21T00:01:37.703Z'
