@@ -69,6 +69,17 @@ Seeded from Spec 1 (Phase 1 benchmark).
 - **Reasoning models can return empty content** when `max_tokens` is exhausted by
   hidden reasoning (gpt-oss-20b at 1024 → empty; 4096 fixed it). Budget output tokens
   per model; the resumable `collect` then fills the stragglers without re-paying.
+- **…and some cells stay empty even at an adequate `max_tokens`** (gpt-oss-20b via
+  OpenRouter, Spec 26 run: ~28 empties on pass 1 at 4096; all but one recovered over
+  retries, one Talmud-Aramaic `cite_passage` cell stayed empty across ~15 attempts). A
+  persistent empty is a **missing cell** (stays pending — never a blank answer row), not a
+  refusal; `score --questions --config` reports it as `miss N`. Don't loop `collect`
+  indefinitely chasing it; document the residual and move on.
+- **A smoke cost-extrapolation is ~2× low for reasoning-heavy models + retries** (Spec 26:
+  $6.4 projected vs $12.9 actual — gpt-oss-20b emitted ~786K output tokens and needed 5
+  retry passes). Gate with headroom, measure actuals against the provider credit balance
+  (not per-token prices — an OpenRouter/unpriced run has none), and re-check the balance
+  mid-run against a floor.
 - **Keep a budgeted live smoke in the loop** — mocking the provider seam hides
   live-only failures; the smoke caught the empty-output mode before the full run.
 - **Validate model slugs against the provider's own catalogue** (OpenRouter

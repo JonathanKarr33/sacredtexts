@@ -306,3 +306,26 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
   dir generated: runs/original-2026-10-21/questions.jsonl (digest ca5b5d5372f81603). Next: score
   (--summary-md), audit, viewer smoke, README with parsed-is-None diagnostic + limitations, then
   the Phase-6 doc repoints (TUTORIAL ref-run, CODE_WALKTHROUGH:53 two→three folders).
+
+### Phase 6 COMPLETE — live run committed + consult APPROVE (2026-10-21)
+- Run done: 1427/1428 cells (haiku 476, opus 476, gpt-oss-20b 475). One persistent gpt-oss-20b
+  empty-response: cite_passage-c928714ccf35 (Talmud Aramaic) across ~15 attempts — documented as a
+  missing cell (not refused). Headline opus 68% / haiku 49% / gpt-oss-20b 22% (acc w/ coverage).
+  Re-score byte-for-byte ✓; audit origin-clean (1 path); viewer vitest 158 ✓; pipelines 364 ✓.
+- Real cost ≈ $12.9 (credits $77.37→~$64.5), ~2× the $6.4 smoke extrapolation — gpt-oss-20b long
+  reasoning output (786K out tok) + 5 retry passes broke the linear estimate. Well inside the $40
+  ceiling. Mid-run credit check done ($64.48, >$15 floor).
+- Commits: 86317b2 (run+panel+docs), d068d6f (iter-1 consult fixes: new
+  test_original_run_regression.py re-score+digest guard, corrected false KJV/English claims,
+  TUTORIAL four-contestants reconcile, audit path quote), 4a43f37 (iter-2 nit: CODE_WALKTHROUGH
+  Must-NOT-touch list).
+- Consult: iter-1 both REQUEST_CHANGES (gen-invariance anchor missing + docstring lied; false
+  headline claims; TUTORIAL framing; audit path count) → all fixed. iter-2 both APPROVE.
+- **CARRY TO REVIEW DOC** (known evidence gaps, not defects):
+  1. verify_source refused = 0/357 — no live cell exercised the #23 leading-stance refusal path
+     (negation-evasion). Covered by unit tests in test_score.py; README is upfront about it.
+  2. Panel deviation from plan (Anthropic haiku+opus × search on/off → 3 OpenRouter models,
+     search-off) is a SANCTIONED deviation: builder blocked on absent ANTHROPIC_API_KEY, reported,
+     and Waleed explicitly directed OpenRouter + ≤$40 on 2026-10-21. No search-on/off contrast in
+     this run (documented in run README §"Why no search arms").
+  3. Smoke cost-extrapolation method is ~2× low for models with heavy reasoning output + retries.
