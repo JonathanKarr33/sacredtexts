@@ -17,18 +17,18 @@ plan_phases:
     status: complete
   - id: phase_5
     title: 'Docs: tutorial, walkthrough, README, arch-critical'
-    status: in_progress
+    status: complete
   - id: phase_6
     title: Live run and committed original-language evidence
-    status: pending
-current_plan_phase: phase_5
+    status: in_progress
+current_plan_phase: phase_6
 gates:
   pr:
     status: pending
   verify-approval:
     status: pending
-iteration: 3
-build_complete: true
+iteration: 1
+build_complete: false
 history:
   - iteration: 1
     plan_phase: phase_1
@@ -139,7 +139,7 @@ history:
         file: >-
           /Users/mwk/Development/faithfamilytechnologynetwork/sacredtexts/.builders/aspir-26/codev/projects/26-original-language-only-questio/26-phase_5-iter3-claude.txt
 started_at: '2026-10-20T22:41:46.537Z'
-updated_at: '2026-10-21T01:50:52.148Z'
+updated_at: '2026-10-21T01:50:53.830Z'
 force_advanced:
   phase: phase_5
   iteration: 3
@@ -159,3 +159,5 @@ context_refreshes:
   - boundary: plan-phase:phase_5
     at: '2026-10-21T01:26:23.249Z'
     acknowledged_at: '2026-10-21T01:31:17.901Z'
+  - boundary: plan-phase:phase_6
+    at: '2026-10-21T01:50:53.829Z'
