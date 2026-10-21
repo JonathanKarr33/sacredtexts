@@ -113,8 +113,8 @@ export interface QuestionResult {
   expected: string;
   tradition: string[];
   // Per-metric similarity scores the task emits; null where a task does not emit one
-  // (or the question is missing). retrieve_quote/complete_unit emit all three;
-  // identify_version emits exact/normalized; other tasks emit none.
+  // (or the question is missing). retrieve_quote/complete_unit emit these (per the selected
+  // graders); cite_passage/verify_source emit none.
   exact: number | null;
   normalized: number | null;
   token_f1: number | null;
@@ -188,13 +188,10 @@ export function parseJsonl<T>(text: string, where = "jsonl"): T[] {
   return out;
 }
 
-function expectedText(task: string, expected: Record<string, unknown>): string {
-  // the human-readable ground truth for the per-question list
-  if (task === "identify_source" && typeof expected.work === "string") {
-    const cite = typeof expected.citation === "string" ? ` — ${expected.citation}` : "";
-    return `${expected.work}${cite}`;
-  }
-  for (const k of ["text", "citation", "version", "answer", "work"]) {
+function expectedText(_task: string, expected: Record<string, unknown>): string {
+  // the human-readable ground truth for the per-question list: retrieve_quote/complete_unit → text,
+  // cite_passage → citation, verify_source → answer (yes/no).
+  for (const k of ["text", "citation", "answer"]) {
     if (typeof expected[k] === "string") return expected[k] as string;
   }
   return JSON.stringify(expected);

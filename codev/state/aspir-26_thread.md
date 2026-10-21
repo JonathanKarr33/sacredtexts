@@ -233,3 +233,12 @@ four templates, add `original_language`/`ask_as`/`citation_hint` to source.yaml.
       verify_source number until hardened" → "closed by Spec 26", and the stale CODE_WALKTHROUGH
       _SUBMETRICS / "answer must be a label" prose. Must land before Phase 6 reports a
       verify_source number.
+
+### IMPLEMENT Phase 4 built (viewer retirement) — 2026-10-21
+- Removed identify_version/identify_source from apps/viewer: localResults.ts (dropped the
+  identify_source expectedText branch; expectedText now text/citation/answer; updated the
+  submetric comment); explorer.test.ts + QuestionList.test.tsx fixtures switched from
+  identify_version to kept tasks (verify_source / cite_passage). No retired-task refs remain
+  (grep clean). Viewer vitest 157 passed; tsc --noEmit clean. (by_text not rendered — scope is
+  retirement only, per plan; summary.md/json is the per-text source of truth.)
+- Ran pnpm -C apps/viewer install (node_modules gitignored, not committed).
